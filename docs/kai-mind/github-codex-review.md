@@ -1,29 +1,29 @@
-# GitHub Codex Code Review Setup
+# GitHub Codex Code Review 設定
 
-This document tracks how KAI-Mind should use Codex with GitHub pull requests.
+這份文件記錄 KAI-Mind 應如何在 GitHub pull requests 中使用 Codex。
 
-## Recommended Path
+## 建議路線
 
-Use official Codex GitHub code review first. Add a custom GitHub Action later only if the team needs more control.
+優先使用官方 Codex GitHub code review。等團隊需要更細的控制時，再考慮自訂 GitHub Action。
 
-## Setup Checklist
+## 設定 Checklist
 
-1. Enable Codex Cloud for this repository.
-2. Go to Codex settings.
-3. Turn on Code review for this repository.
-4. Turn on Automatic reviews if every PR should be reviewed automatically.
-5. Add repository review guidance in `AGENTS.md`.
-6. Keep human review required. Codex is an additional reviewer, not a replacement.
+1. 替這個 repository 啟用 Codex Cloud。
+2. 進入 Codex settings。
+3. 對這個 repository 開啟 Code review。
+4. 如果希望每個 PR 都自動 review，開啟 Automatic reviews。
+5. 在 repo 根目錄使用 `AGENTS.md` 補上專案 review guidance。
+6. 保留 human review。Codex 是額外 reviewer，不是替代 reviewer。
 
-## Manual Review Trigger
+## 手動觸發 Review
 
-In a pull request comment:
+在 pull request comment 中輸入：
 
 ```text
 @codex review
 ```
 
-Focused examples:
+也可以指定 review 方向：
 
 ```text
 @codex review for security regressions, missing tests, and risky behavior changes.
@@ -33,34 +33,34 @@ Focused examples:
 
 ## Automatic Reviews
 
-When automatic reviews are enabled in Codex settings, Codex can review PRs when they are opened or marked ready for review. This is useful once the team has a steady PR flow.
+當 Codex settings 中開啟 automatic reviews 後，Codex 可以在 PR 被建立或標記 ready for review 時自動 review。這適合在團隊 PR flow 穩定後啟用。
 
 ## Repository Guidance
 
-The root `AGENTS.md` should tell Codex what matters in this project:
+根目錄的 `AGENTS.md` 應告訴 Codex 這個專案重視什麼：
 
-- Scanner behavior must be read-only by default.
-- Do not print secret values.
-- Flag network exposure and cloud fallback risks.
-- Check JSON schema compatibility.
-- Check missing tests for scanner behavior.
+- Scanner behavior 預設必須 read-only。
+- 不顯示 secret values。
+- 標記 network exposure 與 cloud fallback 風險。
+- 檢查 JSON schema compatibility。
+- 檢查 scanner behavior 是否缺少 tests。
 
-## Optional Custom GitHub Action
+## 可選：自訂 GitHub Action
 
-If the team later wants a custom workflow, use `openai/codex-action`:
+如果團隊之後想要更客製化的 workflow，可以使用 `openai/codex-action`：
 
-- Trigger on `pull_request`.
-- Checkout the PR merge commit.
-- Run Codex with a review prompt.
-- Post the final Codex output as a PR comment.
+- 在 `pull_request` 時觸發。
+- Checkout PR merge commit。
+- 用 review prompt 執行 Codex。
+- 將 Codex output 貼成 PR comment。
 
-This gives more control but also requires managing API keys, workflow permissions, sandboxing, and cost.
+這種方式控制力更高，但也需要管理 API keys、workflow permissions、sandboxing 與成本。
 
-## Current Recommendation
+## 目前建議
 
-For MVP:
+MVP 階段：
 
-- Use official Codex PR review after Codex Cloud is enabled.
-- Keep `AGENTS.md` focused and short.
-- Ask Codex manually with `@codex review` until the team is comfortable.
-- Turn on automatic reviews once PR volume increases.
+- 等 Codex Cloud 啟用後，先使用官方 Codex PR review。
+- 保持 `AGENTS.md` 短且聚焦。
+- 一開始先用 `@codex review` 手動請 Codex review。
+- 等 PR 數量上來後，再開啟 automatic reviews。

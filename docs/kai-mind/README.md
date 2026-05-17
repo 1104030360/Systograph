@@ -1,40 +1,40 @@
 # KAI-Mind Roadmap
 
-This folder contains the current roadmap and workflow notes for turning Local AI Health Doctor into KAI-Mind: an AI Agent / RAG Release Readiness Gate.
+這個資料夾保存目前的 roadmap 與 GitHub 工作流程規劃，用來把 Local AI Health Doctor 轉向成 KAI-Mind：AI Agent / RAG Release Readiness Gate。
 
 ## Parent Epic Issues
 
-| Issue | Epic | Purpose |
+| Issue | Epic | 目的 |
 | --- | --- | --- |
-| [#1](https://github.com/1104030360/Local-AI-Health-Doctor/issues/1) | Project Foundation | Decide cross-platform core, CLI, Local Web UI, repo workflow, and report contracts. |
-| [#2](https://github.com/1104030360/Local-AI-Health-Doctor/issues/2) | System Map Builder | Scan project inputs and produce `ai_system_map.json`. |
-| [#3](https://github.com/1104030360/Local-AI-Health-Doctor/issues/3) | Runtime Readiness | Check Ollama, Docker, native services, Qdrant, and app/API health. |
-| [#4](https://github.com/1104030360/Local-AI-Health-Doctor/issues/4) | Privacy & Exposure Guard | Check secrets, ports, cloud endpoints, and Data Leaves Device risk. |
-| [#5](https://github.com/1104030360/Local-AI-Health-Doctor/issues/5) | Agent Tool Risk Guard | Inventory agent tools, permissions, approval, policy, and audit logs. |
-| [#6](https://github.com/1104030360/Local-AI-Health-Doctor/issues/6) | RAG Knowledge Trust | Check collections, metadata, citations, and answer grounding. |
-| [#7](https://github.com/1104030360/Local-AI-Health-Doctor/issues/7) | Release Report & CI Gate | Generate verdict, evidence, JSON report, exit code, and CI gate behavior. |
-| [#8](https://github.com/1104030360/Local-AI-Health-Doctor/issues/8) | Distribution & Integrations | Plan launchers, GitHub Action, Codex review, and future integrations. |
+| [#1](https://github.com/1104030360/Local-AI-Health-Doctor/issues/1) | 專案基礎 | 決定跨平台 core、CLI、Local Web UI、repo workflow 與 report contracts。 |
+| [#2](https://github.com/1104030360/Local-AI-Health-Doctor/issues/2) | System Map Builder | 掃描 project inputs 並產出 `ai_system_map.json`。 |
+| [#3](https://github.com/1104030360/Local-AI-Health-Doctor/issues/3) | Runtime Readiness | 檢查 Ollama、Docker、native services、Qdrant 與 app/API health。 |
+| [#4](https://github.com/1104030360/Local-AI-Health-Doctor/issues/4) | Privacy & Exposure Guard | 檢查 secrets、ports、cloud endpoints 與 Data Leaves Device 風險。 |
+| [#5](https://github.com/1104030360/Local-AI-Health-Doctor/issues/5) | Agent Tool Risk Guard | 盤點 agent tools、permissions、approval、policy 與 audit logs。 |
+| [#6](https://github.com/1104030360/Local-AI-Health-Doctor/issues/6) | RAG Knowledge Trust | 檢查 collections、metadata、citations 與 answer grounding。 |
+| [#7](https://github.com/1104030360/Local-AI-Health-Doctor/issues/7) | Release Report & CI Gate | 產出 verdict、evidence、JSON report、exit code 與 CI gate 行為。 |
+| [#8](https://github.com/1104030360/Local-AI-Health-Doctor/issues/8) | Distribution & Integrations | 規劃 launchers、GitHub Action、Codex review 與後續 integrations。 |
 
-## Recommended Development Order
+## 建議開發順序
 
-1. Keep all parent epics open as roadmap anchors.
-2. Split only Epic 1 into sub-issues first.
-3. Build System Map Builder until it can scan a sample AI stack.
-4. Use the first `ai_system_map.json` as the shared input contract for later modules.
-5. Move to Runtime Readiness after Epic 1 is usable end to end.
+1. 先讓所有 parent epics 作為 roadmap anchors。
+2. 只拆 Epic 1 的 sub-issues。
+3. 先完成 System Map Builder，讓它可以掃描 sample AI stack。
+4. 將第一版 `ai_system_map.json` 當作後續模組的共同 input contract。
+5. Epic 1 能 end-to-end 跑通後，再進入 Runtime Readiness。
 
-## Epic 1 Suggested Sub-Issues
+## Epic 1 建議 Sub-Issues
 
-- Define AI System Map schema.
-- Create sample AI system project.
-- Implement project folder scanner.
-- Implement config / `.env` scanner.
-- Implement `docker-compose.yml` scanner.
-- Export `ai_system_map.json`.
+- 定義 AI System Map schema。
+- 建立 sample AI system project。
+- 實作 project folder scanner。
+- 實作 config / `.env` scanner。
+- 實作 `docker-compose.yml` scanner。
+- 匯出 `ai_system_map.json`。
 
-## Branch Naming
+## Branch 命名
 
-Use branch names that map clearly to the issue:
+Branch 名稱要能清楚對應 issue：
 
 ```text
 feature/system-map-schema
@@ -45,12 +45,12 @@ feature/docker-compose-scanner
 feature/system-map-json-export
 ```
 
-## Definition of Done for a Parent Epic
+## Parent Epic 的 Definition of Done
 
-An epic is done only when:
+一個 Epic 只有在以下條件成立時才算完成：
 
-- The feature produces evidence, not just a pass/fail label.
-- The result can be represented in JSON.
-- The report can explain what the user should fix first.
-- Risky checks are read-only by default.
-- The README or relevant docs are updated.
+- 功能有產出 evidence，不只是 pass/fail label。
+- 結果可以表示成 JSON。
+- 報告能說明使用者最應該先修什麼。
+- Risky checks 預設是 read-only。
+- README 或相關文件已更新。

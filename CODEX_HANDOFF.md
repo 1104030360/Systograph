@@ -1,35 +1,35 @@
-# Codex Handoff
+# Codex 交接文件
 
-Use this file when opening the repository from another computer or another Codex session. It is the shared working memory for the current planning branch.
+當你在另一台電腦或另一個 Codex session 開啟這個 repo 時，請先讀這份文件。它是目前規劃 branch 的共享工作記憶。
 
-## Current Branch
+## 目前 Branch
 
 ```text
 kai-mind-roadmap-issues
 ```
 
-## Current Goal
+## 目前目標
 
-Prepare the repository for KAI-Mind roadmap work:
+替 KAI-Mind roadmap 建立 repo 內的基礎文件：
 
-- Open parent Epic issues on GitHub.
-- Document the cross-platform architecture decision.
-- Save public reference repositories for input-layer research.
-- Document GitHub Codex review setup.
-- Update README so future contributors know where to start.
+- 在 GitHub 開好 Parent / Epic issues。
+- 記錄跨平台架構決策。
+- 保存 input layer 研究用的公開 repo。
+- 記錄 GitHub Codex review 設定方式。
+- 更新 README，讓後續貢獻者知道要從哪裡開始。
 
-## GitHub Issues Created
+## 已建立的 GitHub Issues
 
-- #1 `[Epic 0] Project Foundation: Cross-platform Core, CLI, and Local Web UI`
-- #2 `[Epic 1] System Map Builder: Discover AI Stack Inputs and Data Flow`
-- #3 `[Epic 2] Runtime Readiness: Ollama, Docker, Native Services, and Qdrant`
-- #4 `[Epic 3] Privacy & Exposure Guard: Secrets, Ports, and Cloud Endpoints`
-- #5 `[Epic 4] Agent Tool Risk Guard: Tool Inventory, Permissions, and Auditability`
-- #6 `[Epic 5] RAG Knowledge Trust: Collections, Metadata, Citations, and Grounding`
-- #7 `[Epic 6] Release Report & CI Gate: Verdict, Evidence, JSON, and Exit Code`
-- #8 `[Epic 7] Distribution & Integrations: Packaging, GitHub Action, and Developer Workflow`
+- #1 `[Epic 0] 專案基礎：跨平台 Core、CLI 與 Local Web UI`
+- #2 `[Epic 1] System Map Builder：探索 AI Stack Inputs 與 Data Flow`
+- #3 `[Epic 2] Runtime Readiness：Ollama、Docker、Native Services 與 Qdrant`
+- #4 `[Epic 3] Privacy & Exposure Guard：Secrets、Ports 與 Cloud Endpoints`
+- #5 `[Epic 4] Agent Tool Risk Guard：Tool Inventory、Permissions 與 Auditability`
+- #6 `[Epic 5] RAG Knowledge Trust：Collections、Metadata、Citations 與 Grounding`
+- #7 `[Epic 6] Release Report & CI Gate：Verdict、Evidence、JSON 與 Exit Code`
+- #8 `[Epic 7] Distribution & Integrations：Packaging、GitHub Action 與 Developer Workflow`
 
-## Files Added or Updated
+## 已新增或更新的文件
 
 - `README.md`
 - `AGENTS.md`
@@ -39,42 +39,42 @@ Prepare the repository for KAI-Mind roadmap work:
 - `docs/kai-mind/public-reference-repos.md`
 - `docs/kai-mind/github-codex-review.md`
 
-## Product Decision Snapshot
+## 產品決策摘要
 
-KAI-Mind should not be a Windows-only `.exe`.
+KAI-Mind 不應該做成 Windows-only `.exe`。
 
-The recommended architecture is:
+建議架構是：
 
 ```text
 Core Engine + CLI + Local Backend + Local Web UI + thin platform launchers
 ```
 
-The CLI is the stable contract. Launchers are convenience wrappers.
+CLI 是穩定 contract。Launchers 只是方便使用者啟動的外層包裝。
 
-## Next Suggested Development Step
+## 下一步建議
 
-Start from Epic 1 only:
+只從 Epic 1 開始：
 
-1. Create sub-issues under #2.
-2. Define `ai_system_map.json` schema.
-3. Add a small sample AI stack fixture.
-4. Implement folder/config scanner.
-5. Export the first system map.
+1. 在 #2 底下建立 sub-issues。
+2. 定義 `ai_system_map.json` schema。
+3. 新增一個小型 sample AI stack fixture。
+4. 實作 folder/config scanner。
+5. 匯出第一版 system map。
 
-Do not split all epics into detailed tasks yet.
+目前不要把所有 Epic 都拆成細項 task，避免團隊一開始就分散。
 
-## Important Constraints
+## 重要限制
 
-- Scanners should be read-only by default.
-- Do not print full secret values.
-- Keep scanner logic in the core, not in the launcher.
-- Local Web UI should call local backend/CLI, not scan sensitive files directly from browser-only code.
-- Codex Cloud is not enabled yet, so this handoff file is the cross-device sync mechanism for now.
+- Scanner 預設應該 read-only。
+- 不要印出完整 secret values。
+- Scanner logic 應放在 core，不要放在 launcher。
+- Local Web UI 應呼叫 local backend / CLI，不要用純 browser code 掃描敏感檔案。
+- Codex Cloud 尚未啟用，所以這份 handoff file 暫時作為跨設備同步機制。
 
-## How Another Codex Session Should Resume
+## 另一個 Codex Session 應如何接手
 
-1. Read `README.md`.
-2. Read this file.
-3. Read `docs/kai-mind/README.md`.
-4. Check `git status --short --branch`.
-5. If continuing implementation, start with Epic 1 schema work.
+1. 先讀 `README.md`。
+2. 再讀本文件。
+3. 再讀 `docs/kai-mind/README.md`。
+4. 執行 `git status --short --branch`。
+5. 如果要繼續實作，從 Epic 1 schema work 開始。

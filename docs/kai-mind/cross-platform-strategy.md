@@ -1,12 +1,12 @@
-# Cross-Platform Strategy
+# 跨平台架構策略
 
-## Decision
+## 決策
 
-Do not build KAI-Mind as a Windows-only `.exe`.
+不要把 KAI-Mind 做成 Windows-only `.exe`。
 
-Build the product around a shared Core Engine and CLI. The Windows `.exe`, macOS app, Local Web UI, and CI integration should all call the same core behavior.
+產品應該以共用的 Core Engine 與 CLI 為中心。Windows `.exe`、macOS app、Local Web UI 與 CI integration 都應該呼叫同一份 core behavior。
 
-## Recommended Architecture
+## 建議架構
 
 ```text
 KAI-Mind
@@ -28,42 +28,42 @@ KAI-Mind
     +-- Linux: binary or AppImage
 ```
 
-## Why Local Web UI Is Still Safe for Data Access
+## 為什麼 Local Web UI 不會影響資料讀取
 
-A pure browser app cannot safely and reliably scan local project folders, `.env` files, Docker state, ports, and running services because browser filesystem access is restricted.
+純 browser app 沒辦法安全且穩定地掃描本機 project folders、`.env`、Docker state、ports 與 running services，因為瀏覽器的 filesystem access 受到限制。
 
-A Local Web UI is different:
+Local Web UI 則不同：
 
-- The UI runs in the browser at `localhost`.
-- A local backend or CLI performs the actual scan.
-- The scanner reads only user-selected folders or explicitly configured targets.
-- Reports are generated locally by default.
+- UI 在 `localhost` 的 browser 中執行。
+- 實際掃描由 local backend 或 CLI 執行。
+- Scanner 只讀取使用者選擇的 folder 或明確設定的 target。
+- Reports 預設在本機產生。
 
-This means switching from `.exe only` to Local Web UI does not weaken the scanner. It makes the product cross-platform while keeping the sensitive work local.
+因此，從 `.exe only` 改成 Local Web UI 不會削弱 scanner 能力。它只是讓產品更跨平台，同時保留 local-first 的資料處理方式。
 
-## Suggested MVP Stack
+## MVP 建議技術
 
-- Core / CLI: Python
-- Local API: FastAPI
-- Web UI: React or another lightweight frontend
-- Packaging later: Tauri or Electron launcher
-- CI: GitHub Actions using the CLI
+- Core / CLI：Python
+- Local API：FastAPI
+- Web UI：React 或其他輕量 frontend
+- 後續 packaging：Tauri 或 Electron launcher
+- CI：GitHub Actions 呼叫 CLI
 
 ## Guardrails
 
-- Scanners must be read-only by default.
-- Do not print full secret values.
-- Network checks should be shallow and explain uncertainty.
-- `0.0.0.0` should be reported as possible exposure, not automatically as internet exposure.
-- Keep launcher code thin; do not duplicate scanner logic inside platform-specific packages.
+- Scanners 預設必須 read-only。
+- 不顯示完整 secret values。
+- Network checks 應該是 shallow checks，並說明不確定性。
+- `0.0.0.0` 應回報為 possible exposure，不應直接等同於 internet exposure。
+- Launcher code 要保持薄，不要在 platform-specific packages 中重複 scanner logic。
 
-## Practical Team Workflow
+## 實務團隊流程
 
-Windows and macOS developers should both be able to run:
+Windows 與 macOS 開發者都應該可以執行：
 
 ```bash
 kai-mind scan --project ./sample-ai-stack --output report.json
 kai-mind gate --ci
 ```
 
-The launcher is only convenience. The CLI is the real contract.
+Launcher 只是 convenience。CLI 才是真正穩定的 contract。
