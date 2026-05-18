@@ -1,5 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: KAI-Mind repository
-    url: https://github.com/1104030360/Local-AI-Health-Doctor
-    about: 請先確認 issue 是否屬於 release-readiness、scanner、CLI、packaging、GitHub review 或 cross-platform 範圍。

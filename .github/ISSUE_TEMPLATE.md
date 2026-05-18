@@ -1,11 +1,3 @@
----
-name: KAI-Mind Issue
-about: 使用 Objective、Origin Document、Goals、Deliverable 統一描述 issue
-title: ""
-labels: ""
-assignees: ""
----
-
 ## Objective (最終目的)
 
 <!--
