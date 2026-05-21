@@ -40,10 +40,10 @@ Core Engine + CLI
 
 ## 重要文件
 
-- [KAI-Mind roadmap](docs/kai-mind/README.md)
-- [跨平台架構策略](docs/kai-mind/cross-platform-strategy.md)
-- [公開參考 repo](docs/kai-mind/public-reference-repos.md)
-- [GitHub Codex code review 設定](docs/kai-mind/github-codex-review.md)
+- [Epic 1 設計文件](docs/design/epic1.md)
+- [Epic 1 規格概述](docs/spec/draft/epic1.md)
+- [System Map ERM](docs/spec/erm.dbml)
+- [Epic 1 decisions](docs/spec/.clarify/overview.md)
 
 ## 建議的第一階段開發流程
 

@@ -1,224 +1,99 @@
-// KAI-Mind Epic 1 - RAG System Map Builder Entity Relationship Model
-// Source: docs/spec/draft/overview.md and docs/spec/draft/epic1.md
+// KAI-Mind Epic 1 - AI System Map data model
+// Scope: RAG System Map Builder MVP
 
 Table RagSystemMap {
-  schema_version string [primary key, note: 'AI System Map schema version for the Epic 1 artifact ai_system_map.json. Example: ai-system-map/v1']
-  system_type string [not null, note: 'System type for Epic 1. Epic 1 fixes this value to rag.']
-
-  Note: '''
-    Standardized RAG System Map produced by Epic 1.
-    It is the machine-readable foundation for later Runtime Readiness, Privacy & Exposure, RAG Knowledge Trust, and CI/CD Gate checks.
-
-    Invariants:
-    - system_type must be rag in Epic 1.
-    - Scanner output must use evidence, slot status, and recommended next checks.
-    - Scanner output must not use confidence.
-    - Full API key or secret values must not be displayed.
-    - Secret-like values may show a small prefix and suffix, with the middle masked.
-  '''
-}
-
-Table Project {
-  root_path string [primary key, note: 'Input project folder path scanned by KAI-Mind. This preserves the input root path. Example: /path/to/project']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  name string [note: 'Project name recorded in the RAG System Map.']
-
-  Note: '''
-    Existing RAG project folder provided by the user.
-    KAI-Mind scans repo files, config files, Docker files, package files, and README information from this folder.
-  '''
-}
-
-Table Classification {
-  system_map_schema_version string [primary key, note: 'Associated RAG System Map schema_version.']
-  mode string [not null, note: 'Classification mode. Epic 1 uses user_selected_or_default.']
-  selected_template string [not null, note: 'Selected reference architecture template. Example: rag-core-v1']
-  future_layer string [note: 'Future classification layer marker. Example: architecture_classification']
-
-  Note: '''
-    Classification placeholder for Epic 1.
-    Epic 1 fixes the selected architecture type to RAG while preserving fields for a future deterministic architecture classification layer.
-  '''
-}
-
-Table ReferenceArchitecture {
-  id string [primary key, note: 'Reference architecture template id. Example: rag-core-v1']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  flows string [note: 'JSON array of flow ids. Epic 1 mentions indexing and query_answer.']
-  component_slots string [note: 'JSON array of RAG reference architecture component slot names.']
-
-  Note: '''
-    RAG reference architecture template loaded before scanning.
-    It provides component slots for deterministic scanner rules and GUI visualization.
-  '''
+  schema_version string [pk, note: 'ai-system-map/v1']
+  system_type string [not null, note: 'rag for Epic 1']
+  project_name string
+  project_root string [note: 'Display only. Prefer project-relative paths in evidence.']
+  selected_template string [not null, note: 'rag-core-v1']
+  generated_at string
 }
 
 Table ComponentSlot {
-  slot string [primary key, note: 'RAG component slot name such as vector_store, llm, retriever, or citation_or_response_composer.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  reference_architecture_id string [not null, note: 'ReferenceArchitecture.id that defines this slot.']
-  required_for_rag bool [note: 'Whether this slot is required for this RAG project. The value is not fixed by the reference architecture; scanner determines it from project evidence.']
-  status string [not null, note: 'Slot status. Allowed values: detected, missing, not_configured, not_applicable.']
-
-  Note: '''
-    Normalized RAG component slot scanned from the reference architecture.
-
-    Invariants:
-    - required_for_rag is determined by scanner based on project evidence.
-    - status must be one of detected, missing, not_configured, not_applicable.
-    - detected requires at least one ComponentInstance with Evidence.
-    - missing, not_configured, and not_applicable must not invent component instances without evidence.
-  '''
+  id string [pk]
+  system_map_schema_version string [not null]
+  slot string [not null, note: 'data_source, chunking, embedding_model, vector_store, retriever, llm, etc.']
+  status string [not null, note: 'detected | missing | not_configured | not_applicable']
+  required_for_rag boolean
+  summary string
 }
 
 Table ComponentInstance {
-  id string [primary key, note: 'Detected component instance id. Example: qdrant_vector_db or ollama_runtime.']
-  slot string [not null, note: 'ComponentSlot.slot where this detected instance belongs.']
-  kind string [not null, note: 'Detected component kind. Examples in the spec include vector_db and llm_runtime.']
-  name string [not null, note: 'Human-readable detected component name. Examples include Qdrant and Ollama.']
-
-  Note: '''
-    A concrete component instance detected for a RAG component slot.
-    Every detected component must contain slot, status, name, and evidence in the Epic 1 acceptance criteria.
-  '''
-}
-
-Table Evidence {
-  id string [primary key, note: 'Evidence identifier for linking scanner facts and GUI detail panels.']
-  component_instance_id string [note: 'ComponentInstance.id supported by this evidence.']
-  kind string [not null, note: 'Evidence kind. Examples include docker_service, published_port, and env_key.']
-  file string [note: 'Project-relative POSIX source file path where the evidence was found, such as docker-compose.yml or src/rag.py.']
-  path string [note: 'Structured source path inside the source file, such as services.qdrant.image.']
-  value string [note: 'Evidence value. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
-
-  Note: '''
-    Scanner evidence fact used to justify a component, endpoint, exposure hint, or GUI detail.
-    Evidence must be traceable to source files or config paths.
-
-    Invariants:
-    - file must use project-relative POSIX path format across Windows and macOS.
-    - Project.root_path preserves the input root path.
-  '''
+  id string [pk]
+  slot_id string [not null]
+  name string [not null]
+  kind string [not null]
+  evidence_ids string [note: 'JSON array of Evidence.id values']
 }
 
 Table Endpoint {
-  id string [primary key, note: 'Endpoint identifier in the RAG System Map.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  value string [not null, note: 'Endpoint value detected by the scanner. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
-  evidence_id string [not null, note: 'Evidence.id that identifies the source of this endpoint.']
-  endpoint_type string [not null, note: 'Endpoint type. Allowed values: local, external.']
+  id string [pk]
+  system_map_schema_version string [not null]
+  endpoint_type string [not null, note: 'local | external']
+  value string [not null, note: 'Masked if secret-like']
+  source_component_id string
+  evidence_ids string [note: 'JSON array of Evidence.id values']
+}
 
-  Note: '''
-    Endpoint detected in the scanned RAG project.
-    Endpoints are modeled independently in the RAG System Map so external endpoint detection, network exposure hints, GUI detail panels, and later Privacy & Exposure checks can use a stable data structure.
-
-    Invariants:
-    - endpoint_type must be one of local, external.
-    - each Endpoint must reference source Evidence.
-    - full API key or secret values must not be displayed in value.
-    - secret-like endpoint values may show a small prefix and suffix, with the middle masked.
-  '''
+Table Evidence {
+  id string [pk]
+  system_map_schema_version string [not null]
+  kind string [not null, note: 'file, config_key, docker_service, dependency, code_pattern, parse_error']
+  file string [note: 'Project-relative POSIX path']
+  path string [note: 'Config path, JSON path, YAML path, or code symbol when available']
+  value string [note: 'Masked or omitted when sensitive']
+  line_start int
+  line_end int
+  parser string
+  masked boolean
 }
 
 Table Flow {
-  id string [primary key, note: 'Flow id. Epic 1 mentions indexing and query_answer.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-
-  Note: '''
-    RAG flow represented in the System Map.
-    Epic 1 uses indexing flow and query / answer flow as reference architecture flows.
-  '''
+  id string [pk]
+  system_map_schema_version string [not null]
+  name string [not null, note: 'indexing | query_answer']
+  summary string
 }
 
 Table Edge {
-  id string [primary key, note: 'Connection edge id for graph visualization and detail lookup.']
-  flow_id string [not null, note: 'Flow.id that owns this edge.']
-  from_slot string [not null, note: 'Source ComponentSlot.slot.']
-  to_slot string [not null, note: 'Target ComponentSlot.slot.']
-  relationship string [not null, note: 'Relationship reason. Examples include calls_retriever, queries_vector_store, and builds_prompt_for.']
-
-  Note: '''
-    Connection between RAG component slots.
-    GUI users can click an edge to see the connection reason.
-  '''
+  id string [pk]
+  flow_id string [not null]
+  from_slot_id string [not null]
+  to_slot_id string [not null]
+  relationship string [not null]
+  evidence_ids string [note: 'JSON array of Evidence.id values']
 }
 
 Table RiskHint {
-  id string [primary key, note: 'Risk hint identifier.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  type string [not null, note: 'Risk hint type. Examples include network_exposure and external endpoint.']
-  target string [not null, note: 'Target of the risk hint, such as a ComponentInstance.id, Endpoint.id, or ComponentSlot.slot.']
-  target_type string [not null, note: 'Target type. Allowed values: component_instance, endpoint, component_slot.']
-  evidence_id string [not null, note: 'Evidence.id that supports this risk hint and allows users to trace back to source evidence.']
-  rule_id string [not null, note: 'Scanner rule id that produced this risk hint.']
-  rationale string [not null, note: 'Human-readable explanation of why the evidence triggered this risk hint.']
-  uncertainty string [note: 'Human-readable uncertainty note explaining limits of the hint.']
-  severity_hint string [note: 'Initial severity hint. Example: high.']
-
-  Note: '''
-    Initial risk hint produced by Epic 1.
-    Epic 1 records exposure and external-provider hints, but complete security judgment belongs to later epics.
-
-    Invariants:
-    - every RiskHint must include target, target_type, evidence_id, rule_id, and rationale.
-    - evidence_id is the traceable source for the risk hint.
-    - rationale must explain why the evidence triggered the hint.
-    - uncertainty must be used when Epic 1 can only provide a hint rather than a complete security judgment.
-  '''
+  id string [pk]
+  system_map_schema_version string [not null]
+  target_type string [not null, note: 'component_instance | endpoint | component_slot']
+  target_id string [not null]
+  rule_id string [not null]
+  evidence_id string [not null]
+  severity_hint string [note: 'low | medium | high']
+  rationale string [not null]
+  uncertainty string [not null, note: 'Why this is a hint rather than a final conclusion']
 }
 
 Table RecommendedNextCheck {
-  id string [primary key, note: 'Recommended next check identifier.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  check_name string [not null, note: 'Recommended next check name. Examples include runtime_readiness, privacy_exposure, and rag_knowledge_trust.']
-
-  Note: '''
-    Follow-up checker recommendation produced from the RAG System Map.
-    These recommendations connect Epic 1 output to later readiness modules.
-  '''
+  id string [pk]
+  system_map_schema_version string [not null]
+  check_type string [not null]
+  target_type string
+  target_id string
+  rationale string
 }
 
-Table QueryTraceEvent {
-  id string [primary key, note: 'Query trace event identifier.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  sequence_index int [not null, note: 'Replay order index for deterministic pause, step forward, step backward, and replay controls.']
-  timestamp string [not null, note: 'Actual event time for debugging and latency analysis.']
-  slot string [note: 'Mapped RAG ComponentSlot.slot for this trace step.']
-  edge_id string [note: 'Mapped Edge.id for this trace step when the event corresponds to a connection.']
-  input string [note: 'Trace step input shown in the GUI detail panel. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
-  output string [note: 'Trace step output shown in the GUI detail panel. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
-  latency string [note: 'Trace step latency shown in the GUI detail panel.']
-  error string [note: 'Trace step error shown in the GUI detail panel.']
-  retrieved_chunks string [note: 'Retrieved chunks shown for query trace replay, stored as a JSON string if present.']
-
-  Note: '''
-    Query trace or replay event collected by Epic 1 MVP through a detected RAG endpoint basic trace.
-    Proxy wrapper, trace hook, and complete runtime trace capture are advanced scope for Epic 1 or later Runtime Readiness / Observability work.
-
-    Invariants:
-    - sequence_index controls replay order.
-    - timestamp records actual event time for debugging and latency analysis.
-    - secret-like input and output values may show a small prefix and suffix, with the middle masked.
-    - full API key or secret values must not be displayed in input or output.
-  '''
-}
-
-Ref: Project.system_map_schema_version > RagSystemMap.schema_version
-Ref: Classification.system_map_schema_version > RagSystemMap.schema_version
-Ref: ReferenceArchitecture.system_map_schema_version > RagSystemMap.schema_version
 Ref: ComponentSlot.system_map_schema_version > RagSystemMap.schema_version
-Ref: ComponentSlot.reference_architecture_id > ReferenceArchitecture.id
-Ref: ComponentInstance.slot > ComponentSlot.slot
-Ref: Evidence.component_instance_id > ComponentInstance.id
+Ref: ComponentInstance.slot_id > ComponentSlot.id
 Ref: Endpoint.system_map_schema_version > RagSystemMap.schema_version
-Ref: Endpoint.evidence_id > Evidence.id
+Ref: Evidence.system_map_schema_version > RagSystemMap.schema_version
 Ref: Flow.system_map_schema_version > RagSystemMap.schema_version
 Ref: Edge.flow_id > Flow.id
-Ref: Edge.from_slot > ComponentSlot.slot
-Ref: Edge.to_slot > ComponentSlot.slot
+Ref: Edge.from_slot_id > ComponentSlot.id
+Ref: Edge.to_slot_id > ComponentSlot.id
 Ref: RiskHint.system_map_schema_version > RagSystemMap.schema_version
 Ref: RiskHint.evidence_id > Evidence.id
 Ref: RecommendedNextCheck.system_map_schema_version > RagSystemMap.schema_version
-Ref: QueryTraceEvent.system_map_schema_version > RagSystemMap.schema_version
-Ref: QueryTraceEvent.slot > ComponentSlot.slot
-Ref: QueryTraceEvent.edge_id > Edge.id

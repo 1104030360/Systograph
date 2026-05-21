@@ -1,45 +1,65 @@
-# Discovery Overview
+# Epic 1 Decision Log
 
-## 1. 釐清項目統計
+This file keeps the decisions that affect implementation. It replaces the previous one-question-per-file clarification records.
 
-- 資料模型相關：0 項
-- 功能模型相關：0 項
-- 總計：0 項
+## D1. Source of Truth
 
-## 2. 優先級分佈
+`docs/design/epic1.md` is the implementation contract for Epic 1.
 
-- High：0 項
-- Medium：0 項
-- Low：0 項
+Supporting files:
 
-## 3. 建議釐清順序
+- `docs/spec/draft/epic1.md` for product/spec overview.
+- `docs/spec/erm.dbml` for data-model reference.
+- `docs/spec/features/*.feature` for high-level behavior examples.
 
-### 第四階段：細節與優化
+## D2. Scanner Boundary
 
-- 目前沒有 Low 優先級項目。
+The scanner is read-only against the target project folder. It may write only to its output directory.
 
-## 4. 釐清策略說明
+## D3. Public Repo Usage
 
-- 平衡原則：前 5 題先處理 schema contract，接著處理 map / viewer / trace 的核心交互失敗行為，再回到跨平台與 GUI 邊界。
-- 依賴關係：目前剩餘項目沒有必須先處理的資料模型前置依賴。
-- 組合釐清：目前剩餘項目可獨立處理。
+Public RAG/local-AI repos may inform fixture design, but scanner tests must use local synthetic fixtures. Do not vendor third-party repos into this repository.
 
-## 5. 覆蓋度摘要
+## D4. Normalization Layer
 
-| 分類 | 狀態 | 說明 |
-|------|------|------|
-| A1. 實體完整性 | Clear | Endpoint 已明確建模 |
-| A2. 屬性定義 | Clear | 核心屬性都有型別與 note，secret masking 邊界已定義 |
-| A3. 屬性值邊界條件 | Clear | status 值、event ordering 與 secret display 邊界已定義 |
-| A4. 跨屬性不變條件 | Clear | 目前規格沒有明確計算型跨屬性公式需求 |
-| A5. 關係與唯一性 | Clear | RiskHint 已明確關聯至 Evidence，並包含 target、rule 與 rationale |
-| A6. 生命週期與狀態 | Clear | slot status、trace replay 事件順序與 trace 錯誤狀態已定義 |
-| B1. 功能識別 | Clear | 建立 map、檢視 map、重播 query trace 三個交互點已識別 |
-| B2. 規則完整性 | Clear | 核心成功路徑、解析錯誤、viewer 前置條件、trace MVP scope 與 trace endpoint missing 行為已定義 |
-| B3. 例子覆蓋度 | Clear | 目前所有 Rule 都有 Example |
-| B4. 邊界條件覆蓋 | Clear | output overwrite、filter behavior、trace error / timeout 已定義 |
-| B5. 錯誤與異常處理 | Clear | project path 錯誤、parse error、invalid map JSON、endpoint missing、trace error 已定義 |
-| C1. 詞彙表 | Partial | 核心術語大致一致，但尚未建立獨立 glossary；目前不建立釐清項目，因不阻礙實作或驗證策略 |
-| C2. 術語衝突 | Clear | 未發現會阻礙測試的同名異義或同義混用 |
-| D1. 待決事項 | Clear | Feature files 內未留下 #TODO |
-| D2. 模糊描述 | Clear | GUI filter、trace MVP 與 trace error 邊界已明確定義 |
+Parsers emit raw scan signals. A normalization service converts those signals into system-map concepts such as component slots, endpoints, flows, evidence, and risk hints.
+
+## D5. Evidence Paths
+
+Evidence file paths use project-relative POSIX paths so outputs are stable across Windows and macOS.
+
+## D6. Secret Handling
+
+Full secret values must not appear in JSON, Markdown, logs, snapshots, or UI. Secret-like values should be masked or omitted before serialization.
+
+Raw retrieved chunks are not part of the default Epic 1 map contract because they may contain private documents or PII.
+
+## D7. Endpoints
+
+Endpoints are modeled independently from components because multiple components can reference the same endpoint, and one component can expose or depend on multiple endpoints.
+
+## D8. Risk Hint Targets
+
+Risk hints may target:
+
+- `component_instance`
+- `endpoint`
+- `component_slot`
+
+Risk hints are not final security verdicts. They must include uncertainty.
+
+## D9. Parse Failures
+
+Malformed config or Docker Compose files should create parse-error evidence and allow a partial map. Missing or unreadable project root is fatal.
+
+## D10. Output Directory
+
+The map command must not overwrite existing artifacts. If an output directory already contains artifacts, create a timestamped run directory.
+
+## D11. Viewer Filter Behavior
+
+Viewer filters keep the full graph visible and highlight matching items. They should not hide unmatched components by default.
+
+## D12. Query Trace
+
+Query trace / replay is not part of the Epic 1 MVP. It can be revisited as an explicit opt-in workflow after privacy, endpoint, and side-effect boundaries are defined.
