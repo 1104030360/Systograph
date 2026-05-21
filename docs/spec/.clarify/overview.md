@@ -2,6 +2,15 @@
 
 本文件只保留會影響實作的決策，取代原本一題一檔的 clarification records。
 
+整理後的原始脈絡保留在：
+
+- `docs/spec/.clarify/resolved/data/system-map-data-decisions.md`
+- `docs/spec/.clarify/resolved/data/future-query-trace-data-notes.md`
+- `docs/spec/.clarify/resolved/features/map-builder-behavior-decisions.md`
+- `docs/spec/.clarify/resolved/features/viewer-and-future-trace-decisions.md`
+
+這些檔案保留「為什麼這樣決定」的背景，但 `docs/design/epic1.md` 仍是實作 source of truth。
+
 ## D1. Source of Truth
 
 `docs/design/epic1.md` 是 Epic 1 的實作契約。
