@@ -1,31 +1,31 @@
-# Epic 1 Spec: RAG System Map Builder
+# Epic 1 規格：RAG System Map Builder
 
-> Status: Spec overview
-> Detailed implementation contract: `docs/design/epic1.md`
+> 狀態：規格概述
+> 詳細實作契約：`docs/design/epic1.md`
 
-## Goal
+## 目標
 
-Epic 1 makes KAI-Mind able to scan an existing RAG project folder and produce a stable, evidence-based `ai_system_map.json`.
+Epic 1 讓 KAI-Mind 可以掃描既有 RAG project folder，並產出穩定、evidence-based 的 `ai_system_map.json`。
 
-The output should let later epics answer:
+這份 output 應該讓後續 epics 可以回答：
 
-- What components exist?
-- Which files or settings prove they exist?
-- Which endpoints were detected?
-- Which risks need later checks?
-- Which RAG slots are missing or not configured?
+- 系統有哪些 components？
+- 哪些檔案或設定證明它們存在？
+- 偵測到哪些 endpoints？
+- 哪些風險需要後續檢查？
+- 哪些 RAG slots 缺失或尚未設定？
 
-Epic 1 does not decide release readiness.
+Epic 1 不判斷 release readiness。
 
-## User Story
+## 使用者故事
 
-As a developer preparing a local RAG project for review, I can run:
+作為準備 review local RAG project 的開發者，我可以執行：
 
 ```bash
 kai-mind map ./my-rag-project
 ```
 
-and receive:
+並得到：
 
 ```text
 outputs/
@@ -33,31 +33,31 @@ outputs/
   ai_system_map.md
 ```
 
-The JSON is for tools and later checks. The Markdown is for humans.
+JSON 給工具與後續 checks 使用，Markdown 給人閱讀。
 
-## In Scope
+## 包含範圍
 
-- Project folder discovery.
-- `.env`, config, Docker Compose, dependency manifest, and bounded source scan.
-- RAG-oriented component slots.
-- Endpoint detection.
-- Evidence-backed risk hints.
-- Secret-safe output.
-- Synthetic fixtures and contract tests.
+- Project folder discovery。
+- `.env`、config、Docker Compose、dependency manifest 與 bounded source scan。
+- RAG-oriented component slots。
+- Endpoint detection。
+- Evidence-backed risk hints。
+- Secret-safe output。
+- Synthetic fixtures and contract tests。
 
-## Out of Scope
+## 不包含範圍
 
-- Runtime health checks.
-- Full security scanning.
-- Agent tool policy.
-- RAG answer groundedness.
-- CI gate verdicts.
-- Query trace / replay by default.
-- Full interactive dashboard.
+- Runtime health checks。
+- 完整 security scanning。
+- Agent tool policy。
+- RAG answer groundedness。
+- CI gate verdicts。
+- 預設 query trace / replay。
+- 完整 interactive dashboard。
 
 ## RAG Slots
 
-Initial `rag-core-v1` slots:
+初始 `rag-core-v1` slots：
 
 - data source
 - document loader
@@ -73,18 +73,18 @@ Initial `rag-core-v1` slots:
 - guardrails
 - observability
 
-Each slot can be:
+每個 slot 可以是：
 
 - `detected`
 - `missing`
 - `not_configured`
 - `not_applicable`
 
-Detected slots require evidence.
+Detected slots 必須有 evidence。
 
-## Required Map Concepts
+## 必要 Map Concepts
 
-`ai-system-map/v1` should include:
+`ai-system-map/v1` 應包含：
 
 - project metadata
 - selected reference architecture
@@ -96,44 +96,44 @@ Detected slots require evidence.
 - risk hints
 - recommended next checks
 
-The map must not use `confidence`. If evidence is weak or missing, the status should say so directly.
+Map 不使用 `confidence`。如果 evidence 弱或不存在，應直接用 status 表達。
 
 ## Privacy Rules
 
-- Scanner is read-only.
-- Secret-like values are masked before output.
-- Full secret values must not appear in JSON, Markdown, logs, snapshots, or UI.
-- Raw retrieved chunks are not part of the default map contract.
-- External endpoints are hints for later checks, not proof of data exposure.
+- Scanner read-only。
+- Secret-like values 在 output 前遮罩。
+- Full secret values 不得出現在 JSON、Markdown、logs、snapshots 或 UI。
+- Raw retrieved chunks 不屬於 default map contract。
+- External endpoints 只是後續檢查 hints，不是資料外洩證明。
 
-## Fixture Strategy
+## Fixture 策略
 
-Use synthetic fixtures, not vendored public repositories.
+使用 synthetic fixtures，不 vendoring public repositories。
 
-Initial fixtures:
+初始 fixtures：
 
 - basic Qdrant + Ollama RAG stack
 - external OpenAI provider signal
 - malformed config for partial map behavior
 - minimal project with missing RAG slots
 
-Public repos can inform fixture patterns, but tests must run only on local fixtures.
+Public repos 可以協助設計 fixture patterns，但 tests 只能跑本地 fixtures。
 
-## Acceptance Criteria
+## 驗收標準
 
-- `kai-mind map <project_path>` creates valid `ai_system_map.json`.
-- JSON validates against `ai-system-map/v1`.
-- Markdown summary is generated from the same map.
-- Malformed config produces a partial map with parse-error evidence.
-- Missing project produces `map-error.md` and exits non-zero.
-- Detected components include evidence.
-- Output uses project-relative POSIX paths.
-- No full secret is present in outputs.
-- Tests cover schema, fixtures, masking, path normalization, and partial failure.
+- `kai-mind map <project_path>` 會建立 valid `ai_system_map.json`。
+- JSON 通過 `ai-system-map/v1` validation。
+- Markdown summary 由同一份 map 產生。
+- Malformed config 產生 partial map 與 parse-error evidence。
+- Missing project 產生 `map-error.md` 並以 non-zero exit code 結束。
+- Detected components 包含 evidence。
+- 輸出使用 project-relative POSIX paths。
+- 輸出不包含完整 secret。
+- Tests 覆蓋 schema、fixtures、masking、path normalization 與 partial failure。
 
-## Follow-up Work
+## 後續工作
 
-- Viewer prototype after schema is stable.
-- Query trace as explicit opt-in after privacy and side-effect boundaries are defined.
-- Runtime readiness checks in Epic 2.
-- Privacy and exposure guard in Epic 3.
+- Schema 穩定後做 viewer prototype。
+- Query trace 在 privacy 與 side-effect boundaries 明確後，作為 explicit opt-in 功能。
+- Epic 2 做 runtime readiness checks。
+- Epic 3 做 privacy and exposure guard。

@@ -1,42 +1,42 @@
-# Epic 1 Design Contract
+# Epic 1 設計契約
 
-> Status: Design contract
-> Scope: Epic 1 - RAG System Map Builder  
-> Source of truth for implementation: this file
+> 狀態：設計契約
+> 範圍：Epic 1 - RAG System Map Builder
+> 實作依據：本文件
 
-## 1. Purpose
+## 1. 目的
 
-Epic 1 builds the first usable KAI-Mind capability: scan an existing RAG project folder and produce a stable, evidence-based `ai_system_map.json`.
+Epic 1 要建立 KAI-Mind 的第一個可用能力：掃描既有 RAG project folder，並產出穩定、可追溯 evidence 的 `ai_system_map.json`。
 
-The map is the shared fact layer for later runtime readiness, privacy/exposure, RAG trust, report, and CI gate work. Epic 1 should not decide whether a system is ready for release. It should explain what was detected, where the evidence came from, and what later checks should inspect.
+這份 map 是後續 Runtime Readiness、Privacy & Exposure、RAG Knowledge Trust、Release Report 與 CI Gate 的共同事實層。Epic 1 不判斷系統是否 ready，而是說清楚偵測到什麼、證據在哪裡，以及後續應該檢查哪些項目。
 
-## 2. MVP Scope
+## 2. MVP 範圍
 
-### In Scope
+### 包含
 
-- Read-only project folder scan.
-- Discovery of config, Docker Compose, dependency manifests, selected source files, and documentation hints.
-- Deterministic extraction of raw scanner signals.
-- Normalization into a RAG-oriented system map.
-- `ai-system-map/v1` JSON contract.
-- Human-readable Markdown summary.
-- Secret-safe output across JSON, Markdown, logs, fixtures, and snapshots.
-- Fixture-based tests that do not depend on live external repositories.
+- 以 read-only 方式掃描 project folder。
+- 探索 config、Docker Compose、dependency manifests、部分 source files 與 README/documentation hints。
+- 產生 deterministic raw scanner signals。
+- 透過 normalization layer 轉換成 RAG-oriented System Map。
+- 定義 `ai-system-map/v1` JSON contract。
+- 產出人類可讀的 Markdown summary。
+- JSON、Markdown、logs、fixtures、snapshots 都必須 secret-safe。
+- 使用本地 synthetic fixtures 測試，不依賴 live external repositories。
 
-### Out of Scope
+### 不包含
 
-- Runtime health checks.
-- Port security conclusions beyond initial hints.
-- Deep secret scanning.
-- Agent tool policy evaluation.
-- RAG answer groundedness evaluation.
-- `READY` / `RISKY` / `NOT_READY` verdicts.
-- Query trace / replay by default.
-- Full interactive dashboard.
+- Runtime health checks。
+- 深入 port security 判斷。
+- 深入 secret scanning。
+- Agent tool policy evaluation。
+- RAG answer groundedness evaluation。
+- `READY` / `RISKY` / `NOT_READY` verdict。
+- 預設 query trace / replay。
+- 完整 interactive dashboard。
 
-Query trace can be designed later as an explicit opt-in workflow, for example `kai-mind trace --endpoint ...`. It should not be required for the first map builder because it calls a running user service and can trigger side effects, external LLM calls, quota usage, or data disclosure.
+Query trace 可以作為後續 explicit opt-in workflow，例如 `kai-mind trace --endpoint ...`。它不應該是第一版 map builder 的必要條件，因為它會呼叫使用者正在執行的服務，可能觸發 side effects、外部 LLM、API quota 使用或資料揭露。
 
-## 3. Architecture
+## 3. 架構
 
 ```text
 Project folder
@@ -48,9 +48,9 @@ Project folder
   -> JSON + Markdown artifacts
 ```
 
-Core rule: parsers do not produce final product conclusions. They only produce raw signals with evidence. The normalization layer maps those signals into stable domain concepts.
+核心規則：parser 不直接輸出最終產品判斷。Parser 只產生 raw signals 與 evidence，normalization layer 再把 signals 轉成穩定 domain concepts。
 
-Recommended future module boundaries:
+建議未來模組邊界：
 
 ```text
 src/kai_mind/
@@ -68,47 +68,47 @@ tests/
 schemas/
 ```
 
-## 4. Provider Responsibilities
+## 4. Provider 職責
 
-Providers interact with files, parsers, or low-level sources. They must be read-only against the scanned project.
+Provider 負責和檔案、parser 或底層來源互動。對被掃描的 project 必須維持 read-only。
 
-| Provider | Responsibility | Output |
+| Provider | 職責 | 輸出 |
 |---|---|---|
-| `FilesystemProvider` | Build bounded file inventory and read candidate files | file metadata, candidate contents |
-| `ConfigParseProvider` | Parse `.env`, YAML, JSON, TOML-like config where supported | key/value signals, parse issues |
-| `DockerComposeProvider` | Parse services, images, ports, env, volumes | service and endpoint signals |
-| `DependencyManifestProvider` | Parse `requirements.txt`, `pyproject.toml`, `package.json` | dependency signals |
-| `CodePatternProvider` | Bounded scan for explicit RAG patterns | code pattern signals |
-| `OutputArtifactProvider` | Create output directory and write artifacts | artifact paths |
+| `FilesystemProvider` | 建立有限制的 file inventory，讀取 candidate files | file metadata、candidate contents |
+| `ConfigParseProvider` | 解析 `.env`、YAML、JSON、TOML-like config | key/value signals、parse issues |
+| `DockerComposeProvider` | 解析 services、images、ports、env、volumes | service and endpoint signals |
+| `DependencyManifestProvider` | 解析 `requirements.txt`、`pyproject.toml`、`package.json` | dependency signals |
+| `CodePatternProvider` | 有界限地掃描明確 RAG patterns | code pattern signals |
+| `OutputArtifactProvider` | 建立 output directory 並寫出 artifacts | artifact paths |
 
-Provider failures should be structured. A malformed config file should not kill the full scan; it should create parse-error evidence and allow a partial map. A missing or unreadable project root is fatal.
+Provider failure 必須結構化。Malformed config 不應中止整個 scan；它應該產生 parse-error evidence，並允許 partial map。Project root 不存在或不可讀才是 fatal error。
 
-## 5. Service Responsibilities
+## 5. Service 職責
 
-| Service | Responsibility |
+| Service | 職責 |
 |---|---|
-| `MapBuildService` | Top-level orchestration for `kai-mind map` |
-| `ProjectScanService` | Coordinate providers and collect raw signals |
-| `RagTemplateService` | Load the `rag-core-v1` slot and flow template |
-| `ComponentDetectionService` | Map raw signals to component slots and instances |
-| `EndpointDetectionService` | Normalize local/external endpoint signals |
-| `RiskHintService` | Create evidence-backed hints, not final security conclusions |
-| `SystemMapNormalizeService` | Merge, dedupe, and assemble the map |
-| `SystemMapValidationService` | Enforce schema invariants |
-| `MarkdownSummaryService` | Render a human-readable summary from the validated map |
-| `SecretMaskingService` | Apply one masking policy everywhere |
+| `MapBuildService` | `kai-mind map` 的 top-level orchestration |
+| `ProjectScanService` | 協調 providers 並收集 raw signals |
+| `RagTemplateService` | 載入 `rag-core-v1` slot 與 flow template |
+| `ComponentDetectionService` | 將 raw signals 映射到 component slots 與 instances |
+| `EndpointDetectionService` | 正規化 local / external endpoint signals |
+| `RiskHintService` | 產生 evidence-backed hints，不產生最終安全結論 |
+| `SystemMapNormalizeService` | merge、dedupe 並組裝 map |
+| `SystemMapValidationService` | 驗證 schema invariants |
+| `MarkdownSummaryService` | 從已驗證 map 產生人類可讀 summary |
+| `SecretMaskingService` | 套用唯一 masking policy |
 
-Service rules:
+Service 規則：
 
-- Detected components must have evidence.
-- The map must not include a `confidence` field.
-- Missing evidence means the slot is `missing`, `not_configured`, or `not_applicable`, not guessed.
-- Risk hints must include uncertainty when Epic 1 cannot prove real exposure.
-- Report generation reads the normalized map. It must not rescan files.
+- Detected components 必須有 evidence。
+- Map 不得包含 `confidence` 欄位。
+- 缺少 evidence 時，slot 應是 `missing`、`not_configured` 或 `not_applicable`，不能猜測。
+- Epic 1 無法證明真實 exposure severity 時，risk hint 必須標示 uncertainty。
+- Report generation 只能讀 normalized map，不得重新掃描檔案。
 
-## 6. `ai-system-map/v1` Contract
+## 6. `ai-system-map/v1` 契約
 
-Required top-level fields:
+必要 top-level fields：
 
 - `schema_version`
 - `system_type`
@@ -121,111 +121,111 @@ Required top-level fields:
 - `risk_hints`
 - `recommended_next_checks`
 
-Important invariants:
+重要 invariants：
 
-- `schema_version` is `ai-system-map/v1`.
-- `system_type` is `rag` for Epic 1.
-- `classification.selected_template` is `rag-core-v1`.
-- Component slot status is one of `detected`, `missing`, `not_configured`, `not_applicable`.
-- `required_for_rag` is derived from the scanned project and template rules, not treated as a universal constant.
-- Endpoint type is `local` or `external`.
-- Risk hint target type is `component_instance`, `endpoint`, or `component_slot`.
-- Evidence file paths use project-relative POSIX paths.
-- Secret-like values are masked before serialization.
+- `schema_version` 是 `ai-system-map/v1`。
+- Epic 1 的 `system_type` 是 `rag`。
+- `classification.selected_template` 是 `rag-core-v1`。
+- Component slot status 必須是 `detected`、`missing`、`not_configured`、`not_applicable` 之一。
+- `required_for_rag` 由掃描結果與 template rules 推導，不是 universal constant。
+- Endpoint type 是 `local` 或 `external`。
+- Risk hint target type 是 `component_instance`、`endpoint` 或 `component_slot`。
+- Evidence file path 使用 project-relative POSIX path。
+- Secret-like values 在 serialization 前必須已遮罩。
 
-The implementation should add `schemas/ai-system-map.v1.schema.json` and contract tests before treating the schema as stable.
+實作時應新增 `schemas/ai-system-map.v1.schema.json` 與 contract tests，再把 schema 視為穩定 contract。
 
-## 7. Evidence Model
+## 7. Evidence 模型
 
-Every meaningful output should be traceable back to evidence.
+每個有意義的輸出都應該能追溯 evidence。
 
-Evidence should include:
+Evidence 建議包含：
 
 - `id`
 - `kind`
 - `file`
-- `path` when available
-- `value` when safe and useful
-- `line_start` / `line_end` when available
-- `masked` flag
+- `path`
+- `value`
+- `line_start` / `line_end`
+- `masked`
 - `parser`
 
-Do not store complete secret values. Do not store raw retrieved chunks by default. RAG chunks can contain private documents or PII and are not necessarily caught by secret masking. If future trace work needs chunk details, use source IDs, hashes, counts, metadata summaries, or explicit opt-in redacted excerpts.
+不要保存完整 secret value。預設也不要保存 raw retrieved chunks。RAG chunks 可能包含內部文件或 PII，不一定會被 secret masking 規則擋到。若未來 trace work 需要 chunk details，應使用 source IDs、hashes、counts、metadata summaries，或 explicit opt-in 的 redacted excerpts。
 
-## 8. CLI Contract
+## 8. CLI 契約
 
-Initial command:
+第一版 command：
 
 ```bash
 kai-mind map <project_path> [--output outputs] [--system-type rag]
 ```
 
-Expected behavior:
+預期行為：
 
-- Validate that `project_path` exists and is readable.
-- If invalid, write `map-error.md` and exit non-zero.
-- Create an output directory without overwriting existing artifacts.
-- Continue on parse errors and produce a partial map with parse-error evidence.
-- Validate JSON before writing success artifacts.
-- Write `ai_system_map.json`.
-- Write `ai_system_map.md`.
+- 驗證 `project_path` 存在且可讀。
+- 若 invalid，寫出 `map-error.md` 並以 non-zero exit code 結束。
+- 建立 output directory，不覆寫既有 artifacts。
+- 解析錯誤時繼續產生 partial map，並包含 parse-error evidence。
+- 寫出 success artifacts 前先 validate JSON。
+- 寫出 `ai_system_map.json`。
+- 寫出 `ai_system_map.md`。
 
-`kai-mind viewer <map_json>` can be planned as a follow-up. The viewer should load only the map JSON and must not rescan the project folder or invent components.
+`kai-mind viewer <map_json>` 可以作為後續規劃。Viewer 只能載入 map JSON，不得重新掃描 project folder 或創造 component。
 
-## 9. Fixture Strategy
+## 9. Fixture 策略
 
-Public repositories should be research input only. Do not vendor third-party repos into this repo.
+公開 repositories 只作為研究輸入，不應 vendoring 第三方 repo 到本 repo。
 
-Create synthetic fixtures that combine patterns from multiple references:
+建立 synthetic fixtures，混合多個參考來源的 patterns：
 
-- `basic_qdrant_ollama_rag`: Docker Compose with app, Ollama, Qdrant.
-- `openai_external_provider_rag`: external provider and API key name signals.
-- `malformed_config_rag`: invalid YAML or Docker Compose for partial-scan behavior.
-- `missing_slots_rag`: minimal project that exercises missing slot status.
+- `basic_qdrant_ollama_rag`：Docker Compose app、Ollama、Qdrant。
+- `openai_external_provider_rag`：external provider 與 API key name signals。
+- `malformed_config_rag`：invalid YAML 或 Docker Compose，用來測 partial scan。
+- `missing_slots_rag`：minimal project，用來測 missing slot status。
 
-Fixtures must not include real secrets.
+Fixtures 不得包含真實 secrets。
 
-## 10. Test Strategy
+## 10. 測試策略
 
-Minimum tests before implementation is considered healthy:
+實作被視為健康前，至少需要：
 
-- Schema validation for generated maps.
-- Golden fixture output for at least one basic RAG project.
-- Secret masking test across JSON, Markdown, logs, and snapshots.
-- Windows/macOS path normalization test.
-- Malformed config partial-map test.
-- Missing project error artifact test.
-- No `confidence` field test.
-- Detected component requires evidence test.
+- Generated map schema validation。
+- 至少一個 basic RAG fixture 的 golden output。
+- JSON、Markdown、logs、snapshots 的 secret masking test。
+- Windows/macOS path normalization test。
+- Malformed config partial-map test。
+- Missing project error artifact test。
+- No `confidence` field test。
+- Detected component requires evidence test。
 
-## 11. Viewer Follow-up Scope
+## 11. Viewer 後續範圍
 
-The viewer is useful, but it should not define the core contract. Treat it as a projection of `ai_system_map.json`.
+Viewer 很有用，但不應該反過來定義 core contract。Viewer 是 `ai_system_map.json` 的 projection。
 
-Viewer rules when it is implemented:
+未來實作 viewer 時的規則：
 
-- Load a validated `ai_system_map.json`.
-- Do not scan the project folder.
-- Do not create components that are not in the map.
-- Show evidence and risk hints from the map.
-- Filters should keep the full graph visible and highlight matched items.
-- Invalid map input should show an error state instead of a blank graph.
+- 載入 validated `ai_system_map.json`。
+- 不掃描 project folder。
+- 不創造 map 中不存在的 components。
+- 顯示 map 裡的 evidence 與 risk hints。
+- Filters 保留完整 graph，只高亮 matched items。
+- Invalid map input 顯示 error state，不顯示空白 graph。
 
 ## 12. Delivery Order
 
-| Milestone | Deliverable | Notes |
+| 里程碑 | 交付物 | 說明 |
 |---|---|---|
-| M1 | Schema and domain models | Lock `ai-system-map/v1` before UI work |
-| M2 | Synthetic fixtures | No external repo dependency |
+| M1 | Schema and domain models | UI work 前先鎖定 `ai-system-map/v1` |
+| M2 | Synthetic fixtures | 不依賴 external repo |
 | M3 | File/config/compose/dependency providers | Read-only and bounded |
-| M4 | Normalization and risk hints | Evidence-backed, no `confidence` |
+| M4 | Normalization and risk hints | Evidence-backed，無 `confidence` |
 | M5 | CLI and artifacts | JSON + Markdown |
-| M6 | Contract and fixture tests | Required before next epic |
-| M7 | Viewer prototype | Follow-up after contract is stable |
+| M6 | Contract and fixture tests | 下一個 epic 前必須完成 |
+| M7 | Viewer prototype | 契約穩定後再做 |
 
 ## 13. Work Split
 
-Timmy owns the fact layer:
+Timmy 負責 fact layer：
 
 - schema
 - scanner providers
@@ -235,7 +235,7 @@ Timmy owns the fact layer:
 - CLI map command
 - fixture and contract tests
 
-Bo-Han owns the presentation layer after schema is stable:
+Bo-Han 在 schema 穩定後負責 presentation layer：
 
 - viewer loading
 - graph view model
@@ -244,16 +244,16 @@ Bo-Han owns the presentation layer after schema is stable:
 - invalid map state
 - UI tests
 
-Shared interface:
+共同 interface：
 
 - `ai-system-map/v1`
 - sample `ai_system_map.json` files
 - evidence and risk hint shape
 
-## 14. Open Questions
+## 14. 待釐清問題
 
-- Which implementation language should be used first: Python or TypeScript?
-- What exact ignore rules should the file scanner use?
-- Should `required_for_rag` be encoded in template rules or derived entirely from detected flows?
-- What is the first stable JSON schema path and migration policy?
-- When query trace is revisited, what opt-in UX and privacy boundaries are required?
+- 第一版實作語言要用 Python 還是 TypeScript？
+- File scanner 的 ignore rules 應該包含哪些？
+- `required_for_rag` 要寫在 template rules，還是完全從 detected flows 推導？
+- 第一版 JSON schema path 與 migration policy 要怎麼定？
+- 未來重新討論 query trace 時，需要哪些 opt-in UX 與 privacy boundaries？

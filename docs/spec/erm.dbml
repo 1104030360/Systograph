@@ -1,11 +1,11 @@
 // KAI-Mind Epic 1 - AI System Map data model
-// Scope: RAG System Map Builder MVP
+// 範圍：RAG System Map Builder MVP
 
 Table RagSystemMap {
   schema_version string [pk, note: 'ai-system-map/v1']
-  system_type string [not null, note: 'rag for Epic 1']
+  system_type string [not null, note: 'Epic 1 固定為 rag']
   project_name string
-  project_root string [note: 'Display only. Prefer project-relative paths in evidence.']
+  project_root string [note: '僅供顯示。Evidence 應優先使用 project-relative paths。']
   selected_template string [not null, note: 'rag-core-v1']
   generated_at string
 }
@@ -13,7 +13,7 @@ Table RagSystemMap {
 Table ComponentSlot {
   id string [pk]
   system_map_schema_version string [not null]
-  slot string [not null, note: 'data_source, chunking, embedding_model, vector_store, retriever, llm, etc.']
+  slot string [not null, note: 'data_source, chunking, embedding_model, vector_store, retriever, llm 等']
   status string [not null, note: 'detected | missing | not_configured | not_applicable']
   required_for_rag boolean
   summary string
@@ -24,16 +24,16 @@ Table ComponentInstance {
   slot_id string [not null]
   name string [not null]
   kind string [not null]
-  evidence_ids string [note: 'JSON array of Evidence.id values']
+  evidence_ids string [note: 'Evidence.id 的 JSON array']
 }
 
 Table Endpoint {
   id string [pk]
   system_map_schema_version string [not null]
   endpoint_type string [not null, note: 'local | external']
-  value string [not null, note: 'Masked if secret-like']
+  value string [not null, note: '若像 secret，必須遮罩']
   source_component_id string
-  evidence_ids string [note: 'JSON array of Evidence.id values']
+  evidence_ids string [note: 'Evidence.id 的 JSON array']
 }
 
 Table Evidence {
@@ -41,8 +41,8 @@ Table Evidence {
   system_map_schema_version string [not null]
   kind string [not null, note: 'file, config_key, docker_service, dependency, code_pattern, parse_error']
   file string [note: 'Project-relative POSIX path']
-  path string [note: 'Config path, JSON path, YAML path, or code symbol when available']
-  value string [note: 'Masked or omitted when sensitive']
+  path string [note: 'Config path, JSON path, YAML path 或 code symbol']
+  value string [note: '敏感值必須遮罩或省略']
   line_start int
   line_end int
   parser string
@@ -62,7 +62,7 @@ Table Edge {
   from_slot_id string [not null]
   to_slot_id string [not null]
   relationship string [not null]
-  evidence_ids string [note: 'JSON array of Evidence.id values']
+  evidence_ids string [note: 'Evidence.id 的 JSON array']
 }
 
 Table RiskHint {
@@ -74,7 +74,7 @@ Table RiskHint {
   evidence_id string [not null]
   severity_hint string [note: 'low | medium | high']
   rationale string [not null]
-  uncertainty string [not null, note: 'Why this is a hint rather than a final conclusion']
+  uncertainty string [not null, note: '說明為什麼這只是 hint，不是最終結論']
 }
 
 Table RecommendedNextCheck {
