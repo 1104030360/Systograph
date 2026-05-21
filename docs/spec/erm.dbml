@@ -1,231 +1,224 @@
-// IT Ticket System - Entity Relationship Model
-// 從需求規格文件 (demand.md) 萃取的資料模型
+// KAI-Mind Epic 1 - RAG System Map Builder Entity Relationship Model
+// Source: docs/spec/draft/overview.md and docs/spec/draft/epic1.md
 
-// ============================================================
-// 核心實體：工單 (Ticket/Incident)
-// ============================================================
-
-Table Ticket {
-  internalId int [primary key, increment, note: '內部自動遞增ID']
-  id string [unique, not null, note: '工單編號,唯一識別碼 (例如: INC40125246)']
-  text string [note: '完整案例描述,由使用者自訂欄位合併而成,預設必須包含opened欄位,合併順序與分隔符號由系統決定']
-  subcategory string [note: '問題類型分類']
-  configurationItem string [note: '系統模組/配置項']
-  roleComponent string [note: '受影響的角色/元件']
-  location string [note: '地點/區域']
-  opened string [note: '工單建立時間,ISO 8601格式,統一使用UTC時區儲存']
-  analysisTime string [not null, note: '分析時間戳記,ISO 8601格式,統一使用UTC時區儲存,用於增量同步依據']
-  solution string [note: 'AI提取的解決方案']
-  problem string [note: 'AI生成的問題摘要,≤50字']
-  aiCategory string [note: 'AI細緻分類結果,比configurationItem更具體']
-  severityScore float [note: '嚴重性分數,基於關鍵字/多人影響/升級處理,0-100區間,保留2位小數並四捨五入']
-  frequencyScore float [note: '頻率分數,基於配置項頻率/元件角色頻率/時間群聚,0-100區間,保留2位小數並四捨五入']
-  impactScore float [note: '影響分數,severityScore與frequencyScore的加權平均,0-100區間,保留2位小數並四捨五入']
-  riskLevel string [note: '風險等級: 高風險/中風險/低風險/忽略']
+Table RagSystemMap {
+  schema_version string [primary key, note: 'AI System Map schema version for the Epic 1 artifact ai_system_map.json. Example: ai-system-map/v1']
+  system_type string [not null, note: 'System type for Epic 1. Epic 1 fixes this value to rag.']
 
   Note: '''
-    工單實體,系統的核心資料物件。
+    Standardized RAG System Map produced by Epic 1.
+    It is the machine-readable foundation for later Runtime Readiness, Privacy & Exposure, RAG Knowledge Trust, and CI/CD Gate checks.
 
-    跨屬性不變條件:
-    - impactScore = severityScore * weight_severity + frequencyScore * weight_frequency
-    - 權重總和必須為1.0: weight_severity + weight_frequency = 1.0
-    - 所有分數欄位範圍: 0 ≤ score ≤ 100
-    - riskLevel動態決定: 若滿足聚類條件(資料量≥4 且 最大值-最小值>5.0 且 標準差>3.0,三條件皆需滿足)則使用KMeans聚類(K=4,對應四個等級),否則使用固定門檻
-    - 固定門檻(左閉右開): 高風險[70,100], 中風險[50,70), 低風險[30,50), 忽略[0,30)
-    - id必須唯一
-    - 去重邏輯: 相同id時保留analysisTime最新的記錄
-  '''
-
-  Indexes {
-    id [name: 'idx_id']
-    opened [name: 'idx_opened']
-    configurationItem [name: 'idx_configItem']
-    analysisTime [name: 'idx_analysisTime']
-  }
-}
-
-// ============================================================
-// 配置實體：權重配置
-// ============================================================
-
-Table WeightConfiguration {
-  id int [primary key, increment, note: '配置ID']
-  keyword float [note: '高風險關鍵字權重,預設0.2']
-  multi_user float [note: '多人受影響權重,預設0.15']
-  escalated float [note: '升級處理權重,預設0.15']
-  config_frequency float [note: '配置項頻率權重,預設0.2']
-  component_frequency float [note: '元件/角色頻率權重,預設0.15']
-  cluster_size float [note: '時間群聚權重,預設0.15']
-
-  Note: '''
-    風險評分權重配置實體。
-
-    跨屬性不變條件:
-    - keyword + multi_user + escalated + config_frequency + component_frequency + cluster_size = 1.0
-    - 所有權重值: 0 ≤ weight ≤ 1.0 (允許極端值0或1,例如單一因素權重為1.0其餘為0)
+    Invariants:
+    - system_type must be rag in Epic 1.
+    - Scanner output must use evidence, slot status, and recommended next checks.
+    - Scanner output must not use confidence.
+    - Full API key or secret values must not be displayed.
+    - Secret-like values may show a small prefix and suffix, with the middle masked.
   '''
 }
 
-// ============================================================
-// 配置實體：欄位優先順序配置
-// ============================================================
-
-Table FieldPriorityConfiguration {
-  id int [primary key, increment, note: '配置ID']
-  field_type string [note: '欄位類型: summary_priority, resolution_priority, 或 text_priority']
-  priority_order string [note: 'JSON陣列格式,儲存欄位名稱的優先順序清單']
+Table Project {
+  root_path string [primary key, note: 'Input project folder path scanned by KAI-Mind. This preserves the input root path. Example: /path/to/project']
+  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
+  name string [note: 'Project name recorded in the RAG System Map.']
 
   Note: '''
-    Excel欄位讀取優先順序配置實體。
-    例如: summary_priority = ["Short description", "Description"]
-         resolution_priority = ["Close notes", "Work notes"]
-         text_priority = ["opened", "Description", "Short description"] (預設必須包含opened)
+    Existing RAG project folder provided by the user.
+    KAI-Mind scans repo files, config files, Docker files, package files, and README information from this folder.
   '''
 }
 
-// ============================================================
-// 配置實體：語句資料庫
-// ============================================================
-
-Table SentenceDatabase {
-  id int [primary key, increment, note: '語句ID']
-  sentence_type string [note: '語句類型: high_risk, escalate, multi_user']
-  sentence string [note: '語句內容']
+Table Classification {
+  system_map_schema_version string [primary key, note: 'Associated RAG System Map schema_version.']
+  mode string [not null, note: 'Classification mode. Epic 1 uses user_selected_or_default.']
+  selected_template string [not null, note: 'Selected reference architecture template. Example: rag-core-v1']
+  future_layer string [note: 'Future classification layer marker. Example: architecture_classification']
 
   Note: '''
-    自訂語句資料庫實體,用於風險評估語意偵測。
-    - high_risk: 高風險關鍵字 (例如: fire, electrical, safety, 斷電, 當機)
-    - escalate: 升級處理觸發詞
-    - multi_user: 多人影響指標
-
-    語意偵測使用 paraphrase-MiniLM-L6-v2 模型進行 embedding
-    語意相似度閾值固定為0.7,不可調整(硬編碼於SmartScoring.py:137,154,171)。
+    Classification placeholder for Epic 1.
+    Epic 1 fixes the selected architecture type to RAG while preserving fields for a future deterministic architecture classification layer.
   '''
 }
 
-// ============================================================
-// 配置實體：GPT提示詞配置
-// ============================================================
-
-Table GPTPromptConfiguration {
-  id int [primary key, increment, note: '提示詞ID']
-  task_type string [unique, note: '任務類型: solution, ai_summary, ai_category']
-  prompt string [note: '提示詞內容']
-  model string [note: 'Ollama模型名稱 (例如: llama3.2, command-r7b:latest)']
+Table ReferenceArchitecture {
+  id string [primary key, note: 'Reference architecture template id. Example: rag-core-v1']
+  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
+  flows string [note: 'JSON array of flow ids. Epic 1 mentions indexing and query_answer.']
+  component_slots string [note: 'JSON array of RAG reference architecture component slot names.']
 
   Note: '''
-    AI模型提示詞配置實體。
-    儲存路徑: gpt_data/gpt_prompt_map.json
+    RAG reference architecture template loaded before scanning.
+    It provides component slots for deterministic scanner rules and GUI visualization.
   '''
 }
 
-// ============================================================
-// 配置實體：同步路徑配置
-// ============================================================
-
-Table SyncPathConfiguration {
-  id int [primary key, increment, note: '配置ID']
-  path string [note: 'SharePoint/OneDrive本機同步資料夾路徑']
+Table ComponentSlot {
+  slot string [primary key, note: 'RAG component slot name such as vector_store, llm, retriever, or citation_or_response_composer.']
+  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
+  reference_architecture_id string [not null, note: 'ReferenceArchitecture.id that defines this slot.']
+  required_for_rag bool [note: 'Whether this slot is required for this RAG project. The value is not fixed by the reference architecture; scanner determines it from project evidence.']
+  status string [not null, note: 'Slot status. Allowed values: detected, missing, not_configured, not_applicable.']
 
   Note: '''
-    雲端同步路徑配置實體。
-    儲存路徑: StorageAddress/SyncAddress.json
-    需通過可寫入測試驗證。
+    Normalized RAG component slot scanned from the reference architecture.
+
+    Invariants:
+    - required_for_rag is determined by scanner based on project evidence.
+    - status must be one of detected, missing, not_configured, not_applicable.
+    - detected requires at least one ComponentInstance with Evidence.
+    - missing, not_configured, and not_applicable must not invent component instances without evidence.
   '''
 }
 
-// ============================================================
-// 對話實體：聊天會話
-// ============================================================
-
-Table ChatSession {
-  id string [primary key, note: '會話ID,格式: chat_YYYYMMDD_HHMMSS']
-  title string [note: '會話標題,可由使用者重命名']
-  timestamp string [note: '建立時間,ISO 8601格式']
-  messages string [note: 'JSON格式,儲存對話訊息陣列']
+Table ComponentInstance {
+  id string [primary key, note: 'Detected component instance id. Example: qdrant_vector_db or ollama_runtime.']
+  slot string [not null, note: 'ComponentSlot.slot where this detected instance belongs.']
+  kind string [not null, note: 'Detected component kind. Examples in the spec include vector_db and llm_runtime.']
+  name string [not null, note: 'Human-readable detected component name. Examples include Qdrant and Ollama.']
 
   Note: '''
-    RAG對話系統的會話實體。
-    儲存目錄: chat_history/
-    檔案格式: {id}.json
-
-    messages結構: [
-      {"role": "user", "content": "問題內容"},
-      {"role": "assistant", "content": "AI回覆"}
-    ]
-
-    限制: 無大小或數量限制,單一會話可包含任意輪數對話
+    A concrete component instance detected for a RAG component slot.
+    Every detected component must contain slot, status, name, and evidence in the Epic 1 acceptance criteria.
   '''
 }
 
-// ============================================================
-// 分類記憶實體：AI分類記憶
-// ============================================================
-
-Table CategoryMemory {
-  id int [primary key, increment, note: '記憶ID']
-  configurationItem string [note: '配置項名稱']
-  category string [note: 'AI生成的分類名稱']
+Table Evidence {
+  id string [primary key, note: 'Evidence identifier for linking scanner facts and GUI detail panels.']
+  component_instance_id string [note: 'ComponentInstance.id supported by this evidence.']
+  kind string [not null, note: 'Evidence kind. Examples include docker_service, published_port, and env_key.']
+  file string [note: 'Project-relative POSIX source file path where the evidence was found, such as docker-compose.yml or src/rag.py.']
+  path string [note: 'Structured source path inside the source file, such as services.qdrant.image.']
+  value string [note: 'Evidence value. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
 
   Note: '''
-    AI分類記憶實體,用於保持相同配置項的分類一致性。
-    儲存路徑: data/sentences/{configurationItem}_categories.json
+    Scanner evidence fact used to justify a component, endpoint, exposure hint, or GUI detail.
+    Evidence must be traceable to source files or config paths.
 
-    處理邏輯:
-    - 同一配置項的新工單分類時,AI會參考此記憶中的歷史分類
-    - 首次遇到新配置項時,參考其他相似配置項的歷史分類(語意相似度匹配)
+    Invariants:
+    - file must use project-relative POSIX path format across Windows and macOS.
+    - Project.root_path preserves the input root path.
   '''
 }
 
-// ============================================================
-// 上傳檔案實體
-// ============================================================
-
-Table UploadedFile {
-  id int [primary key, increment, note: '檔案ID']
-  filename string [note: '原始檔案名稱']
-  stored_filename string [note: '儲存檔案名稱,格式: result_YYYYMMDD_HHMMSS.xlsx']
-  upload_time string [note: '上傳時間,ISO 8601格式']
-  file_size int [note: '檔案大小(bytes),必須 ≤ 10485760 bytes']
-  file_path string [note: '檔案儲存路徑: uploads/']
+Table Endpoint {
+  id string [primary key, note: 'Endpoint identifier in the RAG System Map.']
+  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
+  value string [not null, note: 'Endpoint value detected by the scanner. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
+  evidence_id string [not null, note: 'Evidence.id that identifies the source of this endpoint.']
+  endpoint_type string [not null, note: 'Endpoint type. Allowed values: local, external.']
 
   Note: '''
-    上傳檔案記錄實體。
+    Endpoint detected in the scanned RAG project.
+    Endpoints are modeled independently in the RAG System Map so external endpoint detection, network exposure hints, GUI detail panels, and later Privacy & Exposure checks can use a stable data structure.
 
-    限制條件:
-    - 僅接受 .xlsx 格式
-    - 檔案大小 ≤ 10485760 bytes (10MiB,使用1024進位,非10MB)
-    - 驗證邏輯: Analysis.py:99 設定 MAX_CONTENT_LENGTH = 10 * 1024 * 1024
+    Invariants:
+    - endpoint_type must be one of local, external.
+    - each Endpoint must reference source Evidence.
+    - full API key or secret values must not be displayed in value.
+    - secret-like endpoint values may show a small prefix and suffix, with the middle masked.
   '''
 }
 
-// ============================================================
-// FAISS向量索引元資料 (外部儲存,此處僅記錄結構)
-// ============================================================
+Table Flow {
+  id string [primary key, note: 'Flow id. Epic 1 mentions indexing and query_answer.']
+  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
 
-// FAISS索引結構說明:
-// - 檔案: kb_index.faiss (FAISS索引)
-// - 檔案: kb_metadata.json (元資料,與SQLite的Ticket同步)
-// - 檔案: kb_texts.pkl (文本語料,Pickle格式)
-// - 維度: 384 (all-MiniLM-L6-v2 embeddings)
-// - 索引類型: IndexFlatL2 + IndexIDMap
-// - ID映射: SHA-256(id) mod 2^63
-//
-// 注意: FAISS索引不是關聯式資料庫實體,而是向量檢索引擎,
-// 其元資料與Ticket實體保持同步關係。
-//
-// 模型變更相容性處理:
-// - 若未來變更embedding模型(非384維),需完整重建FAISS索引
-// - 舊索引自動備份至backup/目錄(build_kb.py策略)
-// - 不支援多版本索引共存或降維/升維技術
+  Note: '''
+    RAG flow represented in the System Map.
+    Epic 1 uses indexing flow and query / answer flow as reference architecture flows.
+  '''
+}
 
-// ============================================================
-// 關聯關係 (目前無明確外鍵關聯,各實體獨立)
-// ============================================================
+Table Edge {
+  id string [primary key, note: 'Connection edge id for graph visualization and detail lookup.']
+  flow_id string [not null, note: 'Flow.id that owns this edge.']
+  from_slot string [not null, note: 'Source ComponentSlot.slot.']
+  to_slot string [not null, note: 'Target ComponentSlot.slot.']
+  relationship string [not null, note: 'Relationship reason. Examples include calls_retriever, queries_vector_store, and builds_prompt_for.']
 
-// 說明:
-// 根據需求規格文件,各實體主要為獨立配置或記錄,
-// 未明確定義外鍵關聯關係。
-// 實體間的關聯主要透過應用層邏輯實現:
-// - Ticket與CategoryMemory透過configurationItem關聯
-// - Ticket與FAISS向量索引透過id欄位同步
+  Note: '''
+    Connection between RAG component slots.
+    GUI users can click an edge to see the connection reason.
+  '''
+}
+
+Table RiskHint {
+  id string [primary key, note: 'Risk hint identifier.']
+  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
+  type string [not null, note: 'Risk hint type. Examples include network_exposure and external endpoint.']
+  target string [not null, note: 'Target of the risk hint, such as a ComponentInstance.id, Endpoint.id, or ComponentSlot.slot.']
+  target_type string [not null, note: 'Target type. Allowed values: component_instance, endpoint, component_slot.']
+  evidence_id string [not null, note: 'Evidence.id that supports this risk hint and allows users to trace back to source evidence.']
+  rule_id string [not null, note: 'Scanner rule id that produced this risk hint.']
+  rationale string [not null, note: 'Human-readable explanation of why the evidence triggered this risk hint.']
+  uncertainty string [note: 'Human-readable uncertainty note explaining limits of the hint.']
+  severity_hint string [note: 'Initial severity hint. Example: high.']
+
+  Note: '''
+    Initial risk hint produced by Epic 1.
+    Epic 1 records exposure and external-provider hints, but complete security judgment belongs to later epics.
+
+    Invariants:
+    - every RiskHint must include target, target_type, evidence_id, rule_id, and rationale.
+    - evidence_id is the traceable source for the risk hint.
+    - rationale must explain why the evidence triggered the hint.
+    - uncertainty must be used when Epic 1 can only provide a hint rather than a complete security judgment.
+  '''
+}
+
+Table RecommendedNextCheck {
+  id string [primary key, note: 'Recommended next check identifier.']
+  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
+  check_name string [not null, note: 'Recommended next check name. Examples include runtime_readiness, privacy_exposure, and rag_knowledge_trust.']
+
+  Note: '''
+    Follow-up checker recommendation produced from the RAG System Map.
+    These recommendations connect Epic 1 output to later readiness modules.
+  '''
+}
+
+Table QueryTraceEvent {
+  id string [primary key, note: 'Query trace event identifier.']
+  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
+  sequence_index int [not null, note: 'Replay order index for deterministic pause, step forward, step backward, and replay controls.']
+  timestamp string [not null, note: 'Actual event time for debugging and latency analysis.']
+  slot string [note: 'Mapped RAG ComponentSlot.slot for this trace step.']
+  edge_id string [note: 'Mapped Edge.id for this trace step when the event corresponds to a connection.']
+  input string [note: 'Trace step input shown in the GUI detail panel. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
+  output string [note: 'Trace step output shown in the GUI detail panel. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
+  latency string [note: 'Trace step latency shown in the GUI detail panel.']
+  error string [note: 'Trace step error shown in the GUI detail panel.']
+  retrieved_chunks string [note: 'Retrieved chunks shown for query trace replay, stored as a JSON string if present.']
+
+  Note: '''
+    Query trace or replay event collected by Epic 1 MVP through a detected RAG endpoint basic trace.
+    Proxy wrapper, trace hook, and complete runtime trace capture are advanced scope for Epic 1 or later Runtime Readiness / Observability work.
+
+    Invariants:
+    - sequence_index controls replay order.
+    - timestamp records actual event time for debugging and latency analysis.
+    - secret-like input and output values may show a small prefix and suffix, with the middle masked.
+    - full API key or secret values must not be displayed in input or output.
+  '''
+}
+
+Ref: Project.system_map_schema_version > RagSystemMap.schema_version
+Ref: Classification.system_map_schema_version > RagSystemMap.schema_version
+Ref: ReferenceArchitecture.system_map_schema_version > RagSystemMap.schema_version
+Ref: ComponentSlot.system_map_schema_version > RagSystemMap.schema_version
+Ref: ComponentSlot.reference_architecture_id > ReferenceArchitecture.id
+Ref: ComponentInstance.slot > ComponentSlot.slot
+Ref: Evidence.component_instance_id > ComponentInstance.id
+Ref: Endpoint.system_map_schema_version > RagSystemMap.schema_version
+Ref: Endpoint.evidence_id > Evidence.id
+Ref: Flow.system_map_schema_version > RagSystemMap.schema_version
+Ref: Edge.flow_id > Flow.id
+Ref: Edge.from_slot > ComponentSlot.slot
+Ref: Edge.to_slot > ComponentSlot.slot
+Ref: RiskHint.system_map_schema_version > RagSystemMap.schema_version
+Ref: RiskHint.evidence_id > Evidence.id
+Ref: RecommendedNextCheck.system_map_schema_version > RagSystemMap.schema_version
+Ref: QueryTraceEvent.system_map_schema_version > RagSystemMap.schema_version
+Ref: QueryTraceEvent.slot > ComponentSlot.slot
+Ref: QueryTraceEvent.edge_id > Edge.id

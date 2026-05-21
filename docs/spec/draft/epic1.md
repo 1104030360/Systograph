@@ -1,385 +1,6 @@
-# KAI-Mind — AI Agent CI/CD Release Readiness Gate
+# Epic 1 — RAG System Map Builder
 
-> Status: Planning  
-> Current Focus: Epic 1 — System Map Builder  
-> Date: 2026-05-18
-
----
-
-## 1. Project Summary
-
-KAI-Mind 是一個 **AI Agent / RAG 系統的 CI/CD Release Readiness Gate**。
-
-它的目標不是幫使用者從零建立 AI 系統，也不是做另一個 AI chatbot，而是在使用者已經完成或準備交付一套 AI Agent / RAG 系統後，協助團隊把 AI 系統特有的風險放進開發、PR、release 與 deployment pipeline。
-
-KAI-Mind 最終應該成為 AI Agent 系統的 CI/CD 工具：在 merge、demo、handoff、deployment 或 scheduled check 前，自動掃描系統、輸出 evidence-based report，並用明確的 gate result 告訴 pipeline 是否可以繼續。
-
-它會檢查這套系統是否：
-
-- 可以正常啟動
-- Runtime 狀態是否 ready
-- 資料是否可能離開預期環境
-- 服務是否暴露到不該暴露的網路範圍
-- Agent 工具權限是否過大
-- RAG knowledge base 是否具備基本可信度
-- 回答是否真的被 retrieved evidence 支持
-- 是否適合 demo、交付、部署或進入 CI/CD
-
-最終，KAI-Mind 會輸出一份 **Readiness Report**，並給出：
-
-- `READY`
-- `RISKY`
-- `NOT_READY`
-
-作為 AI 系統是否可以進入下一階段的 CI/CD gate 判斷依據。
-
----
-
-## 2. One-line Description
-
-### 中文版
-
-KAI-Mind 是一個 AI Agent / RAG 系統的 CI/CD Release Readiness Gate，幫助團隊在 PR、demo、交付、部署或進入 CI/CD pipeline 前，檢查這套 AI 系統是否安全、可用、可信，並輸出 READY / RISKY / NOT_READY 的 gate result。
-
-### English Version
-
-KAI-Mind is a CI/CD release readiness gate for AI Agent and RAG systems, helping teams validate whether their AI systems are safe, reliable, trustworthy, and ready to pass PR, demo, handoff, deployment, or CI/CD gates.
-
----
-
-## 3. Product Positioning
-
-KAI-Mind 的定位是：
-
-> AI Agent / RAG CI/CD Release Readiness Gate
-
-它不是：
-
-| 類型 | 是否為 KAI-Mind 目標 |
-|---|---|
-| AI chatbot | 否 |
-| AI Agent builder | 否 |
-| RAG builder | 否 |
-| Open WebUI / AnythingLLM 替代品 | 否 |
-| 完整 DevOps / MLOps 平台 | 否 |
-| 完整資安防禦工具 | 否 |
-| 單純 RAG evaluation wrapper | 否 |
-| 單純 observability dashboard | 否 |
-
-它應該是：
-
-| 核心定位 | 說明 |
-|---|---|
-| AI 系統交付前健檢工具 | 在 demo、交付、部署前檢查風險 |
-| AI System Map 建立工具 | 建立 AI 系統元件、資料流、風險位置的地圖 |
-| Runtime readiness checker | 檢查 Ollama、Qdrant、Docker、App API 等是否正常 |
-| Privacy & exposure checker | 檢查 port、API key、cloud endpoint、外部連線 |
-| Agent tool risk checker | 檢查 Agent 工具權限與風險 |
-| RAG / knowledge readiness checker | 檢查 collection、metadata、citation、groundedness |
-| Release report generator | 產生可讀的交付前健檢報告 |
-| CI/CD pass / fail gate | 提供 CLI exit code、JSON report 與 machine-readable verdict，支援 PR / release / deployment pipeline |
-
----
-
-## 4. Core Workflow
-
-KAI-Mind 的核心流程：
-
-```text
-Read → Map → Check → Risk → Recommend → Gate
-```
-
-中文流程：
-
-```text
-讀取系統
-→ 建立 AI System Map
-→ 執行健檢規則
-→ 判斷風險
-→ 產生優先修正建議
-→ 作為 Release Gate
-```
-
-CI/CD 使用情境下，這個流程應該可以被自動化：
-
-```text
-PR / Release / Deployment Pipeline
-        ↓
-kai-mind gate --ci
-        ↓
-AI System Map + Readiness Checks
-        ↓
-JSON Report + Exit Code
-        ↓
-PASS / FAIL / Needs Review
-```
-
----
-
-## 5. Target Users
-
-| 使用者類型 | 使用情境 | KAI-Mind 價值 |
-|---|---|---|
-| 學生 / Side Project 開發者 | Demo 前 | 確認作品不只是「能跑」，也能被解釋與展示 |
-| AI / Backend 工程師 | 完成 Agent / RAG 功能後 | 找出 runtime、資料流、tool、RAG 風險 |
-| 小型 AI PoC 團隊 | 內部展示或主管 demo 前 | 產生可讀的 Readiness Report |
-| 企業內部 AI 團隊 | 導入知識庫、客服 Agent、文件問答前 | 檢查資料外流、工具權限、RAG 可追溯性 |
-| SI / 顧問 / 接案團隊 | 交付客戶前 | 用報告作為交付附件 |
-| Platform / DevOps 團隊 | PR / deployment 前 | 把 AI 系統風險放進 CI/CD Gate |
-
----
-
-## 6. Core Pain Points
-
-### 6.1 不知道 AI 系統整體架構長什麼樣子
-
-AI Agent / RAG 系統通常由多個元件組成，例如：
-
-- FastAPI / Open WebUI
-- Ollama
-- Qdrant
-- Docker
-- `.env` / config
-- Agent tools
-- RAG collection
-- External APIs
-
-使用者可能知道每個元件，但不一定知道整套系統的資料流、外部連線與風險位置。
-
----
-
-### 6.2 不知道 runtime 是否真的 ready
-
-使用者可能不確定：
-
-- Ollama 是否正常
-- 模型是否 loaded
-- Docker container 是否 healthy
-- Qdrant 是否 ready
-- App / Agent API 是否有回應
-- 模型是跑在 CPU、GPU 還是 hybrid
-- 系統是否適合 demo / 交付 / 上線
-
----
-
-### 6.3 不知道資料是否可能離開預期環境
-
-常見風險包括：
-
-- `.env` 裡有 OpenAI / Anthropic API key
-- config 裡有 remote endpoint
-- embedding 使用外部 provider
-- cloud fallback 未關閉
-- 系統其實不是 local-only，而是 hybrid
-
----
-
-### 6.4 服務可能不小心暴露
-
-例如：
-
-- Qdrant 綁到 `0.0.0.0`
-- Open WebUI 對區網開放
-- Agent API 暴露到 LAN
-- Docker port publish 到所有網卡
-- Qdrant 沒有 API key
-
-這些都可能讓 local AI 系統產生資料外洩或未授權存取風險。
-
----
-
-### 6.5 Agent 工具權限可能過大
-
-AI Agent 可能不只是回答問題，還能：
-
-- 寄信
-- 刪檔
-- 寫資料庫
-- 呼叫外部 API
-- 執行 shell command
-- 修改 ticket
-- 觸發 workflow
-
-如果沒有 approval、policy 或 tool call log，就不適合直接交付或上線。
-
----
-
-### 6.6 RAG 回答不一定真的有根據
-
-使用者可能不知道：
-
-- retrieved chunks 是否相關
-- citation 是否真的支持答案
-- 回答是否有 unsupported claims
-- metadata 是否足夠 trace source
-- collection / chunk / source 設計是否足夠支援可信回答
-
-所以 KAI-Mind 要檢查的不是「答案看起來像不像對」，而是：
-
-> RAG 回答是否有被資料支持。
-
----
-
-## 7. Overall Roadmap
-
-目前先建立整體 Parent Issue / Epic roadmap。  
-這不代表全部功能馬上開發，而是先讓團隊知道整個產品會分成哪些大模組。
-
-| Epic | 模組名稱 | 核心目的 | 開發階段 |
-|---|---|---|---|
-| Epic 1 | System Map Builder | 讀取 repo / config / services，建立 AI 系統地圖，作為 CI/CD gate 的共同事實基礎 | 先做 |
-| Epic 2 | Runtime Readiness Check | 檢查 Ollama、Docker、Qdrant、App API、模型狀態是否正常 | 後續 |
-| Epic 3 | Privacy & Exposure Check | 檢查資料流、API key、cloud endpoint、port exposure | 後續 |
-| Epic 4 | Agent Tool Risk Check | 檢查 Agent 工具權限是否過大 | 後續 |
-| Epic 5 | RAG / Knowledge Readiness Check | 檢查 collection、metadata、chunk、citation、sample answer support | 後續 |
-| Epic 6 | Release Report / CI Gate | 輸出 READY / RISKY / NOT_READY、JSON report 與 exit code，並作為 CI/CD pass / fail gate | 後續 |
-
----
-
-## 8. Product Architecture Overview
-
-```text
-KAI-Mind
-AI Agent / RAG Release Readiness Gate
-│
-├─ 1. System Map Builder
-│   └─ 讀取 repo / config / services，建立 AI 系統地圖，作為 CI/CD gate 的共同事實基礎
-│
-├─ 2. Runtime Readiness Check
-│   └─ 檢查 Ollama、Docker、Qdrant、App API、模型狀態是否正常
-│
-├─ 3. Privacy & Exposure Check
-│   └─ 檢查資料流、API key、cloud endpoint、port exposure
-│
-├─ 4. Agent Tool Risk Check
-│   └─ 檢查 agent 工具權限是否過大
-│
-├─ 5. RAG / Knowledge Readiness Check
-│   └─ 檢查 collection、metadata、chunk、citation、sample answer support
-│
-└─ 6. Release Report / CI Gate
-    └─ 輸出 READY / RISKY / NOT_READY、JSON report 與 exit code，並可作為 CI/CD pass / fail gate
-```
-
----
-
-## 9. Input / Process / Output
-
-### 9.1 Input
-
-KAI-Mind 的輸入是一套已完成或準備交付的 AI Agent / RAG 系統。
-
-實際可能包含：
-
-- repo / project folder
-- config files
-- `.env`
-- `docker-compose.yml`
-- running services
-- Ollama endpoint
-- Qdrant endpoint
-- App / Agent API endpoint
-- agent tools config
-- RAG collection / metadata
-- optional trace / logs
-- optional sample Q&A
-
----
-
-### 9.2 Process
-
-```text
-掃描系統
-→ 建立 AI System Map
-→ 執行健檢規則
-→ 判斷風險
-→ 排出最該先修的問題
-→ 產生 Release Report / CI Gate
-```
-
----
-
-### 9.3 Output
-
-KAI-Mind 最終輸出應同時服務人類 review 與 CI/CD pipeline：
-
-- Readiness Report
-- AI System Map
-- Critical Findings
-- Evidence
-- Fix First Recommendation
-- READY / RISKY / NOT_READY
-- CI/CD PASS / FAIL
-- CLI exit code
-- machine-readable JSON artifact
-
----
-
-## 10. Recommended Product Form
-
-目前最推薦形式：
-
-> CLI Core + JSON Report + CI/CD Gate + Local Web UI
-
-### 10.1 CI/CD 模式
-
-```bash
-kai-mind gate --ci --project ./my-ai-agent --output readiness_report.json
-```
-
-輸出：
-
-- JSON report
-- machine-readable verdict
-- exit code
-- CI/CD pass / fail result
-- artifacts for PR comments or release records
-
-### 10.2 工程模式
-
-```bash
-kai-mind map --project ./my-ai-agent --output ai_system_map.json
-kai-mind gate --ci
-```
-
-輸出：
-
-- JSON report
-- exit code
-- CI/CD pass / fail result
-
-### 10.3 使用者模式
-
-```text
-雙擊 EXE / 啟動 Local Web UI
-→ 選擇 project folder
-→ 執行 readiness check
-→ 查看 AI System Map 與 Release Report
-```
-
-### 10.4 後續可擴展形式
-
-成熟後再發展：
-
-- GitHub Action
-- Docker Desktop Extension
-- VS Code Extension
-- CI/CD Plugin
-
-這樣做的好處：
-
-- 不需要一開始做完整 desktop app
-- CLI 可以先直接接 CI/CD
-- JSON report 與 exit code 可以成為穩定 contract
-- 使用者仍然可以透過 Local Web UI 理解報告與 System Map
-- 核心邏輯可重用
-- 未來能自然包成 plugin
-
----
-
-# Epic 1 — System Map Builder
-
-## 11. Epic Summary
+## 1. Epic Summary
 
 Epic 1 的目標是建立 KAI-Mind 的第一個核心能力：
 
@@ -402,7 +23,7 @@ System Map Builder 不是單純畫圖工具。
 
 ---
 
-## 12. Why Start from System Map Builder?
+## 2. Why Start from System Map Builder?
 
 第一個 Epic 應該先做 System Map Builder，原因很簡單：
 
@@ -423,35 +44,163 @@ System Map Builder 不是單純畫圖工具。
 
 ---
 
-## 13. Epic 1 Goal
+## 3. Epic 1 Goal
 
-Epic 1 完成後，使用者可以輸入一個既有的 AI Agent / RAG 專案資料夾，讓 KAI-Mind 自動掃描 repo、設定檔、Docker services、endpoint、Agent tools 與可能的外部連線，產生一份可追溯 evidence 的 AI System Map。使用者可以透過互動式 GUI 看到系統中的元件與資料流，點選節點或連線查看來源證據、confidence 與風險提示，並用這份 map 作為後續 Runtime Readiness、Privacy & Exposure、Agent Tool Risk、RAG Knowledge Trust 與 CI/CD Gate 的共同基礎。
+Epic 1 完成後，使用者可以輸入一個既有的 RAG 專案資料夾，KAI-Mind 會先載入一份預設的 RAG reference architecture，依照架構圖中的 component slot 逐項掃描 repo、設定檔、Docker services、endpoint、資料來源、embedding、vector store、retriever、LLM、citation、guardrails 與 observability 訊號，產生一份標準化、可追溯 evidence 的 RAG System Map。使用者可以透過互動式 GUI 看到 indexing flow、query flow、外部依賴、缺失元件與風險提示，點選節點或連線查看來源證據與掃描狀態，並用這份標準化資料作為後續 Runtime Readiness、Privacy & Exposure、RAG Knowledge Trust 與 CI/CD Gate 的共同基礎。
 
 Epic 1 要完成的不是完整 readiness check，而是：
 
-> 建立 KAI-Mind 可以理解 AI Agent / RAG 系統的第一層結構，讓後續 CI/CD gate 可以基於同一份 map 做判斷。
+> 先暫定 input type 為 RAG，建立一個以 RAG 通用架構為模板的 scanner，把 repo 轉換成標準化 RAG System Map，讓後續 GUI 與 CI/CD gate 都能基於同一份結構化資料做判斷。
 
 也就是：
 
 ```text
-Project Folder / Running Services
+Input: RAG Project Folder
         ↓
-System Scanner
+Select System Type: RAG
         ↓
-Detected Components
+Load RAG Reference Architecture
         ↓
-AI System Map
+Scan Repo by Component Slots
         ↓
-Structured JSON Output
+Extract Evidence Facts
         ↓
-Interactive System Map GUI
+Normalized RAG System Map
+        ↓
+Interactive RAG Visualization GUI
 ```
 
 ---
 
-## 14. Scope of Epic 1
+## 3.1 Future Classification Layer
 
-### 14.1 In Scope
+Epic 1 先暫定 input type 為 RAG，避免第一版同時支援太多 AI 應用類型而失焦。但長期架構需要預留一個 classification layer。
+
+未來 KAI-Mind 的流程應該是：
+
+```text
+Input Project Folder
+        ↓
+Evidence Extraction
+        ↓
+Architecture Classification Layer
+        ↓
+Select Reference Architecture Template
+        ↓
+Run Template-specific Component Scanners
+        ↓
+Normalize System Map
+        ↓
+Run Type-specific Checks / GUI / CI Gate
+```
+
+Classification layer 的責任不是讓 AI 自由猜整個 repo，而是根據 deterministic evidence 判斷這套 AI 系統比較接近哪一種架構類型，然後選擇對應的 reference architecture template 與 scanner rules。
+
+可能的 architecture types：
+
+| Architecture Type | Reference Template | 掃描重點 |
+|---|---|---|
+| `rag` | RAG Reference Architecture | data source、parser、chunking、embedding、vector store、retriever、LLM、citation |
+| `llm_chat` | LLM Chat Reference Architecture | prompt、LLM、conversation memory、guardrails、response composer |
+| `agent_workflow` | Agent Reference Architecture | planner、tool calling、action execution、approval、memory、tool logs |
+| `coding_agent` | Coding Agent Reference Architecture | repo index、code context、patch generation、test runner、PR review |
+| `multimodal` | Multimodal Reference Architecture | input media、multimodal model、safety filter、media output |
+| `recommendation` | Recommendation Reference Architecture | user events、feature store、ranking model、feedback loop |
+| `edge_ai` | Edge AI Reference Architecture | sensor input、edge model、local inference、event detection、cloud sync |
+
+第一版可以把 classification 固定為：
+
+```json
+{
+  "system_type": "rag",
+  "classification_mode": "user_selected_or_default",
+  "selected_template": "rag-core-v1"
+}
+```
+
+等 RAG scanner 與 GUI 穩定後，再把 classification layer 做成真正的多類型入口。這樣 Epic 1 的 schema 與 scanner architecture 不會被 RAG 寫死，未來可以用同一套流程支援不同 AI 系統架構。
+
+---
+
+## 3.2 RAG Reference Architecture
+
+Epic 1 先不嘗試支援所有 AI 應用類型，而是先預設輸入是一套 RAG 系統。KAI-Mind 會根據 RAG reference architecture 的 component slot 去掃描 repo，而不是把整個 repo feed 給 AI 自由推論架構。
+
+通用 AI 核心架構可以作為長期擴充方向：
+
+```mermaid
+flowchart TD
+    A[使用者輸入<br/>問題 / 指令 / 文件 / 圖像 / 語音] --> B[AI Orchestrator<br/>任務判斷 / Prompt 組裝 / 模型路由]
+
+    B --> C1[LLM / Multimodal Model<br/>文字 / 圖像 / 語音 / 程式碼]
+    B --> C2[RAG Retrieval<br/>Keyword Search / Vector Search / Hybrid Search]
+    B --> C3[Agent Planner<br/>任務拆解 / 步驟規劃]
+    B --> C4[Recommendation / Ranking Model<br/>排序 / 個人化]
+
+    D[企業資料 / 文件 / 網頁 / 程式碼 / 使用者行為 / 感測資料] --> E[AI Data Pipeline<br/>清理 / Chunking / Embedding / Feature Engineering]
+    E --> F1[Vector DB / Search Index]
+    E --> F2[Feature Store]
+    E --> F3[Model Training / Fine-tuning Data]
+
+    F1 --> C2
+    F2 --> C4
+    F3 --> C1
+
+    C3 --> G[Tool Calling<br/>CRM / ERP / Email / Calendar / Code Repo / IoT API]
+    G --> H[Action Execution<br/>執行任務 / 建立工單 / 寫入系統]
+
+    C1 --> I[Guardrails<br/>安全過濾 / PII / Prompt Injection 防護 / Grounding 檢查]
+    C2 --> I
+    C3 --> I
+    C4 --> I
+    H --> I
+
+    I --> J[AI Response Composer<br/>答案整理 / 引用來源 / 格式化 / 個人化]
+    J --> K[輸出結果<br/>文字 / 圖像 / 語音 / 程式碼 / 推薦項目]
+
+    B --> L[AI Observability<br/>Prompt Logs / Retrieval Logs / Tool Logs / Token Cost / Latency / Eval]
+    I --> L
+    J --> L
+```
+
+Epic 1 的實作範圍先聚焦在其中的 RAG 子架構：
+
+```text
+Indexing / Ingestion Flow:
+
+Data Sources
+  -> Document Loader / Parser
+  -> Chunking
+  -> Embedding Model
+  -> Vector DB / Search Index
+
+Query / Answer Flow:
+
+User Query
+  -> App API / AI Orchestrator
+  -> Query Processing
+  -> Retriever
+  -> Retrieved Chunks
+  -> Prompt Builder
+  -> LLM
+  -> Citation / Response Composer
+  -> Response
+
+Cross-cutting Components:
+
+External Providers
+Guardrails
+Observability / Logs
+Secrets / Config
+Network Exposure
+```
+
+這份 reference architecture 不是要 KAI-Mind 強行假設每個 RAG 專案都有所有元件，而是提供掃描模板。每個 component slot 都會被標準化為 `detected`、`missing`、`not_configured` 或 `not_applicable`，並附上 evidence。
+
+
+## 4. Scope of Epic 1
+
+### 4.1 In Scope
 
 Epic 1 應該包含：
 
@@ -461,15 +210,18 @@ Epic 1 應該包含：
 | Config discovery | 找出 `.env`、config、Docker、agent、RAG 相關設定 |
 | Runtime endpoint discovery | 偵測可能的 Ollama、Qdrant、App API endpoint |
 | Docker compose parsing | 讀取 `docker-compose.yml` 中的 services、ports、volumes、env |
-| AI component detection | 辨識 LLM runtime、vector DB、app API、agent tools、data source |
+| Classification placeholder | 第一版固定為 `system_type = rag`，但 schema 保留未來 classification layer 欄位 |
+| RAG component slot scanning | 依照 RAG reference architecture 逐項掃描 data source、parser、chunking、embedding、vector store、retriever、LLM、citation 等 component slot |
+| AI component detection | 辨識 LLM runtime、vector DB、app API、data source、retriever、embedding model、citation layer |
 | External endpoint detection | 找出可能的外部 API endpoint |
 | Network exposure hints | 記錄 localhost、0.0.0.0、LAN IP 等 exposure hints |
+| System type normalization | 將掃描結果標準化為 `ai_system_map.json` |
 | System map output | 輸出結構化 JSON / Markdown summary |
-| Interactive System Map GUI | 提供可操作的可視化介面，讓使用者可以探索 AI System Map |
+| Interactive RAG System Map GUI | 提供可操作的可視化介面，讓使用者可以探索 RAG indexing flow 與 query flow |
 
 ---
 
-### 14.2 Out of Scope
+### 4.2 Out of Scope
 
 Epic 1 不應該做太多後續檢查，否則範圍會失控。
 
@@ -486,88 +238,165 @@ Epic 1 不應該做太多後續檢查，否則範圍會失控。
 
 ---
 
-## 15. AI System Map Data Model
+## 5. RAG System Map Data Model
 
-Epic 1 的核心產物是一份 AI System Map。
+Epic 1 的核心產物是一份標準化 RAG System Map。
+
+資料模型不使用 `confidence`。Epic 1 是架構掃描，不是讓 AI 猜測整個 repo 的意圖；掃到 evidence 就記錄 evidence，沒掃到就標示 slot 狀態。
 
 最小版本可以長這樣：
 
 ```json
 {
+  "schema_version": "ai-system-map/v1",
+  "system_type": "rag",
+  "classification": {
+    "mode": "user_selected_or_default",
+    "selected_template": "rag-core-v1",
+    "future_layer": "architecture_classification"
+  },
   "project": {
     "name": "example-ai-agent",
     "root_path": "/path/to/project"
   },
-  "components": [
+  "reference_architecture": {
+    "id": "rag-core-v1",
+    "flows": ["indexing", "query_answer"],
+    "component_slots": [
+      "data_sources",
+      "document_loader",
+      "chunking",
+      "embedding_model",
+      "vector_store",
+      "app_api_or_orchestrator",
+      "query_processing",
+      "retriever",
+      "prompt_builder",
+      "llm",
+      "citation_or_response_composer",
+      "guardrails",
+      "observability"
+    ]
+  },
+  "components_by_slot": [
     {
-      "id": "ollama_runtime",
-      "type": "llm_runtime",
-      "name": "Ollama",
-      "source": "docker-compose.yml",
-      "endpoint": "http://localhost:11434",
-      "confidence": "high"
+      "slot": "vector_store",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "qdrant_vector_db",
+          "kind": "vector_db",
+          "name": "Qdrant",
+          "evidence": [
+            {
+              "kind": "docker_service",
+              "file": "docker-compose.yml",
+              "path": "services.qdrant.image",
+              "value": "qdrant/qdrant"
+            },
+            {
+              "kind": "published_port",
+              "file": "docker-compose.yml",
+              "path": "services.qdrant.ports",
+              "value": "6333:6333"
+            }
+          ]
+        }
+      ]
     },
     {
-      "id": "qdrant_vector_db",
-      "type": "vector_db",
-      "name": "Qdrant",
-      "source": "docker-compose.yml",
-      "endpoint": "http://localhost:6333",
-      "confidence": "high"
+      "slot": "llm",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "ollama_runtime",
+          "kind": "llm_runtime",
+          "name": "Ollama",
+          "evidence": [
+            {
+              "kind": "env_key",
+              "file": ".env",
+              "path": "OLLAMA_HOST",
+              "value": "http://localhost:11434"
+            }
+          ]
+        }
+      ]
     },
     {
-      "id": "app_api",
-      "type": "app_api",
-      "name": "FastAPI",
-      "source": "project files",
-      "endpoint": "http://localhost:8000",
-      "confidence": "medium"
+      "slot": "citation_or_response_composer",
+      "required_for_rag": false,
+      "status": "missing",
+      "instances": []
     }
   ],
-  "connections": [
+  "flows": [
     {
-      "from": "app_api",
-      "to": "ollama_runtime",
-      "reason": "LLM generation endpoint"
-    },
-    {
-      "from": "app_api",
-      "to": "qdrant_vector_db",
-      "reason": "RAG retrieval endpoint"
+      "id": "query_answer",
+      "edges": [
+        {
+          "from_slot": "app_api_or_orchestrator",
+          "to_slot": "retriever",
+          "relationship": "calls_retriever"
+        },
+        {
+          "from_slot": "retriever",
+          "to_slot": "vector_store",
+          "relationship": "queries_vector_store"
+        },
+        {
+          "from_slot": "prompt_builder",
+          "to_slot": "llm",
+          "relationship": "builds_prompt_for"
+        }
+      ]
     }
   ],
   "risk_hints": [
     {
       "type": "network_exposure",
       "target": "qdrant_vector_db",
-      "evidence": "0.0.0.0:6333",
+      "evidence_ref": "docker-compose.yml:services.qdrant.ports",
       "severity_hint": "high"
     }
+  ],
+  "recommended_next_checks": [
+    "runtime_readiness",
+    "privacy_exposure",
+    "rag_knowledge_trust"
   ]
 }
 ```
 
 ---
 
-## 16. Components to Detect
+## 6. Components to Detect
 
-Epic 1 應優先偵測這些元件：
+Epic 1 應依照 RAG reference architecture 優先偵測這些 component slot：
 
-| Component Type | Examples | Priority |
+| RAG Slot | Examples / Signals | Required | Priority |
 |---|---|---|
-| LLM Runtime | Ollama, llama.cpp server, vLLM | P0 |
-| Vector DB | Qdrant, Chroma, Weaviate, FAISS folder | P0 |
-| App / Agent API | FastAPI, Flask, Open WebUI, custom backend | P0 |
-| Docker Services | docker-compose services, exposed ports | P0 |
-| Config Files | `.env`, `.yaml`, `.json`, `.toml` | P0 |
-| Agent Tools | shell, email, database, external API tools | P1 |
-| Data Sources | PDF, Excel, Markdown, internal docs | P1 |
-| External Endpoints | OpenAI, Anthropic, Azure OpenAI, custom remote APIs | P1 |
-| RAG Pipeline Hints | retriever, embedding, reranker, collection name | P1 |
+| Data Sources | PDF, Markdown, HTML, Excel, document folders, S3-like paths | Usually yes | P0 |
+| Document Loader / Parser | LangChain loaders, LlamaIndex readers, PyMuPDF, unstructured | Usually yes | P0 |
+| Chunking | text splitter, chunk size, overlap, splitter config | Usually yes | P0 |
+| Embedding Model | OpenAI embeddings, Azure OpenAI embeddings, Ollama embeddings, sentence-transformers | Usually yes | P0 |
+| Vector Store / Search Index | Qdrant, Chroma, FAISS, Weaviate, Azure AI Search, Elasticsearch | Usually yes | P0 |
+| App API / Orchestrator | FastAPI, Flask, Open WebUI, custom backend, chain orchestration | Usually yes | P0 |
+| Query Processing | query rewrite, query expansion, hybrid search setup | Optional | P1 |
+| Retriever | retriever object, vectorstore retriever, similarity search, hybrid search | Usually yes | P0 |
+| Prompt Builder | prompt template, system prompt, context injection | Usually yes | P1 |
+| LLM | Ollama, OpenAI, Anthropic, Azure OpenAI, local model runtime | Usually yes | P0 |
+| Citation / Response Composer | source metadata, citation formatter, response composer | Optional but important | P1 |
+| Guardrails | PII filter, prompt injection check, safety filter, grounding check | Optional | P1 |
+| Observability / Logs | prompt logs, retrieval logs, token usage, latency, eval traces | Optional | P1 |
+| External Providers | OpenAI, Anthropic, Azure OpenAI, cloud vector DB, remote APIs | Optional risk signal | P0 |
+| Network Exposure | published ports, `0.0.0.0`, LAN bind, public endpoint | Optional risk signal | P0 |
 
 ---
 
-## 17. Files to Scan
+## 7. Files to Scan
 
 Epic 1 可以從以下檔案開始掃描：
 
@@ -586,116 +415,139 @@ Epic 1 可以從以下檔案開始掃描：
 
 ---
 
-## 18. Minimal Detection Rules
+## 8. Minimal Detection Rules
 
 第一版不要追求完美。  
-先做可解釋、可維護的 rule-based detection。
+先做可解釋、可維護的 rule-based detection，並把每個掃描結果歸入 RAG component slot。
 
-| 偵測目標 | 最小規則 |
+| RAG Slot / Signal | 最小規則 |
 |---|---|
-| Ollama | 出現 `ollama`、`11434`、`OLLAMA_HOST` |
-| Qdrant | 出現 `qdrant`、`6333`、`QDRANT_URL` |
-| Open WebUI | 出現 `open-webui`、`3000`、`8080` |
-| FastAPI | 出現 `fastapi`、`uvicorn` |
-| Flask | 出現 `flask` |
-| OpenAI API | 出現 `OPENAI_API_KEY`、`api.openai.com` |
-| Anthropic API | 出現 `ANTHROPIC_API_KEY`、`anthropic.com` |
-| Azure OpenAI | 出現 `AZURE_OPENAI_ENDPOINT`、`AZURE_OPENAI_API_KEY` |
-| LangChain | 出現 `langchain` |
-| AutoGen | 出現 `autogen` |
-| LlamaIndex | 出現 `llama-index` |
-| RAG | 出現 `retriever`、`embedding`、`vectorstore`、`collection` |
-| Agent Tool | 出現 `tools`、`tool_calls`、`function_calling`、`shell`、`send_email` |
+| Data Sources | 出現 `data/`、`docs/`、`.pdf`、`.md`、`.csv`、`.xlsx`、`source_documents` |
+| Document Loader / Parser | 出現 `PyPDFLoader`、`DirectoryLoader`、`SimpleDirectoryReader`、`unstructured`、`pymupdf` |
+| Chunking | 出現 `chunk_size`、`chunk_overlap`、`TextSplitter`、`RecursiveCharacterTextSplitter` |
+| Embedding Model | 出現 `embedding`、`OpenAIEmbeddings`、`AzureOpenAIEmbeddings`、`sentence-transformers`、`nomic-embed` |
+| Vector Store / Search Index | 出現 `qdrant`、`chroma`、`faiss`、`weaviate`、`Azure AI Search`、`vectorstore`、`collection` |
+| App API / Orchestrator | 出現 `fastapi`、`uvicorn`、`flask`、`streamlit`、`open-webui`、`chain.invoke` |
+| Retriever | 出現 `retriever`、`similarity_search`、`as_retriever`、`hybrid_search`、`top_k` |
+| Prompt Builder | 出現 `PromptTemplate`、`ChatPromptTemplate`、`system_prompt`、`context` |
+| LLM | 出現 `ollama`、`11434`、`OLLAMA_HOST`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`AZURE_OPENAI_ENDPOINT` |
+| Citation / Response Composer | 出現 `source`、`metadata`、`citation`、`references`、`source_documents` |
+| Guardrails | 出現 `guardrail`、`moderation`、`PII`、`prompt_injection`、`grounding` |
+| Observability / Logs | 出現 `langsmith`、`tracing`、`prompt_log`、`retrieval_log`、`token_usage`、`latency` |
+| External Provider | 出現 `api.openai.com`、`anthropic.com`、`AZURE_OPENAI_ENDPOINT`、remote vector DB URL |
+| Network Exposure | 出現 Docker port publish、`0.0.0.0`、LAN IP、non-localhost bind |
+
+每個 slot 的狀態只能是：
+
+- `detected`: 有明確 evidence。
+- `missing`: RAG reference architecture 中常見或必要，但 repo 內沒有掃到。
+- `not_configured`: 有設定入口，但沒有實際值或被註解。
+- `not_applicable`: 這類 RAG 專案不需要該 slot，且有明確理由。
+
+不要用 `confidence` 表示猜測程度。Epic 1 要輸出 facts、slot status、evidence 與 recommended next checks。
 
 ---
 
-## 19. Epic 1 Output
+## 9. Epic 1 Output
 
-Epic 1 至少要輸出三種成果：machine-readable map、人類可讀 summary，以及真正可互動的 System Map GUI。
+Epic 1 至少要輸出三種成果：machine-readable RAG map、人類可讀 summary，以及真正可互動的 RAG System Map GUI。
 
-### 19.1 JSON Output
+### 9.1 JSON Output
 
 給後續 checker 使用：
 
 ```text
-kai-mind-map.json
+ai_system_map.json
 ```
 
 內容包含：
 
 - project metadata
-- detected components
-- connections
+- system type classification placeholder
+- reference architecture ID
+- RAG component slots
+- slot status
+- detected component instances
+- indexing flow
+- query / answer flow
 - endpoints
 - config evidence
 - risk hints
-- confidence score
+- recommended next checks
 
 ---
 
-### 19.2 Markdown Summary
+### 9.2 Markdown Summary
 
 給人閱讀：
 
 ```text
-kai-mind-map.md
+ai_system_map.md
 ```
 
 內容包含：
 
 - 系統總覽
-- 偵測到的元件
-- 可能的資料流
+- RAG component slot coverage
+- 偵測到的元件與 missing slots
+- indexing flow
+- query / answer flow
 - 可能的外部 endpoint
 - 可能的 network exposure
 - 後續建議檢查項目
 
 ---
 
-### 19.3 Interactive System Map GUI
+### 9.3 Interactive RAG System Map GUI
 
 給使用者探索系統結構：
 
 ```text
-Local System Map Viewer
+Local RAG System Map Viewer
 ```
 
 最小功能包含：
 
-- 載入 `kai-mind-map.json`
-- 以 node / edge graph 顯示 AI 系統
-- 使用不同視覺樣式區分 LLM runtime、vector DB、App API、config、external endpoint、network exposure、agent tool
+- 載入 `ai_system_map.json`
+- 以 node / edge graph 顯示 RAG 系統
+- 顯示 indexing flow 與 query / answer flow
+- 使用不同視覺樣式區分 data source、parser、chunking、embedding、vector store、retriever、LLM、citation、external endpoint、network exposure
 - 點選 node 顯示 detail panel
 - 點選 edge 顯示 connection reason
-- 顯示 evidence、source、confidence
-- 支援 filter：component type、external endpoint、network exposure、agent tool、risk hint
+- 顯示 evidence、source、slot status
+- 支援 filter：RAG slot、detected / missing、external endpoint、network exposure、risk hint
 - 支援基本 zoom、pan、drag
+- 支援 Epic 1 MVP interactive query trace / replay：使用者送出測試問題後，KAI-Mind 會呼叫 detected RAG endpoint 並收集 basic trace，讓使用者在圖上看到 query 實際經過的 RAG steps，並支援 pause、step forward、step backward、replay
 - secret-like value 必須遮罩
 
 Epic 1 的 GUI 不是完整 dashboard，也不是圖編輯器。  
-它的目標是讓使用者真的可以互動探索 AI System Map，而不是只看到靜態文字或截圖。
+它的目標是讓使用者真的可以互動探索 RAG System Map，而不是只看到靜態文字或截圖。
 
 ---
 
-## 20. Example Human-readable Output
+## 10. Example Human-readable Output
 
 ```markdown
-# AI System Map
+# RAG System Map
 
-## Detected Components
+## RAG Component Slot Coverage
 
-| Type | Name | Source | Endpoint | Confidence |
-|---|---|---|---|---|
-| LLM Runtime | Ollama | docker-compose.yml | http://localhost:11434 | High |
-| Vector DB | Qdrant | docker-compose.yml | http://localhost:6333 | High |
-| App API | FastAPI | requirements.txt | http://localhost:8000 | Medium |
+| Slot | Status | Instance | Evidence |
+|---|---|---|---|
+| Data Sources | detected | `docs/` | folder exists |
+| Chunking | detected | RecursiveCharacterTextSplitter | `src/ingest.py` |
+| Embedding Model | detected | OpenAIEmbeddings | `.env:OPENAI_API_KEY` |
+| Vector Store | detected | Qdrant | `docker-compose.yml:services.qdrant.image` |
+| Retriever | detected | vectorstore retriever | `src/rag.py:as_retriever` |
+| Citation / Response Composer | missing | - | no citation/source formatter found |
 
-## Possible Connections
+## Query Flow
 
 | From | To | Reason |
 |---|---|---|
-| FastAPI | Ollama | LLM generation |
-| FastAPI | Qdrant | RAG retrieval |
+| App API | Retriever | query passes into retrieval layer |
+| Retriever | Vector Store | retriever queries vector index |
+| Prompt Builder | LLM | retrieved context is injected into prompt |
 
 ## Risk Hints
 
@@ -707,52 +559,54 @@ Epic 1 的 GUI 不是完整 dashboard，也不是圖編輯器。
 
 ---
 
-## 21. Suggested Sub-issues for Epic 1
+## 11. Suggested Sub-issues for Epic 1
 
 ### Parent Issue
 
 ```text
-Epic 1: System Map Builder
+Epic 1: RAG System Map Builder
 ```
 
 ### Sub-issues
 
 | Issue | Title | Priority | Purpose |
 |---|---|---|---|
-| 1.1 | Define AI System Map schema | P0 | 定義後續所有 checker 共用的資料格式 |
-| 1.2 | Implement project folder scanner | P0 | 掃描 repo / project folder 內的設定檔 |
-| 1.3 | Parse docker-compose services | P0 | 讀取 services、ports、volumes、env |
-| 1.4 | Detect core AI components | P0 | 偵測 Ollama、Qdrant、FastAPI、Open WebUI |
-| 1.5 | Detect config endpoints and providers | P0 | 找出 local / external endpoint |
-| 1.6 | Generate system map JSON report | P0 | 輸出給後續 checker 使用的 JSON |
-| 1.7 | Generate human-readable Markdown report | P1 | 輸出給使用者閱讀的 Markdown summary |
-| 1.8 | Add confidence score and evidence field | P1 | 讓每個判斷都有可追溯證據 |
-| 1.9 | Build interactive System Map GUI | P0 | 載入 map JSON，提供可互動的 node / edge 視覺化 |
-| 1.10 | Add GUI evidence panel and filters | P0 | 支援點選 node / edge、查看 evidence、篩選風險訊號 |
-| 1.11 | Add basic CLI command | P1 | 支援 `kai-mind map ./project` 與啟動 viewer |
-| 1.12 | Prepare sample projects for testing | P1 | 建立測試用 local RAG / Agent 專案樣本 |
+| 1.1 | Define RAG reference architecture template | P0 | 定義 RAG component slots、indexing flow、query flow |
+| 1.2 | Define `ai_system_map.json` schema | P0 | 定義後續 GUI 與 checker 共用的標準化資料格式 |
+| 1.3 | Add classification layer placeholder | P0 | 第一版固定 `system_type = rag`，但保留未來多架構 template 選擇 |
+| 1.4 | Implement project folder scanner | P0 | 掃描 repo / project folder 內的設定檔 |
+| 1.5 | Parse docker-compose services | P0 | 讀取 services、ports、volumes、env |
+| 1.6 | Detect RAG component slots | P0 | 偵測 data source、parser、chunking、embedding、vector store、retriever、LLM、citation |
+| 1.7 | Detect external endpoints and network exposure | P0 | 找出 local / external endpoint 與 exposure hints |
+| 1.8 | Generate RAG system map JSON report | P0 | 輸出給 GUI 與後續 checker 使用的 JSON |
+| 1.9 | Generate human-readable Markdown report | P1 | 輸出給使用者閱讀的 Markdown summary |
+| 1.10 | Add slot status and evidence refs | P0 | 用 `detected` / `missing` / `not_configured` / `not_applicable` 取代 confidence |
+| 1.11 | Build interactive RAG System Map GUI | P0 | 載入 map JSON，提供可互動的 RAG node / edge 視覺化 |
+| 1.12 | Add GUI evidence panel and filters | P0 | 支援點選 node / edge、查看 evidence、篩選 slot status 與風險訊號 |
+| 1.13 | Add basic CLI command | P1 | 支援 `kai-mind map ./project` 與 `kai-mind viewer <map_json>` |
+| 1.14 | Prepare sample RAG projects for testing | P1 | 建立測試用 local RAG 專案樣本 |
 
 ---
 
-## 22. Parent Issue Draft
+## 12. Parent Issue Draft
 
 ```markdown
-# Epic 1: System Map Builder
+# Epic 1: RAG System Map Builder
 
 ## Objective
 
-建立 KAI-Mind 的第一個核心模組：System Map Builder。
+建立 KAI-Mind 的第一個核心模組：RAG System Map Builder。
 
-此模組負責讀取一套 AI Agent / RAG 系統的 repo、設定檔與執行中服務資訊，產生一份結構化的 AI System Map，讓後續 Runtime Readiness、Privacy & Exposure、Agent Tool Risk、RAG Readiness 與 Release Gate 模組可以基於同一份系統地圖進行檢查。
+此模組先暫定 input type 為 RAG，負責根據預設的 RAG reference architecture 逐項掃描 repo、設定檔與執行中服務資訊，產生一份標準化的 `ai_system_map.json`。後續 Runtime Readiness、Privacy & Exposure、RAG Knowledge Trust 與 Release Gate 模組都應基於同一份 RAG System Map 進行檢查。
 
 Epic 1 完成後，使用者不應該只拿到 JSON 或 Markdown。  
-使用者應該可以打開一個互動式 GUI，實際看到 AI 系統的 node / edge map，並能點選元件、查看 evidence、篩選 endpoint / exposure / tool 等訊號。
+使用者應該可以打開一個互動式 GUI，實際看到 RAG indexing flow、query flow、missing slots、外部依賴與 risk hints，並能點選元件、查看 evidence、篩選 endpoint / exposure / slot status 等訊號。
 
 ## Why
 
-KAI-Mind 的後續檢查都需要先知道系統中有哪些元件、服務、endpoint、資料來源與可能的風險位置。
+KAI-Mind 的後續檢查都需要先知道 RAG 系統中有哪些元件、服務、endpoint、資料來源與可能的風險位置。
 
-如果沒有 System Map，後續 checker 會變成零散掃描，無法形成完整診斷。
+如果沒有標準化 RAG System Map，後續 checker 會變成零散掃描，無法形成完整診斷。
 
 ## Scope
 
@@ -761,15 +615,18 @@ KAI-Mind 的後續檢查都需要先知道系統中有哪些元件、服務、en
 - 掃描 project folder
 - 讀取 `.env`、config、Docker 相關檔案
 - 解析 `docker-compose.yml`
-- 偵測 Ollama、Qdrant、FastAPI、Open WebUI 等核心元件
+- 載入 RAG reference architecture template
+- 第一版 classification 固定為 `system_type = rag`，但 schema 預留未來多架構分類
+- 逐項偵測 data source、parser、chunking、embedding、vector store、retriever、LLM、citation 等 RAG component slots
+- 偵測 Ollama、Qdrant、FastAPI、Open WebUI 等實際 component instances
 - 偵測 local endpoint 與 external endpoint
-- 建立 AI System Map JSON
+- 建立 `ai_system_map.json`
 - 建立 human-readable Markdown summary
-- 建立互動式 System Map GUI
+- 建立互動式 RAG System Map GUI
 - GUI 可以載入 map JSON 並顯示 node / edge graph
-- GUI 可以查看 selected node / edge 的 evidence 與 confidence
-- GUI 可以依 component type、external endpoint、network exposure、agent tool、risk hint 篩選
-- 為每個偵測結果保留 evidence 與 confidence score
+- GUI 可以查看 selected node / edge 的 evidence 與 slot status
+- GUI 可以依 RAG slot、slot status、external endpoint、network exposure、risk hint 篩選
+- 為每個偵測結果保留 evidence refs
 
 ### Out of Scope
 
@@ -778,70 +635,80 @@ KAI-Mind 的後續檢查都需要先知道系統中有哪些元件、服務、en
 - 不做 Agent tool policy 判斷
 - 不做 RAG answer groundedness 評估
 - 不做 READY / RISKY / NOT_READY 最終判斷
+- 不實作完整多架構 classifier，Epic 1 先聚焦 RAG，但保留 classification layer 設計
 - 不做完整 readiness dashboard
 - 不做手動 graph 編輯器
 
 ## Deliverables
 
-- `kai-mind-map.json`
-- `kai-mind-map.md`
-- interactive System Map GUI
+- RAG reference architecture template
+- `ai_system_map.json`
+- `ai_system_map.md`
+- interactive RAG System Map GUI
 - `kai-mind map <project_path>` CLI prototype
 - `kai-mind viewer <map_json>` viewer prototype
 - 最小可測試 sample project
-- System Map schema 文件
+- RAG System Map schema 文件
 
 ## Acceptance Criteria
 
 - 可以輸入一個 project folder
-- 可以找出至少以下元件：
-  - Ollama
-  - Qdrant
-  - FastAPI / Flask / Open WebUI
+- 可以根據 RAG reference architecture 檢查 component slots
+- 可以找出至少以下 RAG slots 或 component instances：
+  - data source
+  - chunking
+  - embedding model
+  - vector store，例如 Qdrant
+  - retriever
+  - LLM，例如 Ollama / OpenAI / Anthropic / Azure OpenAI
+  - App API / Orchestrator，例如 FastAPI / Flask / Open WebUI
   - `.env`
   - `docker-compose.yml`
-- 可以輸出 JSON 格式的 AI System Map
+- 可以輸出 JSON 格式的 RAG System Map
 - 可以輸出 Markdown 格式的人類可讀 summary
-- 可以開啟互動式 GUI 查看 AI System Map
+- 可以開啟互動式 GUI 查看 RAG System Map
 - GUI 可以點選 node / edge 並顯示 evidence
-- GUI 可以用 filter 隱藏或顯示 external endpoints、network exposure、agent tools、risk hints
+- GUI 可以用 filter 隱藏或顯示 missing slots、external endpoints、network exposure、risk hints
 - 每個 detected component 都必須包含：
-  - type
+  - slot
+  - status
   - name
-  - source
   - evidence
-  - confidence
 - 不得直接顯示完整 API key 或 secret value
-- 若無法判斷，必須標示 `unknown`，不能假裝知道
+- 若沒有掃到 evidence，必須標示 `missing`、`not_configured` 或 `not_applicable`，不能假裝知道
 
 ## Expected Command
 
 ```bash
 kai-mind map ./example-project
-kai-mind viewer outputs/kai-mind-map.json
+kai-mind viewer outputs/ai_system_map.json
 ```
 
 ## Expected Output
 
 ```text
 outputs/
-├─ kai-mind-map.json
-├─ kai-mind-map.md
-└─ interactive System Map GUI
+├─ ai_system_map.json
+├─ ai_system_map.md
+└─ interactive RAG System Map GUI
 ```
 ```
 
 ---
 
-## 23. Epic 1 Success Criteria
+## 13. Epic 1 Success Criteria
 
 Epic 1 完成時，應該可以回答這些問題：
 
 | 問題 | 是否應可回答 |
 |---|---|
-| 這個專案有沒有使用 Ollama？ | 是 |
-| 這個專案有沒有使用 Qdrant？ | 是 |
+| 這個 RAG 專案有哪些 reference architecture slots？ | 是 |
+| 哪些 RAG slots 被偵測到？ | 是 |
+| 哪些 RAG slots missing / not_configured / not_applicable？ | 是 |
+| 這個專案有沒有使用 Ollama / OpenAI / Anthropic / Azure OpenAI？ | 是 |
+| 這個專案有沒有使用 Qdrant / Chroma / FAISS / Weaviate / Search Index？ | 是 |
 | App API 可能在哪裡啟動？ | 是 |
+| Data source、chunking、embedding、retriever 是否存在？ | 是 |
 | 哪些設定檔包含 endpoint？ | 是 |
 | 哪些服務可能是 Docker 啟動？ | 是 |
 | 哪些服務可能暴露 port？ | 初步提示即可 |
@@ -850,32 +717,207 @@ Epic 1 完成時，應該可以回答這些問題：
 | Qdrant 是否安全？ | 否，留給 Epic 3 |
 | Runtime 是否真的健康？ | 否，留給 Epic 2 |
 | 系統是否可以 release？ | 否，留給 Epic 6 |
-| 使用者是否可以用 GUI 互動探索系統地圖？ | 是 |
+| 使用者是否可以用 GUI 互動探索 RAG 系統地圖？ | 是 |
 | 使用者是否可以點選節點或連線查看 evidence？ | 是 |
-| 使用者是否可以篩選 external endpoint、network exposure、agent tool？ | 是 |
+| 使用者是否可以篩選 missing slots、external endpoint、network exposure？ | 是 |
+| 使用者是否可以輸入測試問題並 replay 一次 RAG query trace？ | 是，Epic 1 MVP 必須呼叫 detected RAG endpoint 並收集 basic trace |
 
 ---
 
-## 24. Recommended Development Order for Epic 1
+## 14. Recommended Development Order for Epic 1
 
 | Order | Task | Reason |
 |---|---|---|
-| 1 | Define System Map schema | 先定義資料格式，避免後面 scanner 各寫各的 |
-| 2 | Build folder scanner | 先能讀 project folder |
-| 3 | Parse config files | `.env`、yaml、json 是 endpoint 與 provider 的主要來源 |
-| 4 | Parse docker-compose | 很多 local AI stack 會靠 Docker 啟動 |
-| 5 | Detect core components | 先支援 Ollama、Qdrant、FastAPI、Open WebUI |
-| 6 | Add evidence / confidence | 避免工具輸出不可驗證的結論 |
-| 7 | Generate JSON report | 給後續 checker 使用 |
-| 8 | Generate Markdown report | 給使用者閱讀 |
-| 9 | Build interactive map viewer | 讓 Epic 1 完成後真的有可視化 GUI |
-| 10 | Add evidence panel and filters | 讓 GUI 不只是圖，而是可追溯診斷工具 |
-| 11 | Add CLI command | 讓工程流程可以開始串起來 |
-| 12 | Prepare sample projects | 確保每次修改後都能測試 |
+| 1 | Define RAG reference architecture template | 先定義要掃哪些 RAG component slots |
+| 2 | Define RAG System Map schema | 先定義標準化資料格式，避免後面 scanner 各寫各的 |
+| 3 | Add classification placeholder | 先固定 RAG，但讓 schema 未來可以支援不同架構類型 |
+| 4 | Build folder scanner | 先能讀 project folder |
+| 5 | Parse config files | `.env`、yaml、json 是 endpoint 與 provider 的主要來源 |
+| 6 | Parse docker-compose | 很多 local AI stack 會靠 Docker 啟動 |
+| 7 | Detect RAG component slots | 先支援 data source、chunking、embedding、vector store、retriever、LLM |
+| 8 | Add evidence refs and slot status | 避免工具輸出不可驗證的結論，不使用 confidence |
+| 9 | Generate JSON report | 給 GUI 與後續 checker 使用 |
+| 10 | Generate Markdown report | 給使用者閱讀 |
+| 11 | Build interactive RAG map viewer | 讓 Epic 1 完成後真的有可視化 GUI |
+| 12 | Add evidence panel and filters | 讓 GUI 不只是圖，而是可追溯診斷工具 |
+| 13 | Add CLI command | 讓工程流程可以開始串起來 |
+| 14 | Prepare sample RAG projects | 確保每次修改後都能測試 |
 
 ---
 
-## 25. Strict Notes
+## 15. Implementation Plan Overview
+
+Epic 1 目前預計的實作步驟如下：
+
+```text
+1. 使用者輸入一個 RAG 專案資料夾
+
+2. KAI-Mind 先掃 file tree
+   先知道 repo 大概有哪些資料夾、檔案、config、Docker、package files。
+
+3. 固定 system_type = rag
+   第一版先不做所有 AI 架構分類，先假設 input 是 RAG。
+
+4. 載入 RAG reference architecture
+   例如：
+   data source
+   parser / loader
+   chunking
+   embedding
+   vector store
+   retriever
+   prompt builder
+   LLM
+   citation / response composer
+   guardrails
+   observability
+
+5. Deterministic scanner 先抓明確 facts
+   例如：
+   docker-compose 有 qdrant
+   .env 有 OPENAI_API_KEY
+   requirements 有 langchain
+   程式碼有 as_retriever
+   config 有 chunk_size
+
+6. 根據 RAG 架構選 candidate files
+   不是每個檔案都丟給 AI，而是挑可能相關的檔案：
+   ingest.py
+   retriever.py
+   rag.py
+   api.py
+   prompts.py
+   config.yaml
+   docker-compose.yml
+
+7. 對 candidate files 做受限 AI extraction
+   AI 只能根據該檔案抽 evidence。
+   沒看到就不能猜。
+
+8. 後端 merge / validate
+   合併所有掃描結果，去重，確認 evidence path 存在。
+
+9. 產生標準化資料
+   輸出：
+   ai_system_map.json
+   ai_system_map.md
+
+10. GUI 可視化
+   用 ai_system_map.json 畫出互動式 RAG 架構圖。
+
+11. 使用者可以點擊 component / edge
+   點擊後顯示 detail panel 或 modal：
+   slot
+   status
+   evidence
+   source file
+   risk hints
+   related connections
+   next checks
+
+12. Query trace / replay MVP 支援
+   使用者輸入測試問題後，KAI-Mind 必須呼叫 detected RAG endpoint 並收集 basic trace，讓使用者可以看到 query 實際跑過哪些 RAG steps。
+   例如：
+   user query -> retriever -> vector store -> retrieved chunks -> prompt builder -> LLM -> response
+
+13. 後續 CI/CD gate 使用同一份 map
+   未來 Runtime Readiness、Privacy & Exposure、RAG Trust 都基於這份 ai_system_map.json。
+```
+
+一句話：
+
+```text
+RAG repo
+  -> 掃 file tree
+  -> 載入 RAG 標準架構
+  -> 找證據
+  -> 必要時用 AI 輔助抽取
+  -> 產生標準化 RAG map
+  -> 做互動式 GUI
+  -> 未來接 CI/CD gate
+```
+
+---
+
+## 16. 參考專案：GitDiagram
+
+GitDiagram 可以作為 KAI-Mind 在使用者體驗與架構圖生成流程上的參考。
+
+專案連結：
+
+```text
+https://github.com/ahmedkhaleel2004/gitdiagram
+```
+
+GitDiagram 的高層流程：
+
+```text
+GitHub repo URL
+  -> 取得 repo file tree 與 README
+  -> LLM 產生架構解釋
+  -> LLM 將架構解釋轉成 generic graph
+  -> 驗證 graph paths 與 edges
+  -> 編譯成 Mermaid
+  -> 顯示可互動且可點擊 source path 的 diagram
+```
+
+### KAI-Mind 可以參考什麼
+
+KAI-Mind 可以參考 GitDiagram 的以下設計：
+
+- repo 輸入流程與生成進度 UI
+- 分析前先過濾 noisy repo files
+- 結構化 `nodes` / `edges` graph validation
+- 驗證 source paths 是否真的存在
+- 將 graph data 編譯成可視化 diagram
+- Mermaid validation 與 retry feedback
+- 可以點回 source files 的 clickable nodes
+- 支援 zoom / pan 的 diagram viewer
+- diagram export，例如 Mermaid code 或 PNG
+- 顯示 generation stages 與 failure reasons
+
+這些都可以作為 KAI-Mind 建立 interactive RAG System Map GUI 的參考。
+
+### KAI-Mind 不應該直接照搬什麼
+
+GitDiagram 是為 any repo type 設計的。它的目標是產生高層次架構摘要，而不是 evidence-based AI readiness gate。
+
+KAI-Mind 不應該直接照搬這些部分：
+
+- 把 LLM-only architecture understanding 當成 source of truth
+- 只使用 generic graph schema 作為最終 product contract
+- 允許沒有 scanner evidence 的 graph nodes 或 edges
+- 把好看的 diagram 當成 readiness evidence
+- 只優化人類理解，而忽略 CI/CD compatibility
+
+### 核心差異
+
+GitDiagram 是：
+
+```text
+any repo
+  -> LLM architecture summary
+  -> generic graph
+  -> Mermaid diagram
+```
+
+KAI-Mind Epic 1 應該是：
+
+```text
+RAG repo
+  -> RAG reference architecture
+  -> deterministic component-slot scanning
+  -> evidence-based ai_system_map.json
+  -> interactive RAG System Map GUI
+  -> future CI/CD gate foundation
+```
+
+KAI-Mind 的目標體驗可以接近 GitDiagram，但 data layer 必須更嚴謹。  
+LLM 可以協助 summary、label、explanation 或 visual presentation，但不應該創造沒有 scanner evidence 支持的 RAG components。
+
+---
+
+## 17. Strict Notes
 
 Epic 1 最容易犯的錯是範圍失控。
 
@@ -887,20 +929,25 @@ Epic 1 最容易犯的錯是範圍失控。
 - 完整 CI/CD gate
 - 完整 Agent policy engine
 - 手動 graph 編輯器
+- 所有 AI app 類型的自動分類
 
 第一階段只要做到：
 
-> 能把 AI Agent / RAG 專案整理成可信、可追溯、可被後續模組使用，並且可被使用者用 GUI 互動探索的 AI System Map。
+> 能把 RAG 專案依照 reference architecture 整理成可信、可追溯、可被後續模組使用，並且可被使用者用 GUI 互動探索的 RAG System Map。
 
 這就已經足夠成為 KAI-Mind 的基礎。
 
 ---
 
-## 26. Final MVP Definition for Epic 1
+## 18. Final MVP Definition for Epic 1
 
 Epic 1 的 MVP 定義如下：
 
-> 使用者輸入一個 AI Agent / RAG 專案資料夾後，KAI-Mind 可以掃描 repo、config 與 Docker 設定，偵測出核心 AI 元件、endpoint、資料流與風險提示，輸出一份 JSON 版與 Markdown 版 AI System Map，並提供一個真的可互動的 GUI 介面讓使用者探索這張 map。
+> 使用者輸入一個 RAG 專案資料夾後，KAI-Mind 可以依照預設 RAG reference architecture 掃描 repo、config 與 Docker 設定，逐項偵測 data source、chunking、embedding、vector store、retriever、LLM、citation、external endpoint 與 network exposure，輸出一份 JSON 版與 Markdown 版 RAG System Map，並提供一個真的可互動的 GUI 介面讓使用者探索這張 map。這個 GUI 不是靜態圖片；架構圖上的每個 component node 與重要 connection edge 都應該可以點擊。使用者點擊某個 component 後，畫面應顯示 detail panel 或 modal，列出該 component 的 slot、status、偵測到的實例、來源檔案、evidence、相關連線、risk hints，以及後續建議檢查項目。
+
+互動式 GUI 還應該支援 interactive query trace / replay。使用者可以在 GUI 裡輸入一個測試問題，KAI-Mind 將這個問題送到被掃描出的 RAG app / API endpoint，並在處理過程中收集一次 query trace。GUI 需要把這次 trace 映射回 RAG System Map，讓使用者看到這個問題實際經過哪些步驟，例如 user query、query processing、retriever、vector store、retrieved chunks、prompt builder、LLM、citation / response composer、final response。當 trace 跑到某個步驟時，對應的架構區塊與連線應該高亮，並可顯示該步驟的輸入、輸出、耗時、來源 evidence 或錯誤訊息。使用者應該可以 pause、step forward、step backward、replay 這次 query trace。
+
+這個功能和單純的 static architecture visualization 不同；Epic 1 MVP 必須使用 detected RAG endpoint 收集 basic trace，並把 trace events 映射回 `ai_system_map.json` 的 slots / nodes / edges。Proxy wrapper、trace hook 與完整 runtime trace capture 屬於 advanced scope，可作為 Epic 1 進階交付或後續 Runtime Readiness / Observability work 的銜接項目。
 
 最小可接受結果：
 
@@ -912,11 +959,91 @@ Command:
   kai-mind map ./user-ai-project
 
 Output:
-  outputs/kai-mind-map.json
-  outputs/kai-mind-map.md
-  interactive System Map GUI
+  outputs/ai_system_map.json
+  outputs/ai_system_map.md
+  interactive RAG System Map GUI
 ```
 
 核心價值：
 
-> 先讓 KAI-Mind 看懂一套 AI 系統，並讓使用者可以透過互動式 GUI 看懂這套系統；後面才有資格判斷它是否 ready。
+> 先讓 KAI-Mind 用標準 RAG 架構模板看懂一套 RAG 系統，並讓使用者可以透過互動式 GUI 看懂這套系統；後面才有資格判斷它是否 ready。
+
+---
+
+## 19. 預計運行 Flow 與 AI 參與位置
+
+Epic 1 的運行 flow 應該分成兩條路徑：
+
+1. 靜態掃描與可視化：不需要真的呼叫被掃描的 RAG 系統。
+2. Query trace / replay：使用者送出測試問題後，觀察一次實際 RAG query 的處理路徑。
+
+### 19.1 靜態掃描與可視化 Flow
+
+```text
+使用者選擇 RAG project folder
+        ↓
+KAI-Mind 讀取 repo / config / Docker / package files
+        ↓
+固定 system_type = rag
+        ↓
+載入 RAG reference architecture template
+        ↓
+Deterministic scanner 逐項掃描 RAG component slots
+        ↓
+產生 evidence facts
+        ↓
+正規化為 ai_system_map.json
+        ↓
+產生 ai_system_map.md
+        ↓
+GUI 載入 ai_system_map.json
+        ↓
+顯示互動式 RAG System Map
+        ↓
+使用者點擊 node / edge 查看 detail panel
+```
+
+### 19.2 Query Trace / Replay Flow
+
+```text
+使用者在 GUI 輸入測試問題
+        ↓
+KAI-Mind 找到 RAG app / API endpoint
+        ↓
+KAI-Mind 呼叫 detected RAG endpoint 送出 query 並收集 basic trace
+        ↓
+收集 query trace events
+        ↓
+將 trace events 對應回 ai_system_map.json 的 slots / nodes / edges
+        ↓
+GUI 顯示 query 實際走過的 RAG steps
+        ↓
+播放 / 暫停 / 前一步 / 下一步 / replay
+        ↓
+目前步驟對應的 component 與 edge 高亮
+        ↓
+detail panel 顯示該步驟的 input、output、latency、error、retrieved chunks 或 evidence
+```
+
+### 19.3 AI 會參與哪個部分
+
+KAI-Mind 的核心資料層不應該依賴 LLM 自由猜測。AI 可以參與解釋與呈現，但不能成為 scanner evidence 的 source of truth。
+
+| 階段 | 是否可用 AI | 說明 |
+|---|---|---|
+| 掃描 repo / config / Docker | 不應依賴 AI | 這一層應該是 deterministic scanner，負責產生可驗證 evidence。 |
+| 判斷 RAG component slot 是否 detected / missing | 不應依賴 AI 作為唯一依據 | 應根據 rule-based evidence，例如 dependency、config key、Docker service、code pattern。 |
+| 建立 `ai_system_map.json` | 不應依賴 AI | JSON 是後續 GUI 與 CI/CD 的 contract，必須穩定、可重跑、可測試。 |
+| Graph layout / label 優化 | 可以用 AI 輔助 | AI 可以幫忙產生更好懂的 label、group name、summary，但不能新增沒有 evidence 的 component。 |
+| Markdown summary | 可以用 AI 輔助 | AI 可以把 evidence-based map 轉成人類可讀說明。 |
+| GUI detail explanation | 可以用 AI 輔助 | AI 可以協助解釋某個 component 的角色與風險，但必須引用 scanner evidence。 |
+| Query trace replay | AI 不是主要來源 | replay 應該來自 runtime trace、proxy wrapper、trace hook 或 sample logs。 |
+| 後續建議檢查項目 | 可以規則優先、AI 輔助文字化 | 例如看到 external provider 或 exposed port 時，規則決定 next check，AI 只負責說明原因。 |
+
+### 19.4 AI 使用原則
+
+- Scanner evidence 優先。
+- LLM 不可以創造沒有 evidence 的 RAG component。
+- LLM 產生的 summary / labels / explanations 必須能追溯回 `ai_system_map.json`。
+- CI/CD gate 不能只依賴 LLM 判斷。
+- 如果 AI 輔助產生的說明和 scanner evidence 衝突，應以 scanner evidence 為準。
