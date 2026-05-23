@@ -44,7 +44,6 @@ Core Engine + CLI
 - [跨平台架構策略](docs/kai-mind/cross-platform-strategy.md)
 - [公開參考 repo](docs/kai-mind/public-reference-repos.md)
 - [GitHub Codex code review 設定](docs/kai-mind/github-codex-review.md)
-- [Codex 交接文件](CODEX_HANDOFF.md)
 
 ## 建議的第一階段開發流程
 
