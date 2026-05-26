@@ -54,6 +54,7 @@ Epic 1 要建立 KAI-Mind 的第一個可交付核心能力：把一個既有 RA
 - `docs/spec/.clarify/resolved/data/*.md`
 - `docs/spec/.clarify/resolved/features/*.md`
 - `docs/spec/prompts/4.design_prompt.md`
+- `docs/work/Timmy/reference/understand-anything-backend-review.md`
 
 ### Current repository state
 
@@ -211,6 +212,190 @@ project_path
   -> viewer loads JSON
   -> optional query trace calls detected endpoint and maps events to slots
 ```
+
+### Backend responsibility and CLI / GUI boundary
+
+Epic 1 的後端負責「產生可信 map」與「提供 viewer 可消費的 graph projection」，不是把 GUI 當成 scanner 的第二套實作。使用者可以從 CLI 或 GUI 進入流程，但兩者都必須呼叫同一組 core services。
+
+第一版建議先穩定 CLI，再讓 GUI 包在同一個後端 use case 上：
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ User entry points                                                           │
+├───────────────────────────────┬─────────────────────────────────────────────┤
+│ CLI                           │ GUI / Local Web UI                          │
+│                               │                                             │
+│ kai-mind map <project_path>   │ 選擇 project folder                          │
+│ kai-mind viewer <map_json>    │ 載入既有 ai_system_map.json                  │
+└───────────────┬───────────────┴───────────────────────┬─────────────────────┘
+                │                                       │
+                ↓                                       ↓
+┌──────────────────────────────┐        ┌──────────────────────────────────────┐
+│ CLI adapter                  │        │ Web adapter / local API              │
+│ parse args, print result     │        │ request/response, UI state only      │
+└───────────────┬──────────────┘        └──────────────────┬───────────────────┘
+                │                                          │
+                └──────────────────┬───────────────────────┘
+                                   ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Core services                                                               │
+│ MapBuildService / ViewerSessionService / QueryTraceService                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+CLI 的主要用途：
+
+- 開發、CI/CD、demo 前掃描與產生 artifacts。
+- 明確可重現：同一個 `project_path` 與 options 應產生同一類 contract。
+- 適合先完成 M1-M4：schema、scanner、normalization、Markdown、artifact output。
+
+GUI 的主要用途：
+
+- 載入已產生的 `ai_system_map.json`，讓使用者檢視 graph。
+- 點選 node / edge 查看 evidence、risk hints、relationships。
+- 操作 filters 與 query trace replay。
+- 不應直接掃描 project files，也不應自行推論 JSON 裡不存在的 component。
+
+後端工程師在 Epic 1 的核心交付物：
+
+| Area | Backend owns | GUI should consume |
+|---|---|---|
+| Scan | `ProjectScanService` 產生 `ScanFact[]`、`ParseIssue[]` | 不直接掃檔案 |
+| Contract | `ai-system-map/v1` schema 與 validation | 只接受 valid map 或 error state |
+| Components | slot detection、evidence、status | graph node detail |
+| Endpoints | local/external endpoint detection | trace form 與 endpoint status |
+| Risk hints | rule-based hints with uncertainty | warning / detail panel |
+| Artifacts | JSON、Markdown、error report | map loader |
+| Trace | endpoint call、timeout/error event、trace mapping | replay timeline |
+
+### Visual backend flow from project scan to graph
+
+以下流程參考 `understand-anything-backend-review.md` 的分階段設計，但調整成 KAI-Mind 的 release-readiness scanner：deterministic evidence scanner 是 source of truth，LLM 只能輔助文字，不可決定 facts。
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 0. Input                                                                    │
+│ project_path + optional output path + system type                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. Precondition check                                                       │
+│ - project folder exists and readable                                        │
+│ - output directory policy decided                                           │
+│ - scan limits and ignore rules loaded                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. File inventory                                                           │
+│ FilesystemProvider                                                          │
+│ - prefer git-tracked files when available                                   │
+│ - skip dependency/build/binary/generated files                              │
+│ - keep config, docs, Docker, dependency manifests, source files              │
+│ - normalize evidence paths to project-relative POSIX paths                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. Deterministic providers                                                  │
+├───────────────────────────────┬─────────────────────────────────────────────┤
+│ ConfigParseProvider           │ .env / YAML / JSON / TOML facts             │
+│ DockerComposeProvider         │ services / ports / env / volumes            │
+│ DependencyManifestProvider    │ LangChain / LlamaIndex / Qdrant / Ollama    │
+│ CodePatternProvider           │ retriever / chunking / prompt / citation    │
+└───────────────────────────────┴─────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 4. Raw scan facts                                                           │
+│ ScanFact[] + Evidence[] + ParseIssue[]                                      │
+│ - no full secret values                                                     │
+│ - parse errors are facts, not silent failures                               │
+│ - source file and rule id are preserved                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 5. RAG slot mapping                                                         │
+│ ComponentDetectionService + rag-core-v1 template                            │
+│                                                                             │
+│ data source → loader → chunking → embedding → vector store                  │
+│        → orchestrator → retriever → prompt builder → LLM                    │
+│        → citation → guardrails → observability                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 6. Endpoint and risk derivation                                             │
+│ EndpointDetectionService + RiskHintService                                  │
+│ - local/external endpoints                                                  │
+│ - exposed ports / external providers / parse errors                         │
+│ - uncertainty included when severity cannot be proven                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 7. Normalize and validate                                                   │
+│ SystemMapNormalizeService + SystemMapValidationService                      │
+│ - merge duplicate facts                                                     │
+│ - reject detected components without evidence                               │
+│ - reject confidence field                                                   │
+│ - validate ai-system-map/v1 schema                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 8. Artifacts                                                                │
+│ OutputArtifactProvider + MarkdownSummaryService                             │
+│ - outputs/ai_system_map.json                                                │
+│ - outputs/ai_system_map.md                                                  │
+│ - outputs/map-error.md on fatal precondition failure                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 9. Viewer graph projection                                                  │
+│ ViewerSessionService                                                        │
+│ - load JSON                                                                 │
+│ - validate again                                                            │
+│ - convert map slots/components/flows into graph view model                  │
+│ - invalid JSON returns error state, not blank graph                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 10. Optional query trace MVP                                                │
+│ QueryTraceService                                                           │
+│ - if endpoint missing: endpoint_not_found, no request sent                  │
+│ - if endpoint exists: call once with timeout                                │
+│ - map response/error events back to slots/nodes/edges                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+對後端來說，最重要的資料形狀轉換是：
+
+```text
+FileInventory
+  -> ScanFact[] + Evidence[] + ParseIssue[]
+  -> ComponentSlot[] + ComponentInstance[]
+  -> Endpoint[] + RiskHint[] + Flow[]
+  -> RagSystemMap ai-system-map/v1
+  -> GraphViewModel for viewer
+```
+
+graph 不是新的事實來源，而是 `ai_system_map.json` 的投影：
+
+```text
+ai_system_map.json
+  ├─ components_by_slot  -> graph nodes
+  ├─ flows               -> graph edges
+  ├─ evidence            -> detail panel
+  ├─ risk_hints          -> warnings / badges
+  └─ query_trace_events  -> replay timeline
+```
+
+### Understand-Anything design lessons applied to KAI-Mind
+
+`understand-anything-backend-review.md` 的主要啟發是：大型 repo-to-graph 系統不能只靠 LLM 直接產生最終 graph。Epic 1 應採用以下做法：
+
+- 掃描範圍要可控：支援 ignore rules、scan limits、dependency/build/binary 排除。
+- File inventory 必須 deterministic：不要讓 LLM invent file paths。
+- Structural facts 必須來自 providers / parsers：LLM 只能補 summary、label、explanation。
+- Merge / normalization / validation 是必要階段，不是可選後處理。
+- Viewer 必須再次 validate map，invalid JSON 顯示 error state。
+- Source preview 或 evidence detail 不可讀出完整 `.env` secret values。
+- Partial result 要明確標示 parse error、uncertainty 與 missing evidence，避免被當成完整 readiness result。
 
 Dependency direction:
 
