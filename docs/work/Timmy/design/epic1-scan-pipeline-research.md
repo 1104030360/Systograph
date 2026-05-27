@@ -37,7 +37,7 @@ AI 可以輔助 5、6 的「不確定 mapping / 使用者說明 / rationale word
 
 | Stage | 主要目的 | 現有工具可直接做嗎 | AI 是否需要 | Canonical truth |
 |---|---|---:|---:|---|
-| 1. Precondition check | 確認 project path、output policy、scan limits | 是 | 不需要 | filesystem / CLI args |
+| 1. Precondition check | 確認 project path、output policy、scan limits | 是 | 不需要 | filesystem / local API request / CLI args |
 | 2. File inventory | 找出要掃哪些檔案、排除噪音 | 是 | 不需要 | git/filesystem inventory |
 | 3. Deterministic providers | parse config、Docker、dependencies、code patterns | 大多可以 | 少量輔助 rule proposal | parsers / rule matches |
 | 4. Raw scan facts | 統一 facts、evidence、parse issues | 是 | 不需要 | structured facts |
@@ -214,6 +214,45 @@ git ls-files
 - 幫使用者產生 ignore rule proposal。
 
 但這些只能是 proposal，不可直接改 canonical inventory。
+
+### Epic 1 最後階段：AI-assisted scan boundary review
+
+> 白話：這是 Epic 1 最後才做的互動式掃描邊界確認，不是 Stage 2 baseline。
+
+Stage 2 baseline 仍然維持 deterministic file inventory。Epic 1 最後階段可以在 Stage 2 後面加一個 `Stage 2.5 Scan Boundary Review`，用 AI 輔助使用者判斷某些檔案是否應該略過。
+
+目標：
+
+- 找出可能不應被完整讀取或送進後續分析的 suspicious files。
+- 讓使用者看見為什麼系統建議略過、檔案位置、檔案類型、可能風險。
+- 由使用者決定本次略過、永久略過、只掃 metadata、只掃 masked summary，或照常掃描。
+
+候選檔案來源應先由 deterministic rules 產生，例如：
+
+- secret-like config：`.env`、private key、credential、token、certificate。
+- 大型或非文字檔：model weights、vector DB、SQLite、binary、archive。
+- dependency / build / generated output：`node_modules`、`.venv`、`dist`、`build`、cache。
+- log / dump / local data：`.log`、exported dataset、local backup。
+
+AI 的角色只限於 proposal：
+
+```text
+FileInventory
+  -> deterministic suspicious-file classifier
+  -> masked metadata / bounded summary
+  -> AI ignore proposal
+  -> pending_user_confirmation
+```
+
+硬性規則：
+
+- AI 不可直接修改 canonical `FileInventory`。
+- AI 不可讀取或輸出完整 secret value。
+- GUI 可以彈窗或顯示 review queue；CLI / CI 不可彈窗，應輸出 pending decision。
+- 使用者確認後，決策寫入 KAI-Mind-managed scan policy store，不直接污染被掃描 repo。
+- 所有略過決策都必須記錄 reason、source、scope 與 timestamp，讓 report 可追溯。
+
+這個功能排在 Epic 1 最後才做，因為它依賴 baseline inventory、skip reason、masked evidence、GUI confirmation flow 與 user policy store 都已穩定。
 
 ## 5. Stage 3: Deterministic Providers
 
@@ -770,8 +809,41 @@ AI 不可以：
 | OpenInference | https://arize-ai.github.io/openinference/spec/traces.html | trace span kinds 包含 Chain、Retriever、Reranker、LLM、Embedding、Tool、Guardrail。 | Query replay vocabulary、extension steps。 |
 | OpenTelemetry GenAI | https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-spans/ | 定義 GenAI spans，提醒 inputs/outputs 敏感且不應預設 capture。 | QueryTraceEvent privacy、span-like categories。 |
 | JSON Schema | https://json-schema.org/specification | JSON Schema Core + Validation 規格。 | `ai-system-map/v1` schema gate。 |
+| GitHub template repositories | https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-template-repository | GitHub 支援從 template repo 產生新 repository。 | 下一階段 remote template import 參考；Epic 1 先不接 GitHub API。 |
+| GitHub repository archive API | https://docs.github.com/en/rest/repos/contents#download-a-repository-archive-tar | 可用 archive endpoint 下載 repo tar / zip。 | 下一階段 TemplateImportService 可下載 template repo 到 isolated cache。 |
+| OpenSSF Scorecard | https://openssf.org/scorecard/ | 以自動化 checks 評估 open source repo security posture。 | 下一階段 remote template trust signal，可作為非阻斷性風險提示。 |
+| SLSA provenance | https://slsa.dev/provenance | provenance 記錄 artifact 來源、時間與產生方式。 | Template provenance metadata 設計參考。 |
 
-## 11. 推薦的最終分工
+## 11. Epic 1 最後階段：Local template import；remote import 留到下一階段
+
+> 白話：這是 Epic 1 最後才做的 template 商店基礎；Epic 1 先支援 local archive/mock folder，repo URL / GitHub API 留到下一階段。
+
+Epic 1 baseline 先固定使用內建 `rag-core-v1`。等 core scanner、schema、mapping、manual confirmation 和 validation 都穩定後，最後階段可以加入 `TemplateImportService`，先讓使用者匯入 local `.zip` / `.tar` archive 或 local mock template folder。Remote repo URL / GitHub API 是下一階段能力，不在 Epic 1 實作。
+
+Epic 1 建議流程：
+
+```text
+local .zip / .tar / mock template folder
+  -> locate kai-mind-template.yaml
+  -> validate template schema
+  -> scan template as data, never execute code
+  -> record provenance: local source path + digest + license
+  -> publish into TemplateStore
+```
+
+Template repo 只應提供 declarative data，例如 slots、required slots、slot inputs、mapping rules、example fixtures、license 與 provenance。它不應提供會被 KAI-Mind 自動執行的 code。
+
+硬性規則：
+
+- Epic 1 不接 GitHub API，不下載 repo URL，不處理 token / private repo / rate limit。
+- Remote repo URL 在 Epic 1 應回傳清楚錯誤，說明留到下一階段。
+- 下一階段 remote template import 才需要 pin 到 commit SHA 或 immutable version，不可只依賴 floating branch。
+- 匯入前必須 schema validation；失敗只能進 quarantine / rejected state。
+- Template import 不可執行外部 repo 的 script、postinstall、Python、shell 或 workflow。
+- 私有 repo token 不可進 logs、report、template metadata 或 cache key。
+- Template store 不可讓外部 template 覆蓋內建 `rag-core-v1` contract。
+
+## 12. 推薦的最終分工
 
 ### Deterministic only
 
@@ -811,7 +883,7 @@ AI 不可以：
 - 放行 invalid JSON。
 - 顯示或保存 full secrets。
 
-## 12. 對後端文件的建議更新
+## 13. 對後端文件的建議更新
 
 建議把 `docs/work/Timmy/design/epic1-backend-design.md` 中的主要資料流補成：
 
