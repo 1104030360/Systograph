@@ -1,14 +1,19 @@
 import { create } from "zustand";
-import type { ScanTarget, Selection, TraceEvent } from "../types";
+import type { DataSourceMode, ScanProgressEvent, ScanTarget, Selection, TraceEvent } from "../types";
 
 type ViewerState = {
+  dataSourceMode: DataSourceMode;
+  apiBaseUrl: string;
   selected: Selection;
   activeFilterIds: string[];
   activeTraceIndex: number;
   isReplayRunning: boolean;
   progressIndex: number;
   isProgressRunning: boolean;
+  liveProgressEvent: ScanProgressEvent | null;
   detailMode: "overview" | "component" | "code_path";
+  setDataSourceMode: (mode: DataSourceMode) => void;
+  setApiBaseUrl: (baseUrl: string) => void;
   setSelected: (selected: Selection) => void;
   toggleFilter: (id: string) => void;
   clearFilters: () => void;
@@ -16,18 +21,26 @@ type ViewerState = {
   setReplayRunning: (running: boolean) => void;
   setProgressRunning: (running: boolean) => void;
   setProgressIndex: (index: number) => void;
+  setLiveProgressEvent: (event: ScanProgressEvent | null) => void;
   setDetailMode: (mode: ViewerState["detailMode"]) => void;
   resetFocus: () => void;
 };
 
+const defaultApiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+
 export const useViewerStore = create<ViewerState>((set) => ({
+  dataSourceMode: "sample",
+  apiBaseUrl: defaultApiBaseUrl,
   selected: null,
   activeFilterIds: ["filter:flow:query_answer"],
   activeTraceIndex: 0,
   isReplayRunning: false,
   progressIndex: 0,
   isProgressRunning: false,
+  liveProgressEvent: null,
   detailMode: "overview",
+  setDataSourceMode: (dataSourceMode) => set({ dataSourceMode, liveProgressEvent: null }),
+  setApiBaseUrl: (apiBaseUrl) => set({ apiBaseUrl }),
   setSelected: (selected) => set({ selected, detailMode: "overview" }),
   toggleFilter: (id) =>
     set((state) => ({
@@ -40,6 +53,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setReplayRunning: (isReplayRunning) => set({ isReplayRunning }),
   setProgressRunning: (isProgressRunning) => set({ isProgressRunning }),
   setProgressIndex: (progressIndex) => set({ progressIndex }),
+  setLiveProgressEvent: (liveProgressEvent) => set({ liveProgressEvent }),
   setDetailMode: (detailMode) => set({ detailMode }),
   resetFocus: () =>
     set({

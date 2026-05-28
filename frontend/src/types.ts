@@ -75,11 +75,31 @@ export const viewerPayloadSchema = z.object({
   invalid_map_error_sample: z.record(z.unknown()).optional(),
 });
 
+export const scanProgressEventSchema = z.object({
+  event: z.string().optional(),
+  type: z.string().optional(),
+  status: z.string().optional(),
+  stage: z.string().optional(),
+  message: z.string().optional(),
+  percent: z.number().min(0).max(100).optional(),
+  node_id: z.string().optional(),
+  edge_id: z.string().optional(),
+  component_id: z.string().optional(),
+  source_id: z.string().optional(),
+  slot: z.string().optional(),
+  evidence_id: z.string().optional(),
+  scan_depth: z.string().optional(),
+  timestamp: z.string().optional(),
+});
+
 export type GraphNodeModel = z.infer<typeof graphNodeSchema>;
 export type GraphEdgeModel = z.infer<typeof graphEdgeSchema>;
 export type GraphFilterModel = z.infer<typeof graphFilterSchema>;
 export type GraphViewModel = z.infer<typeof graphViewModelSchema>;
 export type ViewerPayload = z.infer<typeof viewerPayloadSchema>;
+export type ScanProgressEvent = z.infer<typeof scanProgressEventSchema>;
+
+export type DataSourceMode = "sample" | "api";
 
 export type Selection =
   | { kind: "node"; id: string }

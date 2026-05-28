@@ -1,6 +1,6 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import type { Edge, Node } from "reactflow";
-import type { GraphEdgeModel, GraphFilterModel, GraphNodeModel, GraphViewModel, TraceEvent } from "../types";
+import type { GraphEdgeModel, GraphFilterModel, GraphNodeModel, GraphViewModel, ScanProgressEvent, TraceEvent } from "../types";
 
 export type FlowNodeData = GraphNodeModel & {
   isFocused: boolean;
@@ -188,4 +188,32 @@ export function createProgressTargets(graph: GraphViewModel) {
     ...graph.nodes.map((node) => ({ id: node.id, label: node.label, kind: "node" as const })),
     ...graph.edges.map((edge) => ({ id: edge.id, label: edge.label ?? edge.relationship ?? edge.id, kind: "edge" as const })),
   ];
+}
+
+export function resolveProgressTargetId(event: ScanProgressEvent | null, graph: GraphViewModel): string | undefined {
+  if (!event) return undefined;
+
+  const { nodeIdBySource, edgeIdBySource } = makeGraphIndexes(graph);
+
+  if (event.node_id) {
+    return nodeIdBySource.get(event.node_id) ?? event.node_id;
+  }
+
+  if (event.edge_id) {
+    return edgeIdBySource.get(event.edge_id) ?? event.edge_id;
+  }
+
+  if (event.component_id) {
+    return nodeIdBySource.get(event.component_id) ?? event.component_id;
+  }
+
+  if (event.source_id) {
+    return nodeIdBySource.get(event.source_id) ?? edgeIdBySource.get(event.source_id) ?? event.source_id;
+  }
+
+  if (event.slot) {
+    return graph.nodes.find((node) => node.slot === event.slot || node.source_id?.includes(`:${event.slot}:`))?.id;
+  }
+
+  return undefined;
 }

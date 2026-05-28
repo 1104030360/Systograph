@@ -7,9 +7,13 @@ export const graphViewModel = viewerPayload.viewer_load_result.graph_view_model;
 
 export const aiSystemMap = viewerPayload.viewer_load_result.ai_system_map;
 
-export const defaultTraceEvents: TraceEvent[] = [
-  ...((aiSystemMap.query_trace_events as TraceEvent[] | undefined) ?? []),
-].sort((a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0));
+export function getTraceEvents(payload: ViewerPayload): TraceEvent[] {
+  return [...((payload.viewer_load_result.ai_system_map.query_trace_events as TraceEvent[] | undefined) ?? [])].sort(
+    (a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0),
+  );
+}
+
+export const defaultTraceEvents: TraceEvent[] = getTraceEvents(viewerPayload);
 
 export const timeoutTraceEvents: TraceEvent[] = [
   ...((viewerPayload.trace_result_samples?.timeout_partial_replay?.events as TraceEvent[] | undefined) ?? []),
