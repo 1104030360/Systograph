@@ -19,8 +19,11 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "mypy>=2.1.0",
+  "pre-commit>=4.6.0",
   "pytest>=8,<9",
   "ruff>=0.6,<1",
+  "types-jsonschema>=4.26.0.20260518",
 ]
 
 [project.scripts]
@@ -33,9 +36,16 @@ packages = ["src/kai_mind"]
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 88
+line-length = 79
 target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+mypy_path = "src"
+warn_unused_configs = true
