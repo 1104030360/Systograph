@@ -1,0 +1,41 @@
+{
+  "schema_version": "ai-system-map/v1",
+  "system_type": "rag",
+  "classification": {
+    "mode": "user_selected_or_default",
+    "selected_template": "rag-core-v1"
+  },
+  "project": {
+    "name": "minimal-rag",
+    "root_path": "<project_root>",
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted",
+    "system_map_schema_version": "ai-system-map/v1"
+  },
+  "reference_architecture": {
+    "id": "rag-core-v1",
+    "version": "1.0.0",
+    "slots": [
+      "retriever"
+    ],
+    "flows": []
+  },
+  "scan_depth": "system",
+  "components_by_slot": {
+    "retriever": {
+      "slot": "retriever",
+      "required_for_rag": true,
+      "status": "archived",
+      "instances": []
+    }
+  },
+  "evidence": [],
+  "endpoints": [],
+  "flows": [],
+  "extensions": [],
+  "unmapped_components": [],
+  "detail_scans": [],
+  "risk_hints": [],
+  "recommended_next_checks": [],
+  "query_trace_events": []
+}

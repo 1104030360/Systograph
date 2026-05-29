@@ -35,16 +35,17 @@
 ## 建議實作步驟
 1. 建立 `src/kai_mind/core/services/map_build_service.py`。
 2. 將 precondition、template、scan、detection、endpoint/risk/flow、normalize、validate 串起來。
-3. 補強 `OutputArtifactProvider.write_json()`。
-4. 建立 FastAPI app scaffold：`src/kai_mind/web/app.py`。
-5. 建立 `src/kai_mind/web/routes/map_routes.py`，並用 FastAPI router 掛載 map build endpoint。
-6. 建立 request/response schema，讓 route handler 只做輸入轉換與結果回傳。
-7. 建立 `docs/work/Timmy/design/epic1-local-api-guide.md`，先記錄 API guide 結構、local-only 原則、共用 error format、map build endpoint、版本相容規則。
-8. 在 API guide 註明：任何 task 若新增、移除或改動 endpoint / request / response / error code，都必須同步更新本文件。
-9. 用 FastAPI TestClient 或 HTTPX 寫 web API integration test：basic fixture 產生 JSON。
-10. 寫 missing project test：API 回傳 error result，且只產生 error report。
-11. 建立 `src/kai_mind/cli/map_command.py`，讓 CLI 呼叫同一個 `MapBuildService` method。
-12. 寫 CLI thin adapter test：確認 CLI 產生的 artifact contract 與 local API 相同，且 CLI 不直接呼叫 providers。
+3. 確保 `MapBuildService` 寫出 artifact 前一定使用 Task 15 的 normalize result；若上游 detection/risk/trace 沒有資料，仍由 normalize result 輸出 canonical 空陣列，不可直接 serialize 半成品 dict。
+4. 補強 `OutputArtifactProvider.write_json()`。
+5. 建立 FastAPI app scaffold：`src/kai_mind/web/app.py`。
+6. 建立 `src/kai_mind/web/routes/map_routes.py`，並用 FastAPI router 掛載 map build endpoint。
+7. 建立 request/response schema，讓 route handler 只做輸入轉換與結果回傳。
+8. 建立 `docs/work/Timmy/design/epic1-local-api-guide.md`，先記錄 API guide 結構、local-only 原則、共用 error format、map build endpoint、版本相容規則。
+9. 在 API guide 註明：任何 task 若新增、移除或改動 endpoint / request / response / error code，都必須同步更新本文件。
+10. 用 FastAPI TestClient 或 HTTPX 寫 web API integration test：basic fixture 產生 JSON。
+11. 寫 missing project test：API 回傳 error result，且只產生 error report。
+12. 建立 `src/kai_mind/cli/map_command.py`，讓 CLI 呼叫同一個 `MapBuildService` method。
+13. 寫 CLI thin adapter test：確認 CLI 產生的 artifact contract 與 local API 相同，且 CLI 不直接呼叫 providers。
 
 ## 預期輸出
 - `src/kai_mind/core/services/map_build_service.py`
@@ -60,6 +61,7 @@
 
 ## 驗收標準
 - Local web API 呼叫 map build 後產生 valid JSON。
+- 產出的 `ai_system_map.json` 具備完整 canonical top-level shape；沒有資料的 collections 必須是 `[]`，不是缺欄位。
 - missing project 產生 `map-error.md` 且不產生 normal map。
 - outputs 已存在時產生 timestamped directory。
 - Web adapter 不直接掃描檔案，只呼叫 core service。

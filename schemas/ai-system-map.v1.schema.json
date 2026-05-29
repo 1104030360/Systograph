@@ -1,0 +1,1221 @@
+{
+  "$defs": {
+    "Classification": {
+      "additionalProperties": false,
+      "properties": {
+        "future_layer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Future Layer"
+        },
+        "mode": {
+          "const": "user_selected_or_default",
+          "title": "Mode",
+          "type": "string"
+        },
+        "selected_template": {
+          "const": "rag-core-v1",
+          "title": "Selected Template",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "selected_template"
+      ],
+      "title": "Classification",
+      "type": "object"
+    },
+    "CodePathStep": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "line_start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Start"
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbol"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "title": "CodePathStep",
+      "type": "object"
+    },
+    "ComponentInstance": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "slot": {
+          "title": "Slot",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "kind",
+        "name"
+      ],
+      "title": "ComponentInstance",
+      "type": "object"
+    },
+    "ComponentSlot": {
+      "additionalProperties": false,
+      "properties": {
+        "instances": {
+          "items": {
+            "$ref": "#/$defs/ComponentInstance"
+          },
+          "title": "Instances",
+          "type": "array"
+        },
+        "required_for_rag": {
+          "title": "Required For Rag",
+          "type": "boolean"
+        },
+        "slot": {
+          "title": "Slot",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "detected",
+            "missing",
+            "not_configured",
+            "not_applicable"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slot",
+        "required_for_rag",
+        "status"
+      ],
+      "title": "ComponentSlot",
+      "type": "object"
+    },
+    "DetailScanFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "summary"
+      ],
+      "title": "DetailScanFinding",
+      "type": "object"
+    },
+    "DetailScanResult": {
+      "additionalProperties": false,
+      "properties": {
+        "code_path": {
+          "items": {
+            "$ref": "#/$defs/CodePathStep"
+          },
+          "title": "Code Path",
+          "type": "array"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/DetailScanFinding"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "replay_depth": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replay Depth"
+        },
+        "scan_depth": {
+          "enum": [
+            "system",
+            "component",
+            "code_path"
+          ],
+          "title": "Scan Depth",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "target_type": {
+          "title": "Target Type",
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "target_type",
+        "target",
+        "scan_depth",
+        "status"
+      ],
+      "title": "DetailScanResult",
+      "type": "object"
+    },
+    "Edge": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "flow_id": {
+          "title": "Flow Id",
+          "type": "string"
+        },
+        "from_component_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From Component Id"
+        },
+        "from_slot": {
+          "title": "From Slot",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "relationship": {
+          "title": "Relationship",
+          "type": "string"
+        },
+        "to_component_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To Component Id"
+        },
+        "to_slot": {
+          "title": "To Slot",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "flow_id",
+        "from_slot",
+        "to_slot",
+        "relationship"
+      ],
+      "title": "Edge",
+      "type": "object"
+    },
+    "Endpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "component_instance_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Instance Id"
+        },
+        "endpoint_type": {
+          "enum": [
+            "local",
+            "external"
+          ],
+          "title": "Endpoint Type",
+          "type": "string"
+        },
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "slot": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slot"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "value",
+        "endpoint_type",
+        "evidence_id"
+      ],
+      "title": "Endpoint",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "line_end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line End"
+        },
+        "line_start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Start"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Id"
+        },
+        "snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snippet"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "ExtensionComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "confirmed_by_user": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confirmed By User"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "status"
+      ],
+      "title": "ExtensionComponent",
+      "type": "object"
+    },
+    "Flow": {
+      "additionalProperties": false,
+      "properties": {
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/Edge"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "flow_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Flow Type"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Flow",
+      "type": "object"
+    },
+    "Project": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "path_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path Mode"
+        },
+        "root_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root Path"
+        },
+        "root_path_redacted": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root Path Redacted"
+        },
+        "system_map_schema_version": {
+          "anyOf": [
+            {
+              "const": "ai-system-map/v1",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "System Map Schema Version"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Project",
+      "type": "object"
+    },
+    "QueryTraceEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "component_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Id"
+        },
+        "edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Id"
+        },
+        "error": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "input": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input"
+        },
+        "latency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Ms"
+        },
+        "output": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "replay_depth": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replay Depth"
+        },
+        "retrieved_chunks": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved Chunks"
+        },
+        "sequence_index": {
+          "title": "Sequence Index",
+          "type": "integer"
+        },
+        "slot": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slot"
+        },
+        "timestamp": {
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "trace_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trace Id"
+        }
+      },
+      "required": [
+        "id",
+        "sequence_index",
+        "timestamp"
+      ],
+      "title": "QueryTraceEvent",
+      "type": "object"
+    },
+    "RecommendedNextCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "target_type": {
+          "title": "Target Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "target_type",
+        "target",
+        "reason",
+        "action"
+      ],
+      "title": "RecommendedNextCheck",
+      "type": "object"
+    },
+    "ReferenceArchitecture": {
+      "additionalProperties": false,
+      "properties": {
+        "flows": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flows",
+          "type": "array"
+        },
+        "id": {
+          "const": "rag-core-v1",
+          "title": "Id",
+          "type": "string"
+        },
+        "slots": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Slots",
+          "type": "array"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "id",
+        "slots",
+        "flows"
+      ],
+      "title": "ReferenceArchitecture",
+      "type": "object"
+    },
+    "RiskHint": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity_hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Severity Hint"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "target_type": {
+          "enum": [
+            "component_instance",
+            "endpoint",
+            "component_slot",
+            "evidence",
+            "file"
+          ],
+          "title": "Target Type",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "uncertainty": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "target",
+        "target_type",
+        "evidence_id",
+        "rule_id",
+        "rationale"
+      ],
+      "title": "RiskHint",
+      "type": "object"
+    },
+    "ScanSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "detected_slots": {
+          "default": 0,
+          "title": "Detected Slots",
+          "type": "integer"
+        },
+        "files_scanned": {
+          "default": 0,
+          "title": "Files Scanned",
+          "type": "integer"
+        },
+        "files_skipped": {
+          "default": 0,
+          "title": "Files Skipped",
+          "type": "integer"
+        },
+        "missing_slots": {
+          "default": 0,
+          "title": "Missing Slots",
+          "type": "integer"
+        },
+        "not_configured_slots": {
+          "default": 0,
+          "title": "Not Configured Slots",
+          "type": "integer"
+        },
+        "risk_hints": {
+          "default": 0,
+          "title": "Risk Hints",
+          "type": "integer"
+        },
+        "secret_masking_applied": {
+          "default": false,
+          "title": "Secret Masking Applied",
+          "type": "boolean"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "unmapped_components": {
+          "default": 0,
+          "title": "Unmapped Components",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "ScanSummary",
+      "type": "object"
+    },
+    "UnmappedComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "observed_kind": {
+          "title": "Observed Kind",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "source_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source File"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "suggested_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Suggested Actions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "observed_kind",
+        "status",
+        "reason"
+      ],
+      "title": "UnmappedComponent",
+      "type": "object"
+    }
+  },
+  "$id": "https://kai-mind.local/schemas/ai-system-map.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "classification": {
+      "$ref": "#/$defs/Classification"
+    },
+    "components_by_slot": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ComponentSlot"
+      },
+      "title": "Components By Slot",
+      "type": "object"
+    },
+    "detail_scans": {
+      "items": {
+        "$ref": "#/$defs/DetailScanResult"
+      },
+      "title": "Detail Scans",
+      "type": "array"
+    },
+    "endpoints": {
+      "items": {
+        "$ref": "#/$defs/Endpoint"
+      },
+      "title": "Endpoints",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/Evidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "extensions": {
+      "items": {
+        "$ref": "#/$defs/ExtensionComponent"
+      },
+      "title": "Extensions",
+      "type": "array"
+    },
+    "flows": {
+      "items": {
+        "$ref": "#/$defs/Flow"
+      },
+      "title": "Flows",
+      "type": "array"
+    },
+    "project": {
+      "$ref": "#/$defs/Project"
+    },
+    "query_trace_events": {
+      "items": {
+        "$ref": "#/$defs/QueryTraceEvent"
+      },
+      "title": "Query Trace Events",
+      "type": "array"
+    },
+    "recommended_next_checks": {
+      "items": {
+        "$ref": "#/$defs/RecommendedNextCheck"
+      },
+      "title": "Recommended Next Checks",
+      "type": "array"
+    },
+    "reference_architecture": {
+      "$ref": "#/$defs/ReferenceArchitecture"
+    },
+    "risk_hints": {
+      "items": {
+        "$ref": "#/$defs/RiskHint"
+      },
+      "title": "Risk Hints",
+      "type": "array"
+    },
+    "scan_depth": {
+      "enum": [
+        "system",
+        "component",
+        "code_path"
+      ],
+      "title": "Scan Depth",
+      "type": "string"
+    },
+    "scan_summary": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScanSummary"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": "ai-system-map/v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "system_type": {
+      "const": "rag",
+      "title": "System Type",
+      "type": "string"
+    },
+    "unmapped_components": {
+      "items": {
+        "$ref": "#/$defs/UnmappedComponent"
+      },
+      "title": "Unmapped Components",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "system_type",
+    "classification",
+    "project",
+    "reference_architecture",
+    "scan_depth",
+    "components_by_slot",
+    "evidence",
+    "endpoints",
+    "flows",
+    "extensions",
+    "unmapped_components",
+    "detail_scans",
+    "risk_hints",
+    "recommended_next_checks",
+    "query_trace_events"
+  ],
+  "title": "RagSystemMap",
+  "type": "object"
+}
