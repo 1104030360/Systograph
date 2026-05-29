@@ -1,0 +1,70 @@
+{
+  "schema_version": "ai-system-map/v1",
+  "system_type": "rag",
+  "classification": {
+    "mode": "user_selected_or_default",
+    "selected_template": "rag-core-v1"
+  },
+  "project": {
+    "name": "minimal-rag",
+    "root_path": "<project_root>",
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted",
+    "system_map_schema_version": "ai-system-map/v1"
+  },
+  "reference_architecture": {
+    "id": "rag-core-v1",
+    "version": "1.0.0",
+    "slots": [
+      "app_api_or_orchestrator",
+      "retriever"
+    ],
+    "flows": [
+      "query_answer"
+    ]
+  },
+  "scan_depth": "system",
+  "components_by_slot": {
+    "app_api_or_orchestrator": {
+      "slot": "app_api_or_orchestrator",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:app_api_or_orchestrator:fastapi-query-api",
+          "slot": "app_api_or_orchestrator",
+          "kind": "api_orchestrator",
+          "name": "FastAPI Query API",
+          "confidence": 0.9,
+          "evidence_ids": [
+            "evidence:code_pattern:fastapi-route"
+          ]
+        }
+      ]
+    },
+    "retriever": {
+      "slot": "retriever",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    }
+  },
+  "evidence": [
+    {
+      "id": "evidence:code_pattern:fastapi-route",
+      "kind": "code_pattern",
+      "file": "src/api.py",
+      "path": "app.post('/query')",
+      "value": "local query route detected",
+      "rule_id": "fastapi_route_detected"
+    }
+  ],
+  "endpoints": [],
+  "flows": [],
+  "extensions": [],
+  "unmapped_components": [],
+  "detail_scans": [],
+  "risk_hints": [],
+  "recommended_next_checks": [],
+  "query_trace_events": []
+}
