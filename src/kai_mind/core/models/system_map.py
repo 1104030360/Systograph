@@ -207,17 +207,15 @@ class RagSystemMap(ContractModel):
     scan_depth: ScanDepth
     scan_summary: ScanSummary | None = None
     components_by_slot: dict[str, ComponentSlot]
-    evidence: list[Evidence] = Field(default_factory=list)
-    endpoints: list[Endpoint] = Field(default_factory=list)
-    flows: list[Flow] = Field(default_factory=list)
-    extensions: list[ExtensionComponent] = Field(default_factory=list)
-    unmapped_components: list[UnmappedComponent] = Field(default_factory=list)
-    detail_scans: list[DetailScanResult] = Field(default_factory=list)
-    risk_hints: list[RiskHint] = Field(default_factory=list)
-    recommended_next_checks: list[RecommendedNextCheck] = Field(
-        default_factory=list
-    )
-    query_trace_events: list[QueryTraceEvent] = Field(default_factory=list)
+    evidence: list[Evidence]
+    endpoints: list[Endpoint]
+    flows: list[Flow]
+    extensions: list[ExtensionComponent]
+    unmapped_components: list[UnmappedComponent]
+    detail_scans: list[DetailScanResult]
+    risk_hints: list[RiskHint]
+    recommended_next_checks: list[RecommendedNextCheck]
+    query_trace_events: list[QueryTraceEvent]
 
 
 def build_system_map_schema() -> dict[str, Any]:

@@ -59,6 +59,21 @@ def test_checked_in_schema_matches_pydantic_generated_schema() -> None:
     assert load_schema() == build_system_map_schema()
 
 
+def test_schema_requires_canonical_top_level_arrays() -> None:
+    schema = load_schema()
+
+    assert {
+        "endpoints",
+        "flows",
+        "extensions",
+        "unmapped_components",
+        "detail_scans",
+        "risk_hints",
+        "recommended_next_checks",
+        "query_trace_events",
+    }.issubset(set(schema["required"]))
+
+
 def test_invalid_confidence_fixture_is_rejected() -> None:
     data = load_fixture("invalid_confidence.v1.json")
 

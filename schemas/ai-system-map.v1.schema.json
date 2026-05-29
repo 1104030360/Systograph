@@ -1205,7 +1205,16 @@
     "project",
     "reference_architecture",
     "scan_depth",
-    "components_by_slot"
+    "components_by_slot",
+    "evidence",
+    "endpoints",
+    "flows",
+    "extensions",
+    "unmapped_components",
+    "detail_scans",
+    "risk_hints",
+    "recommended_next_checks",
+    "query_trace_events"
   ],
   "title": "RagSystemMap",
   "type": "object"

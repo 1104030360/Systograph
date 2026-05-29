@@ -33,6 +33,8 @@ class SystemMapValidationService:
         self._validate_components(system_map)
         self._validate_endpoints(system_map)
         self._validate_flows(system_map)
+        self._validate_extensions(system_map)
+        self._validate_unmapped_components(system_map)
         self._validate_risk_hints(system_map)
         self._validate_detail_scans(system_map)
         self._validate_query_trace_events(system_map)
@@ -165,12 +167,63 @@ class SystemMapValidationService:
 
     def _validate_risk_hints(self, system_map: RagSystemMap) -> None:
         evidence_ids = self._evidence_ids(system_map)
+        target_ids_by_type = {
+            "component_instance": self._component_ids(system_map),
+            "endpoint": {endpoint.id for endpoint in system_map.endpoints},
+            "component_slot": set(system_map.components_by_slot),
+            "evidence": evidence_ids,
+            "file": {
+                evidence.file
+                for evidence in system_map.evidence
+                if evidence.file is not None
+            },
+        }
 
         for risk_hint in system_map.risk_hints:
             if risk_hint.evidence_id not in evidence_ids:
                 raise SystemMapValidationError(
                     f"RiskHint '{risk_hint.id}' references missing evidence"
                 )
+            valid_targets = target_ids_by_type[risk_hint.target_type]
+            if risk_hint.target not in valid_targets:
+                raise SystemMapValidationError(
+                    f"RiskHint '{risk_hint.id}' references missing "
+                    f"{risk_hint.target_type} target"
+                )
+
+    def _validate_extensions(self, system_map: RagSystemMap) -> None:
+        evidence_ids = self._evidence_ids(system_map)
+
+        for extension in system_map.extensions:
+            if not extension.evidence_ids and not extension.confirmed_by_user:
+                raise SystemMapValidationError(
+                    f"ExtensionComponent '{extension.id}' must include "
+                    "evidence or user confirmation"
+                )
+            self._validate_evidence_ids(
+                extension.evidence_ids,
+                evidence_ids,
+                f"ExtensionComponent '{extension.id}'",
+            )
+
+    def _validate_unmapped_components(self, system_map: RagSystemMap) -> None:
+        evidence_ids = self._evidence_ids(system_map)
+
+        for component in system_map.unmapped_components:
+            if component.status != "needs_confirmation":
+                raise SystemMapValidationError(
+                    f"UnmappedComponent '{component.id}' must have "
+                    "needs_confirmation status"
+                )
+            if not component.evidence_ids:
+                raise SystemMapValidationError(
+                    f"UnmappedComponent '{component.id}' must include evidence"
+                )
+            self._validate_evidence_ids(
+                component.evidence_ids,
+                evidence_ids,
+                f"UnmappedComponent '{component.id}'",
+            )
 
     def _validate_detail_scans(self, system_map: RagSystemMap) -> None:
         evidence_ids = self._evidence_ids(system_map)
@@ -239,6 +292,8 @@ class SystemMapValidationService:
 
     def _is_project_relative_posix_path(self, value: str) -> bool:
         path = PurePosixPath(value)
-        return not path.is_absolute() and not WINDOWS_ABSOLUTE_PATH_RE.match(
-            value
+        return (
+            "\\" not in value
+            and not path.is_absolute()
+            and not WINDOWS_ABSOLUTE_PATH_RE.match(value)
         )
