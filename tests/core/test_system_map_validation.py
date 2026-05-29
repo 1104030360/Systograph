@@ -55,6 +55,18 @@ def test_rejects_windows_separator_evidence_path(
         SystemMapValidationService().validate(data)
 
 
+def test_rejects_parent_traversal_evidence_path(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["evidence"][0]["file"] = "../secrets.txt"
+
+    with pytest.raises(
+        SystemMapValidationError, match="project-relative POSIX"
+    ):
+        SystemMapValidationService().validate(data)
+
+
 def test_rejects_detected_slot_with_dangling_evidence_id(
     minimal_map: dict[str, Any],
 ) -> None:
@@ -151,3 +163,40 @@ def test_rejects_extension_component_with_dangling_evidence_id(
 
     with pytest.raises(SystemMapValidationError, match="ExtensionComponent"):
         SystemMapValidationService().validate(data)
+
+
+def test_accepts_detail_scan_targets_for_extension_and_evidence(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    extension_id = "extension:test"
+    evidence_id = data["evidence"][0]["id"]
+    data["extensions"].append(
+        {
+            "id": extension_id,
+            "name": "Redis cache",
+            "kind": "cache",
+            "status": "detected",
+            "confirmed_by_user": True,
+        }
+    )
+    data["detail_scans"].extend(
+        [
+            {
+                "id": "detail:extension",
+                "target_type": "extension",
+                "target": extension_id,
+                "scan_depth": "component",
+                "status": "success",
+            },
+            {
+                "id": "detail:evidence",
+                "target_type": "evidence",
+                "target": evidence_id,
+                "scan_depth": "code_path",
+                "status": "success",
+            },
+        ]
+    )
+
+    SystemMapValidationService().validate(data)

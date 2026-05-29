@@ -232,11 +232,20 @@ class SystemMapValidationService:
         unmapped_ids = {
             component.id for component in system_map.unmapped_components
         }
+        extension_ids = {extension.id for extension in system_map.extensions}
         edge_ids = {
             edge.id for flow in system_map.flows for edge in flow.edges
         }
+        evidence_ids = self._evidence_ids(system_map)
 
-        valid_targets = slots | component_ids | unmapped_ids | edge_ids
+        valid_targets = (
+            slots
+            | component_ids
+            | unmapped_ids
+            | extension_ids
+            | edge_ids
+            | evidence_ids
+        )
         for detail_scan in system_map.detail_scans:
             if detail_scan.target not in valid_targets:
                 raise SystemMapValidationError(
@@ -295,5 +304,6 @@ class SystemMapValidationService:
         return (
             "\\" not in value
             and not path.is_absolute()
+            and ".." not in path.parts
             and not WINDOWS_ABSOLUTE_PATH_RE.match(value)
         )
