@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+.git-prompt/
+docs/work/Timmy/schedule/git-prompt/
