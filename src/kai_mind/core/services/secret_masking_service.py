@@ -151,12 +151,12 @@ class SecretMaskingService:
 
     def _mask_key_value_match(self, match: re.Match[str]) -> str:
         key = match.group("key")
-        if key.upper().startswith("AUTHORIZATION"):
-            return match.group(0)
-
         value = match.group("quoted_value") or match.group("value")
         key_quote = match.group("key_quote") or ""
         quote = match.group("quote") or ""
+        if key.upper().startswith("AUTHORIZATION") and not quote:
+            return match.group(0)
+
         return (
             f"{key_quote}{key}{key_quote}{match.group('separator')}{quote}"
             f"{self.mask_value(value, key=key)}{quote}"

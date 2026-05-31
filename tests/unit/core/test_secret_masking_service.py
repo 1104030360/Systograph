@@ -51,6 +51,26 @@ def test_env_text_masks_fake_openai_key_without_hiding_key_name() -> None:
     assert "QDRANT_URL=http://localhost:6333" in masked
 
 
+def test_bare_secret_marker_keys_are_masked_in_text() -> None:
+    service = SecretMaskingService()
+    text = "\n".join(
+        [
+            "PASSWORD=abc123",
+            "TOKEN=plain-token-value",
+            "SECRET=plain-secret-value",
+        ]
+    )
+
+    masked = service.mask_text(text)
+
+    assert "abc123" not in masked
+    assert "plain-token-value" not in masked
+    assert "plain-secret-value" not in masked
+    assert "PASSWORD=[MASKED]" in masked
+    assert "TOKEN=plai...alue" in masked
+    assert "SECRET=plai...alue" in masked
+
+
 def test_quoted_secret_text_with_spaces_is_masked() -> None:
     service = SecretMaskingService()
     secret = "correct horse battery staple"
@@ -78,6 +98,16 @@ def test_authorization_bearer_text_is_masked() -> None:
 
     assert token not in masked
     assert masked == "Authorization: Bearer bear...7890"
+
+
+def test_quoted_json_authorization_bearer_value_is_masked() -> None:
+    service = SecretMaskingService()
+    token = "serialized-token-value-1234567890"
+
+    masked = service.mask_text(f'{{"Authorization": "Bearer {token}"}}')
+
+    assert token not in masked
+    assert masked == '{"Authorization": "Bear...7890"}'
 
 
 def test_common_token_patterns_are_masked_without_keys() -> None:
