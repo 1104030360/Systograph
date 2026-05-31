@@ -51,6 +51,25 @@ def test_env_text_masks_fake_openai_key_without_hiding_key_name() -> None:
     assert "QDRANT_URL=http://localhost:6333" in masked
 
 
+def test_quoted_secret_text_with_spaces_is_masked() -> None:
+    service = SecretMaskingService()
+    secret = "correct horse battery staple"
+    text = "\n".join(
+        [
+            f'PASSWORD="{secret}"',
+            f"password: '{secret}'",
+            f'{{"password": "{secret}"}}',
+        ]
+    )
+
+    masked = service.mask_text(text)
+
+    assert secret not in masked
+    assert 'PASSWORD="corr...aple"' in masked
+    assert "password: 'corr...aple'" in masked
+    assert '{"password": "corr...aple"}' in masked
+
+
 def test_authorization_bearer_text_is_masked() -> None:
     service = SecretMaskingService()
     token = "bearer-token-value-1234567890"

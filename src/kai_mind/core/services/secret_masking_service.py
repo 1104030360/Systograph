@@ -20,13 +20,14 @@ SHORT_SECRET_MAX_LENGTH: Final = 8
 VISIBLE_EDGE_LENGTH: Final = 4
 
 KEY_VALUE_RE: Final = re.compile(
-    r"(?P<key>\b[A-Za-z_][A-Za-z0-9_]*"
-    r"(?:API_KEY|TOKEN|SECRET|PASSWORD|BEARER|AUTH)"
-    r"[A-Za-z0-9_]*)"
+    r"(?P<key_quote>['\"]?)"
+    r"(?P<key>\b(?=[A-Za-z_][A-Za-z0-9_]*)"
+    r"(?=[A-Za-z0-9_]*(?:API_KEY|TOKEN|SECRET|PASSWORD|BEARER|AUTH))"
+    r"[A-Za-z_][A-Za-z0-9_]*)"
+    r"(?P=key_quote)"
     r"(?P<separator>\s*[:=]\s*)"
-    r"(?P<quote>['\"]?)"
-    r"(?P<value>[^'\"\s]+)"
-    r"(?P=quote)",
+    r"(?:(?P<quote>['\"])(?P<quoted_value>.*?)(?P=quote)|"
+    r"(?P<value>[^'\"\s]+))",
     re.IGNORECASE,
 )
 
@@ -153,10 +154,11 @@ class SecretMaskingService:
         if key.upper().startswith("AUTHORIZATION"):
             return match.group(0)
 
-        value = match.group("value")
-        quote = match.group("quote")
+        value = match.group("quoted_value") or match.group("value")
+        key_quote = match.group("key_quote") or ""
+        quote = match.group("quote") or ""
         return (
-            f"{key}{match.group('separator')}{quote}"
+            f"{key_quote}{key}{key_quote}{match.group('separator')}{quote}"
             f"{self.mask_value(value, key=key)}{quote}"
         )
 
