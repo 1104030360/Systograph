@@ -37,7 +37,7 @@
 - `src/kai_mind/core/models/errors.py`
 - `src/kai_mind/core/models/scan.py`
 - `src/kai_mind/core/providers/output_artifact_provider.py`
-- `tests/core/test_precondition_output_policy.py`
+- `tests/unit/core/test_precondition_output_policy.py`
 
 ## 驗收標準
 - missing project 回傳 fatal result。

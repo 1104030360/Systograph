@@ -47,7 +47,7 @@ Query trace 會呼叫 runtime endpoint，可能有副作用，因此必須在 st
 - `src/kai_mind/web/routes/trace_routes.py`
 - `src/kai_mind/cli/trace_command.py`
 - 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
-- `tests/core/test_query_trace_service.py`
+- `tests/unit/core/test_query_trace_service.py`
 - `tests/web/test_trace_routes.py`
 - `tests/cli/test_trace_command.py`
 

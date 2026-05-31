@@ -40,7 +40,7 @@ Stage 7 是 canonical JSON 的最後閘門。所有後續 CLI、Markdown、viewe
 - `src/kai_mind/core/services/system_map_normalize_service.py`
 - `src/kai_mind/core/services/system_map_validation_service.py`
 - `tests/contracts/test_system_map_contract.py`
-- `tests/core/test_system_map_normalize_service.py`
+- `tests/unit/core/test_system_map_normalize_service.py`
 
 ## 驗收標準
 - basic fixture 可產生 valid `RagSystemMap` object。

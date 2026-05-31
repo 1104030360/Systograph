@@ -1,0 +1,13 @@
+knowledge_graph:
+  provider: neo4j
+  uri: bolt://localhost:7687
+  database: kai_mind_graph
+  entity_label: HealthEntity
+  relationship_type: RELATED_TO
+graph_retriever:
+  strategy: entity_expansion
+  max_hops: 2
+  combine_with_vector_retriever: true
+vector_store:
+  provider: qdrant
+  collection: health_chunks

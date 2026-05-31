@@ -35,7 +35,7 @@ dependency manifests 是判斷專案是否使用 LangChain、LlamaIndex、OpenAI
 
 ## 預期輸出
 - `src/kai_mind/core/providers/dependency_manifest_provider.py`
-- `tests/core/test_dependency_manifest_provider.py`
+- `tests/unit/core/test_dependency_manifest_provider.py`
 
 ## 驗收標準
 - `qdrant-client` 產生 vector store client candidate fact。

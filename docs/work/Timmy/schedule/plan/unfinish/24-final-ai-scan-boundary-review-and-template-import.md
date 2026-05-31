@@ -56,8 +56,8 @@
 - `src/kai_mind/web/routes/mapping_routes.py`
 - `src/kai_mind/web/routes/template_routes.py`
 - 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
-- `tests/core/test_scan_boundary_review_service.py`
-- `tests/core/test_template_import_service.py`
+- `tests/unit/core/test_scan_boundary_review_service.py`
+- `tests/unit/core/test_template_import_service.py`
 - `tests/web/test_scan_boundary_review_routes.py`
 - `tests/web/test_template_import_routes.py`
 

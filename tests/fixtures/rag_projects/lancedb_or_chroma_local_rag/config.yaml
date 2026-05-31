@@ -1,0 +1,10 @@
+workspace:
+  id: local-health
+  documents_path: storage/documents
+embedding:
+  provider: ollama
+  model: nomic-embed-text
+vector_store:
+  provider: lancedb
+  uri: storage/lancedb
+  table: local_health_docs

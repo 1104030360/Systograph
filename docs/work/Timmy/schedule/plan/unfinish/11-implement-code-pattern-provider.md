@@ -35,7 +35,7 @@
 ## 預期輸出
 - `src/kai_mind/core/providers/code_pattern_provider.py`
 - `src/kai_mind/core/providers/code_patterns.py`
-- `tests/core/test_code_pattern_provider.py`
+- `tests/unit/core/test_code_pattern_provider.py`
 
 ## 驗收標準
 - source pattern match 產生 deterministic evidence id inputs。

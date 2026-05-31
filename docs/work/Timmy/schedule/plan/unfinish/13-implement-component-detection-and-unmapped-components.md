@@ -35,7 +35,7 @@ Stage 5 是從 facts 走向 system map 的核心。沒有 component detection，
 
 ## 預期輸出
 - `src/kai_mind/core/services/component_detection_service.py`
-- `tests/core/test_component_detection_service.py`
+- `tests/unit/core/test_component_detection_service.py`
 
 ## 驗收標準
 - Qdrant fixture 產生 detected vector_store instance。

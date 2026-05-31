@@ -35,7 +35,7 @@ Local web API 產生 JSON 後，使用者還需要可讀報告快速理解 syste
 
 ## 預期輸出
 - `src/kai_mind/core/services/markdown_summary_service.py`
-- `tests/core/test_markdown_summary_service.py`
+- `tests/unit/core/test_markdown_summary_service.py`
 - 更新 `src/kai_mind/core/services/map_build_service.py`
 
 ## 驗收標準

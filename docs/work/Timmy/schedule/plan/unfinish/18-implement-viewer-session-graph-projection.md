@@ -46,7 +46,7 @@
 - `src/kai_mind/web/routes/viewer_routes.py`
 - `src/kai_mind/cli/viewer_command.py` 或等價 validate command
 - 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
-- `tests/core/test_viewer_session_service.py`
+- `tests/unit/core/test_viewer_session_service.py`
 - `tests/web/test_viewer_routes.py`
 - `tests/cli/test_viewer_command.py` 或等價 CLI validate test
 
