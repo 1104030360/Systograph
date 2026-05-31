@@ -8,6 +8,7 @@ from tests.helpers.fixtures import (
     fixture_file_text,
     rag_project_fixture_path,
     rag_project_fixtures_root,
+    repo_root,
 )
 
 REQUIRED_FIXTURES = {
@@ -43,7 +44,9 @@ def test_rag_project_fixture_root_is_project_relative() -> None:
 
     assert root.is_dir()
     assert root.name == "rag_projects"
-    assert not root.is_absolute() or "tests/fixtures/rag_projects" in str(root)
+    assert root.relative_to(repo_root()) == Path(
+        "tests", "fixtures", "rag_projects"
+    )
 
 
 @pytest.mark.parametrize("fixture_name", sorted(REQUIRED_FIXTURES))
@@ -97,11 +100,20 @@ def test_fixtures_are_small_and_do_not_vendor_external_repos() -> None:
     root = rag_project_fixtures_root()
     files = [path for path in root.rglob("*") if path.is_file()]
     total_bytes = sum(path.stat().st_size for path in files)
+    banned_dir_parts = {
+        (".git",),
+        ("node_modules",),
+        (".venv",),
+        ("models",),
+        ("data", "raw"),
+    }
 
     assert len(files) <= 80
     assert total_bytes <= 120_000
-    for banned_dir in (".git", "node_modules", ".venv", "models", "data/raw"):
-        assert not (root / banned_dir).exists()
+    for directory in (path for path in root.rglob("*") if path.is_dir()):
+        relative_parts = directory.relative_to(root).parts
+        for banned_parts in banned_dir_parts:
+            assert relative_parts[-len(banned_parts) :] != banned_parts
 
 
 def test_provider_variation_coverage_matrix() -> None:
