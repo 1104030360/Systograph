@@ -35,7 +35,7 @@ Stage 2 是後續所有 providers 的掃描邊界。設計文件明確要求後�
 
 ## 預期輸出
 - `src/kai_mind/core/providers/filesystem_provider.py`
-- `tests/core/test_filesystem_provider.py`
+- `tests/unit/core/test_filesystem_provider.py`
 - `tests/fixtures/rag_projects/*` 視需要補小型檔案
 
 ## 驗收標準

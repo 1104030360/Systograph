@@ -39,7 +39,7 @@ unmapped components 不能永遠停在 needs_confirmation。設計文件要求 u
 - `src/kai_mind/config/user_mapping_store.py`
 - `src/kai_mind/core/models/mapping.py`
 - `src/kai_mind/core/services/manual_mapping_service.py`
-- `tests/core/test_manual_mapping_service.py`
+- `tests/unit/core/test_manual_mapping_service.py`
 
 ## 驗收標準
 - confirmed mapping 不寫入 project root。

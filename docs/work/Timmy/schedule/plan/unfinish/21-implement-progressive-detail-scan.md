@@ -39,7 +39,7 @@ L1 system map 先可用後，才需要 progressive drill-down。這符合設計�
 - `src/kai_mind/core/services/detail_scan_service.py`
 - `src/kai_mind/core/services/component_detail_scan_service.py`
 - `src/kai_mind/core/services/code_path_scan_service.py`
-- `tests/core/test_detail_scan_service.py`
+- `tests/unit/core/test_detail_scan_service.py`
 
 ## 驗收標準
 - L2 只掃 target 相關檔案。

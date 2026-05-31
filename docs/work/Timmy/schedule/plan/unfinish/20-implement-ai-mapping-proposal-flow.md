@@ -36,7 +36,7 @@ Manual mapping store 先完成後，AI proposal 才有安全落點。這符合�
 ## 預期輸出
 - `src/kai_mind/core/services/mapping_proposal_service.py`
 - 更新 `src/kai_mind/core/models/mapping.py`
-- `tests/core/test_mapping_proposal_service.py`
+- `tests/unit/core/test_mapping_proposal_service.py`
 
 ## 驗收標準
 - proposal status 永遠先是 `pending_user_confirmation`。

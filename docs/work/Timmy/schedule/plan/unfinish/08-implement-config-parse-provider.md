@@ -37,7 +37,7 @@ config 是 RAG 系統中偵測 LLM provider、endpoint、secret-like keys、feat
 
 ## 預期輸出
 - `src/kai_mind/core/providers/config_parse_provider.py`
-- `tests/core/test_config_parse_provider.py`
+- `tests/unit/core/test_config_parse_provider.py`
 
 ## 驗收標準
 - `.env` 中 `OPENAI_API_KEY` 只輸出 masked value。

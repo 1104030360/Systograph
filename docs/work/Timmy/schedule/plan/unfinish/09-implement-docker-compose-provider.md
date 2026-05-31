@@ -35,7 +35,7 @@ Docker Compose 是 local RAG 系統中最穩定的 infrastructure evidence。Qdr
 
 ## 預期輸出
 - `src/kai_mind/core/providers/docker_compose_provider.py`
-- `tests/core/test_docker_compose_provider.py`
+- `tests/unit/core/test_docker_compose_provider.py`
 
 ## 驗收標準
 - Qdrant service image 產生 `docker_service` evidence。

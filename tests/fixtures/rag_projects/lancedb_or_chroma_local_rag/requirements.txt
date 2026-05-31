@@ -1,0 +1,2 @@
+lancedb==0.17.0
+ollama==0.4.2

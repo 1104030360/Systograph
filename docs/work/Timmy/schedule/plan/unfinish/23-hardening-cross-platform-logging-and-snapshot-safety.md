@@ -36,7 +36,7 @@
 
 ## 預期輸出
 - `tests/contracts/test_secret_snapshot_safety.py`
-- `tests/core/test_cross_platform_paths.py`
+- `tests/unit/core/test_cross_platform_paths.py`
 - `src/kai_mind/core/services/logging_service.py` 或等價 helper
 - 更新相關 tests/docs
 

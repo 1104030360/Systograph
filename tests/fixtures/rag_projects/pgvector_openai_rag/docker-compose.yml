@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: kai_mind
+      POSTGRES_PASSWORD: kai_mind_test
+      POSTGRES_DB: kai_mind

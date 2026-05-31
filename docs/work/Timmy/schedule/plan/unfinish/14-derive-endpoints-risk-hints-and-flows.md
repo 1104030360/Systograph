@@ -37,9 +37,9 @@ System map 不只是元件清單，還要能讓使用者看到元件關係與 re
 - `src/kai_mind/core/services/endpoint_detection_service.py`
 - `src/kai_mind/core/services/risk_hint_service.py`
 - `src/kai_mind/core/services/flow_derivation_service.py`
-- `tests/core/test_endpoint_detection_service.py`
-- `tests/core/test_risk_hint_service.py`
-- `tests/core/test_flow_derivation_service.py`
+- `tests/unit/core/test_endpoint_detection_service.py`
+- `tests/unit/core/test_risk_hint_service.py`
+- `tests/unit/core/test_flow_derivation_service.py`
 
 ## 驗收標準
 - `6333:6333` 產生 Qdrant endpoint 與 network exposure risk hint。

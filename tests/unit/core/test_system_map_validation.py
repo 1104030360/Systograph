@@ -10,7 +10,7 @@ from kai_mind.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 
-FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "ai_system_map"
+FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "ai_system_map"
 
 
 @pytest.fixture

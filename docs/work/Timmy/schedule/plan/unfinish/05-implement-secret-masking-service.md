@@ -34,7 +34,7 @@
 
 ## 預期輸出
 - `src/kai_mind/core/services/secret_masking_service.py`
-- `tests/core/test_secret_masking_service.py`
+- `tests/unit/core/test_secret_masking_service.py`
 
 ## 驗收標準
 - full fake secret 不會出現在 masked output。

@@ -36,7 +36,7 @@
 ## 預期輸出
 - `src/kai_mind/core/models/scan.py`
 - `src/kai_mind/core/services/project_scan_service.py`
-- `tests/core/test_project_scan_service.py`
+- `tests/unit/core/test_project_scan_service.py`
 
 ## 驗收標準
 - 所有 facts 都有 rule_id 或 provider source。
