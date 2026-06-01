@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import os
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from pathspec import PathSpec
-from pathspec.patterns.gitignore.basic import GitIgnoreBasicPattern
+from pathspec import GitIgnoreSpec
 
 from kai_mind.core.models.filesystem import (
     FileInventory,
@@ -45,6 +45,12 @@ GENERATED_SUFFIXES: Final = {
     ".min.js",
     ".min.css",
 }
+
+
+@dataclass(frozen=True)
+class _GitIgnoreRules:
+    base_path: str
+    spec: GitIgnoreSpec
 
 
 class FilesystemProvider:
@@ -123,17 +129,7 @@ class FilesystemProvider:
         source: FileInventorySource,
     ) -> FileInventory:
         candidates, skipped = self._recursive_candidates(root)
-        ignore_spec = self._load_gitignore_spec(root)
-        visible_candidates = []
-        for path in candidates:
-            if ignore_spec is not None and ignore_spec.match_file(path):
-                skipped.append(
-                    SkippedFile(path=path, reason=SkipReason.GITIGNORED)
-                )
-                continue
-            visible_candidates.append(path)
-
-        files, file_skips = self._classify_files(root, visible_candidates)
+        files, file_skips = self._classify_files(root, candidates)
         skipped.extend(file_skips)
         return FileInventory(
             source=source,
@@ -171,8 +167,26 @@ class FilesystemProvider:
     ) -> tuple[list[str], list[SkippedFile]]:
         candidates: list[str] = []
         skipped: list[SkippedFile] = []
+        active_rules_by_dir: dict[Path, tuple[_GitIgnoreRules, ...]] = {
+            root: (),
+        }
         for current_root, dirnames, filenames in os.walk(root, topdown=True):
             current = Path(current_root)
+            active_rules = active_rules_by_dir.get(current, ())
+            current_gitignore = current / ".gitignore"
+            if not self._is_symlink_outside_root(current_gitignore, root):
+                loaded_rules = self._load_gitignore_rules(
+                    current_gitignore,
+                    base_path=self.normalize_project_relative_path(
+                        current,
+                        project_root=root,
+                    )
+                    if current != root
+                    else "",
+                )
+                if loaded_rules is not None:
+                    active_rules = (*active_rules, loaded_rules)
+
             kept_dirs = []
             for dirname in sorted(dirnames):
                 child = current / dirname
@@ -194,28 +208,41 @@ class FilesystemProvider:
                         )
                     )
                     continue
+                if self._is_gitignored(f"{relative}/", active_rules):
+                    skipped.append(
+                        SkippedFile(
+                            path=f"{relative}/",
+                            reason=SkipReason.GITIGNORED,
+                        )
+                    )
+                    continue
+                active_rules_by_dir[child] = active_rules
                 kept_dirs.append(dirname)
             dirnames[:] = kept_dirs
 
             for filename in sorted(filenames):
                 path = current / filename
+                relative = self.normalize_project_relative_path(
+                    path,
+                    project_root=root,
+                )
                 if self._is_symlink_outside_root(path, root):
                     skipped.append(
                         SkippedFile(
-                            path=self.normalize_project_relative_path(
-                                path,
-                                project_root=root,
-                            ),
+                            path=relative,
                             reason=SkipReason.SYMLINK_OUTSIDE_ROOT,
                         )
                     )
                     continue
-                candidates.append(
-                    self.normalize_project_relative_path(
-                        path,
-                        project_root=root,
+                if self._is_gitignored(relative, active_rules):
+                    skipped.append(
+                        SkippedFile(
+                            path=relative,
+                            reason=SkipReason.GITIGNORED,
+                        )
                     )
-                )
+                    continue
+                candidates.append(relative)
         return sorted(candidates), skipped
 
     def _classify_files(
@@ -227,6 +254,14 @@ class FilesystemProvider:
         skipped: list[SkippedFile] = []
         for relative_path in sorted(set(relative_paths)):
             path = root / relative_path
+            if self._is_symlink_outside_root(path, root):
+                skipped.append(
+                    SkippedFile(
+                        path=relative_path,
+                        reason=SkipReason.SYMLINK_OUTSIDE_ROOT,
+                    )
+                )
+                continue
             if not path.is_file():
                 continue
             reason = self._skip_reason(path)
@@ -273,10 +308,15 @@ class FilesystemProvider:
         *,
         included_paths: set[str],
     ) -> list[SkippedFile]:
-        candidates, _ = self._recursive_candidates(root)
+        candidates, recursive_skipped = self._recursive_candidates(root)
+        skipped = [
+            record
+            for record in recursive_skipped
+            if record.reason == SkipReason.GITIGNORED
+        ]
         remaining = [path for path in candidates if path not in included_paths]
         if not remaining:
-            return []
+            return skipped
 
         input_text = "\0".join(remaining) + "\0"
         result = self._run_git(
@@ -288,21 +328,58 @@ class FilesystemProvider:
             check=False,
         )
         if result.returncode not in {0, 1}:
-            return []
-        return [
+            return skipped
+        skipped_paths = {record.path for record in skipped}
+        skipped.extend(
             SkippedFile(path=path, reason=SkipReason.GITIGNORED)
             for path in self._parse_nul_paths(result.stdout)
-        ]
+            if path not in skipped_paths
+        )
+        return skipped
 
-    def _load_gitignore_spec(
+    def _load_gitignore_rules(
         self,
-        root: Path,
-    ) -> PathSpec[GitIgnoreBasicPattern] | None:
-        gitignore_path = root / ".gitignore"
+        gitignore_path: Path,
+        *,
+        base_path: str,
+    ) -> _GitIgnoreRules | None:
         if not gitignore_path.is_file():
             return None
         lines = gitignore_path.read_text(encoding="utf-8").splitlines()
-        return PathSpec.from_lines("gitignore", lines)
+        return _GitIgnoreRules(
+            base_path=base_path,
+            spec=GitIgnoreSpec.from_lines(lines),
+        )
+
+    def _is_gitignored(
+        self,
+        relative_path: str,
+        rules: tuple[_GitIgnoreRules, ...],
+    ) -> bool:
+        ignored = False
+        for rule_set in rules:
+            path_for_rule = self._relative_to_gitignore_base(
+                relative_path,
+                rule_set.base_path,
+            )
+            if path_for_rule is None:
+                continue
+            result = rule_set.spec.check_file(path_for_rule)
+            if result.include is not None:
+                ignored = result.include
+        return ignored
+
+    def _relative_to_gitignore_base(
+        self,
+        relative_path: str,
+        base_path: str,
+    ) -> str | None:
+        if not base_path:
+            return relative_path
+        prefix = f"{base_path}/"
+        if not relative_path.startswith(prefix):
+            return None
+        return relative_path.removeprefix(prefix)
 
     def _is_binary(self, path: Path) -> bool:
         try:

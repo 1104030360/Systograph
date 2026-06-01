@@ -173,6 +173,75 @@ def test_recursive_inventory_honors_gitignore_double_star_rules(
     assert skipped["docs/deep/scan.log"] == SkipReason.GITIGNORED
 
 
+def test_recursive_inventory_honors_nested_gitignore_files(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "zip-project"
+    service_root = project_root / "service"
+    (service_root / "sub").mkdir(parents=True)
+    (service_root / ".gitignore").write_text(
+        ".env\n*.local\n!keep.local\nsub/*.log\n",
+        encoding="utf-8",
+    )
+    (service_root / ".env").write_text(
+        "placeholder=redacted\n",
+        encoding="utf-8",
+    )
+    (service_root / "settings.local").write_text(
+        "placeholder=redacted\n",
+        encoding="utf-8",
+    )
+    (service_root / "keep.local").write_text(
+        "placeholder=redacted\n",
+        encoding="utf-8",
+    )
+    (service_root / "sub" / "debug.log").write_text(
+        "debug log\n",
+        encoding="utf-8",
+    )
+    (service_root / "app.py").write_text(
+        "print('ok')\n",
+        encoding="utf-8",
+    )
+
+    inventory = FilesystemProvider().build_inventory(project_root)
+
+    file_paths = {record.path for record in inventory.files}
+    skipped = {record.path: record.reason for record in inventory.skipped}
+    assert file_paths == {
+        "service/.gitignore",
+        "service/app.py",
+        "service/keep.local",
+    }
+    assert skipped["service/.env"] == SkipReason.GITIGNORED
+    assert skipped["service/settings.local"] == SkipReason.GITIGNORED
+    assert skipped["service/sub/debug.log"] == SkipReason.GITIGNORED
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is unavailable")
+def test_git_inventory_skips_tracked_symlink_to_file_outside_project(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    outside_file = tmp_path / "outside.env"
+    outside_file.write_text(
+        "placeholder=redacted\n",
+        encoding="utf-8",
+    )
+    (project_root / "outside.env").symlink_to(outside_file)
+    run_git(project_root, "init")
+    run_git(project_root, "add", "outside.env")
+
+    inventory = FilesystemProvider().build_inventory(project_root)
+
+    file_paths = {record.path for record in inventory.files}
+    skipped = {record.path: record.reason for record in inventory.skipped}
+    assert inventory.source == FileInventorySource.GIT
+    assert "outside.env" not in file_paths
+    assert skipped["outside.env"] == SkipReason.SYMLINK_OUTSIDE_ROOT
+
+
 def test_path_normalization_outputs_project_relative_posix_paths(
     tmp_path: Path,
 ) -> None:

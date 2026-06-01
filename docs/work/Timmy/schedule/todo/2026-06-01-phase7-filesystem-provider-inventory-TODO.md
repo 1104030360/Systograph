@@ -10,6 +10,8 @@
 - Git inventory 代表 tracked files + unignored untracked files，不要求使用者先 `git add`。
 - 非 Git repo / zip project fallback 到 recursive listing。
 - 預設尊重 `.gitignore`，不掃 gitignored files。
+- Non-Git fallback 要尊重 root 與 nested `.gitignore`。
+- Git 與 recursive inventory 都不可讀取 project root 外的 symlink target。
 - 所有輸出 path 都轉成 project-relative POSIX path。
 - dependency、build、virtualenv、binary、large logs、model weights、generated/minified files 都要 skip with reason。
 - Provider 只建立 inventory，不讀完整檔案內容、不解析 config、不做 AI review。
@@ -35,5 +37,7 @@
 - [x] Gitignored files 預設不被納入 inventory。
 - [x] 非 Git repo / zip project 可透過 recursive listing 產生 inventory。
 - [x] 非 Git repo / zip project 的 `.gitignore` 支援 `**` gitignore 規則。
+- [x] 非 Git repo / zip project 的 nested `.gitignore` 會套用到所在目錄底下。
+- [x] Git inventory 會 skip tracked symlink 指到 project root 外的檔案。
 - [x] `git ls-files` 失敗時 fallback，不讓整體 scan 失敗。
 - [x] 不掃進 `node_modules`、`.venv`、generated outputs、binary、large logs、model weights。

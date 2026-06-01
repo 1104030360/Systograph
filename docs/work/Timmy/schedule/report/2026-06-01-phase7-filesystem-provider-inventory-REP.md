@@ -14,12 +14,13 @@ filesystem inventory。這一層只決定「哪些檔案值得後續 providers �
 - Git repo 優先使用 `git ls-files -z --cached --others --exclude-standard`。
 - 非 Git repo / zip project fallback recursive listing。
 - 預設尊重 `.gitignore`，不掃 gitignored files。
-- Non-Git fallback 使用 `pathspec` 套用 gitignore 規則，避免 `**` 規則和
-  Git mode 行為不一致。
+- Non-Git fallback 使用 `pathspec` 套用 root 與 nested gitignore 規則，
+  避免 `**` 或 nested `.gitignore` 和 Git mode 行為不一致。
 - path 全部輸出成 project-relative POSIX path。
 - skip dependency/build/virtualenv/cache/binary/large log/model weight/generated
   files，且記錄 skip reason。
-- symlink 指到 project root 外時 skip，避免讀到 repo 外資料。
+- Git 與 recursive inventory 都會 skip 指到 project root 外的 symlink，
+  避免讀到 repo 外資料。
 
 ## 實作邏輯
 
@@ -34,7 +35,9 @@ filesystem inventory。這一層只決定「哪些檔案值得後續 providers �
    名稱，不應 resolve 到 repo 外。
 5. 補 BDD-style integration test，使用既有 RAG fixture 驗證真實 sample
    project 會產出安全、相對、POSIX 的 file inventory。
-6. 跑 targeted tests、ruff、mypy，再跑 full pytest、full ruff、full mypy。
+6. 補 PR review regression：Git inventory 的 outside-root symlink guard，
+   以及 non-Git fallback 的 nested `.gitignore`。
+7. 跑 targeted tests、ruff、mypy，再跑 full pytest、full ruff、full mypy。
 
 核心設計決策：
 
@@ -46,6 +49,7 @@ filesystem inventory。這一層只決定「哪些檔案值得後續 providers �
 - Directory-level skip 會記錄 `node_modules/`、`.venv/`、`dist/` 這類
   summary，不展開 dependency/build 目錄底下所有檔案。
 - `.gitignore` 規則交給 `pathspec`，不維護手寫 `fnmatch` matcher。
+- Nested `.gitignore` 依所在目錄套用，避免只讀 root `.gitignore`。
 - Binary 判斷只讀前 4096 bytes，不讀完整檔案。
 - Large file 使用 `stat()` 判斷，避免讀取大檔內容。
 - `FileInventory` 是後續 config/docker/dependency/code pattern providers 的
@@ -131,9 +135,11 @@ filesystem inventory。這一層只決定「哪些檔案值得後續 providers �
 - Gitignored skipped files recording by `git check-ignore -z --stdin`。
 - Recursive inventory fallback。
 - `pathspec` gitignore matcher for non-Git / zip project。
+- Nested `.gitignore` matcher for non-Git / zip project。
 - Hard skip directories。
 - File-level skip reason classification。
 - Safe size and binary metadata checks。
+- Git inventory 的 symlink-outside-root boundary check。
 
 ## 遇到的問題與解法
 
@@ -183,8 +189,28 @@ inventory。
   `docs/scan.log`、`docs/deep/scan.log` 在 fallback mode 都會被 skip。
 - 將 runtime dependency 增加 `pathspec>=1.1,<2`。
 - `uv lock` 更新 `uv.lock`，讓 runtime dependency 和 lock 一致。
-- 移除手寫 `fnmatch` matcher，改用
-  `PathSpec.from_lines("gitignore", lines)` 與 `match_file(path)`。
+- 移除手寫 `fnmatch` matcher，改用 `GitIgnoreSpec.from_lines(lines)` 與
+  `check_file(path)`。
+
+### 5. PR review 發現 Git inventory 與 nested `.gitignore` 邊界缺口
+
+PR review 針對 scanner boundary 提出兩個 P1 風險：
+
+- Git repo 中 tracked / unignored symlink 若指到 project root 外，
+  `path.is_file()` 會 follow symlink，導致 `_skip_reason()`、`stat()`、
+  `open()` 讀到 repo 外檔案。
+- Non-Git / zip fallback 只讀 root `.gitignore`，會漏掉
+  `service/.gitignore` 這類 nested ignore rules。
+
+解法：
+
+- 在 `_classify_files()` 開頭加入 symlink-outside-root guard，讓 Git
+  inventory 與 recursive inventory 共用同一個 boundary check。
+- 將 recursive fallback 改成 top-down `os.walk` 時讀取目前目錄的
+  `.gitignore`，並把 parent + current rules 一起套用到子目錄和檔案。
+- 新增 regression tests：
+  - `test_git_inventory_skips_tracked_symlink_to_file_outside_project`
+  - `test_recursive_inventory_honors_nested_gitignore_files`
 
 ## 測試方式
 
@@ -211,12 +237,12 @@ Full validation：
 
 ## 測試結果
 
-- Targeted pytest：`7 passed`
+- Targeted pytest：`9 passed`
 - Follow-up regression pytest：`1 passed`
 - Follow-up targeted pytest：`8 passed`
 - Targeted ruff：`All checks passed`
 - Targeted mypy：`Success: no issues found in 4 source files`
-- Full pytest：`102 passed`
+- Full pytest：`104 passed`
 - Full ruff：`All checks passed`
 - Full mypy：`Success: no issues found in 34 source files`
 
@@ -236,6 +262,10 @@ Full validation：
   完成，unit test 覆蓋。
 - Non-Git fallback 支援 `**` gitignore 規則：已完成，unit regression test
   覆蓋。
+- Non-Git fallback 支援 nested `.gitignore`：已完成，unit regression test
+  覆蓋。
+- Git inventory 會 skip tracked symlink 指到 project root 外的檔案：已完成，
+  unit regression test 覆蓋。
 - `git ls-files` 失敗不能讓整體 scan 失敗：已完成，fallback unit test
   覆蓋。
 - 不掃進 `node_modules`、`.venv`、generated outputs：已完成，unit +

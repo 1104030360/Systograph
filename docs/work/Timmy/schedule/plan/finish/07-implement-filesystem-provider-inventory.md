@@ -15,7 +15,7 @@ Stage 2 是後續所有 providers 的掃描邊界。設計文件明確要求後�
 - 建立 `FileInventory`、`FileRecord`、`SkippedFile` models。
 - 優先執行 `git ls-files -z --cached --others --exclude-standard`。
 - Git repo 預設包含 tracked files 與 unignored untracked files；不要求使用者先 `git add`。
-- 非 Git repo / 使用者整包 zip project 使用 `pathlib` recursive listing，並用 `pathspec` 套用 `.gitignore` 規則。
+- 非 Git repo / 使用者整包 zip project 使用 `pathlib` recursive listing，並用 `pathspec` 套用 root 與 nested `.gitignore` 規則。
 - 排除 `.git`、`node_modules`、`.venv`、`dist`、`build`、binary、large logs、model weights。
 - 將所有 file path 正規化為 project-relative POSIX path。
 
@@ -55,6 +55,8 @@ Stage 2 是後續所有 providers 的掃描邊界。設計文件明確要求後�
 - 不要掃進 `node_modules`、`.venv`、generated outputs。
 - 不要因為擔心使用者不懂 Git，就預設繞過 `.gitignore`；這會增加 secret、local DB、cache、model weights、vector index 與 build output 被掃入的風險。
 - fallback matcher 不可用簡化版 `fnmatch` 取代 gitignore 語意；`**/secret.env`、`docs/**/*.log` 這類規則必須和 Git mode 一致地排除。
+- Git inventory 不可因 tracked/unignored symlink 而讀取 project root 外的 target；symlink-outside-root guard 必須在 git 與 recursive mode 都生效。
+- Non-Git fallback 不可只讀 root `.gitignore`；nested `.gitignore` 例如 `service/.gitignore` 也會影響 scan boundary。
 - 若未來要支援被 ignore 檔案，應只透過 explicit include override，例如 `include_paths` / `include_ignored`，且仍需套用 binary、size、symlink-outside-root 與 secret-safe 保護。
 - 參考依據：Git 官方 `ls-files --exclude-standard`；`pathspec` 的 gitignore matcher；ripgrep docs 的 ignore/hidden/binary behavior 可作 scan boundary 參考。
 
