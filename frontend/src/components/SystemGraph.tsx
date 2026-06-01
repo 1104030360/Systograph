@@ -9,7 +9,6 @@ import ReactFlow, {
   type EdgeProps,
   type Node,
   ReactFlowProvider,
-  getSmoothStepPath,
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
@@ -30,22 +29,33 @@ function OrderedEdge({
   sourceY,
   targetX,
   targetY,
-  sourcePosition,
-  targetPosition,
   markerEnd,
   style,
   label,
   data,
 }: EdgeProps<FlowEdgeData>) {
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  });
-  const labelOffset = Math.abs(targetY - sourceY) < 24 || sourceY <= targetY ? -18 : 18;
+  const startY = sourceY + (data?.sourceYOffset ?? 0);
+  const endY = targetY + (data?.targetYOffset ?? 0);
+  const xDirection = targetX >= sourceX ? 1 : -1;
+  const yDirection = endY >= startY ? 1 : -1;
+  const xDistance = Math.abs(targetX - sourceX);
+  const yDistance = Math.abs(endY - startY);
+  const routeOffset = Math.min(data?.routeOffset ?? 48, Math.max(32, xDistance - 16));
+  const laneX = sourceX + routeOffset * xDirection;
+  const cornerRadius = Math.min(10, Math.max(0, yDistance / 2), Math.max(0, Math.abs(targetX - laneX) / 2));
+  const edgePath =
+    yDistance < 8
+      ? `M ${sourceX},${startY} L ${targetX},${endY}`
+      : [
+          `M ${sourceX},${startY}`,
+          `L ${laneX},${startY}`,
+          `Q ${laneX},${startY} ${laneX},${startY + cornerRadius * yDirection}`,
+          `L ${laneX},${endY - cornerRadius * yDirection}`,
+          `Q ${laneX},${endY} ${laneX + cornerRadius * xDirection},${endY}`,
+          `L ${targetX},${endY}`,
+        ].join(" ");
+  const labelX = yDistance < 8 ? (sourceX + targetX) / 2 : laneX;
+  const labelY = yDistance < 8 ? startY - 18 : startY + (endY - startY) * 0.45;
 
   return (
     <>
@@ -54,7 +64,7 @@ function OrderedEdge({
         <div
           className={["edge-label-pill", data?.isFocused ? "is-focused" : "", data?.isDimmed ? "is-dimmed" : ""].join(" ")}
           style={{
-            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + labelOffset}px)`,
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
           }}
           title={data?.label ?? data?.relationship ?? "flow"}
         >

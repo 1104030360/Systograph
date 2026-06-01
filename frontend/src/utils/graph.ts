@@ -14,14 +14,50 @@ export type FlowEdgeData = GraphEdgeModel & {
   isDimmed: boolean;
   isSelected: boolean;
   isProgressTarget: boolean;
+  routeOffset: number;
+  sourceYOffset: number;
+  targetYOffset: number;
 };
 
 const elk = new ELK();
 const NODE_WIDTH = 230;
 const NODE_HEIGHT = 96;
 
-function createEdgeLabel(edge: GraphEdgeModel, index: number) {
+function createEdgeLabel(index: number) {
   return String(index + 1);
+}
+
+function getLaneOffsets(edges: GraphEdgeModel[], key: "from" | "to") {
+  const groups = new Map<string, GraphEdgeModel[]>();
+
+  edges.forEach((edge) => {
+    groups.set(edge[key], [...(groups.get(edge[key]) ?? []), edge]);
+  });
+
+  return new Map(
+    edges.map((edge) => {
+      const group = groups.get(edge[key]) ?? [edge];
+      const laneIndex = group.findIndex((item) => item.id === edge.id);
+      const centeredIndex = Math.max(laneIndex, 0) - (group.length - 1) / 2;
+      return [edge.id, centeredIndex * 22];
+    }),
+  );
+}
+
+function getSourceRouteOffsets(edges: GraphEdgeModel[]) {
+  const groups = new Map<string, GraphEdgeModel[]>();
+
+  edges.forEach((edge) => {
+    groups.set(edge.from, [...(groups.get(edge.from) ?? []), edge]);
+  });
+
+  return new Map(
+    edges.map((edge) => {
+      const group = groups.get(edge.from) ?? [edge];
+      const laneIndex = group.findIndex((item) => item.id === edge.id);
+      return [edge.id, 48 + Math.max(laneIndex, 0) * 30];
+    }),
+  );
 }
 
 export function makeGraphIndexes(graph: GraphViewModel) {
@@ -95,6 +131,9 @@ export function createFlowElements(
   const filterMatches = getFilterMatches(graph.filters.available, options.activeFilterIds);
   const traceFocus = getTraceFocus(options.traceEvent, graph);
   const hasTraceFocus = traceFocus.focusedNodeIds.size > 0 || traceFocus.focusedEdgeIds.size > 0;
+  const sourceRouteOffsets = getSourceRouteOffsets(graph.edges);
+  const sourceYOffsets = getLaneOffsets(graph.edges, "from");
+  const targetYOffsets = getLaneOffsets(graph.edges, "to");
 
   const nodes: Node<FlowNodeData>[] = graph.nodes.map((node) => {
     const selected = options.selectedKind === "node" && options.selectedId === node.id;
@@ -132,7 +171,7 @@ export function createFlowElements(
       target: edge.to,
       type: "ordered",
       animated: false,
-      label: createEdgeLabel(edge, index),
+      label: createEdgeLabel(index),
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 18,
@@ -145,6 +184,9 @@ export function createFlowElements(
         isDimmed: dimmed,
         isSelected: selected,
         isProgressTarget: progressFocused,
+        routeOffset: sourceRouteOffsets.get(edge.id) ?? 48,
+        sourceYOffset: sourceYOffsets.get(edge.id) ?? 0,
+        targetYOffset: targetYOffsets.get(edge.id) ?? 0,
       },
       style: {
         stroke: focused ? "#0f8b8d" : "#73808d",
