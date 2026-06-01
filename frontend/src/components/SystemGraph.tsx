@@ -14,8 +14,11 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import type { GraphViewModel, Selection, TraceEvent } from "../types";
-import { createFlowElements, layoutGraph, type FlowEdgeData, type FlowNodeData } from "../utils/graph";
+import { createFlowElements, layoutGraph, makeGraphIndexes, type FlowEdgeData, type FlowNodeData } from "../utils/graph";
 import { SystemNode } from "./SystemNode";
+
+const NODE_WIDTH = 230;
+const NODE_HEIGHT = 96;
 
 const nodeTypes = {
   systemNode: SystemNode,
@@ -66,6 +69,59 @@ const edgeTypes = {
   ordered: OrderedEdge,
 };
 
+function resolveEdgeTargetNodeId(graph: GraphViewModel, edgeId: string | undefined) {
+  if (!edgeId) return null;
+
+  const edge = graph.edges.find((item) => item.id === edgeId);
+  return edge?.to ?? edge?.from ?? null;
+}
+
+function resolveFollowNodeId({
+  graph,
+  selected,
+  traceEvent,
+  progressTargetId,
+}: {
+  graph: GraphViewModel;
+  selected: Selection;
+  traceEvent?: TraceEvent;
+  progressTargetId?: string;
+}) {
+  const nodeIds = new Set(graph.nodes.map((node) => node.id));
+  const { nodeIdBySource, edgeIdBySource } = makeGraphIndexes(graph);
+
+  if (progressTargetId) {
+    if (nodeIds.has(progressTargetId)) return progressTargetId;
+    const edgeTargetNodeId = resolveEdgeTargetNodeId(graph, progressTargetId);
+    if (edgeTargetNodeId) return edgeTargetNodeId;
+  }
+
+  if (traceEvent?.component_id) {
+    const nodeId = nodeIdBySource.get(traceEvent.component_id);
+    if (nodeId) return nodeId;
+  }
+
+  if (traceEvent?.unmapped_component_id) {
+    const nodeId = nodeIdBySource.get(traceEvent.unmapped_component_id);
+    if (nodeId) return nodeId;
+  }
+
+  if (traceEvent?.edge_id) {
+    const edgeId = edgeIdBySource.get(traceEvent.edge_id);
+    const edgeTargetNodeId = resolveEdgeTargetNodeId(graph, edgeId);
+    if (edgeTargetNodeId) return edgeTargetNodeId;
+  }
+
+  if (selected?.kind === "node") return selected.id;
+
+  if (selected?.kind === "edge") {
+    const edgeTargetNodeId = resolveEdgeTargetNodeId(graph, selected.id);
+    if (edgeTargetNodeId) return edgeTargetNodeId;
+  }
+
+  return null;
+}
+
 type Props = {
   graph: GraphViewModel;
   activeFilterIds: string[];
@@ -84,6 +140,10 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
   const lastCenteredNodeId = useRef<string | null>(null);
   const reactFlow = useReactFlow();
+  const followNodeId = useMemo(
+    () => resolveFollowNodeId({ graph, selected, traceEvent, progressTargetId }),
+    [graph, progressTargetId, selected, traceEvent],
+  );
   const graphStructureKey = useMemo(
     () => [
       graph.nodes.map((node) => node.id).join("|"),
@@ -135,20 +195,18 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
       return;
     }
 
-    const focusNode =
-      nodes.find((node) => node.data.isProgressTarget) ??
-      nodes.find((node) => node.data.isSelected) ??
-      nodes.find((node) => node.data.isFocused);
+    if (!followNodeId || !positions[followNodeId]) return;
 
+    const focusNode = nodes.find((node) => node.id === followNodeId);
     if (!focusNode || lastCenteredNodeId.current === focusNode.id) return;
 
     lastCenteredNodeId.current = focusNode.id;
     reactFlow.setCenter(
-      focusNode.position.x + (focusNode.width ?? 230) / 2,
-      focusNode.position.y + (focusNode.height ?? 96) / 2,
+      focusNode.position.x + (focusNode.width ?? NODE_WIDTH) / 2,
+      focusNode.position.y + (focusNode.height ?? NODE_HEIGHT) / 2,
       { duration: 280, zoom: Math.max(reactFlow.getZoom(), 0.74) },
     );
-  }, [followFocus, nodes, reactFlow]);
+  }, [followFocus, followNodeId, nodes, positions, reactFlow]);
 
   return (
     <ReactFlow
