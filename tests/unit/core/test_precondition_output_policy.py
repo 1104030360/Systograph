@@ -154,3 +154,24 @@ def test_existing_map_artifact_uses_timestamped_run_directory(
     )
     assert output_run.root_dir.is_dir()
     assert existing_map.read_text(encoding="utf-8") == '{"existing": true}'
+
+
+def test_timestamp_collision_uses_deterministic_suffix(
+    tmp_path: Path,
+) -> None:
+    provider = OutputArtifactProvider(clock=fixed_clock)
+    output_dir = tmp_path / "outputs"
+    output_dir.mkdir()
+    existing_map = output_dir / "ai_system_map.json"
+    first_run_map = output_dir / "20260601T093000" / "ai_system_map.json"
+    existing_map.write_text('{"existing": true}', encoding="utf-8")
+    first_run_map.parent.mkdir()
+    first_run_map.write_text('{"first_run": true}', encoding="utf-8")
+
+    output_run = provider.prepare_output_run(output_dir)
+
+    assert output_run.root_dir == output_dir / "20260601T093000-1"
+    assert output_run.root_dir.is_dir()
+    assert first_run_map.read_text(encoding="utf-8") == (
+        '{"first_run": true}'
+    )

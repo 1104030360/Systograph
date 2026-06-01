@@ -62,7 +62,7 @@ class OutputArtifactProvider:
         if not self._has_existing_artifact(output_dir):
             return output_dir.resolve()
 
-        run_dir = output_dir / self._timestamp()
+        run_dir = self._unique_timestamped_run_dir(output_dir)
         run_dir.mkdir(parents=True, exist_ok=True)
         return run_dir.resolve()
 
@@ -127,6 +127,19 @@ class OutputArtifactProvider:
 
     def _has_existing_artifact(self, output_dir: Path) -> bool:
         return any((output_dir / name).exists() for name in ARTIFACT_FILENAMES)
+
+    def _unique_timestamped_run_dir(self, output_dir: Path) -> Path:
+        timestamp = self._timestamp()
+        run_dir = output_dir / timestamp
+        if not run_dir.exists():
+            return run_dir
+
+        suffix = 1
+        while True:
+            suffixed_run_dir = output_dir / f"{timestamp}-{suffix}"
+            if not suffixed_run_dir.exists():
+                return suffixed_run_dir
+            suffix += 1
 
     def _timestamp(self) -> str:
         return self._clock().strftime("%Y%m%dT%H%M%S")

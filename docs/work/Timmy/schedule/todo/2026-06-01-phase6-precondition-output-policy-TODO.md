@@ -16,6 +16,8 @@ precondition error render 成 `map-error.md`。
 - 本階段不輸出 `map-error.json`。
 - output artifacts 已存在時不可覆寫，改用可注入 clock 的 timestamp
   run directory。
+- 若 timestamp run directory 已存在，使用 deterministic suffix，避免同秒
+  重複執行覆寫舊 run artifact。
 - `output_dir` 只作為 raw input 傳入 precondition；writer 後續使用
   `OutputRun`，避免重複傳遞 raw path。
 - 使用 `pathlib` 保持 Windows/macOS path 行為可攜。
@@ -34,12 +36,14 @@ precondition error render 成 `map-error.md`。
   `ai_system_map.json`、`ai_system_map.md` resolved paths。
 - 測試 `map-error.md` writer 只從 structured error object render。
 - 測試 `outputs/ai_system_map.json` 已存在時使用 timestamp directory。
+- 測試 timestamp directory collision 時使用 deterministic suffix。
 
 ### 2. Red：定義 BDD-style integration behavior
 
 - 新增 `tests/integration/test_phase6_precondition_output_policy_behaviors.py`。
 - 情境：missing project 只產生 `map-error.md`，不產生正常 map。
-- 情境：既有 output artifact 不被覆寫，新 run 寫入 timestamp directory。
+- 情境：既有 output artifact 不被覆寫，新 run 寫入 timestamp directory；
+  同秒 collision 時寫入 suffixed directory。
 
 ### 3. Green：建立最小 implementation
 

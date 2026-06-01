@@ -51,6 +51,7 @@
 - writer 使用 resolved `OutputRun`，不要求呼叫端重複傳 raw `output_dir`。
 - 既有 `outputs/ai_system_map.json` 不被覆寫。
 - timestamp directory 命名 deterministic 可注入 clock 測試。
+- timestamp directory 若已存在，使用 deterministic suffix，例如 `20260601T093000-1`，不可重用舊 run directory。
 
 ## 可能風險與注意事項
 - 不要用真實現在時間寫死測試，應注入 clock。

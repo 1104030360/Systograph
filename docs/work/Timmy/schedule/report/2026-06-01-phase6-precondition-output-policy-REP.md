@@ -10,6 +10,8 @@ precondition check 與 output directory policy。
 - 檢查 `project_path` exists、is directory、readable。
 - 檢查 output directory 可建立、可寫入。
 - output artifacts 已存在時不覆寫，改用 timestamped run directory。
+- timestamped run directory 已存在時使用 deterministic suffix，避免同秒
+  重複執行重用舊 run directory。
 - 新增薄的 `OutputRun` context，集中保存本次 scan 的 resolved artifact
   paths。
 - fatal precondition error 使用 structured `PreconditionError` 表示。
@@ -49,6 +51,8 @@ precondition check 與 output directory policy。
   object。
 - `OutputArtifactProvider` 只負責 artifact policy，不掃 project files。
 - timestamp 由 injectable clock 產生，測試不依賴真實現在時間。
+- timestamp collision 使用 `-1`、`-2` 這類 deterministic suffix，不重用
+  既有 run directory。
 - path 全部使用 `pathlib.Path`。
 
 ## 實作步驟
@@ -80,6 +84,7 @@ precondition check 與 output directory policy。
 - readable project path 成功時回傳 normalized root
 - `map-error.md` 由 structured error object render
 - 既有 `outputs/ai_system_map.json` 不被覆寫，改用 timestamp directory
+- timestamp directory collision 時改用 deterministic suffixed directory
 
 ### 3. 建立 BDD-style integration tests
 
@@ -93,6 +98,7 @@ precondition check 與 output directory policy。
 - missing project 不寫出 `ai_system_map.json` 或 `ai_system_map.md`
 - outputs 已存在時保留舊 artifact，新的 run directory 使用 deterministic
   timestamp
+- timestamp 已存在時，新的 run directory 使用 deterministic suffix
 
 ### 4. 建立 structured models
 
@@ -198,6 +204,23 @@ pytest: 91 passed
 - 若未來需要 machine-readable failure artifact，再由同一個
   `PreconditionError` 同時輸出 `map-error.json` 與 `map-error.md`。
 
+### 問題 4：timestamped run directory 可能同秒 collision
+
+現象：
+
+- Review 指出 timestamp 只有秒級精度。
+- 若 `outputs/ai_system_map.json` 已存在，且 `outputs/YYYYMMDDTHHMMSS`
+  也已存在，舊寫法會因 `mkdir(..., exist_ok=True)` 重用該目錄。
+- 後續 writer 可能覆寫前一次 run 的 artifact，違反 output policy。
+
+解法：
+
+- 新增 failing test 覆蓋 timestamp collision。
+- `prepare_output_run_dir()` 改成先找唯一 timestamped run directory。
+- 若 `20260601T093000` 已存在，依序嘗試 `20260601T093000-1`、
+  `20260601T093000-2`。
+- 不重用既有 run directory。
+
 ## Task 6 驗收對照
 
 | Task 6 項目 | 結果 |
@@ -209,6 +232,7 @@ pytest: 91 passed
 | 檢查 project path readable | 已完成：`project_path_not_readable` |
 | 決定 output run directory | 已完成：`prepare_output_run_dir()` |
 | outputs 已有 artifact 時建立 timestamped subdirectory | 已完成：`20260601T093000` deterministic clock test |
+| timestamped run directory collision 不覆寫舊 run | 已完成：collision 時使用 `20260601T093000-1` |
 | fatal precondition error 只輸出 `map-error.md` | 已完成：BDD test 確認不產生正常 map |
 | `map-error.md` 包含 `project_path`、`failure_reason`、`scan_stage` | 已完成 |
 | `map-error.md` 由 structured object render | 已完成 |
