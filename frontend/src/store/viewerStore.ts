@@ -10,6 +10,7 @@ type ViewerState = {
   isReplayRunning: boolean;
   progressIndex: number;
   isProgressRunning: boolean;
+  followFocus: boolean;
   liveProgressEvent: ScanProgressEvent | null;
   detailMode: "overview" | "component" | "code_path";
   setDataSourceMode: (mode: DataSourceMode) => void;
@@ -21,6 +22,7 @@ type ViewerState = {
   setReplayRunning: (running: boolean) => void;
   setProgressRunning: (running: boolean) => void;
   setProgressIndex: (index: number) => void;
+  setFollowFocus: (enabled: boolean) => void;
   setLiveProgressEvent: (event: ScanProgressEvent | null) => void;
   setDetailMode: (mode: ViewerState["detailMode"]) => void;
   resetFocus: () => void;
@@ -37,6 +39,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   isReplayRunning: false,
   progressIndex: 0,
   isProgressRunning: false,
+  followFocus: true,
   liveProgressEvent: null,
   detailMode: "overview",
   setDataSourceMode: (dataSourceMode) => set({ dataSourceMode, liveProgressEvent: null }),
@@ -53,6 +56,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setReplayRunning: (isReplayRunning) => set({ isReplayRunning }),
   setProgressRunning: (isProgressRunning) => set({ isProgressRunning }),
   setProgressIndex: (progressIndex) => set({ progressIndex }),
+  setFollowFocus: (followFocus) => set({ followFocus }),
   setLiveProgressEvent: (liveProgressEvent) => set({ liveProgressEvent }),
   setDetailMode: (detailMode) => set({ detailMode }),
   resetFocus: () =>

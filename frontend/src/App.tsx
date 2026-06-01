@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { Database, GitBranch, Layers3, SearchCode } from "lucide-react";
+import { Crosshair, Database, GitBranch, Layers3, SearchCode } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
@@ -28,6 +28,7 @@ export default function App() {
   const activeTraceIndex = useViewerStore((state) => state.activeTraceIndex);
   const isReplayRunning = useViewerStore((state) => state.isReplayRunning);
   const isProgressRunning = useViewerStore((state) => state.isProgressRunning);
+  const followFocus = useViewerStore((state) => state.followFocus);
   const progressIndex = useViewerStore((state) => state.progressIndex);
   const liveProgressEvent = useViewerStore((state) => state.liveProgressEvent);
   const detailMode = useViewerStore((state) => state.detailMode);
@@ -38,6 +39,7 @@ export default function App() {
   const setReplayRunning = useViewerStore((state) => state.setReplayRunning);
   const setProgressRunning = useViewerStore((state) => state.setProgressRunning);
   const setProgressIndex = useViewerStore((state) => state.setProgressIndex);
+  const setFollowFocus = useViewerStore((state) => state.setFollowFocus);
   const setLiveProgressEvent = useViewerStore((state) => state.setLiveProgressEvent);
   const setDetailMode = useViewerStore((state) => state.setDetailMode);
   const resetFocus = useViewerStore((state) => state.resetFocus);
@@ -136,6 +138,15 @@ export default function App() {
             onApiBaseUrlChange={setApiBaseUrl}
             onRefresh={() => void payloadQuery.refetch()}
           />
+          <button
+            className={followFocus ? "toolbar-button follow-button is-active" : "toolbar-button follow-button"}
+            type="button"
+            onClick={() => setFollowFocus(!followFocus)}
+            title={followFocus ? "Disable follow focus" : "Enable follow focus"}
+          >
+            <Crosshair size={15} />
+            Follow
+          </button>
           <button className="toolbar-button" type="button" onClick={resetFocus}>
             Reset
           </button>
@@ -156,6 +167,7 @@ export default function App() {
             selected={selected}
             traceEvent={activeTraceEvent}
             progressTargetId={progressTargetId}
+            followFocus={followFocus}
             onSelect={setSelected}
           />
         </div>

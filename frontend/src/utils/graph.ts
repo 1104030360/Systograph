@@ -20,6 +20,10 @@ const elk = new ELK();
 const NODE_WIDTH = 230;
 const NODE_HEIGHT = 96;
 
+function createEdgeLabel(edge: GraphEdgeModel, index: number) {
+  return String(index + 1);
+}
+
 export function makeGraphIndexes(graph: GraphViewModel) {
   const nodeIdBySource = new Map<string, string>();
   const edgeIdBySource = new Map<string, string>();
@@ -126,9 +130,9 @@ export function createFlowElements(
       id: edge.id,
       source: edge.from,
       target: edge.to,
-      type: "smoothstep",
-      animated: traceFocused || progressFocused,
-      label: `${index + 1}. ${edge.label ?? edge.relationship ?? "flow"}`,
+      type: "ordered",
+      animated: false,
+      label: createEdgeLabel(edge, index),
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 18,
@@ -144,19 +148,8 @@ export function createFlowElements(
       },
       style: {
         stroke: focused ? "#0f8b8d" : "#73808d",
-        strokeWidth: focused ? 3 : 1.8,
-        opacity: dimmed ? 0.22 : 0.88,
-      },
-      labelStyle: {
-        fill: focused ? "#0b5557" : "#65717f",
-        fontSize: 11,
-        fontWeight: focused ? 700 : 500,
-      },
-      labelBgPadding: [6, 4],
-      labelBgBorderRadius: 6,
-      labelBgStyle: {
-        fill: focused ? "rgba(232, 249, 249, 0.94)" : "rgba(255, 255, 255, 0.86)",
-        fillOpacity: dimmed ? 0.34 : 0.92,
+        strokeWidth: focused ? 2.8 : 1.7,
+        opacity: dimmed ? 0.18 : 0.86,
       },
     };
   });
