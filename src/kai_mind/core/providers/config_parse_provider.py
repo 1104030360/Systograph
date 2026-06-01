@@ -217,6 +217,7 @@ class ConfigParseProvider:
             rendered_value,
             key=key_name,
         )
+        rendered_value = self._masking_service.mask_text(rendered_value)
 
         fact = ScanFact(
             kind=CONFIG_VALUE_KIND,
