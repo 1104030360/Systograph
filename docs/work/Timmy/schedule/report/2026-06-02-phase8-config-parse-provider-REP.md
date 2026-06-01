@@ -33,6 +33,10 @@ evidence，而不是中止整體掃描。
 - 同步更新 `uv.lock`，讓 lockfile 與 dependency metadata 一致。
 - Review 後補強 structured `{key, value}` config masking，避免 `value`
   leaf 因 key name 遺失而洩漏 raw secret。
+- PR review 後補強 secret-like key 底下的 non-string scalar masking，避免
+  `PASSWORD: 123456789` 類 config 輸出完整值。
+- PR review 後補強 YAML / TOML date scalar rendering，避免 valid date
+  config 因 `json.dumps()` 不支援 `datetime.date` 而中止 provider。
 
 ## 實作邏輯
 
@@ -52,6 +56,9 @@ evidence，而不是中止整體掃描。
 6. structured config 先整棵走 `SecretMaskingService.mask_json_like(...)`，
    再 flatten 成 facts / evidence；`.env` scalar 則用
    `SecretMaskingService.mask_value(...)`。
+7. scalar flatten 後一律先 render 成 string，再呼叫
+   `SecretMaskingService.mask_value(...)`；這讓 non-string secret values 也能
+   依 key name 被遮罩。
 7. parse 失敗不 raise 到整體 scan，而是記成：
    `ParseIssue(provider="config", scan_stage="config_parse", ...)` +
    `Evidence(kind="parse_error", rule_id="config_parse_error", ...)`。
@@ -97,6 +104,8 @@ evidence，而不是中止整體掃描。
 - empty config file 會產生空結果。
 - JSON / YAML 中 `{key: "PASSWORD", value: "..."}` 這類 structured secret
   entry 會依 sibling key 遮罩 value。
+- JSON / YAML / TOML 中 secret-like key 底下的 numeric scalar 會被遮罩。
+- YAML / TOML date scalar 會被渲染成穩定字串，不會讓 provider crash。
 
 新增 BDD-style integration tests：
 
@@ -220,6 +229,36 @@ Review 時用小型 repro 驗證：
   `SecretMaskingService.mask_json_like(...)`，再 flatten masked tree。
 - 這沿用 Task 5 既有 shared masking path，不在 provider 內新增第二套規則。
 
+### 6. PR review 發現 non-string secret scalar 會漏遮罩
+
+PR review 指出：
+
+```text
+PASSWORD: 123456789
+```
+
+原本 `mask_json_like(...)` 只會遮罩 string values，後續
+`_build_fact_and_evidence(...)` 又只在 `value` 是 string 時呼叫
+`mask_value(...)`，導致 numeric / boolean secret-like values 會完整輸出。
+
+解法：
+
+- 補 regression tests，覆蓋 JSON / YAML / TOML 的 numeric secret scalar。
+- 將 `_build_fact_and_evidence(...)` 改成 render scalar 後一律呼叫
+  `SecretMaskingService.mask_value(rendered_value, key=key_name)`。
+
+### 7. PR review 發現 YAML / TOML date scalar 會讓 provider crash
+
+PR review 指出 YAML / TOML valid date config 會 parse 成 `datetime.date`，
+但 `_render_scalar(...)` 直接呼叫 `json.dumps(value)`，導致
+`TypeError: Object of type date is not JSON serializable`。
+
+解法：
+
+- 補 regression tests，覆蓋 YAML / TOML date scalar。
+- `_render_scalar(...)` 對 JSON 不支援的 scalar 使用 `str(value)` fallback，
+  讓 valid config 不會中止整體 provider。
+
 ## 測試方式
 
 ### RED
@@ -244,6 +283,7 @@ Review 時用小型 repro 驗證：
   - `ModuleNotFoundError: No module named 'kai_mind.core.providers.config_parse_provider'`
 - Targeted pytest GREEN：`9 passed`
 - Review regression targeted pytest：`11 passed`
+- PR review regression targeted pytest：`16 passed`
 - Targeted ruff：`All checks passed`
 - Targeted mypy：`Success: no issues found in 4 source files`
 - Full pytest：`113 passed`

@@ -204,6 +204,62 @@ def test_collect_masks_structured_key_value_secret_entries(
     }
 
 
+@pytest.mark.parametrize(
+    ("relative_path", "contents"),
+    [
+        ("config.json", json.dumps({"PASSWORD": 123456789})),
+        ("config.yaml", "PASSWORD: 123456789\n"),
+        ("pyproject.toml", "PASSWORD = 123456789\n"),
+    ],
+)
+def test_collect_masks_non_string_values_for_secret_keys(
+    tmp_path: Path,
+    relative_path: str,
+    contents: str,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    target_file = project_root / relative_path
+    target_file.write_text(contents, encoding="utf-8")
+    inventory = build_inventory(project_root, relative_path)
+
+    result = ConfigParseProvider().collect(inventory)
+
+    fact_by_path = {fact.path: fact for fact in result.facts}
+    expected_masked_value = SecretMaskingService().mask_value(
+        "123456789",
+        key="PASSWORD",
+    )
+    assert fact_by_path["PASSWORD"].value == expected_masked_value
+    assert "123456789" not in {fact.value for fact in result.facts}
+    assert "123456789" not in {evidence.value for evidence in result.evidence}
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "contents"),
+    [
+        ("config.yaml", "release_date: 2026-06-01\n"),
+        ("pyproject.toml", "release_date = 2026-06-01\n"),
+    ],
+)
+def test_collect_renders_date_scalars_without_crashing(
+    tmp_path: Path,
+    relative_path: str,
+    contents: str,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    target_file = project_root / relative_path
+    target_file.write_text(contents, encoding="utf-8")
+    inventory = build_inventory(project_root, relative_path)
+
+    result = ConfigParseProvider().collect(inventory)
+
+    fact_by_path = {fact.path: fact for fact in result.facts}
+    assert fact_by_path["release_date"].value == "2026-06-01"
+    assert not result.issues
+
+
 def test_collect_keeps_other_files_when_json_is_malformed_and_reports_issue(
     tmp_path: Path,
 ) -> None:

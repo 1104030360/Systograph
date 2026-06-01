@@ -213,11 +213,10 @@ class ConfigParseProvider:
         rule_id: str,
     ) -> tuple[ScanFact, Evidence]:
         rendered_value = self._render_scalar(value)
-        if isinstance(value, str):
-            rendered_value = self._masking_service.mask_value(
-                rendered_value,
-                key=key_name,
-            )
+        rendered_value = self._masking_service.mask_value(
+            rendered_value,
+            key=key_name,
+        )
 
         fact = ScanFact(
             kind=CONFIG_VALUE_KIND,
@@ -339,7 +338,14 @@ class ConfigParseProvider:
     def _render_scalar(self, value: Any) -> str:
         if isinstance(value, str):
             return value
-        return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+        try:
+            return json.dumps(
+                value,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+        except TypeError:
+            return str(value)
 
     def _is_candidate_config_path(self, relative_path: str) -> bool:
         file_name = Path(relative_path).name
