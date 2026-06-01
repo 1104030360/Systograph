@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { Database, GitBranch, Layers3, SearchCode } from "lucide-react";
+import { ChatPanel } from "./components/ChatPanel";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
 import { ProgressStrip } from "./components/ProgressStrip";
@@ -168,7 +169,15 @@ export default function App() {
         />
       </section>
 
-      <DetailPanel graph={graph} payload={payload} selected={selected} detailMode={detailMode} onDetailModeChange={setDetailMode} />
+      <ChatPanel />
+      <DetailPanel
+        graph={graph}
+        payload={payload}
+        selected={selected}
+        detailMode={detailMode}
+        onDetailModeChange={setDetailMode}
+        onClose={() => setSelected(null)}
+      />
     </main>
   );
 }

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from errno import EACCES, EPERM
 from pathlib import Path
 
 import pytest
@@ -53,6 +54,18 @@ def run_git(
         text=True,
         capture_output=True,
     )
+
+
+def symlink_or_skip(link_path: Path, target_path: Path) -> None:
+    try:
+        link_path.symlink_to(target_path)
+    except OSError as exc:
+        if (
+            exc.errno in {EACCES, EPERM}
+            or getattr(exc, "winerror", None) == 1314
+        ):
+            pytest.skip("symlink privilege is unavailable on this platform")
+        raise
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is unavailable")
@@ -229,7 +242,7 @@ def test_git_inventory_skips_tracked_symlink_to_file_outside_project(
         "placeholder=redacted\n",
         encoding="utf-8",
     )
-    (project_root / "outside.env").symlink_to(outside_file)
+    symlink_or_skip(project_root / "outside.env", outside_file)
     run_git(project_root, "init")
     run_git(project_root, "add", "outside.env")
 
@@ -293,7 +306,7 @@ def test_symlink_to_file_outside_project_is_skipped(tmp_path: Path) -> None:
         "OPENAI_API_KEY=sk-test-example\n",
         encoding="utf-8",
     )
-    (project_root / "outside.env").symlink_to(outside_file)
+    symlink_or_skip(project_root / "outside.env", outside_file)
 
     inventory = FilesystemProvider().build_inventory(project_root)
 

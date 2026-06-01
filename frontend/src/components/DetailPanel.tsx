@@ -1,4 +1,4 @@
-import { Braces, ChevronRight, FileCode2, Route, Sparkles } from "lucide-react";
+import { Braces, ChevronRight, FileCode2, Route, X } from "lucide-react";
 import type { GraphEdgeModel, GraphNodeModel, GraphViewModel, Selection, ViewerPayload } from "../types";
 import { compactId, formatValue, titleCase } from "../utils/format";
 
@@ -8,6 +8,7 @@ type Props = {
   selected: Selection;
   detailMode: "overview" | "component" | "code_path";
   onDetailModeChange: (mode: Props["detailMode"]) => void;
+  onClose: () => void;
 };
 
 function KeyValue({ label, value }: { label: string; value: unknown }) {
@@ -83,21 +84,9 @@ function ComponentDetails({ payload, mode }: { payload: ViewerPayload; mode: "co
   );
 }
 
-function EmptyPanel() {
-  return (
-    <aside className="detail-panel">
-      <div className="empty-detail">
-        <Sparkles size={21} />
-        <h2>Select a node or edge</h2>
-        <p>Inspector will show evidence, risks, and progressive scan output.</p>
-      </div>
-    </aside>
-  );
-}
-
-export function DetailPanel({ graph, payload, selected, detailMode, onDetailModeChange }: Props) {
+export function DetailPanel({ graph, payload, selected, detailMode, onDetailModeChange, onClose }: Props) {
   if (!selected || selected.kind === "trace") {
-    return <EmptyPanel />;
+    return null;
   }
 
   const selectedItem =
@@ -106,7 +95,7 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
       : graph.edges.find((edge) => edge.id === selected.id);
 
   if (!selectedItem) {
-    return <EmptyPanel />;
+    return null;
   }
 
   const isNode = selected.kind === "node";
@@ -118,55 +107,62 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
   const riskIds = isNode ? node?.risk_hint_ids ?? [] : edge?.risk_hint_ids ?? [];
 
   return (
-    <aside className="detail-panel">
-      <div className="detail-header">
-        <div>
-          <span className="section-label">{isNode ? "Node" : "Edge"}</span>
-          <h2>{title}</h2>
-          <p>{subtitle ? titleCase(String(subtitle)) : compactId(selected.id)}</p>
+    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section aria-modal="true" className="detail-modal" role="dialog" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="detail-header">
+          <div>
+            <span className="section-label">{isNode ? "Node" : "Edge"}</span>
+            <h2>{title}</h2>
+            <p>{subtitle ? titleCase(String(subtitle)) : compactId(selected.id)}</p>
+          </div>
+          <div className="detail-actions">
+            <Braces size={19} />
+            <button aria-label="Close detail" className="icon-button" onClick={onClose} type="button">
+              <X size={16} />
+            </button>
+          </div>
         </div>
-        <Braces size={19} />
-      </div>
 
-      <div className="segmented-control">
-        <button className={detailMode === "overview" ? "is-active" : ""} onClick={() => onDetailModeChange("overview")} type="button">
-          Overview
-        </button>
-        <button className={detailMode === "component" ? "is-active" : ""} onClick={() => onDetailModeChange("component")} type="button">
-          L2
-        </button>
-        <button className={detailMode === "code_path" ? "is-active" : ""} onClick={() => onDetailModeChange("code_path")} type="button">
-          L3
-        </button>
-      </div>
+        <div className="segmented-control">
+          <button className={detailMode === "overview" ? "is-active" : ""} onClick={() => onDetailModeChange("overview")} type="button">
+            Overview
+          </button>
+          <button className={detailMode === "component" ? "is-active" : ""} onClick={() => onDetailModeChange("component")} type="button">
+            L2
+          </button>
+          <button className={detailMode === "code_path" ? "is-active" : ""} onClick={() => onDetailModeChange("code_path")} type="button">
+            L3
+          </button>
+        </div>
 
-      {detailMode === "overview" ? (
-        <>
-          <section className="detail-section">
-            <KeyValue label="id" value={compactId(selected.id)} />
-            <KeyValue label="status" value={node?.status} />
-            <KeyValue label="slot" value={node?.slot} />
-            <KeyValue label="relationship" value={edge?.relationship} />
-            <KeyValue label="flow" value={edge?.flow_id} />
-          </section>
+        {detailMode === "overview" ? (
+          <>
+            <section className="detail-section">
+              <KeyValue label="id" value={compactId(selected.id)} />
+              <KeyValue label="status" value={node?.status} />
+              <KeyValue label="slot" value={node?.slot} />
+              <KeyValue label="relationship" value={edge?.relationship} />
+              <KeyValue label="flow" value={edge?.flow_id} />
+            </section>
 
-          <section className="detail-section">
-            <div className="section-row">
-              <div className="section-label">Evidence</div>
-              <ChevronRight size={15} />
-            </div>
-            <EvidenceList graph={graph} ids={evidenceIds} />
-          </section>
+            <section className="detail-section">
+              <div className="section-row">
+                <div className="section-label">Evidence</div>
+                <ChevronRight size={15} />
+              </div>
+              <EvidenceList graph={graph} ids={evidenceIds} />
+            </section>
 
-          <section className="detail-section">
-            <div className="section-label">Risk Hints</div>
-            <RiskList graph={graph} ids={riskIds} />
-            {riskIds.length === 0 ? <p className="muted">No linked risk hint.</p> : null}
-          </section>
-        </>
-      ) : (
-        <ComponentDetails payload={payload} mode={detailMode} />
-      )}
-    </aside>
+            <section className="detail-section">
+              <div className="section-label">Risk Hints</div>
+              <RiskList graph={graph} ids={riskIds} />
+              {riskIds.length === 0 ? <p className="muted">No linked risk hint.</p> : null}
+            </section>
+          </>
+        ) : (
+          <ComponentDetails payload={payload} mode={detailMode} />
+        )}
+      </section>
+    </div>
   );
 }

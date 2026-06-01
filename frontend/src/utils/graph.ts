@@ -1,5 +1,5 @@
 import ELK from "elkjs/lib/elk.bundled.js";
-import type { Edge, Node } from "reactflow";
+import { MarkerType, type Edge, type Node } from "reactflow";
 import type { GraphEdgeModel, GraphFilterModel, GraphNodeModel, GraphViewModel, ScanProgressEvent, TraceEvent } from "../types";
 
 export type FlowNodeData = GraphNodeModel & {
@@ -114,7 +114,7 @@ export function createFlowElements(
     };
   });
 
-  const edges: Edge<FlowEdgeData>[] = graph.edges.map((edge) => {
+  const edges: Edge<FlowEdgeData>[] = graph.edges.map((edge, index) => {
     const selected = options.selectedKind === "edge" && options.selectedId === edge.id;
     const filterFocused = filterMatches.edgeIds.has(edge.id);
     const traceFocused = traceFocus.focusedEdgeIds.has(edge.id);
@@ -128,7 +128,13 @@ export function createFlowElements(
       target: edge.to,
       type: "smoothstep",
       animated: traceFocused || progressFocused,
-      label: edge.label,
+      label: `${index + 1}. ${edge.label ?? edge.relationship ?? "flow"}`,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 18,
+        height: 18,
+        color: focused ? "#0f8b8d" : "#73808d",
+      },
       data: {
         ...edge,
         isFocused: focused,
@@ -137,14 +143,20 @@ export function createFlowElements(
         isProgressTarget: progressFocused,
       },
       style: {
-        stroke: focused ? "#0f8b8d" : "#9aa6b2",
-        strokeWidth: focused ? 2.7 : 1.3,
-        opacity: dimmed ? 0.22 : 0.82,
+        stroke: focused ? "#0f8b8d" : "#73808d",
+        strokeWidth: focused ? 3 : 1.8,
+        opacity: dimmed ? 0.22 : 0.88,
       },
       labelStyle: {
         fill: focused ? "#0b5557" : "#65717f",
         fontSize: 11,
         fontWeight: focused ? 700 : 500,
+      },
+      labelBgPadding: [6, 4],
+      labelBgBorderRadius: 6,
+      labelBgStyle: {
+        fill: focused ? "rgba(232, 249, 249, 0.94)" : "rgba(255, 255, 255, 0.86)",
+        fillOpacity: dimmed ? 0.34 : 0.92,
       },
     };
   });

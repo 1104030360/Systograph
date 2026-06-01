@@ -230,6 +230,4 @@ def test_timestamp_collision_uses_deterministic_suffix(
 
     assert output_run.root_dir == output_dir / "20260601T093000-1"
     assert output_run.root_dir.is_dir()
-    assert first_run_map.read_text(encoding="utf-8") == (
-        '{"first_run": true}'
-    )
+    assert first_run_map.read_text(encoding="utf-8") == ('{"first_run": true}')
