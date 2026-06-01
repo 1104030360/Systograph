@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from kai_mind.core.models.errors import PreconditionError
+from kai_mind.core.models.system_map import Evidence
 
 
 class ScanModel(BaseModel):
@@ -47,3 +49,33 @@ class PreconditionResult(ScanModel):
         if self.output_run is None:
             return None
         return self.output_run.root_dir
+
+
+class ScanFact(ScanModel):
+    """Low-level scanner fact emitted before slot/component mapping."""
+
+    kind: str
+    file: str
+    path: str
+    value: str | None = None
+    rule_id: str | None = None
+
+
+class ParseIssue(ScanModel):
+    """Structured parse failure that preserves partial scanner output."""
+
+    provider: str
+    scan_stage: Literal["config_parse"]
+    file: str
+    message: str
+    rule_id: str
+    line: int | None = None
+    column: int | None = None
+
+
+class ProviderScanResult(ScanModel):
+    """Shared provider-local output before higher-level normalization."""
+
+    facts: list[ScanFact] = Field(default_factory=list)
+    evidence: list[Evidence] = Field(default_factory=list)
+    issues: list[ParseIssue] = Field(default_factory=list)
