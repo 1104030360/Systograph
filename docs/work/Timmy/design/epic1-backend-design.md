@@ -22,15 +22,15 @@
 
 使用者輸入
   │
-  ├── CLI: kai-mind map <project_path>
+  ├── GUI / Local Web UI: 選擇 project folder，呼叫 local HTTP API
   │
-  └── GUI: 選擇 project folder
+  └── CLI: kai-mind map <project_path>，供 CI/debug/headless 使用
         │
         ↓
 ┌──────────────────────────────┐
 │ Adapter Layer                 │
-│ - CLI adapter                 │
 │ - Web / Local API adapter     │
+│ - CLI adapter                 │
 └───────────────┬──────────────┘
                 │ 只負責 request/response，不直接掃檔
                 ↓
@@ -164,7 +164,7 @@ L3:
 |---|---|
 | 1. 一句話目標 | 說明 backend 最終要產生什麼東西。 |
 | 2. 後端責任邊界 | 說明 backend 做什麼、不做什麼。 |
-| 3. CLI / GUI 與後端的關係 | 說明 CLI 和 GUI 都只是入口，核心邏輯在 backend。 |
+| 3. GUI / Local Web UI / CLI 與後端的關係 | 說明 GUI/local web UI 是優先產品入口，CLI 是次要 thin adapter，核心邏輯都在 backend。 |
 | 4. 主要資料流 | 說明 repo 變成 JSON report 的完整流水線。 |
 | 5. Progressive Scan | 說明 L1/L2/L3 怎麼逐步掃描。 |
 | 6. 建議模組邊界 | 說明 Python package 應該怎麼切。 |
@@ -332,27 +332,27 @@ CLI 或 GUI 只是入口。後端的核心責任不是「畫圖」，而是產�
 - 不做 final `READY` / `RISKY` / `NOT_READY` gate verdict，留給 Epic 6。
 - 不讓 LLM 成為 scanner facts 或 JSON contract 的 source of truth。
 
-## 3. CLI / GUI 與後端的關係
+## 3. GUI / Local Web UI / CLI 與後端的關係
 
-> 白話：CLI 和 GUI 都只是入口，真正掃描和產生 JSON 的邏輯只能在 core backend。
+> 白話：Epic 1 優先支援 GUI/local web UI，所以 backend 要先提供穩定 local HTTP API；CLI 仍保留給 CI、debug、headless 使用。
 
-CLI 和 GUI 都應該呼叫同一個 core backend service。
+GUI/local web UI 和 CLI 都應該呼叫同一個 core backend service。差別只在入口形式：local web UI 走 local API，CLI 走 command adapter。兩者都不能重複實作 scanner logic。
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
 │ User entry                                                        │
 ├───────────────────────────────┬──────────────────────────────────┤
-│ CLI                           │ GUI / Local Web UI               │
-│ kai-mind map <project_path>   │ 使用者選 project folder          │
-│ kai-mind viewer <map_json>    │ 使用者載入 ai_system_map.json    │
+│ GUI / Local Web UI            │ CLI / CI / Debug                 │
+│ 使用者選 project folder       │ kai-mind map <project_path>      │
+│ 顯示 map / graph / proposals  │ kai-mind trace <map_json>        │
 └───────────────┬───────────────┴──────────────────┬───────────────┘
                 │                                  │
                 ↓                                  ↓
-┌──────────────────────────────┐   ┌────────────────────────────────┐
-│ CLI adapter                  │   │ Web adapter / local API         │
-│ - parse args                 │   │ - request/response              │
-│ - print paths/status         │   │ - UI state only                 │
-└───────────────┬──────────────┘   └────────────────┬───────────────┘
+┌────────────────────────────────┐   ┌──────────────────────────────┐
+│ Web adapter / local API         │   │ CLI adapter                  │
+│ - HTTP request/response         │   │ - parse args                 │
+│ - local UI state only           │   │ - print paths/status         │
+└───────────────┬────────────────┘   └──────────────┬───────────────┘
                 │                                   │
                 └───────────────┬───────────────────┘
                                 ↓
@@ -364,10 +364,13 @@ CLI 和 GUI 都應該呼叫同一個 core backend service。
 
 後端設計重點：
 
-- CLI adapter 不直接掃描檔案，只呼叫 `MapBuildService`。
-- GUI adapter 不直接掃描檔案，只呼叫 `MapBuildService` 或 `ViewerSessionService`。
+- Web adapter / local API 是 Epic 1 優先產品入口，支援 GUI/local web UI 先接上 map build、viewer graph、pending proposals。
+- CLI adapter 是次要入口，主要服務 CI、debug、headless flow。
+- CLI adapter 不直接掃描檔案，只呼叫 `MapBuildService` / `QueryTraceService`。
+- GUI adapter 不直接掃描檔案，只呼叫 local API；local API 再呼叫 `MapBuildService` 或 `ViewerSessionService`。
 - canonical JSON 是正式 contract。
 - graph view model 只是從 canonical JSON 轉出來的 projection，不是第二份 truth。
+- local web framework 已決定採 FastAPI，理由見 Section 19.17。
 
 ## 4. 主要資料流
 
@@ -660,9 +663,17 @@ src/kai_mind/
     main.py
     map_command.py
     viewer_command.py
+    trace_command.py
   web/
     app.py
-    routes.py
+    routes/
+      map_routes.py
+      viewer_routes.py
+      trace_routes.py
+      mapping_routes.py
+      template_routes.py
+    schemas.py
+    dependencies.py
   config/
     user_mapping_store.py
 ```
@@ -670,7 +681,7 @@ src/kai_mind/
 依賴方向必須固定：
 
 ```text
-CLI / Web adapters
+Web / CLI adapters
   -> Core services
       -> Provider interfaces
       -> Core models
@@ -680,7 +691,7 @@ CLI / Web adapters
 
 ```text
 providers -> CLI
-providers -> GUI
+providers -> GUI / Web
 models -> providers
 report generation -> rescan files
 viewer -> scan project files
@@ -2106,7 +2117,7 @@ tests/fixtures/rag_projects/
 
 ## 17. Suggested Backend Delivery Order
 
-> 白話：這一章把實作拆成里程碑，先做 schema 和 scanner 核心，再做 viewer、trace、hardening。
+> 白話：這一章把實作拆成里程碑，先做 schema 和 scanner 核心，再做 local web API，讓 GUI/local web UI 可以優先接上；CLI 之後維持 thin adapter。
 
 ### M1: Schema and template
 
@@ -2161,39 +2172,65 @@ tests/fixtures/rag_projects/
 - Qdrant/Ollama/OpenAI fixtures 被正確映射。
 - custom router fixture 被保留為 unmapped 或 extension，不硬塞 standard slot。
 
-### M4: CLI artifacts
+### M4: Local web API map build artifacts
 
-> 白話：第四步讓 CLI 可以產生 JSON、Markdown、error report。
+> 白話：第四步先提供 GUI/local web UI 需要的 local HTTP API，讓使用者可以從畫面觸發 map build 並取得 JSON、Markdown、error report。
 
 交付：
 
-- `kai-mind map`
+- local web API app scaffold。
+- map build route / handler。
 - output directory policy。
 - `ai_system_map.md`
 - `map-error.md`
+- `MapBuildResult` response model。
 
 完成條件：
 
 - feature `建立RAG系統地圖.feature` 的 backend scenarios 可測。
+- local web API adapter 不直接掃檔，只呼叫 `MapBuildService`。
 
-### M5: Viewer backend boundary
+### M5: Viewer backend API boundary
 
-> 白話：第五步提供 GUI 載入 map 和 graph projection 的 backend 邊界。
+> 白話：第五步提供 GUI 載入 map 和 graph projection 的 backend API 邊界。
 
 交付：
 
 - `ViewerSessionService`
 - graph view model projection。
 - invalid map error state result。
+- viewer local API route / handler。
 
 完成條件：
 
 - viewer scenarios 可用 static JSON 測試。
 - viewer 不掃描 project files。
 
-### M6: Progressive detail scan
+### M6: CLI thin adapters
 
-> 白話：第六步加入 L2/L3 深掃，讓使用者能對特定 component 或 path 深入。
+> 白話：第六步補上 CLI，讓 CI/debug/headless flow 也能呼叫同一批 core service。
+
+交付：
+
+- `kai-mind map`
+- `kai-mind viewer` 或等價 map validate command。
+- `kai-mind trace` command shell，trace 實際 runtime 呼叫仍在 M8 完成。
+
+Schedule 對應：
+
+- Task 16 先做 local web API，再補 `kai-mind map` thin adapter。
+- Task 18 先做 viewer local API，CLI viewer 可作為同 service 的簡單 validate/load adapter。
+- Task 22 先做 trace local API，再補 `kai-mind trace` thin adapter。
+
+完成條件：
+
+- CLI adapter 不直接掃描檔案，只呼叫 core service。
+- CLI output 不印出完整 secret。
+- CLI 和 local API 產生的 canonical JSON contract 一致。
+
+### M7: Progressive detail scan
+
+> 白話：第七步加入 L2/L3 深掃，讓使用者能對特定 component 或 path 深入。
 
 交付：
 
@@ -2209,9 +2246,9 @@ tests/fixtures/rag_projects/
 - 使用者可針對 edge / trace event 觸發 L3。
 - L2/L3 結果只補 detail，不破壞 base map contract。
 
-### M7: Query trace backend MVP
+### M8: Query trace backend MVP
 
-> 白話：第七步做 opt-in query trace，讓 replay 能呈現 endpoint 呼叫結果。
+> 白話：第八步做 opt-in query trace，讓 replay 能呈現 endpoint 呼叫結果；GUI/local API 優先，CLI trace 也保留同一服務的 thin adapter。
 
 交付：
 
@@ -2220,6 +2257,8 @@ tests/fixtures/rag_projects/
 - `QueryTraceEvent[]` mapping。
 - `endpoint_not_found` behavior。
 - confirmed extension / unmapped trace mapping rules。
+- local API trace route。
+- `kai-mind trace` thin CLI adapter。
 
 完成條件：
 
@@ -2228,7 +2267,7 @@ tests/fixtures/rag_projects/
 - trace 進入 unmapped component 時保留 unknown step，不讓 replay 失敗。
 - detail scan 存在時，replay 可以顯示更細 steps；detail scan 不存在時仍顯示 coarse replay。
 
-### M8: Hardening
+### M9: Hardening
 
 > 白話：最後一步補強跨平台、secret safety、logging、mapping validation、target validation。
 
@@ -2257,6 +2296,7 @@ tests/fixtures/rag_projects/
 - query trace request result。
 - unmapped components and mapping proposal result。
 - detail scan request/result。
+- `docs/work/Timmy/design/epic1-local-api-guide.md` 作為 local web UI、desktop app、CLI adapter 共用的 API contract guide。
 
 前端不可以假設：
 
@@ -2274,6 +2314,13 @@ tests/fixtures/rag_projects/
 - 讓使用者確認、修改或拒絕 mapping proposal。
 - 讓使用者從 graph node / edge / trace step 觸發 detail scan。
 
+Local API guide 維護規則：
+
+- Task 16 第一次建立 `docs/work/Timmy/design/epic1-local-api-guide.md`。
+- Task 18 / 22 / 24 若新增或修改 endpoint，必須同步更新 API guide。
+- 任何 task 若改動 request、response、error format、status code、endpoint path、local-only policy，都必須同步更新 API guide。
+- FastAPI OpenAPI docs 可以輔助測試與探索，但 Markdown API guide 才記錄設計意圖、相容性規則與 frontend / desktop 協作約定。
+
 ## 19. 已決策事項與深入討論記錄
 
 > 白話：這一章是決策紀錄，列出 implementation 前已經定案的架構選擇和原因。
@@ -2282,14 +2329,14 @@ tests/fixtures/rag_projects/
 
 ### 19.1 決策總表
 
-> 白話：這張表把 13 個已定案的選擇放在一起，方便 implementation 時快速查。
+> 白話：這張表把已定案和待定案的選擇放在一起，方便 implementation 時快速查。
 
 | # | 決策題目 | 決策 |
 |---|---|---|
 | 1 | 實作語言 | Python |
 | 2 | JSON schema 檔案位置 | `schemas/ai-system-map.v1.schema.json` |
 | 3 | `GraphViewModel` 轉換責任 | backend `ViewerSessionService` 轉，frontend 只渲染 |
-| 4 | Query trace 入口 | CLI + GUI 都支援，但預設關閉，必須明確 opt-in |
+| 4 | Query trace 入口 | GUI/local API + CLI 都支援，但預設關閉，CLI 採獨立 `kai-mind trace`，必須明確 opt-in |
 | 5 | 預設 scan scope | 掃完整 eligible project files，排除明顯不相關或高成本檔案 |
 | 6 | Evidence snippets | 支援 safe short snippets，必須 masking、限長、標行號，且可關閉 |
 | 7 | `Project.root_path` | CI / report artifact 支援 redacted mode；local interactive 可保留 absolute path |
@@ -2299,6 +2346,8 @@ tests/fixtures/rag_projects/
 | 11 | replay extension / unknown step | manual selection 前顯示 `Unknown / Needs confirmation`；確認後顯示正式 extension |
 | 12 | L2 / L3 結果保存 | Epic 1 先寫回同一份 `ai_system_map.json`，之後再評估拆 artifact |
 | 13 | Progressive scan / replay 顆粒度 | 明確定義 L1 / L2 / L3 的輸入、範圍、輸出、停止邊界與 uncertainty |
+| 14 | Epic 1 產品入口優先順序 | GUI/local web UI 優先；CLI 為 CI/debug/headless 的 thin adapter |
+| 15 | Local web backend framework | FastAPI |
 
 ### 19.2 實作語言：Python
 
@@ -2308,7 +2357,7 @@ Epic 1 backend 採 Python。
 
 理由：
 
-- Epic 1 核心是 local scanner、RAG project pattern detection、schema validation、CLI、parser rules。
+- Epic 1 核心是 local scanner、RAG project pattern detection、schema validation、local web API、parser rules。
 - Python 與 RAG / AI backend 生態較貼近，較容易偵測 LangChain、LlamaIndex、OpenAI SDK、vector store client 等常見 patterns。
 - Python standard library 的 `ast` 可支援 bounded source analysis。
 - FastAPI / Pydantic 可支援 typed models、validation、OpenAPI / JSON Schema 相關工作。
@@ -2367,24 +2416,25 @@ frontend 不負責：
 - 把 unmapped component 自行升級成 extension
 - 重新解析 project files
 
-### 19.5 Query trace：CLI + GUI 支援，但 opt-in
+### 19.5 Query trace：GUI/local API + CLI 支援，但 opt-in
 
-> 白話：這裡記錄 trace 可以用 CLI/GUI 觸發，但預設不會呼叫任何 endpoint。
+> 白話：這裡記錄 trace 可以用 GUI/local API 或 CLI 觸發，但預設不會呼叫任何 endpoint。
 
-Epic 1 支援 CLI 與 GUI query trace，但預設關閉，必須明確 opt-in。
+Epic 1 支援 GUI/local API 與 CLI query trace，但預設關閉，必須明確 opt-in。已決策 CLI 介面採獨立 `kai-mind trace`，不可掛在 `kai-mind map` 預設流程上。
 
 理由：
 
 - query trace 會呼叫 endpoint，可能觸發 local service side effect、timeout、敏感 query / response 記錄風險。
-- release-readiness 工具仍需要 headless / CI 可重現能力，因此不能只做 GUI。
+- release-readiness 工具仍需要 headless / CI 可重現能力，因此 GUI/local API 之外仍需保留 CLI thin adapter。
 
 建議介面：
 
 ```text
-kai-mind map <project_path> --trace-endpoint http://localhost:8000/query
+POST /api/trace
+body: { "map_json": "...", "endpoint_id": "query_api", "query": "..." }
 ```
 
-或拆成更清楚的命令：
+CLI thin adapter：
 
 ```text
 kai-mind trace <map_json> --endpoint-id query_api --query "..."
@@ -2394,6 +2444,7 @@ kai-mind trace <map_json> --endpoint-id query_api --query "..."
 
 - trace 預設關閉。
 - 使用者必須明確指定 endpoint / endpoint id。
+- `kai-mind map` 不接受會呼叫 runtime endpoint 的 trace option。
 - trace input / output / retrieved chunks 必須經過 secret masking。
 - timeout / error 必須回傳 partial replay event，不得讓 viewer 空白。
 - query / model runtime timeout 與 static scan limits 分開設定。
@@ -2615,7 +2666,90 @@ Epic 1 later milestone:
 - AI proposal 不可直接把 `unmapped_component` 升級成 detected slot / extension。
 - user confirmation + evidence + validation 後，才可重新 normalize 成 canonical map。
 
-### 19.12 Replay 對 unknown / extension step 的呈現
+### 19.12 Epic 1 最後階段：AI-assisted scan boundary review
+
+> 白話：最後才做 AI 輔助判斷可疑檔案是否應略過；baseline scanner 仍保持 deterministic。
+
+Epic 1 最後階段可以在 Stage 2 file inventory 後加入 `ScanBoundaryReviewService`。這個 service 不取代 `FilesystemProvider`，也不直接決定 canonical inventory；它只產生可解釋、可審核、等待使用者確認的 skip/include proposal。
+
+建議流程：
+
+```text
+FilesystemProvider
+  -> FileInventory
+  -> SuspiciousFileClassifier
+  -> masked metadata / bounded summary
+  -> LocalLlmProvider optional proposal
+  -> ScanBoundaryDecision pending_user_confirmation
+  -> user accept / edit / reject / skip_for_now
+  -> KAI-Mind-managed scan policy store
+  -> rerun / normalize inventory
+```
+
+Proposal 需要包含：
+
+- `file_path`: project-relative POSIX path。
+- `file_kind`: config / secret_like / binary / model_weight / vector_db / generated / dependency / log / unknown。
+- `reason`: 為什麼建議略過或只掃 metadata。
+- `risk`: secret exposure、large file、irrelevant dependency、generated output、privacy-sensitive local data。
+- `recommended_action`: skip_this_run / always_skip / metadata_only / masked_summary_only / scan_normally。
+- `source`: deterministic_rule / ai_assisted / user_confirmed。
+
+硬性規則：
+
+- AI proposal 不可直接改 canonical `FileInventory`。
+- AI 不可讀完整 secret，也不可在 logs、reports、snapshots、PR comments 顯示完整 secret。
+- GUI 可顯示 modal / review queue；CLI / CI 模式不可彈窗，只能輸出 pending decision 與 machine-readable result。
+- 使用者確認後才可寫入 KAI-Mind-managed scan policy store，預設不寫入被掃描 repo。
+- scan policy store 的決策必須可重現、可撤銷、可列出 evidence。
+
+此功能排在 Epic 1 最後才做，因為它依賴 baseline inventory、skip reason、secret masking、GUI decision flow、policy store 與 rerun/normalize 流程都已完成。
+
+### 19.13 Epic 1 最後階段：Template store 與 local template import
+
+> 白話：最後才做 template 商店基礎；Epic 1 先支援 local archive/mock folder，repo URL / GitHub API 留到下一階段。
+
+Epic 1 baseline 只需要內建 `rag-core-v1`。Epic 1 最後階段可以加入 template store，先讓使用者匯入 local `.zip` / `.tar` archive 或 local mock template folder，匯入 AI agent / RAG reference architecture template，之後用 slot filling 方式套用到掃描與 mapping flow。Remote repo URL / GitHub API 是下一階段能力，不在 Epic 1 實作。
+
+建議流程：
+
+```text
+TemplateImportService
+  input: local .zip / .tar / mock template folder
+  -> load into isolated cache
+  -> validate kai-mind-template.yaml
+  -> scan template as data, never execute code
+  -> record provenance: local source path + digest + license
+  -> publish into TemplateStore
+```
+
+Template manifest 至少需要：
+
+- `template_id`
+- `version`
+- `system_type`
+- `slots`
+- `required_slots`
+- `slot_inputs`
+- `rules`
+- `license`
+- `provenance.source_path`
+- `provenance.digest`
+
+硬性規則：
+
+- Epic 1 不接 GitHub API，不下載 repo URL，不處理 token / private repo / rate limit。
+- Remote repo URL 在 Epic 1 應回傳清楚錯誤，說明留到下一階段。
+- Template 必須當成 data，不可自動執行 archive / folder 內的 script、postinstall、Python、shell 或 workflow。
+- 下一階段 remote template import 必須 pin commit SHA 或 immutable version，不可只記錄 floating branch。
+- 匯入後必須 schema validation；失敗只能進 quarantine / rejected state。
+- Template store 不可讓外部 template 覆蓋內建 `rag-core-v1` contract。
+- 私有 repo token 不可進 logs、report、template metadata 或 cache key。
+- 被匯入的 template 必須顯示 provenance、license、來源、版本與最後驗證狀態。
+
+此功能排在 Epic 1 最後才做，因為它依賴 reference architecture schema、template validation、slot mapping、manual/AI proposal flow 與 supply-chain guardrails 都已穩定。
+
+### 19.14 Replay 對 unknown / extension step 的呈現
 
 > 白話：這裡記錄未確認前顯示 Unknown，確認後才顯示正式 extension。
 
@@ -2650,7 +2784,7 @@ User query
 - manual selection 後，KAI-Mind 重新 normalize / regenerate `ai_system_map.json`。
 - 新版 map 才顯示正式 extension step。
 
-### 19.13 L2 / L3 結果保存
+### 19.15 L2 / L3 結果保存
 
 > 白話：這裡記錄初版把深掃結果先放回同一份 JSON，未來再拆附件檔。
 
@@ -2680,7 +2814,7 @@ detail_scan_results/*.json:
   full detail artifacts
 ```
 
-### 19.14 Progressive scan / replay 顆粒度
+### 19.16 Progressive scan / replay 顆粒度
 
 > 白話：這裡記錄 L1/L2/L3 的邊界，避免 L3 被誤做成完整 call graph。
 
@@ -2911,7 +3045,47 @@ L3 = project-owned application-level code path
 L3 != full framework/runtime call graph
 ```
 
-### 19.15 參考依據
+### 19.17 GUI/local web UI 優先與 local web framework 決策
+
+> 白話：因為 Epic 1 要優先做 GUI/local web UI，backend 必須先決定 local HTTP API framework；CLI 仍保留，但不是第一產品入口。
+
+目前決策狀態：
+
+- 已決定：GUI/local web UI 是 Epic 1 優先產品入口。
+- 已決定：CLI 是 CI/debug/headless 使用的 thin adapter，不承擔 scanner logic。
+- 已決定：local web backend framework 採 FastAPI。
+
+候選選項：
+
+| 選項 | Framework | 適合點 | 主要代價 |
+|---|---|---|---|
+| A | FastAPI | type hints、Pydantic、OpenAPI、自動 API docs，適合 GUI 先接 local API | 需要理解 ASGI / async 基本概念 |
+| B | Flask | 輕量、容易開始、WSGI 生態成熟 | schema validation / OpenAPI / typed contract 需要額外組裝 |
+| C | Django | ORM、admin、auth、template 等完整功能內建 | 對 local scanner API 偏重，初期結構和心智負擔較大 |
+| D | Litestar | 現代 ASGI、OpenAPI、DI、Pydantic plugin 支援 | 對新手和團隊熟悉度通常低於 FastAPI / Flask / Django |
+
+最終選擇：
+
+```text
+採用 A: FastAPI
+
+原因：
+1. Epic 1 已經以 Python + Pydantic / JSON Schema / typed contract 為核心。
+2. GUI/local web UI 需要穩定 HTTP API，OpenAPI docs 可以讓前端更快對接。
+3. FastAPI 的 request/response models 可直接貼近 canonical schema 與 GraphViewModel。
+4. 比 Django 輕，比 Flask 少很多手動組 schema / docs / validation 的工作。
+```
+
+FastAPI 落地規則：
+
+- Web adapter 不可直接掃檔。
+- Web route handler 只做 request/response translation。
+- Scanner facts、normalization、validation、artifact writing 仍在 core services。
+- CLI 和 local API 必須共用 core service，不可各寫一套。
+- FastAPI / Pydantic schema 只放在 `web/` adapter layer；core models 不依賴 FastAPI request object。
+- local server 建議使用 Uvicorn 作為 ASGI server。
+
+### 19.18 參考依據
 
 > 白話：這裡列出本節決策參考過的官方文件和真實 RAG repo。
 
@@ -2919,6 +3093,10 @@ L3 != full framework/runtime call graph
 
 - JSON Schema structuring / `$id` / `$schema`: https://json-schema.org/understanding-json-schema/structuring.html
 - FastAPI Python types / validation: https://fastapi.tiangolo.com/python-types/
+- FastAPI features / OpenAPI / Pydantic: https://fastapi.tiangolo.com/features/
+- Flask official docs: https://flask.palletsprojects.com/en/stable/
+- Django at a glance: https://docs.djangoproject.com/en/5.2/intro/overview/
+- Litestar official docs: https://docs.litestar.dev/latest/
 - Python `ast`: https://docs.python.org/3/library/ast.html
 - Git `ls-files --exclude-standard`: https://git-scm.com/docs/git-ls-files.html
 - Git ignore rules: https://git-scm.com/docs/gitignore.html
@@ -2934,7 +3112,8 @@ L3 != full framework/runtime call graph
 
 > 白話：這是完成 Epic 1 backend 前的驗收清單，每一項都應能被測試或人工驗證。
 
-- [ ] `kai-mind map <project_path>` 可以產生 `ai_system_map.json`。
+- [ ] Local web API 可呼叫 `MapBuildService` 並產生 `ai_system_map.json`。
+- [ ] `kai-mind map <project_path>` 作為 thin adapter 可以產生同 contract 的 `ai_system_map.json`。
 - [ ] `ai_system_map.json` 通過 `ai-system-map/v1` schema validation。
 - [ ] `ai_system_map.json` 不包含 `confidence`。
 - [ ] 每個 `detected` component 都有 evidence。
@@ -2958,6 +3137,18 @@ L3 != full framework/runtime call graph
 - [ ] L3 code path scan 是 project-owned application-level path，不做 whole-repo / framework runtime call graph。
 - [ ] `detail_scans[]` 不會繞過 schema validation 改寫 canonical facts。
 - [ ] backend tests 使用 sample projects / fixtures。
+
+Epic 1 final milestone acceptance：
+
+- [ ] AI-assisted scan boundary review 只產生 pending proposal，不直接改 canonical `FileInventory`。
+- [ ] suspicious file proposal 不顯示 full secret，且支援 metadata_only / masked_summary_only / skip / scan_normally。
+- [ ] GUI 可確認 scan boundary proposal；CLI / CI 只輸出 machine-readable pending decision，不彈窗。
+- [ ] 使用者確認後的 scan policy 存在 KAI-Mind-managed store，預設不寫入被掃描 repo。
+- [ ] Epic 1 template import 先支援 local archive/mock folder；remote repo URL 明確回傳下一階段才支援。
+- [ ] Template import 只把 template source 當 data，不執行外部 script / workflow / postinstall。
+- [ ] Template manifest 通過 schema validation 後才可進 TemplateStore。
+- [ ] Template metadata 記錄 source URL、commit SHA、digest、license、validation status。
+- [ ] 外部 template 不可覆蓋內建 `rag-core-v1` contract。
 
 ## 21. 對後端工程師的實作提醒
 

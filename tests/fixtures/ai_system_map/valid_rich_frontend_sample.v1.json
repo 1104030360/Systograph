@@ -1,0 +1,820 @@
+{
+  "schema_version": "ai-system-map/v1",
+  "system_type": "rag",
+  "classification": {
+    "mode": "user_selected_or_default",
+    "selected_template": "rag-core-v1"
+  },
+  "project": {
+    "name": "sample-health-rag",
+    "root_path": "<project_root>",
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted",
+    "system_map_schema_version": "ai-system-map/v1"
+  },
+  "reference_architecture": {
+    "id": "rag-core-v1",
+    "version": "1.0.0",
+    "slots": [
+      "data_sources",
+      "document_loader",
+      "chunking",
+      "embedding_model",
+      "vector_store",
+      "app_api_or_orchestrator",
+      "query_processing",
+      "retriever",
+      "prompt_builder",
+      "llm",
+      "citation_or_response_composer",
+      "guardrails",
+      "observability"
+    ],
+    "flows": [
+      "indexing",
+      "query_answer"
+    ]
+  },
+  "scan_depth": "system",
+  "scan_summary": {
+    "status": "partial",
+    "files_scanned": 42,
+    "files_skipped": 9,
+    "detected_slots": 8,
+    "missing_slots": 2,
+    "not_configured_slots": 2,
+    "unmapped_components": 1,
+    "risk_hints": 5,
+    "secret_masking_applied": true
+  },
+  "components_by_slot": {
+    "data_sources": {
+      "slot": "data_sources",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:data_sources:docs-folder",
+          "slot": "data_sources",
+          "kind": "local_document_corpus",
+          "name": "docs/",
+          "description": "Local document folder used by the indexing flow.",
+          "evidence_ids": [
+            "evidence:filesystem:docs-folder"
+          ]
+        }
+      ]
+    },
+    "document_loader": {
+      "slot": "document_loader",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:document_loader:langchain-directory-loader",
+          "slot": "document_loader",
+          "kind": "document_loader",
+          "name": "LangChain DirectoryLoader",
+          "description": "Loads source documents from the local docs folder.",
+          "evidence_ids": [
+            "evidence:code_pattern:loader"
+          ]
+        }
+      ]
+    },
+    "chunking": {
+      "slot": "chunking",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:chunking:recursive-character-splitter",
+          "slot": "chunking",
+          "kind": "text_splitter",
+          "name": "RecursiveCharacterTextSplitter",
+          "description": "Splits documents before embedding.",
+          "evidence_ids": [
+            "evidence:code_pattern:chunking"
+          ]
+        }
+      ]
+    },
+    "embedding_model": {
+      "slot": "embedding_model",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:embedding_model:openai-embeddings",
+          "slot": "embedding_model",
+          "kind": "embedding_provider",
+          "name": "OpenAI Embeddings",
+          "description": "External embedding model used when indexing documents.",
+          "provider": "openai",
+          "evidence_ids": [
+            "evidence:dependency:openai",
+            "evidence:env:openai-key"
+          ]
+        }
+      ]
+    },
+    "vector_store": {
+      "slot": "vector_store",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:vector_store:qdrant",
+          "slot": "vector_store",
+          "kind": "vector_db",
+          "name": "Qdrant",
+          "description": "Vector database exposed by Docker Compose.",
+          "evidence_ids": [
+            "evidence:docker:qdrant-service",
+            "evidence:docker:qdrant-port"
+          ]
+        }
+      ]
+    },
+    "app_api_or_orchestrator": {
+      "slot": "app_api_or_orchestrator",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:app_api_or_orchestrator:fastapi-chat-api",
+          "slot": "app_api_or_orchestrator",
+          "kind": "api_orchestrator",
+          "name": "FastAPI Chat API",
+          "description": "Local API endpoint that receives chat queries.",
+          "evidence_ids": [
+            "evidence:code_pattern:fastapi-route"
+          ]
+        }
+      ]
+    },
+    "query_processing": {
+      "slot": "query_processing",
+      "required_for_rag": false,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:query_processing:query-rewrite",
+          "slot": "query_processing",
+          "kind": "query_rewrite",
+          "name": "Query Rewrite",
+          "description": "Rewrites user questions before retrieval.",
+          "evidence_ids": [
+            "evidence:code_pattern:query-rewrite"
+          ]
+        }
+      ]
+    },
+    "retriever": {
+      "slot": "retriever",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:retriever:qdrant-retriever",
+          "slot": "retriever",
+          "kind": "vector_retriever",
+          "name": "Qdrant Retriever",
+          "description": "Queries Qdrant for semantically similar chunks.",
+          "evidence_ids": [
+            "evidence:code_pattern:retriever"
+          ]
+        }
+      ]
+    },
+    "prompt_builder": {
+      "slot": "prompt_builder",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:prompt_builder:context-prompt-template",
+          "slot": "prompt_builder",
+          "kind": "prompt_template",
+          "name": "Context Prompt Template",
+          "description": "Builds the answer prompt from query and retrieved context.",
+          "evidence_ids": [
+            "evidence:code_pattern:prompt-template"
+          ]
+        }
+      ]
+    },
+    "llm": {
+      "slot": "llm",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:llm:openai-chat",
+          "slot": "llm",
+          "kind": "external_llm",
+          "name": "OpenAI Chat Completions",
+          "description": "External LLM provider used for answer generation.",
+          "provider": "openai",
+          "evidence_ids": [
+            "evidence:dependency:openai",
+            "evidence:code_pattern:llm-call"
+          ]
+        }
+      ]
+    },
+    "citation_or_response_composer": {
+      "slot": "citation_or_response_composer",
+      "required_for_rag": true,
+      "status": "not_configured",
+      "instances": []
+    },
+    "guardrails": {
+      "slot": "guardrails",
+      "required_for_rag": false,
+      "status": "missing",
+      "instances": []
+    },
+    "observability": {
+      "slot": "observability",
+      "required_for_rag": false,
+      "status": "not_configured",
+      "instances": []
+    }
+  },
+  "evidence": [
+    {
+      "id": "evidence:filesystem:docs-folder",
+      "kind": "filesystem_entry",
+      "file": "docs/sample-health-faq.md",
+      "path": "docs/",
+      "value": "document corpus detected",
+      "rule_id": "local_docs_folder_detected"
+    },
+    {
+      "id": "evidence:code_pattern:loader",
+      "kind": "code_pattern",
+      "file": "src/indexing/load_documents.py",
+      "line_start": 12,
+      "line_end": 14,
+      "path": "DirectoryLoader",
+      "value": "DirectoryLoader(path='docs')",
+      "snippet": "loader = DirectoryLoader('docs')",
+      "rule_id": "langchain_document_loader_detected"
+    },
+    {
+      "id": "evidence:code_pattern:chunking",
+      "kind": "code_pattern",
+      "file": "src/indexing/split_documents.py",
+      "line_start": 9,
+      "line_end": 11,
+      "path": "RecursiveCharacterTextSplitter",
+      "value": "chunk_size=800, chunk_overlap=120",
+      "snippet": "splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)",
+      "rule_id": "text_splitter_detected"
+    },
+    {
+      "id": "evidence:dependency:openai",
+      "kind": "dependency_manifest",
+      "file": "requirements.txt",
+      "path": "openai",
+      "value": "openai==1.52.0",
+      "rule_id": "openai_dependency_detected"
+    },
+    {
+      "id": "evidence:env:openai-key",
+      "kind": "config_key",
+      "file": ".env.example",
+      "path": "OPENAI_API_KEY",
+      "value": "sk-****ample",
+      "rule_id": "secret_like_config_key_detected"
+    },
+    {
+      "id": "evidence:docker:qdrant-service",
+      "kind": "docker_service",
+      "file": "docker-compose.yml",
+      "path": "services.qdrant.image",
+      "value": "qdrant/qdrant:v1.11.0",
+      "rule_id": "qdrant_service_detected"
+    },
+    {
+      "id": "evidence:docker:qdrant-port",
+      "kind": "docker_port",
+      "file": "docker-compose.yml",
+      "path": "services.qdrant.ports[0]",
+      "value": "6333:6333",
+      "rule_id": "docker_published_port_detected"
+    },
+    {
+      "id": "evidence:code_pattern:fastapi-route",
+      "kind": "code_pattern",
+      "file": "src/api.py",
+      "line_start": 21,
+      "line_end": 25,
+      "path": "POST /query",
+      "value": "http://localhost:8000/query",
+      "snippet": "@app.post('/query')",
+      "rule_id": "fastapi_post_route_detected"
+    },
+    {
+      "id": "evidence:code_pattern:query-rewrite",
+      "kind": "code_pattern",
+      "file": "src/rag/query_processing.py",
+      "line_start": 16,
+      "line_end": 20,
+      "path": "rewrite_query",
+      "value": "query rewrite function detected",
+      "snippet": "def rewrite_query(user_query): ...",
+      "rule_id": "query_rewrite_detected"
+    },
+    {
+      "id": "evidence:code_pattern:retriever",
+      "kind": "code_pattern",
+      "file": "src/rag/retriever.py",
+      "line_start": 31,
+      "line_end": 38,
+      "path": "QdrantVectorStore.as_retriever",
+      "value": "top_k=5",
+      "snippet": "retriever = vector_store.as_retriever(search_kwargs={'k': 5})",
+      "rule_id": "vector_retriever_detected"
+    },
+    {
+      "id": "evidence:code_pattern:prompt-template",
+      "kind": "code_pattern",
+      "file": "src/rag/prompts.py",
+      "line_start": 5,
+      "line_end": 13,
+      "path": "ANSWER_PROMPT",
+      "value": "context-aware answer prompt detected",
+      "snippet": "ANSWER_PROMPT = 'Use the provided context to answer...'",
+      "rule_id": "prompt_template_detected"
+    },
+    {
+      "id": "evidence:code_pattern:llm-call",
+      "kind": "code_pattern",
+      "file": "src/rag/generator.py",
+      "line_start": 18,
+      "line_end": 24,
+      "path": "client.chat.completions.create",
+      "value": "model=gpt-4o-mini",
+      "snippet": "client.chat.completions.create(model='gpt-4o-mini', ...)",
+      "rule_id": "llm_call_detected"
+    },
+    {
+      "id": "evidence:dependency:redis",
+      "kind": "dependency_manifest",
+      "file": "requirements.txt",
+      "path": "redis",
+      "value": "redis==5.1.1",
+      "rule_id": "redis_dependency_detected"
+    },
+    {
+      "id": "evidence:code_pattern:reranker-ambiguous",
+      "kind": "code_pattern",
+      "file": "src/rag/rerank.py",
+      "line_start": 7,
+      "line_end": 19,
+      "path": "rerank_chunks",
+      "value": "reranking-like code detected",
+      "snippet": "def rerank_chunks(query, chunks): ...",
+      "rule_id": "routing_or_reranking_like_code_detected"
+    },
+    {
+      "id": "evidence:parse_error:settings-yaml",
+      "kind": "parse_error",
+      "file": "config/settings.yaml",
+      "path": "$",
+      "value": "YAML parse failed near line 18",
+      "rule_id": "config_parse_error"
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "endpoint:local:chat-query",
+      "value": "http://localhost:8000/query",
+      "endpoint_type": "local",
+      "method": "POST",
+      "slot": "app_api_or_orchestrator",
+      "component_instance_id": "component:app_api_or_orchestrator:fastapi-chat-api",
+      "evidence_id": "evidence:code_pattern:fastapi-route"
+    },
+    {
+      "id": "endpoint:local:qdrant",
+      "value": "http://localhost:6333",
+      "endpoint_type": "local",
+      "method": "GET",
+      "slot": "vector_store",
+      "component_instance_id": "component:vector_store:qdrant",
+      "evidence_id": "evidence:docker:qdrant-port"
+    },
+    {
+      "id": "endpoint:external:openai-api",
+      "value": "https://api.openai.com/v1",
+      "endpoint_type": "external",
+      "method": "POST",
+      "slot": "llm",
+      "component_instance_id": "component:llm:openai-chat",
+      "evidence_id": "evidence:dependency:openai"
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow:indexing",
+      "name": "Indexing Flow",
+      "flow_type": "indexing",
+      "edges": [
+        {
+          "id": "edge:indexing:data_sources:document_loader",
+          "flow_id": "flow:indexing",
+          "from_slot": "data_sources",
+          "to_slot": "document_loader",
+          "from_component_id": "component:data_sources:docs-folder",
+          "to_component_id": "component:document_loader:langchain-directory-loader",
+          "relationship": "loads_documents",
+          "evidence_ids": [
+            "evidence:filesystem:docs-folder",
+            "evidence:code_pattern:loader"
+          ]
+        },
+        {
+          "id": "edge:indexing:document_loader:chunking",
+          "flow_id": "flow:indexing",
+          "from_slot": "document_loader",
+          "to_slot": "chunking",
+          "from_component_id": "component:document_loader:langchain-directory-loader",
+          "to_component_id": "component:chunking:recursive-character-splitter",
+          "relationship": "splits_loaded_documents",
+          "evidence_ids": [
+            "evidence:code_pattern:chunking"
+          ]
+        },
+        {
+          "id": "edge:indexing:chunking:embedding_model",
+          "flow_id": "flow:indexing",
+          "from_slot": "chunking",
+          "to_slot": "embedding_model",
+          "from_component_id": "component:chunking:recursive-character-splitter",
+          "to_component_id": "component:embedding_model:openai-embeddings",
+          "relationship": "embeds_chunks",
+          "evidence_ids": [
+            "evidence:dependency:openai"
+          ]
+        },
+        {
+          "id": "edge:indexing:embedding_model:vector_store",
+          "flow_id": "flow:indexing",
+          "from_slot": "embedding_model",
+          "to_slot": "vector_store",
+          "from_component_id": "component:embedding_model:openai-embeddings",
+          "to_component_id": "component:vector_store:qdrant",
+          "relationship": "stores_vectors",
+          "evidence_ids": [
+            "evidence:docker:qdrant-service"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "flow:query_answer",
+      "name": "Query Answer Flow",
+      "flow_type": "query_answer",
+      "edges": [
+        {
+          "id": "edge:query_answer:app_api_or_orchestrator:query_processing",
+          "flow_id": "flow:query_answer",
+          "from_slot": "app_api_or_orchestrator",
+          "to_slot": "query_processing",
+          "from_component_id": "component:app_api_or_orchestrator:fastapi-chat-api",
+          "to_component_id": "component:query_processing:query-rewrite",
+          "relationship": "rewrites_user_query",
+          "evidence_ids": [
+            "evidence:code_pattern:fastapi-route",
+            "evidence:code_pattern:query-rewrite"
+          ]
+        },
+        {
+          "id": "edge:query_answer:query_processing:retriever",
+          "flow_id": "flow:query_answer",
+          "from_slot": "query_processing",
+          "to_slot": "retriever",
+          "from_component_id": "component:query_processing:query-rewrite",
+          "to_component_id": "component:retriever:qdrant-retriever",
+          "relationship": "passes_rewritten_query",
+          "evidence_ids": [
+            "evidence:code_pattern:query-rewrite",
+            "evidence:code_pattern:retriever"
+          ]
+        },
+        {
+          "id": "edge:query_answer:retriever:vector_store",
+          "flow_id": "flow:query_answer",
+          "from_slot": "retriever",
+          "to_slot": "vector_store",
+          "from_component_id": "component:retriever:qdrant-retriever",
+          "to_component_id": "component:vector_store:qdrant",
+          "relationship": "queries_vector_store",
+          "evidence_ids": [
+            "evidence:code_pattern:retriever",
+            "evidence:docker:qdrant-service"
+          ]
+        },
+        {
+          "id": "edge:query_answer:retriever:prompt_builder",
+          "flow_id": "flow:query_answer",
+          "from_slot": "retriever",
+          "to_slot": "prompt_builder",
+          "from_component_id": "component:retriever:qdrant-retriever",
+          "to_component_id": "component:prompt_builder:context-prompt-template",
+          "relationship": "provides_context_chunks",
+          "evidence_ids": [
+            "evidence:code_pattern:prompt-template"
+          ]
+        },
+        {
+          "id": "edge:query_answer:prompt_builder:llm",
+          "flow_id": "flow:query_answer",
+          "from_slot": "prompt_builder",
+          "to_slot": "llm",
+          "from_component_id": "component:prompt_builder:context-prompt-template",
+          "to_component_id": "component:llm:openai-chat",
+          "relationship": "sends_grounded_prompt",
+          "evidence_ids": [
+            "evidence:code_pattern:prompt-template",
+            "evidence:code_pattern:llm-call"
+          ]
+        }
+      ]
+    }
+  ],
+  "extensions": [
+    {
+      "id": "extension:cache:redis-response-cache",
+      "name": "Redis Response Cache",
+      "kind": "cache",
+      "status": "confirmed",
+      "confirmed_by_user": true,
+      "description": "Caches repeated question responses before invoking the LLM.",
+      "evidence_ids": [
+        "evidence:dependency:redis"
+      ]
+    }
+  ],
+  "unmapped_components": [
+    {
+      "id": "unmapped:src-rag-rerank",
+      "source_file": "src/rag/rerank.py",
+      "observed_kind": "reranking_like_code",
+      "status": "needs_confirmation",
+      "reason": "Detected reranking-like code, but scanner cannot safely decide whether this is a retriever extension or a custom response ranking utility.",
+      "evidence_ids": [
+        "evidence:code_pattern:reranker-ambiguous"
+      ],
+      "suggested_actions": [
+        "confirm_as_retriever_extension",
+        "confirm_as_extension_component",
+        "skip_for_now"
+      ]
+    }
+  ],
+  "detail_scans": [
+    {
+      "id": "detail_scan:retriever:001",
+      "target_type": "component_slot",
+      "target": "retriever",
+      "scan_depth": "component",
+      "status": "completed",
+      "replay_depth": "component_replay",
+      "findings": [
+        {
+          "kind": "retriever_call",
+          "summary": "Retriever invokes Qdrant similarity search with top_k=5.",
+          "evidence_ids": [
+            "evidence:code_pattern:retriever"
+          ]
+        },
+        {
+          "kind": "possible_reranker",
+          "summary": "A reranking-like file exists but needs user confirmation before it can be shown as a confirmed extension step.",
+          "evidence_ids": [
+            "evidence:code_pattern:reranker-ambiguous"
+          ]
+        }
+      ],
+      "warnings": [
+        "bounded_component_scan_only"
+      ]
+    },
+    {
+      "id": "detail_scan:edge-query-answer-prompt-llm:001",
+      "target_type": "edge",
+      "target": "edge:query_answer:prompt_builder:llm",
+      "scan_depth": "code_path",
+      "status": "completed",
+      "replay_depth": "code_path_replay",
+      "code_path": [
+        {
+          "file": "src/api.py",
+          "symbol": "query",
+          "line_start": 21
+        },
+        {
+          "file": "src/rag/service.py",
+          "symbol": "answer_question",
+          "line_start": 34
+        },
+        {
+          "file": "src/rag/generator.py",
+          "symbol": "generate_answer",
+          "line_start": 18
+        }
+      ],
+      "findings": [
+        {
+          "kind": "project_owned_code_path",
+          "summary": "Application code path reaches prompt builder and LLM call without traversing framework internals.",
+          "evidence_ids": [
+            "evidence:code_pattern:fastapi-route",
+            "evidence:code_pattern:llm-call"
+          ]
+        }
+      ],
+      "warnings": [
+        "best_effort_code_path",
+        "third_party_library_internals_not_traversed"
+      ]
+    }
+  ],
+  "risk_hints": [
+    {
+      "id": "risk:docker_published_port_exposure:component-vector-store-qdrant",
+      "type": "network_exposure",
+      "target": "component:vector_store:qdrant",
+      "target_type": "component_instance",
+      "evidence_id": "evidence:docker:qdrant-port",
+      "rule_id": "docker_published_port_exposure",
+      "rationale": "Qdrant has a published Docker port and may be reachable outside the app container boundary.",
+      "uncertainty": "Epic 1 does not run full port security or firewall checks.",
+      "severity_hint": "high"
+    },
+    {
+      "id": "risk:external_provider_detected:component-llm-openai-chat",
+      "type": "external_provider",
+      "target": "component:llm:openai-chat",
+      "target_type": "component_instance",
+      "evidence_id": "evidence:dependency:openai",
+      "rule_id": "external_provider_detected",
+      "rationale": "The app depends on an external OpenAI API provider.",
+      "uncertainty": "Epic 1 does not verify runtime egress policy or data handling settings.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:secret_like_config_key_detected:openai-api-key",
+      "type": "secret_exposure",
+      "target": "evidence:env:openai-key",
+      "target_type": "evidence",
+      "evidence_id": "evidence:env:openai-key",
+      "rule_id": "secret_like_config_key_detected",
+      "rationale": "A secret-like config key exists. The value is masked in the report.",
+      "uncertainty": "Epic 1 only confirms the key pattern, not whether the actual secret is valid or committed.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:config_parse_error:settings-yaml",
+      "type": "partial_scan",
+      "target": "config/settings.yaml",
+      "target_type": "file",
+      "evidence_id": "evidence:parse_error:settings-yaml",
+      "rule_id": "config_parse_error",
+      "rationale": "A config file could not be parsed, so the map may be incomplete.",
+      "uncertainty": "Scanner continued with partial evidence.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:citation",
+      "type": "missing_component",
+      "target": "citation_or_response_composer",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern:prompt-template",
+      "rule_id": "missing_required_slot",
+      "rationale": "No explicit citation or response composer was detected even though a prompt builder and retriever were detected.",
+      "uncertainty": "The behavior may be inline in code not covered by L1 scan.",
+      "severity_hint": "low"
+    }
+  ],
+  "recommended_next_checks": [
+    {
+      "id": "next_check:confirm-reranker",
+      "target_type": "unmapped_component",
+      "target": "unmapped:src-rag-rerank",
+      "reason": "Confirm whether rerank.py should appear as a retriever extension in the graph.",
+      "action": "manual_mapping_confirmation"
+    },
+    {
+      "id": "next_check:review-qdrant-port",
+      "target_type": "component_instance",
+      "target": "component:vector_store:qdrant",
+      "reason": "Published vector database port may affect release readiness.",
+      "action": "review_network_exposure"
+    },
+    {
+      "id": "next_check:run-query-trace",
+      "target_type": "endpoint",
+      "target": "endpoint:local:chat-query",
+      "reason": "A local query endpoint was detected and can be used for opt-in replay.",
+      "action": "run_query_trace"
+    }
+  ],
+  "query_trace_events": [
+    {
+      "id": "trace_event:sample-trace:001",
+      "trace_id": "trace:sample-health-query",
+      "sequence_index": 0,
+      "timestamp": "2026-05-26T10:20:30Z",
+      "replay_depth": "coarse_replay",
+      "slot": "app_api_or_orchestrator",
+      "component_id": "component:app_api_or_orchestrator:fastapi-chat-api",
+      "edge_id": "edge:query_answer:app_api_or_orchestrator:query_processing",
+      "input": {
+        "query": "What documents mention discharge instructions?"
+      },
+      "output": {
+        "status": "accepted"
+      },
+      "latency_ms": 14,
+      "error": null,
+      "retrieved_chunks": []
+    },
+    {
+      "id": "trace_event:sample-trace:002",
+      "trace_id": "trace:sample-health-query",
+      "sequence_index": 1,
+      "timestamp": "2026-05-26T10:20:31Z",
+      "replay_depth": "coarse_replay",
+      "slot": "retriever",
+      "component_id": "component:retriever:qdrant-retriever",
+      "edge_id": "edge:query_answer:retriever:vector_store",
+      "input": {
+        "query": "discharge instructions documents"
+      },
+      "output": {
+        "top_k": 5,
+        "documents_found": 3
+      },
+      "latency_ms": 82,
+      "error": null,
+      "retrieved_chunks": [
+        {
+          "chunk_id": "chunk:docs-sample-health-faq:001",
+          "source_file": "docs/sample-health-faq.md",
+          "score": 0.87,
+          "text_preview": "Discharge instructions include follow-up care and medication reminders..."
+        },
+        {
+          "chunk_id": "chunk:docs-sample-health-faq:002",
+          "source_file": "docs/sample-health-faq.md",
+          "score": 0.81,
+          "text_preview": "Patients should contact the clinic if symptoms worsen..."
+        }
+      ]
+    },
+    {
+      "id": "trace_event:sample-trace:003",
+      "trace_id": "trace:sample-health-query",
+      "sequence_index": 2,
+      "timestamp": "2026-05-26T10:20:32Z",
+      "replay_depth": "coarse_replay",
+      "slot": "prompt_builder",
+      "component_id": "component:prompt_builder:context-prompt-template",
+      "edge_id": "edge:query_answer:retriever:prompt_builder",
+      "input": {
+        "chunks": 3
+      },
+      "output": {
+        "prompt_preview": "Use the provided context to answer the question. Context: Discharge instructions..."
+      },
+      "latency_ms": 7,
+      "error": null,
+      "retrieved_chunks": []
+    },
+    {
+      "id": "trace_event:sample-trace:004",
+      "trace_id": "trace:sample-health-query",
+      "sequence_index": 3,
+      "timestamp": "2026-05-26T10:20:33Z",
+      "replay_depth": "coarse_replay",
+      "slot": "llm",
+      "component_id": "component:llm:openai-chat",
+      "edge_id": "edge:query_answer:prompt_builder:llm",
+      "input": {
+        "model": "gpt-4o-mini",
+        "prompt_preview": "Use the provided context..."
+      },
+      "output": {
+        "answer_preview": "The documents mention discharge instructions in the follow-up care section..."
+      },
+      "latency_ms": 940,
+      "error": null,
+      "retrieved_chunks": []
+    }
+  ]
+}

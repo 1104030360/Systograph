@@ -1,0 +1,195 @@
+{
+  "schema_version": "ai-system-map/v1",
+  "system_type": "rag",
+  "classification": {
+    "mode": "user_selected_or_default",
+    "selected_template": "rag-core-v1"
+  },
+  "project": {
+    "name": "minimal-rag",
+    "root_path": "<project_root>",
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted",
+    "system_map_schema_version": "ai-system-map/v1"
+  },
+  "reference_architecture": {
+    "id": "rag-core-v1",
+    "version": "1.0.0",
+    "slots": [
+      "data_sources",
+      "document_loader",
+      "chunking",
+      "embedding_model",
+      "vector_store",
+      "app_api_or_orchestrator",
+      "query_processing",
+      "retriever",
+      "prompt_builder",
+      "llm",
+      "citation_or_response_composer",
+      "guardrails",
+      "observability"
+    ],
+    "flows": [
+      "query_answer"
+    ]
+  },
+  "scan_depth": "system",
+  "components_by_slot": {
+    "data_sources": {
+      "slot": "data_sources",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "document_loader": {
+      "slot": "document_loader",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "chunking": {
+      "slot": "chunking",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "embedding_model": {
+      "slot": "embedding_model",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "vector_store": {
+      "slot": "vector_store",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "app_api_or_orchestrator": {
+      "slot": "app_api_or_orchestrator",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:app_api_or_orchestrator:fastapi-query-api",
+          "slot": "app_api_or_orchestrator",
+          "kind": "api_orchestrator",
+          "name": "FastAPI Query API",
+          "evidence_ids": [
+            "evidence:code_pattern:fastapi-route"
+          ]
+        }
+      ]
+    },
+    "query_processing": {
+      "slot": "query_processing",
+      "required_for_rag": false,
+      "status": "not_configured",
+      "instances": []
+    },
+    "retriever": {
+      "slot": "retriever",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:retriever:basic-retriever",
+          "slot": "retriever",
+          "kind": "vector_retriever",
+          "name": "Basic Retriever",
+          "evidence_ids": [
+            "evidence:code_pattern:retriever"
+          ]
+        }
+      ]
+    },
+    "prompt_builder": {
+      "slot": "prompt_builder",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "llm": {
+      "slot": "llm",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "citation_or_response_composer": {
+      "slot": "citation_or_response_composer",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "guardrails": {
+      "slot": "guardrails",
+      "required_for_rag": false,
+      "status": "not_configured",
+      "instances": []
+    },
+    "observability": {
+      "slot": "observability",
+      "required_for_rag": false,
+      "status": "not_configured",
+      "instances": []
+    }
+  },
+  "evidence": [
+    {
+      "id": "evidence:code_pattern:fastapi-route",
+      "kind": "code_pattern",
+      "file": "src/api.py",
+      "path": "app.post('/query')",
+      "value": "local query route detected",
+      "rule_id": "fastapi_route_detected"
+    },
+    {
+      "id": "evidence:code_pattern:retriever",
+      "kind": "code_pattern",
+      "file": "src/rag/retriever.py",
+      "path": "retrieve",
+      "value": "retriever call detected",
+      "rule_id": "retriever_detected"
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "endpoint:local:query",
+      "value": "http://localhost:8000/query",
+      "endpoint_type": "local",
+      "method": "POST",
+      "slot": "app_api_or_orchestrator",
+      "component_instance_id": "component:app_api_or_orchestrator:fastapi-query-api",
+      "evidence_id": "evidence:code_pattern:fastapi-route"
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow:query_answer",
+      "name": "Query Answer Flow",
+      "flow_type": "query_answer",
+      "edges": [
+        {
+          "id": "edge:query_answer:app_api_or_orchestrator:retriever",
+          "flow_id": "flow:query_answer",
+          "from_slot": "app_api_or_orchestrator",
+          "to_slot": "retriever",
+          "from_component_id": "component:app_api_or_orchestrator:fastapi-query-api",
+          "to_component_id": "component:retriever:basic-retriever",
+          "relationship": "calls_retriever",
+          "evidence_ids": [
+            "evidence:code_pattern:fastapi-route",
+            "evidence:code_pattern:retriever"
+          ]
+        }
+      ]
+    }
+  ],
+  "extensions": [],
+  "unmapped_components": [],
+  "detail_scans": [],
+  "risk_hints": [],
+  "recommended_next_checks": [],
+  "query_trace_events": []
+}

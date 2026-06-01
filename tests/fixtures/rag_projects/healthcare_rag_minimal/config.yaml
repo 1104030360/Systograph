@@ -1,0 +1,15 @@
+medical_domain: healthcare
+data_classification: synthetic_patient_data
+phi_policy:
+  mode: synthetic_only
+  allow_real_patient_data: false
+  mask_patient_identifiers: true
+answer_policy:
+  cite_sources_required: true
+  no_diagnosis: true
+  emergency_escalation: true
+  include_uncertainty: true
+retrieval:
+  document_path: docs/synthetic_guideline.md
+  patient_context_path: docs/fake_patient_note.md
+  vector_store: in_memory_test_index

@@ -1,0 +1,119 @@
+{
+  "id": "rag-core-v1",
+  "version": "1.0.0",
+  "system_type": "rag",
+  "allowed_statuses": [
+    "detected",
+    "missing",
+    "not_configured",
+    "not_applicable"
+  ],
+  "slots": [
+    {
+      "id": "data_sources",
+      "label": "Data Sources",
+      "required_for_rag_hint": true,
+      "description": "Project-owned or external content sources used for RAG indexing."
+    },
+    {
+      "id": "document_loader",
+      "label": "Document Loader",
+      "required_for_rag_hint": true,
+      "description": "Code or configuration that loads documents from data sources."
+    },
+    {
+      "id": "chunking",
+      "label": "Chunking",
+      "required_for_rag_hint": true,
+      "description": "Document splitting or chunking before embedding."
+    },
+    {
+      "id": "embedding_model",
+      "label": "Embedding Model",
+      "required_for_rag_hint": true,
+      "description": "Embedding model or provider used to vectorize indexed content."
+    },
+    {
+      "id": "vector_store",
+      "label": "Vector Store",
+      "required_for_rag_hint": true,
+      "description": "Vector database, index, or local vector persistence layer."
+    },
+    {
+      "id": "app_api_or_orchestrator",
+      "label": "App API or Orchestrator",
+      "required_for_rag_hint": true,
+      "description": "Application endpoint, chain, workflow, or agent entrypoint."
+    },
+    {
+      "id": "query_processing",
+      "label": "Query Processing",
+      "required_for_rag_hint": false,
+      "description": "Optional query rewriting, routing, filtering, or preprocessing."
+    },
+    {
+      "id": "retriever",
+      "label": "Retriever",
+      "required_for_rag_hint": true,
+      "description": "Retriever logic that fetches relevant context for a query."
+    },
+    {
+      "id": "prompt_builder",
+      "label": "Prompt Builder",
+      "required_for_rag_hint": true,
+      "description": "Prompt assembly that combines query, context, and instructions."
+    },
+    {
+      "id": "llm",
+      "label": "LLM",
+      "required_for_rag_hint": true,
+      "description": "Language model or provider used to generate an answer."
+    },
+    {
+      "id": "citation_or_response_composer",
+      "label": "Citation or Response Composer",
+      "required_for_rag_hint": true,
+      "description": "Response formatting, citation assembly, or answer composition."
+    },
+    {
+      "id": "guardrails",
+      "label": "Guardrails",
+      "required_for_rag_hint": false,
+      "description": "Optional safety, policy, validation, or output filtering layer."
+    },
+    {
+      "id": "observability",
+      "label": "Observability",
+      "required_for_rag_hint": false,
+      "description": "Optional tracing, logging, metrics, or evaluation instrumentation."
+    }
+  ],
+  "flows": [
+    {
+      "id": "indexing",
+      "slot_order": [
+        "data_sources",
+        "document_loader",
+        "chunking",
+        "embedding_model",
+        "vector_store"
+      ],
+      "description": "Baseline path from source content to vector storage."
+    },
+    {
+      "id": "query_answer",
+      "slot_order": [
+        "app_api_or_orchestrator",
+        "query_processing",
+        "retriever",
+        "vector_store",
+        "prompt_builder",
+        "llm",
+        "citation_or_response_composer",
+        "guardrails",
+        "observability"
+      ],
+      "description": "Baseline path from user query to generated answer."
+    }
+  ]
+}

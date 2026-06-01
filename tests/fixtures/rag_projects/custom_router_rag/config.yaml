@@ -1,0 +1,7 @@
+router:
+  kind: custom_query_router
+  routes:
+    - name: health_docs
+      target: retriever
+    - name: escalation
+      target: clinician_handoff
