@@ -359,6 +359,7 @@ h2 {
 }
 
 .system-node {
+  position: relative;
   width: 230px;
   min-height: 96px;
   padding: 12px 13px;
@@ -394,6 +395,17 @@ h2 {
 
 .system-node.has-risk {
   border-color: rgba(192, 122, 44, 0.42);
+}
+
+.node-handle {
+  width: 1px;
+  height: 1px;
+  min-width: 1px;
+  min-height: 1px;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .node-topline {

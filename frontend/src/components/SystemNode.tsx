@@ -1,4 +1,4 @@
-import type { NodeProps } from "reactflow";
+import { Handle, Position, type NodeProps } from "reactflow";
 import { AlertTriangle, CheckCircle2, CircleDashed } from "lucide-react";
 import type { FlowNodeData } from "../utils/graph";
 
@@ -18,6 +18,7 @@ export function SystemNode({ data }: NodeProps<FlowNodeData>) {
         hasRisk ? "has-risk" : "",
       ].join(" ")}
     >
+      <Handle className="node-handle input" position={Position.Left} type="target" />
       <div className="node-topline">
         <span className="node-type">{data.subtitle ?? data.slot ?? data.type}</span>
         {hasRisk ? <AlertTriangle size={15} /> : needsConfirmation ? <CircleDashed size={15} /> : detected ? <CheckCircle2 size={15} /> : null}
@@ -30,6 +31,7 @@ export function SystemNode({ data }: NodeProps<FlowNodeData>) {
           </span>
         ))}
       </div>
+      <Handle className="node-handle output" position={Position.Right} type="source" />
     </div>
   );
 }
