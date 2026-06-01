@@ -10,7 +10,10 @@ precondition error render 成 `map-error.md`。
 
 核心原則：
 
-- Scanner 啟動前先檢查 `project_path` exists、is directory、readable。
+- Scanner 啟動前先檢查 `project_path` exists、is directory、
+  readable/searchable。
+- POSIX/macOS directory precondition 不能只看 read/write bit；project root
+  需要 read + execute/search，output directory 需要 write + execute/search。
 - `failure_reason` 由程式 deterministic 判斷，不由 AI 產生。
 - `map-error.md` 由 structured error object render，不從 log 反推。
 - 本階段不輸出 `map-error.json`。
@@ -31,6 +34,8 @@ precondition error render 成 `map-error.md`。
 - 測試 missing project 產生 fatal `PreconditionError`。
 - 測試 project path 是檔案時回傳 `project_path_not_directory`。
 - 測試 unreadable project path 回傳 `project_path_not_readable`。
+- 測試 unsearchable project root 回傳 `project_path_not_readable`。
+- 測試 unsearchable output directory 回傳 `output_directory_not_writable`。
 - 測試 readable project path 成功時回傳 normalized root。
 - 測試 `PreconditionResult` 回傳 `OutputRun`，且包含 `map-error.md`、
   `ai_system_map.json`、`ai_system_map.md` resolved paths。

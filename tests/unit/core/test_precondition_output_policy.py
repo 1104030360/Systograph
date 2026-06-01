@@ -89,6 +89,64 @@ def test_unreadable_project_returns_not_readable_error(
         project_root.chmod(original_mode)
 
 
+def test_project_root_without_search_permission_is_not_readable(
+    tmp_path: Path,
+) -> None:
+    provider = OutputArtifactProvider(clock=fixed_clock)
+    project_root = tmp_path / "unsearchable-project"
+    project_root.mkdir()
+    original_mode = project_root.stat().st_mode
+
+    try:
+        project_root.chmod(0o400)
+        if os.access(project_root, os.X_OK):
+            pytest.skip("Current user can still search chmod(0400) directory.")
+
+        result = provider.check_preconditions(
+            project_path=project_root,
+            output_dir=tmp_path / "outputs",
+        )
+
+        assert not result.ok
+        assert result.error is not None
+        assert (
+            result.error.failure_reason
+            == PreconditionFailureReason.PROJECT_PATH_NOT_READABLE
+        )
+    finally:
+        project_root.chmod(original_mode)
+
+
+def test_output_dir_without_search_permission_is_not_writable(
+    tmp_path: Path,
+) -> None:
+    provider = OutputArtifactProvider(clock=fixed_clock)
+    project_root = tmp_path / "project"
+    output_dir = tmp_path / "outputs"
+    project_root.mkdir()
+    output_dir.mkdir()
+    original_mode = output_dir.stat().st_mode
+
+    try:
+        output_dir.chmod(0o200)
+        if os.access(output_dir, os.X_OK):
+            pytest.skip("Current user can still search chmod(0200) directory.")
+
+        result = provider.check_preconditions(
+            project_path=project_root,
+            output_dir=output_dir,
+        )
+
+        assert not result.ok
+        assert result.error is not None
+        assert (
+            result.error.failure_reason
+            == PreconditionFailureReason.OUTPUT_DIRECTORY_NOT_WRITABLE
+        )
+    finally:
+        output_dir.chmod(original_mode)
+
+
 def test_readable_project_returns_normalized_root(tmp_path: Path) -> None:
     provider = OutputArtifactProvider(clock=fixed_clock)
     project_root = tmp_path / "project"

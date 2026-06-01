@@ -90,7 +90,7 @@ class OutputArtifactProvider:
                 project_path,
                 PreconditionFailureReason.PROJECT_PATH_NOT_DIRECTORY,
             )
-        if not os.access(project_path, os.R_OK):
+        if not os.access(project_path, os.R_OK | os.X_OK):
             return self._project_error(
                 project_path,
                 PreconditionFailureReason.PROJECT_PATH_NOT_READABLE,
@@ -108,7 +108,7 @@ class OutputArtifactProvider:
                 PreconditionFailureReason.OUTPUT_DIRECTORY_NOT_WRITABLE,
             )
 
-        if not os.access(output_dir, os.W_OK):
+        if not os.access(output_dir, os.W_OK | os.X_OK):
             return self._project_error(
                 output_dir,
                 PreconditionFailureReason.OUTPUT_DIRECTORY_NOT_WRITABLE,

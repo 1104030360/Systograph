@@ -7,8 +7,8 @@ precondition check 與 output directory policy。
 
 本次重點是把「是否能安全開始掃描」從後續 provider pipeline 前面切乾淨：
 
-- 檢查 `project_path` exists、is directory、readable。
-- 檢查 output directory 可建立、可寫入。
+- 檢查 `project_path` exists、is directory、readable/searchable。
+- 檢查 output directory 可建立、可寫入、可 search。
 - output artifacts 已存在時不覆寫，改用 timestamped run directory。
 - timestamped run directory 已存在時使用 deterministic suffix，避免同秒
   重複執行重用舊 run directory。
@@ -50,6 +50,8 @@ precondition check 與 output directory policy。
 - JSON 與 Markdown 若未來並列輸出，必須來自同一個 structured error
   object。
 - `OutputArtifactProvider` 只負責 artifact policy，不掃 project files。
+- POSIX/macOS directory permission 檢查需要 search bit：project root 使用
+  read + execute/search，output directory 使用 write + execute/search。
 - timestamp 由 injectable clock 產生，測試不依賴真實現在時間。
 - timestamp collision 使用 `-1`、`-2` 這類 deterministic suffix，不重用
   既有 run directory。
@@ -81,6 +83,8 @@ precondition check 與 output directory policy。
 - missing project 回傳 fatal `PreconditionError`
 - project path 是檔案時回傳 `project_path_not_directory`
 - unreadable project path 回傳 `project_path_not_readable`
+- unsearchable project root 回傳 `project_path_not_readable`
+- unsearchable output directory 回傳 `output_directory_not_writable`
 - readable project path 成功時回傳 normalized root
 - `map-error.md` 由 structured error object render
 - 既有 `outputs/ai_system_map.json` 不被覆寫，改用 timestamp directory
@@ -221,6 +225,23 @@ pytest: 91 passed
   `20260601T093000-2`。
 - 不重用既有 run directory。
 
+### 問題 5：directory 缺少 execute/search permission 仍被接受
+
+現象：
+
+- Review 指出 POSIX/macOS directory 的 read/write permission 不等於可
+  traverse child paths。
+- project root 若只有 read bit、沒有 execute/search bit，scanner 後續
+  無法進入子路徑。
+- output directory 若只有 write bit、沒有 execute/search bit，writer
+  後續可能無法建立 `map-error.md` 或 `ai_system_map.json`。
+
+解法：
+
+- 新增 failing tests 覆蓋 `0400` project root 與 `0200` output directory。
+- project root precondition 改成要求 `os.R_OK | os.X_OK`。
+- output directory precondition 改成要求 `os.W_OK | os.X_OK`。
+
 ## Task 6 驗收對照
 
 | Task 6 項目 | 結果 |
@@ -229,7 +250,8 @@ pytest: 91 passed
 | 建立 output run context | 已完成：`OutputRun` 保存 resolved artifact paths |
 | 檢查 project path exists | 已完成：`project_path_not_found` |
 | 檢查 project path is directory | 已完成：`project_path_not_directory` |
-| 檢查 project path readable | 已完成：`project_path_not_readable` |
+| 檢查 project path readable/searchable | 已完成：`project_path_not_readable`，要求 `R_OK | X_OK` |
+| 檢查 output directory writable/searchable | 已完成：`output_directory_not_writable`，要求 `W_OK | X_OK` |
 | 決定 output run directory | 已完成：`prepare_output_run_dir()` |
 | outputs 已有 artifact 時建立 timestamped subdirectory | 已完成：`20260601T093000` deterministic clock test |
 | timestamped run directory collision 不覆寫舊 run | 已完成：collision 時使用 `20260601T093000-1` |

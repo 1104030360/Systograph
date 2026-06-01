@@ -13,7 +13,7 @@
 
 ## 實作範圍
 - 建立 precondition result/error models。
-- 檢查 project path exists、is directory、readable。
+- 檢查 project path exists、is directory、readable/searchable。
 - 決定 output run directory。
 - 建立薄的 `OutputRun` context，集中保存本次 scan 的 resolved artifact paths。
 - 若 outputs 已有 artifact，建立 timestamped subdirectory。
@@ -50,6 +50,8 @@
 - `map-error.md` 由 `PreconditionError` render 產生，不由 AI 產生，也不從 log 檔反推。
 - writer 使用 resolved `OutputRun`，不要求呼叫端重複傳 raw `output_dir`。
 - 既有 `outputs/ai_system_map.json` 不被覆寫。
+- project root directory 必須同時具備 read 與 execute/search permission。
+- output directory 必須同時具備 write 與 execute/search permission。
 - timestamp directory 命名 deterministic 可注入 clock 測試。
 - timestamp directory 若已存在，使用 deterministic suffix，例如 `20260601T093000-1`，不可重用舊 run directory。
 
