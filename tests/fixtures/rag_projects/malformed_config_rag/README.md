@@ -7,6 +7,7 @@
 ## Scanner signals
 
 - `docker-compose.yml` is intentionally malformed.
+- `package.json` is intentionally malformed.
 - The scanner should produce parse issue evidence instead of crashing.
 
 ## Safety notes

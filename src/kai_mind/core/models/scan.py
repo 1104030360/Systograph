@@ -65,7 +65,11 @@ class ParseIssue(ScanModel):
     """Structured parse failure that preserves partial scanner output."""
 
     provider: str
-    scan_stage: Literal["config_parse", "docker_compose_parse"]
+    scan_stage: Literal[
+        "config_parse",
+        "docker_compose_parse",
+        "dependency_manifest_parse",
+    ]
     file: str
     message: str
     rule_id: str
