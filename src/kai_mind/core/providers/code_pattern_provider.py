@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from kai_mind.core.models.filesystem import FileInventory
@@ -19,6 +19,7 @@ from kai_mind.core.services.secret_masking_service import SecretMaskingService
 CODE_PATTERN_SCAN_STAGE: Literal["code_pattern_scan"] = "code_pattern_scan"
 CODE_PATTERN_PROVIDER_NAME = "code_pattern"
 FILE_SKIPPED_RULE_ID = "code_pattern_file_skipped"
+INVALID_INVENTORY_PATH_RULE_ID = "code_pattern_invalid_inventory_path"
 READ_ERROR_RULE_ID = "code_pattern_read_error"
 PARSE_ERROR_KIND = "parse_error"
 DEFAULT_MAX_FILE_SIZE_BYTES = 250_000
@@ -44,7 +45,7 @@ class CodePatternProvider:
 
     def collect(self, inventory: FileInventory) -> ProviderScanResult:
         result = ProviderScanResult()
-        project_root = Path(inventory.project_root)
+        project_root = Path(inventory.project_root).resolve()
 
         for record in inventory.files:
             if not self._is_source_path(record.path):
@@ -62,8 +63,25 @@ class CodePatternProvider:
                 )
                 continue
 
+            file_path = self._resolve_inventory_path(
+                project_root,
+                record.path,
+            )
+            if file_path is None:
+                self._append_issue(
+                    result,
+                    file=record.path,
+                    path="$file",
+                    message=(
+                        "Skipped source file: invalid inventory path "
+                        "outside project root"
+                    ),
+                    rule_id=INVALID_INVENTORY_PATH_RULE_ID,
+                )
+                continue
+
             file_result = self._collect_file(
-                project_root / record.path,
+                file_path,
                 relative_path=record.path,
             )
             result.facts.extend(file_result.facts)
@@ -249,6 +267,27 @@ class CodePatternProvider:
 
     def _is_source_path(self, relative_path: str) -> bool:
         return Path(relative_path).suffix.lower() in SOURCE_EXTENSIONS
+
+    def _resolve_inventory_path(
+        self,
+        project_root: Path,
+        record_path: str,
+    ) -> Path | None:
+        if "\\" in record_path:
+            return None
+
+        pure_path = PurePosixPath(record_path)
+        if pure_path.is_absolute():
+            return None
+        if any(part in {"", ".", ".."} for part in pure_path.parts):
+            return None
+
+        resolved_path = project_root.joinpath(*pure_path.parts).resolve()
+        try:
+            resolved_path.relative_to(project_root)
+        except ValueError:
+            return None
+        return resolved_path
 
     def _evidence_id(
         self,

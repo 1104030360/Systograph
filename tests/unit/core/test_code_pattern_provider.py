@@ -244,6 +244,49 @@ def test_collect_reports_decode_error_without_crashing(
     assert result.issues[0].rule_id == "code_pattern_read_error"
 
 
+def test_collect_rejects_inventory_paths_outside_project_root(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    outside_file = outside_dir / "secret.py"
+    outside_file.write_text(
+        "client = QdrantClient(url='http://localhost:6333')\n",
+        encoding="utf-8",
+    )
+    inventory = FileInventory(
+        source=FileInventorySource.RECURSIVE,
+        project_root=str(project_root),
+        files=[
+            FileRecord(
+                path=str(outside_file),
+                size_bytes=outside_file.stat().st_size,
+            ),
+            FileRecord(
+                path="../outside/secret.py",
+                size_bytes=outside_file.stat().st_size,
+            ),
+        ],
+    )
+
+    result = CodePatternProvider().collect(inventory)
+
+    assert result.facts == []
+    assert {issue.file for issue in result.issues} == {
+        str(outside_file),
+        "../outside/secret.py",
+    }
+    assert all(
+        issue.rule_id == "code_pattern_invalid_inventory_path"
+        for issue in result.issues
+    )
+    assert all(
+        issue.scan_stage == "code_pattern_scan" for issue in result.issues
+    )
+
+
 def test_collect_keeps_import_only_signal_as_provider_local_fact(
     tmp_path: Path,
 ) -> None:
