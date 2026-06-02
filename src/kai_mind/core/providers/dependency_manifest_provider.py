@@ -71,6 +71,9 @@ NODE_RULES = {
     "llama-index": PYTHON_RULES["llama-index"],
     "openai": PYTHON_RULES["openai"],
 }
+NODE_SCOPED_PREFIX_RULES = {
+    "@langchain/": PYTHON_RULES["langchain"],
+}
 
 
 class DependencyManifestProvider:
@@ -421,6 +424,11 @@ class DependencyManifestProvider:
         package_name: str,
         ecosystem: Literal["python", "node"],
     ) -> DependencyRule | None:
+        if ecosystem == "node":
+            scoped_rule = self._match_node_scoped_prefix(package_name)
+            if scoped_rule is not None:
+                return scoped_rule
+
         rules = PYTHON_RULES if ecosystem == "python" else NODE_RULES
         for rule_package, rule in rules.items():
             if package_name == rule_package:
@@ -428,6 +436,15 @@ class DependencyManifestProvider:
             if rule.match_prefix and package_name.startswith(
                 f"{rule_package}-"
             ):
+                return rule
+        return None
+
+    def _match_node_scoped_prefix(
+        self,
+        package_name: str,
+    ) -> DependencyRule | None:
+        for package_prefix, rule in NODE_SCOPED_PREFIX_RULES.items():
+            if package_name.startswith(package_prefix):
                 return rule
         return None
 

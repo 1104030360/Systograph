@@ -182,6 +182,56 @@ def test_collect_parses_package_json_dependencies_and_dev_dependencies(
     assert "@scope/ignored" not in {fact.value for fact in result.facts}
 
 
+def test_collect_detects_scoped_langchain_package_json_dependencies(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "package.json").write_text(
+        "\n".join(
+            [
+                "{",
+                '  "dependencies": {',
+                '    "@langchain/core": "^1.0.0",',
+                '    "@langchain/openai": "^1.0.0"',
+                "  },",
+                '  "devDependencies": {',
+                '    "@langchain/community": "^1.0.0"',
+                "  }",
+                "}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "package.json")
+
+    result = DependencyManifestProvider().collect(inventory)
+
+    fact_by_path = {fact.path: fact for fact in result.facts}
+    assert (
+        fact_by_path["dependencies.@langchain/core"].rule_id
+        == "dependency_rag_framework_langchain"
+    )
+    assert (
+        fact_by_path["dependencies.@langchain/openai"].rule_id
+        == "dependency_rag_framework_langchain"
+    )
+    assert (
+        fact_by_path["devDependencies.@langchain/community"].rule_id
+        == "dependency_rag_framework_langchain"
+    )
+    assert {
+        fact_by_path["dependencies.@langchain/core"].value,
+        fact_by_path["dependencies.@langchain/openai"].value,
+        fact_by_path["devDependencies.@langchain/community"].value,
+    } == {
+        "@langchain/core",
+        "@langchain/openai",
+        "@langchain/community",
+    }
+
+
 def test_collect_keeps_other_manifests_when_one_manifest_is_malformed(
     tmp_path: Path,
 ) -> None:
