@@ -69,6 +69,7 @@ class ParseIssue(ScanModel):
         "config_parse",
         "docker_compose_parse",
         "dependency_manifest_parse",
+        "code_pattern_scan",
     ]
     file: str
     message: str
