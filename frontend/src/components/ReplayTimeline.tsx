@@ -2,6 +2,10 @@ import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import type { TraceEvent } from "../types";
 import { compactId } from "../utils/format";
 
+function getStepLabel(event: TraceEvent) {
+  return event.slot ?? event.step_type ?? compactId(event.component_id ?? event.edge_id ?? event.id ?? "step");
+}
+
 type Props = {
   events: TraceEvent[];
   activeIndex: number;
@@ -19,7 +23,7 @@ export function ReplayTimeline({ events, activeIndex, isRunning, onIndexChange, 
       <div className="replay-toolbar">
         <div>
           <span className="section-label">Query Replay</span>
-          <strong>{active?.replay_depth ?? "coarse_replay"}</strong>
+          <strong>{active?.replay_depth ?? "coarse replay"}</strong>
         </div>
         <div className="replay-actions">
           <button className="icon-button" type="button" onClick={() => onIndexChange(Math.max(activeIndex - 1, 0))} title="Previous step">
@@ -47,7 +51,8 @@ export function ReplayTimeline({ events, activeIndex, isRunning, onIndexChange, 
             onClick={() => onIndexChange(index)}
           >
             <span className="step-dot" />
-            <span className="step-label">{event.slot ?? event.step_type ?? compactId(event.component_id ?? event.edge_id ?? event.id ?? "step")}</span>
+            <span className="step-index">{index + 1}</span>
+            <span className="step-label">{getStepLabel(event)}</span>
           </button>
         ))}
       </div>

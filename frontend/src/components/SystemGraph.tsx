@@ -5,9 +5,11 @@ import ReactFlow, {
   Controls,
   EdgeLabelRenderer,
   MiniMap,
+  applyNodeChanges,
   type Edge,
   type EdgeProps,
   type Node,
+  type NodeChange,
   ReactFlowProvider,
   useReactFlow,
 } from "reactflow";
@@ -18,6 +20,7 @@ import { SystemNode } from "./SystemNode";
 
 const NODE_WIDTH = 230;
 const NODE_HEIGHT = 96;
+const MIN_FOLLOW_ZOOM = 0.62;
 
 const nodeTypes = {
   systemNode: SystemNode,
@@ -54,15 +57,23 @@ function OrderedEdge({
           `Q ${laneX},${endY} ${laneX + cornerRadius * xDirection},${endY}`,
           `L ${targetX},${endY}`,
         ].join(" ");
-  const labelX = yDistance < 8 ? (sourceX + targetX) / 2 : laneX;
-  const labelY = yDistance < 8 ? startY - 18 : startY + (endY - startY) * 0.45;
+  const labelX = yDistance < 8 ? (sourceX + targetX) / 2 : laneX + (data?.labelLaneOffset ?? 0);
+  const labelY =
+    yDistance < 8
+      ? startY - 20 - (data?.labelStackOffset ?? 0)
+      : startY + (endY - startY) * 0.45 + (data?.labelStackOffset ?? 0);
 
   return (
     <>
       <BaseEdge id={id} markerEnd={markerEnd} path={edgePath} style={style} />
       <EdgeLabelRenderer>
         <div
-          className={["edge-label-pill", data?.isFocused ? "is-focused" : "", data?.isDimmed ? "is-dimmed" : ""].join(" ")}
+          className={[
+            "edge-label-pill",
+            data?.isFocused ? "is-focused" : "",
+            data?.isDimmed ? "is-dimmed" : "",
+            data?.labelSide === "below" ? "is-below" : "",
+          ].join(" ")}
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
           }}
@@ -149,6 +160,7 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
   const [edges, setEdges] = useState<Edge<FlowEdgeData>[]>([]);
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
   const lastCenteredNodeId = useRef<string | null>(null);
+  const lastFitGraphKey = useRef<string | null>(null);
   const reactFlow = useReactFlow();
   const followNodeId = useMemo(
     () => resolveFollowNodeId({ graph, selected, traceEvent, progressTargetId }),
@@ -183,9 +195,7 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
     layoutGraph(baseElements.nodes, baseElements.edges).then((layoutedNodes) => {
       if (!cancelled) {
         setPositions(Object.fromEntries(layoutedNodes.map((node) => [node.id, node.position])));
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => reactFlow.fitView({ padding: 0.18, duration: 300 }));
-        });
+        lastFitGraphKey.current = null;
       }
     });
 
@@ -199,6 +209,27 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
     setEdges(rawElements.edges);
   }, [positions, rawElements]);
 
+  function handleNodesChange(changes: NodeChange[]) {
+    setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
+  }
+
+  function handleNodeDragStop(_: React.MouseEvent, node: Node<FlowNodeData>) {
+    setPositions((currentPositions) => ({
+      ...currentPositions,
+      [node.id]: node.position,
+    }));
+  }
+
+  useEffect(() => {
+    if (followFocus || nodes.length === 0 || lastFitGraphKey.current === graphStructureKey) return;
+    if (Object.keys(positions).length < graph.nodes.length) return;
+
+    lastFitGraphKey.current = graphStructureKey;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => reactFlow.fitView({ padding: 0.22, duration: 320 }));
+    });
+  }, [followFocus, graph.nodes.length, graphStructureKey, nodes.length, positions, reactFlow]);
+
   useEffect(() => {
     if (!followFocus || nodes.length === 0) {
       lastCenteredNodeId.current = null;
@@ -208,14 +239,21 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
     if (!followNodeId || !positions[followNodeId]) return;
 
     const focusNode = nodes.find((node) => node.id === followNodeId);
-    if (!focusNode || lastCenteredNodeId.current === focusNode.id) return;
+    const focusPosition = positions[followNodeId];
+    if (!focusNode || !focusPosition || lastCenteredNodeId.current === focusNode.id) return;
 
+    const nodeWidth = focusNode.width ?? NODE_WIDTH;
+    const nodeHeight = focusNode.height ?? NODE_HEIGHT;
     lastCenteredNodeId.current = focusNode.id;
-    reactFlow.setCenter(
-      focusNode.position.x + (focusNode.width ?? NODE_WIDTH) / 2,
-      focusNode.position.y + (focusNode.height ?? NODE_HEIGHT) / 2,
-      { duration: 280, zoom: Math.max(reactFlow.getZoom(), 0.74) },
-    );
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        reactFlow.setCenter(focusPosition.x + nodeWidth / 2, focusPosition.y + nodeHeight / 2, {
+          duration: 320,
+          zoom: Math.max(reactFlow.getZoom(), MIN_FOLLOW_ZOOM),
+        });
+      });
+    });
   }, [followFocus, followNodeId, nodes, positions, reactFlow]);
 
   return (
@@ -225,9 +263,15 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       defaultViewport={{ x: 42, y: 132, zoom: 0.68 }}
-      minZoom={0.28}
-      maxZoom={1.35}
+      minZoom={0.32}
+      maxZoom={1.45}
+      translateExtent={[
+        [-420, -320],
+        [2200, 1400],
+      ]}
       nodesDraggable
+      onNodesChange={handleNodesChange}
+      onNodeDragStop={handleNodeDragStop}
       panOnScroll
       selectionOnDrag
       onNodeClick={(_, node) => onSelect({ kind: "node", id: node.id })}

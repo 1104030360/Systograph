@@ -17,6 +17,9 @@ export type FlowEdgeData = GraphEdgeModel & {
   routeOffset: number;
   sourceYOffset: number;
   targetYOffset: number;
+  labelLaneOffset: number;
+  labelStackOffset: number;
+  labelSide: "above" | "below";
 };
 
 const elk = new ELK();
@@ -40,6 +43,32 @@ function getLaneOffsets(edges: GraphEdgeModel[], key: "from" | "to") {
       const laneIndex = group.findIndex((item) => item.id === edge.id);
       const centeredIndex = Math.max(laneIndex, 0) - (group.length - 1) / 2;
       return [edge.id, centeredIndex * 22];
+    }),
+  );
+}
+
+function getLabelOffsets(edges: GraphEdgeModel[]): Map<string, { labelLaneOffset: number; labelStackOffset: number; labelSide: "above" | "below" }> {
+  const groups = new Map<string, GraphEdgeModel[]>();
+
+  edges.forEach((edge) => {
+    const key = `${edge.from}->${edge.to}`;
+    groups.set(key, [...(groups.get(key) ?? []), edge]);
+  });
+
+  return new Map(
+    edges.map((edge) => {
+      const group = groups.get(`${edge.from}->${edge.to}`) ?? [edge];
+      const laneIndex = Math.max(group.findIndex((item) => item.id === edge.id), 0);
+      const centeredIndex = laneIndex - (group.length - 1) / 2;
+
+      return [
+        edge.id,
+        {
+          labelLaneOffset: centeredIndex * 26,
+          labelStackOffset: laneIndex % 2 === 0 ? 0 : 18,
+          labelSide: laneIndex % 2 === 0 ? "above" : "below",
+        },
+      ];
     }),
   );
 }
@@ -132,6 +161,7 @@ export function createFlowElements(
   const traceFocus = getTraceFocus(options.traceEvent, graph);
   const hasTraceFocus = traceFocus.focusedNodeIds.size > 0 || traceFocus.focusedEdgeIds.size > 0;
   const sourceRouteOffsets = getSourceRouteOffsets(graph.edges);
+  const labelOffsets = getLabelOffsets(graph.edges);
   const sourceYOffsets = getLaneOffsets(graph.edges, "from");
   const targetYOffsets = getLaneOffsets(graph.edges, "to");
 
@@ -164,6 +194,7 @@ export function createFlowElements(
     const progressFocused = options.progressTargetId === edge.id;
     const focused = selected || filterFocused || traceFocused || progressFocused;
     const dimmed = (filterMatches.hasFilters || hasTraceFocus) && !focused;
+    const labelOffset = labelOffsets.get(edge.id);
 
     return {
       id: edge.id,
@@ -187,11 +218,14 @@ export function createFlowElements(
         routeOffset: sourceRouteOffsets.get(edge.id) ?? 48,
         sourceYOffset: sourceYOffsets.get(edge.id) ?? 0,
         targetYOffset: targetYOffsets.get(edge.id) ?? 0,
+        labelLaneOffset: labelOffset?.labelLaneOffset ?? 0,
+        labelStackOffset: labelOffset?.labelStackOffset ?? 0,
+        labelSide: labelOffset?.labelSide ?? "above",
       },
       style: {
         stroke: focused ? "#0f8b8d" : "#73808d",
-        strokeWidth: focused ? 2.8 : 1.7,
-        opacity: dimmed ? 0.18 : 0.86,
+        strokeWidth: focused ? 2.6 : 1.7,
+        opacity: dimmed ? 0.22 : 0.82,
       },
     };
   });
@@ -205,8 +239,8 @@ export async function layoutGraph(nodes: Node<FlowNodeData>[], edges: Edge<FlowE
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "RIGHT",
-      "elk.spacing.nodeNode": "42",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "88",
+      "elk.spacing.nodeNode": "54",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "118",
       "elk.edgeRouting": "ORTHOGONAL",
     },
     children: nodes.map((node) => ({
