@@ -59,6 +59,7 @@ class ScanFact(ScanModel):
     path: str
     value: str | None = None
     rule_id: str | None = None
+    provider: str | None = None
 
 
 class ParseIssue(ScanModel):
@@ -70,6 +71,7 @@ class ParseIssue(ScanModel):
         "docker_compose_parse",
         "dependency_manifest_parse",
         "code_pattern_scan",
+        "project_scan",
     ]
     file: str
     message: str
@@ -84,3 +86,23 @@ class ProviderScanResult(ScanModel):
     facts: list[ScanFact] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
     issues: list[ParseIssue] = Field(default_factory=list)
+
+
+class SkippedFileSummary(ScanModel):
+    """Project file skipped before provider collection."""
+
+    path: str
+    reason: str
+    size_bytes: int | None = None
+
+
+class ProjectScanResult(ScanModel):
+    """Aggregated raw scanner output before component detection."""
+
+    facts: list[ScanFact] = Field(default_factory=list)
+    evidence: list[Evidence] = Field(default_factory=list)
+    issues: list[ParseIssue] = Field(default_factory=list)
+    skipped_files: list[SkippedFileSummary] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    files_scanned: int = 0
+    files_skipped: int = 0
