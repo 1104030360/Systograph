@@ -23,16 +23,35 @@ export function ReplayTimeline({ events, activeIndex, isRunning, onIndexChange, 
       <div className="replay-toolbar">
         <div>
           <span className="section-label">Query Replay</span>
-          <strong>{active?.replay_depth ?? "coarse replay"}</strong>
+          <strong>{active?.replay_depth ?? "—"}</strong>
         </div>
         <div className="replay-actions">
-          <button className="icon-button" type="button" onClick={() => onIndexChange(Math.max(activeIndex - 1, 0))} title="Previous step">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Previous step"
+            onClick={() => onIndexChange(Math.max(activeIndex - 1, 0))}
+            title="Previous step"
+          >
             <SkipBack size={15} />
           </button>
-          <button className="icon-button primary" type="button" onClick={() => onRunningChange(!isRunning)} title={isRunning ? "Pause" : "Play"}>
+          <button
+            className="icon-button primary"
+            type="button"
+            aria-pressed={isRunning}
+            aria-label={isRunning ? "Pause replay" : "Play replay"}
+            onClick={() => onRunningChange(!isRunning)}
+            title={isRunning ? "Pause" : "Play"}
+          >
             {isRunning ? <Pause size={15} /> : <Play size={15} />}
           </button>
-          <button className="icon-button" type="button" onClick={() => onIndexChange(Math.min(activeIndex + 1, maxIndex))} title="Next step">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Next step"
+            onClick={() => onIndexChange(Math.min(activeIndex + 1, maxIndex))}
+            title="Next step"
+          >
             <SkipForward size={15} />
           </button>
         </div>

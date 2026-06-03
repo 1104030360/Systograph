@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Braces, ChevronRight, FileCode2, Route, X } from "lucide-react";
 import type { GraphEdgeModel, GraphNodeModel, GraphViewModel, Selection, ViewerPayload } from "../types";
 import { compactId, formatValue, titleCase } from "../utils/format";
@@ -65,26 +66,66 @@ function RiskList({ graph, ids }: { graph: GraphViewModel; ids: string[] }) {
   );
 }
 
-function ComponentDetails({ payload, mode }: { payload: ViewerPayload; mode: "component" | "code_path" }) {
+function ComponentDetails({
+  payload,
+  mode,
+  targetIds,
+}: {
+  payload: ViewerPayload;
+  mode: "component" | "code_path";
+  targetIds: string[];
+}) {
   const sample = payload.detail_scan_result_sample;
   const proposal = payload.mapping_proposal_result_sample;
+  const sampleTarget = sample ? String(sample.target ?? sample.target_id ?? "") : "";
+  const matchesTarget = sample != null && sampleTarget !== "" && targetIds.includes(sampleTarget);
+
+  if (!matchesTarget) {
+    return (
+      <div className="drilldown-panel">
+        <div className="section-label">{mode === "component" ? "L2 Component Detail" : "L3 Code Path"}</div>
+        <p className="muted">
+          No {mode === "component" ? "component-level" : "code-path"} scan result is available for this target yet. Run a
+          backend detail scan to populate this view.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="drilldown-panel">
       <div className="section-label">{mode === "component" ? "L2 Component Detail" : "L3 Code Path"}</div>
       <div className="drilldown-line">
         <Route size={15} />
-        <span>{String(sample?.target ?? sample?.target_id ?? "selected target")}</span>
+        <span>{sampleTarget}</span>
       </div>
-      <KeyValue label="scan depth" value={sample?.scan_depth ?? mode} />
-      <KeyValue label="status" value={sample?.status ?? "ready_for_backend"} />
-      <KeyValue label="proposal" value={proposal?.status ?? "pending_confirmation"} />
+      <KeyValue label="scan depth" value={sample.scan_depth} />
+      <KeyValue label="status" value={sample.status} />
+      <KeyValue label="proposal" value={proposal?.status} />
       <pre>{formatValue(sample)}</pre>
     </div>
   );
 }
 
 export function DetailPanel({ graph, payload, selected, detailMode, onDetailModeChange, onClose }: Props) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const isOpen = selected != null && selected.kind !== "trace";
+
+  useEffect(() => {
+    if (isOpen) dialogRef.current?.focus();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!selected || selected.kind === "trace") {
     return null;
   }
@@ -105,14 +146,25 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
   const subtitle = isNode ? node?.subtitle ?? node?.slot : edge?.relationship;
   const evidenceIds = isNode ? node?.evidence_ids ?? [] : edge?.evidence_ids ?? [];
   const riskIds = isNode ? node?.risk_hint_ids ?? [] : edge?.risk_hint_ids ?? [];
+  const targetIds = [selected.id, isNode ? node?.source_id : edge?.source_id].filter(
+    (value): value is string => typeof value === "string",
+  );
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section aria-modal="true" className="detail-modal" role="dialog" onMouseDown={(event) => event.stopPropagation()}>
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section
+        aria-labelledby="detail-modal-title"
+        aria-modal="true"
+        className="detail-modal"
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="detail-header">
           <div>
             <span className="section-label">{isNode ? "Node" : "Edge"}</span>
-            <h2>{title}</h2>
+            <h2 id="detail-modal-title">{title}</h2>
             <p>{subtitle ? titleCase(String(subtitle)) : compactId(selected.id)}</p>
           </div>
           <div className="detail-actions">
@@ -124,13 +176,28 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
         </div>
 
         <div className="segmented-control">
-          <button className={detailMode === "overview" ? "is-active" : ""} onClick={() => onDetailModeChange("overview")} type="button">
+          <button
+            className={detailMode === "overview" ? "is-active" : ""}
+            aria-pressed={detailMode === "overview"}
+            onClick={() => onDetailModeChange("overview")}
+            type="button"
+          >
             Overview
           </button>
-          <button className={detailMode === "component" ? "is-active" : ""} onClick={() => onDetailModeChange("component")} type="button">
+          <button
+            className={detailMode === "component" ? "is-active" : ""}
+            aria-pressed={detailMode === "component"}
+            onClick={() => onDetailModeChange("component")}
+            type="button"
+          >
             L2
           </button>
-          <button className={detailMode === "code_path" ? "is-active" : ""} onClick={() => onDetailModeChange("code_path")} type="button">
+          <button
+            className={detailMode === "code_path" ? "is-active" : ""}
+            aria-pressed={detailMode === "code_path"}
+            onClick={() => onDetailModeChange("code_path")}
+            type="button"
+          >
             L3
           </button>
         </div>
@@ -160,7 +227,7 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
             </section>
           </>
         ) : (
-          <ComponentDetails payload={payload} mode={detailMode} />
+          <ComponentDetails payload={payload} mode={detailMode} targetIds={targetIds} />
         )}
       </section>
     </div>

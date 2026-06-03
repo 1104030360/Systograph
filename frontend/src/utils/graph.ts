@@ -26,10 +26,6 @@ const elk = new ELK();
 const NODE_WIDTH = 230;
 const NODE_HEIGHT = 96;
 
-function createEdgeLabel(index: number) {
-  return String(index + 1);
-}
-
 function getLaneOffsets(edges: GraphEdgeModel[], key: "from" | "to") {
   const groups = new Map<string, GraphEdgeModel[]>();
 
@@ -109,15 +105,16 @@ export function makeGraphIndexes(graph: GraphViewModel) {
 export function getFilterMatches(filters: GraphFilterModel[], activeFilterIds: string[]) {
   const nodeIds = new Set<string>();
   const edgeIds = new Set<string>();
+  const activeFilters = filters.filter((filter) => activeFilterIds.includes(filter.id));
 
-  filters
-    .filter((filter) => activeFilterIds.includes(filter.id))
-    .forEach((filter) => {
-      filter.matches_node_ids.forEach((id) => nodeIds.add(id));
-      filter.matches_edge_ids.forEach((id) => edgeIds.add(id));
-    });
+  activeFilters.forEach((filter) => {
+    filter.matches_node_ids.forEach((id) => nodeIds.add(id));
+    filter.matches_edge_ids.forEach((id) => edgeIds.add(id));
+  });
 
-  return { nodeIds, edgeIds, hasFilters: activeFilterIds.length > 0 };
+  // Only treat filters that actually exist in the payload as "active" so a default
+  // filter id that the payload does not define cannot dim the entire graph on load.
+  return { nodeIds, edgeIds, hasFilters: activeFilters.length > 0 };
 }
 
 export function getTraceFocus(event: TraceEvent | undefined, graph: GraphViewModel) {
@@ -187,7 +184,7 @@ export function createFlowElements(
     };
   });
 
-  const edges: Edge<FlowEdgeData>[] = graph.edges.map((edge, index) => {
+  const edges: Edge<FlowEdgeData>[] = graph.edges.map((edge) => {
     const selected = options.selectedKind === "edge" && options.selectedId === edge.id;
     const filterFocused = filterMatches.edgeIds.has(edge.id);
     const traceFocused = traceFocus.focusedEdgeIds.has(edge.id);
@@ -202,7 +199,7 @@ export function createFlowElements(
       target: edge.to,
       type: "ordered",
       animated: false,
-      label: createEdgeLabel(index),
+      label: edge.label ?? edge.relationship ?? undefined,
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 18,
@@ -293,7 +290,7 @@ export function resolveProgressTargetId(event: ScanProgressEvent | null, graph: 
   }
 
   if (event.slot) {
-    return graph.nodes.find((node) => node.slot === event.slot || node.source_id?.includes(`:${event.slot}:`))?.id;
+    return graph.nodes.find((node) => node.slot === event.slot)?.id;
   }
 
   return undefined;
