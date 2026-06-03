@@ -94,6 +94,90 @@ Task 12 Aggregate Raw Scan Facts（本任務）
 - evidence id 先可用穩定 hash input，但最終 deterministic id 在 normalize task 收斂。
 - 不要保存 full raw config value。
 
+## 外部研究查證與補充
+
+本節為 2026-06-03 針對 Task 12 aggregation layer 重新上網查證後的補充。結論：原研究方向大致正確，但需要把 Checkov / OSV-Scanner / Trivy 定位成「聚合與可追溯輸出設計參考」，不要誤解成 Task 12 要做完整 IaC / SCA / vulnerability scanner。
+
+### 已確認可採用的借鑑
+
+- **Understand-Anything `merge-batch-graphs.py`：normalize + dedupe + recover 的思路可借鑑。**
+  - 查證來源：`merge-batch-graphs.py` 會 normalize node id、重寫 edge references、dedupe nodes / edges、drop dangling edges，並從 `scan-result.json#importMap` recover 遺漏的 `imports` edges。
+  - 對 Task 12 的啟發：`ProjectScanService` 應明確定義 facts/evidence/issues 的 canonical key，遇到跨 provider 重複訊號時合併 evidence，而不是覆蓋或產生兩份互相矛盾的 fact。
+  - 但要注意：KAI-Mind 目前掃描的是 RAG release-readiness facts，不是 code knowledge graph；所以只採「穩定 ID、deterministic merge、來源補證據」原則，不搬 Understand-Anything 的 node / edge schema。
+
+- **GitDiagram：schema / path validation 的防呆思路可借鑑。**
+  - 查證來源：GitDiagram README 說明它會抓 GitHub file tree / README，產生 structured graph 後，對照實際 file tree 驗證 path，發現 bad paths 或 invalid connections 會 retry，之後 Mermaid 還會再 validate。
+  - 對 Task 12 的啟發：即使 Task 12 不依賴 LLM，也應以 Pydantic model 和 provider contract 阻擋壞資料進入 aggregation 結果；不符合 `ProviderScanResult` / `ScanFact` / `Evidence` / `ParseIssue` 的資料應轉成 issue 或丟棄並記錄，不要污染後續 Task 13-15。
+
+- **Checkov `RunnerRegistry`：provider orchestration + report merge 的架構相近。**
+  - 查證來源：Checkov 的 `RunnerRegistry` 接收多個 runner，根據 framework/file filter 篩選 runner，平行執行後用 `_merge_reports()` / `merge_reports()` 將同類 report 合併，也支援 SARIF / JSON / CycloneDX 等多種輸出。
+  - 對 Task 12 的啟發：providers 應只負責掃描並回傳 `ProviderScanResult`；`ProjectScanService` 負責 orchestration、錯誤隔離、結果合併、排序與 stage warnings。這符合本專案 Provider-Service 邊界。
+
+- **OSV-Scanner：source attribution 和 grouping 可作為 evidence traceability 參考。**
+  - 查證來源：OSV-Scanner source scan 會掃 lockfiles / SBOMs / git directories；JSON output 的 `results[].source.path` / `source.type` 會保留 package 來源，SARIF output 會把 vulnerability group 映射到 rule 與 physical location。
+  - 對 Task 12 的啟發：每個 `ScanFact` 不只要有 kind/value，也要能追到 evidence source，例如 project-relative file path、config path、line 或 non-file source。這比只輸出不可追溯的「有 Redis」更適合 release-readiness report。
+  - 修正原說法：OSV-Scanner 主要是 dependency / vulnerability scanner；它不是 ProjectScanService 這種多 provider RAG fact aggregator。可借鑑的是 source path、grouping、machine-readable output，不是完整掃描 domain。
+
+- **Trivy：標準化 output 與 secret-safe reporting 可作為輸出契約參考。**
+  - 查證來源：Trivy README 說明它可掃 container image、filesystem、git repository、Kubernetes 等 targets，scanner 類型包含 vulnerabilities、misconfigurations、secrets、licenses；官方 reporting docs 支援 JSON 與 SARIF 2.1.0，secret scanner 也會在報表中顯示 path / line / masked match。
+  - 對 Task 12 的啟發：Task 12 的 aggregation output 應穩定、machine-readable、可做 snapshot test，且 secret-like value 必須延續 Task 5 masking，不可把完整 `.env` value 放進 facts/evidence。
+  - 修正原說法：Trivy 的 SARIF 支援是 output/reporting 層參考，不代表 KAI-Mind Task 12 要採 SARIF schema；`ai-system-map/v1` 仍是本專案 canonical contract。
+
+### Task 12 實作時應新增或強化的測試
+
+1. **provider exception isolation test**
+   - 建立 mock provider，在 `collect()` 直接丟 exception。
+   - 預期：`ProjectScanService` 不 crash，仍回傳其他 providers 的 facts，並產生一筆 provider-level `ParseIssue` 或 stage warning。
+
+2. **dedupe + evidence merge test**
+   - 讓兩個 mock providers 回傳同一個 canonical fact key，例如 `(kind="component_signal", normalized_name="redis")`，但 evidence 來源不同。
+   - 預期：最終只保留一筆 fact，evidence append 且排序穩定。
+
+3. **deterministic ordering test**
+   - 用 providers 回傳不同順序的 facts/evidence/issues。
+   - 預期：`ProjectScanService` 最終排序固定，例如 facts 依 `kind`、normalized name、`file`、`path` 排；evidence 依 `file`、`path`、`rule_id`、`id` 排；issues 依 `provider`、`scan_stage`、`file`、`message` 排。
+
+4. **strict boundary test**
+   - 輸入 Docker / dependency / config facts，其中包含 `redis`、`qdrant`、`openai` 等 signal。
+   - 預期：Task 12 只輸出 raw facts/evidence，不產生 `ComponentSlot.detected`、endpoint final judgment、risk final judgment；這些留給 Task 13-15。
+
+5. **secret-safe aggregation test**
+   - 讓 provider 輸入含 secret-like value。
+   - 預期：最終 facts/evidence 不包含完整 secret，snapshot 也不得出現未遮罩 value。
+
+### 實作邊界收斂
+
+```text
+Providers
+  -> ProviderScanResult[]
+       facts[]      low-level observed facts
+       evidence[]   traceable source references
+       issues[]     parse/provider failures
+  -> ProjectScanService
+       normalize keys
+       merge duplicates
+       append evidence
+       preserve partial failures
+       deterministic sort
+  -> raw scan aggregate
+       still NOT component detection
+       still NOT endpoint/risk/flow derivation
+```
+
+參考來源：
+
+- Understand-Anything `merge-batch-graphs.py`: https://github.com/Lum1104/Understand-Anything/blob/main/understand-anything-plugin/skills/understand/merge-batch-graphs.py
+- Understand-Anything `/understand` skill flow: https://github.com/Lum1104/Understand-Anything/blob/main/understand-anything-plugin/skills/understand/SKILL.md
+- Understand-Anything `assemble-reviewer`: https://github.com/Lum1104/Understand-Anything/blob/main/understand-anything-plugin/agents/assemble-reviewer.md
+- GitDiagram README: https://github.com/ahmedkhaleel2004/gitdiagram/blob/main/README.md
+- Checkov `runner_registry.py`: https://github.com/bridgecrewio/checkov/blob/main/checkov/common/runners/runner_registry.py
+- OSV-Scanner project source scanning docs: https://google.github.io/osv-scanner/usage/scan-source
+- OSV-Scanner output docs: https://google.github.io/osv-scanner/output/
+- Trivy README: https://github.com/aquasecurity/trivy/blob/main/README.md
+- Trivy reporting docs: https://trivy.dev/docs/latest/configuration/reporting/
+- Trivy secret scanning docs: https://www.trivy.dev/docs/v0.55/guide/scanner/secret/
+- SARIF 2.1.0 OASIS standard: https://www.oasis-open.org/standard/sarif-v2-1-0/
+
 ## 新手提示
 ProjectScanService 像資料收件中心：把每個 provider 的結果收齊、排好，但還不判斷誰代表什麼 RAG 元件。
 
