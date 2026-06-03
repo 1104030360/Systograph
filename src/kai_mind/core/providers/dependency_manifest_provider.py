@@ -7,7 +7,6 @@ import json
 import re
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
@@ -16,6 +15,10 @@ from packaging.requirements import InvalidRequirement, Requirement
 from kai_mind.core.models.filesystem import FileInventory
 from kai_mind.core.models.scan import ParseIssue, ProviderScanResult, ScanFact
 from kai_mind.core.models.system_map import Evidence
+from kai_mind.core.services.rule_catalog_loader import (
+    DependencyPackageRule,
+    RuleCatalogLoader,
+)
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
 DEPENDENCY_MANIFEST_PARSE_STAGE: Literal["dependency_manifest_parse"] = (
@@ -44,38 +47,6 @@ VCS_REQUIREMENT_PREFIXES = (
 )
 
 
-@dataclass(frozen=True)
-class DependencyRule:
-    """Known package mapping for provider-local candidate facts."""
-
-    rule_id: str
-    match_prefix: bool = False
-
-
-PYTHON_RULES = {
-    "langchain": DependencyRule(
-        "dependency_rag_framework_langchain",
-        match_prefix=True,
-    ),
-    "llama-index": DependencyRule(
-        "dependency_rag_framework_llama_index",
-        match_prefix=True,
-    ),
-    "openai": DependencyRule("dependency_external_llm_embedding_openai"),
-    "qdrant-client": DependencyRule("dependency_vector_store_client_qdrant"),
-    "chromadb": DependencyRule("dependency_vector_store_client_chromadb"),
-    "ollama": DependencyRule("dependency_local_llm_provider_ollama"),
-}
-NODE_RULES = {
-    "langchain": PYTHON_RULES["langchain"],
-    "llama-index": PYTHON_RULES["llama-index"],
-    "openai": PYTHON_RULES["openai"],
-}
-NODE_SCOPED_PREFIX_RULES = {
-    "@langchain/": PYTHON_RULES["langchain"],
-}
-
-
 class DependencyManifestProvider:
     """Read dependency manifests from deterministic inventory input."""
 
@@ -83,8 +54,12 @@ class DependencyManifestProvider:
         self,
         *,
         masking_service: SecretMaskingService | None = None,
+        rule_catalog_path: Path | str | None = None,
     ) -> None:
         self._masking_service = masking_service or SecretMaskingService()
+        self._rule_catalog = RuleCatalogLoader().load_dependency_rules(
+            rule_catalog_path,
+        )
 
     def collect(self, inventory: FileInventory) -> ProviderScanResult:
         result = ProviderScanResult()
@@ -423,30 +398,30 @@ class DependencyManifestProvider:
         self,
         package_name: str,
         ecosystem: Literal["python", "node"],
-    ) -> DependencyRule | None:
-        if ecosystem == "node":
-            scoped_rule = self._match_node_scoped_prefix(package_name)
-            if scoped_rule is not None:
-                return scoped_rule
-
-        rules = PYTHON_RULES if ecosystem == "python" else NODE_RULES
-        for rule_package, rule in rules.items():
-            if package_name == rule_package:
+    ) -> DependencyPackageRule | None:
+        rules = self._rules_for_ecosystem(ecosystem)
+        for rule in rules:
+            if package_name == rule.package:
                 return rule
-            if rule.match_prefix and package_name.startswith(
-                f"{rule_package}-"
+            if rule.match_prefix and self._matches_rule_prefix(
+                package_name,
+                rule.package,
             ):
                 return rule
         return None
 
-    def _match_node_scoped_prefix(
+    def _rules_for_ecosystem(
         self,
-        package_name: str,
-    ) -> DependencyRule | None:
-        for package_prefix, rule in NODE_SCOPED_PREFIX_RULES.items():
-            if package_name.startswith(package_prefix):
-                return rule
-        return None
+        ecosystem: Literal["python", "node"],
+    ) -> tuple[DependencyPackageRule, ...]:
+        if ecosystem == "python":
+            return self._rule_catalog.python
+        return self._rule_catalog.node
+
+    def _matches_rule_prefix(self, package_name: str, prefix: str) -> bool:
+        if prefix.endswith("/"):
+            return package_name.startswith(prefix)
+        return package_name.startswith(f"{prefix}-")
 
     def _append_parse_error(
         self,

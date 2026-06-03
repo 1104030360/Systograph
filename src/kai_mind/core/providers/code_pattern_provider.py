@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from kai_mind.core.models.filesystem import FileInventory
 from kai_mind.core.models.scan import ParseIssue, ProviderScanResult, ScanFact
 from kai_mind.core.models.system_map import Evidence
-from kai_mind.core.providers.code_patterns import (
-    CODE_PATTERN_RULES,
-    SOURCE_EXTENSIONS,
-    PatternRule,
+from kai_mind.core.services.rule_catalog_loader import (
+    CodePatternRule,
+    RuleCatalogLoader,
 )
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
@@ -37,11 +37,18 @@ class CodePatternProvider:
         max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES,
         context_lines: int = DEFAULT_CONTEXT_LINES,
         max_snippet_chars: int = DEFAULT_MAX_SNIPPET_CHARS,
+        rule_catalog_path: Path | str | None = None,
     ) -> None:
         self._masking_service = masking_service or SecretMaskingService()
         self._max_file_size_bytes = max_file_size_bytes
         self._context_lines = max(0, context_lines)
         self._max_snippet_chars = max(1, max_snippet_chars)
+        self._rules = RuleCatalogLoader().load_code_pattern_rules(
+            rule_catalog_path,
+        )
+        self._source_extensions = {
+            extension for rule in self._rules for extension in rule.extensions
+        }
 
     def collect(self, inventory: FileInventory) -> ProviderScanResult:
         result = ProviderScanResult()
@@ -118,7 +125,7 @@ class CodePatternProvider:
                     match.start(),
                 )
                 path = f"line[{line_number}]"
-                value = self._masking_service.mask_text(match.group(0))
+                value = self._match_value(rule, match)
                 snippet, line_start, line_end = self._snippet_for_match(
                     lines,
                     line_number=line_number,
@@ -240,6 +247,14 @@ class CodePatternProvider:
         start = max(0, end - self._max_snippet_chars)
         return text[start:end]
 
+    def _match_value(
+        self,
+        rule: CodePatternRule,
+        match: re.Match[str],
+    ) -> str:
+        group = match.group(rule.snippet_group or 0)
+        return self._masking_service.mask_text(group)
+
     def _line_start_offsets(self, text: str) -> list[int]:
         starts = [0]
         for index, character in enumerate(text):
@@ -259,14 +274,15 @@ class CodePatternProvider:
             line_number = index
         return line_number
 
-    def _rules_for_path(self, relative_path: str) -> tuple[PatternRule, ...]:
+    def _rules_for_path(
+        self,
+        relative_path: str,
+    ) -> tuple[CodePatternRule, ...]:
         suffix = Path(relative_path).suffix.lower()
-        return tuple(
-            rule for rule in CODE_PATTERN_RULES if suffix in rule.extensions
-        )
+        return tuple(rule for rule in self._rules if suffix in rule.extensions)
 
     def _is_source_path(self, relative_path: str) -> bool:
-        return Path(relative_path).suffix.lower() in SOURCE_EXTENSIONS
+        return Path(relative_path).suffix.lower() in self._source_extensions
 
     def _resolve_inventory_path(
         self,

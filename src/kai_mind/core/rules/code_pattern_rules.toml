@@ -1,0 +1,79 @@
+[[patterns]]
+rule_id = "code_pattern_embedding_openai"
+kind = "embedding"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bOpenAIEmbeddings\\s*\\("
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_embedding_openai_sdk_create"
+kind = "embedding"
+languages = ["python", "javascript", "typescript"]
+extensions = [".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]
+regex = "\\b(?:[A-Za-z_][A-Za-z0-9_]*\\.)?embeddings\\.create\\s*\\("
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_vector_store_qdrant"
+kind = "vector_store_client"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bQdrantClient\\s*\\("
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_vector_store_chroma"
+kind = "vector_store_client"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bChroma\\s*\\("
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_retriever_as_retriever"
+kind = "retriever"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\.as_retriever\\s*\\("
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_prompt_template"
+kind = "prompt_template"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bPromptTemplate\\b"
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_llm_chat_openai"
+kind = "llm_call"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bChatOpenAI\\b"
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_route_fastapi"
+kind = "route_endpoint"
+languages = ["python"]
+extensions = [".py"]
+regex = "@(?:[A-Za-z_][A-Za-z0-9_]*\\.)(?:get|post|put|delete|patch|options|head)\\s*\\(\\s*['\\\"][^'\\\"]+['\\\"]"
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_route_flask"
+kind = "route_endpoint"
+languages = ["python"]
+extensions = [".py"]
+regex = "@(?:[A-Za-z_][A-Za-z0-9_]*\\.)route\\s*\\(\\s*['\\\"][^'\\\"]+['\\\"]"
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_route_express"
+kind = "route_endpoint"
+languages = ["javascript", "typescript"]
+extensions = [".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]
+regex = "\\b(?:app|router)\\.(?:get|post|put|delete|patch|options|head)\\s*\\(\\s*['\\\"][^'\\\"]+['\\\"]"
+snippet_group = ""

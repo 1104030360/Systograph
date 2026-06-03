@@ -232,6 +232,52 @@ def test_collect_detects_scoped_langchain_package_json_dependencies(
     }
 
 
+def test_collect_uses_injected_dependency_rule_catalog(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    catalog_path = tmp_path / "dependency_manifest_rules.toml"
+    catalog_path.write_text(
+        "\n".join(
+            [
+                "[[python]]",
+                'package = "custom-rag"',
+                'rule_id = "dependency_custom_rag_detected"',
+                "match_prefix = false",
+                "",
+                "[[node]]",
+                'package = "custom-node-rag"',
+                'rule_id = "dependency_custom_node_rag_detected"',
+                "match_prefix = false",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (project_root / "requirements.txt").write_text(
+        "custom-rag==1.0.0\nopenai==1.59.7\n",
+        encoding="utf-8",
+    )
+    (project_root / "package.json").write_text(
+        '{"dependencies": {"custom-node-rag": "1.0.0", "openai": "4.0.0"}}',
+        encoding="utf-8",
+    )
+    inventory = build_inventory(
+        project_root,
+        "requirements.txt",
+        "package.json",
+    )
+
+    result = DependencyManifestProvider(
+        rule_catalog_path=catalog_path,
+    ).collect(inventory)
+
+    assert {fact.rule_id for fact in result.facts} == {
+        "dependency_custom_rag_detected",
+        "dependency_custom_node_rag_detected",
+    }
+    assert "openai" not in {fact.value for fact in result.facts}
+
+
 def test_collect_keeps_other_manifests_when_one_manifest_is_malformed(
     tmp_path: Path,
 ) -> None:

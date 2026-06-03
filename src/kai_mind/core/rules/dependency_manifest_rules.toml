@@ -1,0 +1,49 @@
+[[python]]
+package = "langchain"
+rule_id = "dependency_rag_framework_langchain"
+match_prefix = true
+
+[[python]]
+package = "llama-index"
+rule_id = "dependency_rag_framework_llama_index"
+match_prefix = true
+
+[[python]]
+package = "openai"
+rule_id = "dependency_external_llm_embedding_openai"
+match_prefix = false
+
+[[python]]
+package = "qdrant-client"
+rule_id = "dependency_vector_store_client_qdrant"
+match_prefix = false
+
+[[python]]
+package = "chromadb"
+rule_id = "dependency_vector_store_client_chromadb"
+match_prefix = false
+
+[[python]]
+package = "ollama"
+rule_id = "dependency_local_llm_provider_ollama"
+match_prefix = false
+
+[[node]]
+package = "langchain"
+rule_id = "dependency_rag_framework_langchain"
+match_prefix = false
+
+[[node]]
+package = "llama-index"
+rule_id = "dependency_rag_framework_llama_index"
+match_prefix = false
+
+[[node]]
+package = "openai"
+rule_id = "dependency_external_llm_embedding_openai"
+match_prefix = false
+
+[[node]]
+package = "@langchain/"
+rule_id = "dependency_rag_framework_langchain"
+match_prefix = true

@@ -103,6 +103,53 @@ def test_collect_emits_service_image_and_published_port_evidence(
     assert evidence_by_path["services.qdrant.ports[0]"].value == "6333:6333"
 
 
+def test_collect_uses_injected_docker_image_rule_catalog(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    catalog_path = tmp_path / "docker_image_rules.toml"
+    catalog_path.write_text(
+        "\n".join(
+            [
+                "[[images]]",
+                'repository = "custom/vector"',
+                'rule_id = "docker_custom_vector_image_detected"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (project_root / "docker-compose.yml").write_text(
+        "\n".join(
+            [
+                "services:",
+                "  vector:",
+                "    image: custom/vector:1.0.0",
+                "  qdrant:",
+                "    image: qdrant/qdrant:v1.12.1",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "docker-compose.yml")
+
+    result = DockerComposeProvider(
+        image_rule_catalog_path=catalog_path,
+    ).collect(inventory)
+
+    fact_by_path = {fact.path: fact for fact in result.facts}
+    assert (
+        fact_by_path["services.vector.image"].rule_id
+        == "docker_custom_vector_image_detected"
+    )
+    assert (
+        fact_by_path["services.qdrant.image"].rule_id
+        == "docker_service_image_detected"
+    )
+
+
 def test_collect_normalizes_long_syntax_ports(
     tmp_path: Path,
 ) -> None:

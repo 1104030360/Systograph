@@ -1,0 +1,11 @@
+[[images]]
+repository = "qdrant/qdrant"
+rule_id = "docker_qdrant_image_detected"
+
+[[images]]
+repository = "ollama/ollama"
+rule_id = "docker_ollama_image_detected"
+
+[[images]]
+repository = "pgvector/pgvector"
+rule_id = "docker_pgvector_image_detected"
