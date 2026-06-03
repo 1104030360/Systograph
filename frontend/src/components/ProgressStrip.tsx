@@ -28,7 +28,14 @@ export function ProgressStrip({ targets, activeIndex, isRunning, mode, liveEvent
       <div className="progress-meter" aria-label="scan progress">
         <span style={{ width: `${percent}%` }} />
       </div>
-      <button className="icon-button primary" type="button" onClick={() => onRunningChange(!isRunning)} title={isRunning ? "Pause progress" : "Play progress"}>
+      <button
+        className="icon-button primary"
+        type="button"
+        aria-pressed={isRunning}
+        aria-label={isRunning ? "Pause progress" : "Play progress"}
+        onClick={() => onRunningChange(!isRunning)}
+        title={isRunning ? "Pause progress" : "Play progress"}
+      >
         {isRunning ? <Pause size={15} /> : <Play size={15} />}
       </button>
     </div>

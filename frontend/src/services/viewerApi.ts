@@ -56,7 +56,7 @@ export function parseScanProgressEvent(rawData: string): ScanProgressEvent | nul
     return {
       event: "invalid_event",
       status: "warning",
-      message: rawData,
+      message: "Received an unrecognized scan progress event.",
     };
   }
 }

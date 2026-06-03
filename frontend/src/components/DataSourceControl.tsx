@@ -15,10 +15,20 @@ export function DataSourceControl({ mode, apiBaseUrl, isLoading, error, onModeCh
   return (
     <div className="source-control">
       <div className="segmented-control compact">
-        <button className={mode === "sample" ? "is-active" : ""} type="button" onClick={() => onModeChange("sample")}>
+        <button
+          className={mode === "sample" ? "is-active" : ""}
+          aria-pressed={mode === "sample"}
+          type="button"
+          onClick={() => onModeChange("sample")}
+        >
           Sample
         </button>
-        <button className={mode === "api" ? "is-active" : ""} type="button" onClick={() => onModeChange("api")}>
+        <button
+          className={mode === "api" ? "is-active" : ""}
+          aria-pressed={mode === "api"}
+          type="button"
+          onClick={() => onModeChange("api")}
+        >
           API
         </button>
       </div>

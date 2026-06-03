@@ -3,13 +3,17 @@ import type { GraphViewModel } from "../types";
 
 type Props = {
   graph: GraphViewModel;
+  scanDepth?: string;
   activeFilterIds: string[];
   onToggleFilter: (id: string) => void;
   onClearFilters: () => void;
 };
 
-export function Sidebar({ graph, activeFilterIds, onToggleFilter, onClearFilters }: Props) {
+const DEPTH_ORDER = ["system", "component", "code_path"];
+
+export function Sidebar({ graph, scanDepth, activeFilterIds, onToggleFilter, onClearFilters }: Props) {
   const summary = graph.summary ?? {};
+  const reachedDepth = scanDepth ? DEPTH_ORDER.indexOf(scanDepth) : -1;
 
   return (
     <aside className="sidebar">
@@ -38,6 +42,7 @@ export function Sidebar({ graph, activeFilterIds, onToggleFilter, onClearFilters
               className={activeFilterIds.includes(filter.id) ? "filter-pill is-active" : "filter-pill"}
               key={filter.id}
               type="button"
+              aria-pressed={activeFilterIds.includes(filter.id)}
               onClick={() => onToggleFilter(filter.id)}
             >
               <span className={`filter-dot ${filter.kind}`} />
@@ -50,9 +55,9 @@ export function Sidebar({ graph, activeFilterIds, onToggleFilter, onClearFilters
       <section className="sidebar-section">
         <div className="section-label">Depth</div>
         <div className="depth-stack">
-          <span className="depth-item is-ready">L1 System</span>
-          <span className="depth-item">L2 Component</span>
-          <span className="depth-item">L3 Code Path</span>
+          <span className={reachedDepth >= 0 ? "depth-item is-ready" : "depth-item"}>L1 System</span>
+          <span className={reachedDepth >= 1 ? "depth-item is-ready" : "depth-item"}>L2 Component</span>
+          <span className={reachedDepth >= 2 ? "depth-item is-ready" : "depth-item"}>L3 Code Path</span>
         </div>
       </section>
     </aside>

@@ -27,6 +27,21 @@ export const graphEdgeSchema = z.object({
   risk_hint_ids: stringArray,
 });
 
+export const evidenceDetailSchema = z
+  .object({
+    title: z.string().optional(),
+    file: z.string().optional(),
+    path: z.string().optional(),
+  })
+  .passthrough();
+
+export const riskHintDetailSchema = z
+  .object({
+    title: z.string().optional(),
+    severity: z.string().optional(),
+  })
+  .passthrough();
+
 export const graphFilterSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -43,8 +58,8 @@ export const graphViewModelSchema = z.object({
   nodes: z.array(graphNodeSchema),
   edges: z.array(graphEdgeSchema),
   details: z.object({
-    evidence_by_id: z.record(z.record(z.unknown())).default({}),
-    risk_hints_by_id: z.record(z.record(z.unknown())).default({}),
+    evidence_by_id: z.record(evidenceDetailSchema).default({}),
+    risk_hints_by_id: z.record(riskHintDetailSchema).default({}),
   }),
   filters: z.object({
     available: z.array(graphFilterSchema).default([]),
@@ -107,21 +122,26 @@ export type Selection =
   | { kind: "trace"; id: string }
   | null;
 
-export type TraceEvent = {
-  id?: string;
-  trace_id?: string;
-  sequence_index?: number;
-  replay_depth?: string;
-  slot?: string | null;
-  component_id?: string | null;
-  unmapped_component_id?: string | null;
-  edge_id?: string | null;
-  step_type?: string;
-  latency_ms?: number;
-  error?: { code?: string; message?: string } | null;
-  input?: Record<string, unknown>;
-  output?: Record<string, unknown>;
-};
+export const traceEventSchema = z.object({
+  id: z.string().optional(),
+  trace_id: z.string().optional(),
+  sequence_index: z.number().optional(),
+  replay_depth: z.string().optional(),
+  slot: z.string().nullable().optional(),
+  component_id: z.string().nullable().optional(),
+  unmapped_component_id: z.string().nullable().optional(),
+  edge_id: z.string().nullable().optional(),
+  step_type: z.string().optional(),
+  latency_ms: z.number().optional(),
+  error: z
+    .object({ code: z.string().optional(), message: z.string().optional() })
+    .nullable()
+    .optional(),
+  input: z.record(z.unknown()).optional(),
+  output: z.record(z.unknown()).optional(),
+});
+
+export type TraceEvent = z.infer<typeof traceEventSchema>;
 
 export type ScanTarget = {
   id: string;

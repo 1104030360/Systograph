@@ -20,9 +20,9 @@ export function ChatPanel() {
           <Bot size={16} />
           <p>When the backend exposes model chat, selected nodes and scan context can be sent here.</p>
         </div>
-        <div className="chat-message user">
+        <div className="chat-message assistant">
           <MessageCircle size={16} />
-          <p>Ask why this node was detected, which files support it, or what to inspect next.</p>
+          <p>For example, you will be able to ask why a node was detected, which files support it, or what to inspect next.</p>
         </div>
       </div>
 

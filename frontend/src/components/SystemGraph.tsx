@@ -21,6 +21,9 @@ import { SystemNode } from "./SystemNode";
 const NODE_WIDTH = 230;
 const NODE_HEIGHT = 96;
 const MIN_FOLLOW_ZOOM = 0.62;
+const prefersReducedMotion =
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const ANIMATION_DURATION = prefersReducedMotion ? 0 : 320;
 
 const nodeTypes = {
   systemNode: SystemNode,
@@ -66,22 +69,24 @@ function OrderedEdge({
   return (
     <>
       <BaseEdge id={id} markerEnd={markerEnd} path={edgePath} style={style} />
-      <EdgeLabelRenderer>
-        <div
-          className={[
-            "edge-label-pill",
-            data?.isFocused ? "is-focused" : "",
-            data?.isDimmed ? "is-dimmed" : "",
-            data?.labelSide === "below" ? "is-below" : "",
-          ].join(" ")}
-          style={{
-            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-          }}
-          title={data?.label ?? data?.relationship ?? "flow"}
-        >
-          {label}
-        </div>
-      </EdgeLabelRenderer>
+      {label ? (
+        <EdgeLabelRenderer>
+          <div
+            className={[
+              "edge-label-pill",
+              data?.isFocused ? "is-focused" : "",
+              data?.isDimmed ? "is-dimmed" : "",
+              data?.labelSide === "below" ? "is-below" : "",
+            ].join(" ")}
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+            title={data?.label ?? data?.relationship ?? "flow"}
+          >
+            {label}
+          </div>
+        </EdgeLabelRenderer>
+      ) : null}
     </>
   );
 }
@@ -205,9 +210,30 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
   }, [graph, graphStructureKey, reactFlow]);
 
   useEffect(() => {
-    setNodes(rawElements.nodes.map((node) => ({ ...node, position: positions[node.id] ?? node.position })));
-    setEdges(rawElements.edges);
+    const hasPositions = Object.keys(positions).length > 0;
+    setNodes(
+      rawElements.nodes.map((node) => ({
+        ...node,
+        position: positions[node.id] ?? node.position,
+        hidden: !positions[node.id],
+      })),
+    );
+    // Withhold edges until nodes are positioned so they don't briefly route through (0,0).
+    setEdges(hasPositions ? rawElements.edges : []);
   }, [positions, rawElements]);
+
+  const translateExtent = useMemo<[[number, number], [number, number]] | undefined>(() => {
+    const points = Object.values(positions);
+    if (points.length === 0) return undefined;
+
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
+    const padding = 600;
+    return [
+      [Math.min(...xs) - padding, Math.min(...ys) - padding],
+      [Math.max(...xs) + NODE_WIDTH + padding, Math.max(...ys) + NODE_HEIGHT + padding],
+    ];
+  }, [positions]);
 
   function handleNodesChange(changes: NodeChange[]) {
     setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
@@ -226,7 +252,7 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
 
     lastFitGraphKey.current = graphStructureKey;
     window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => reactFlow.fitView({ padding: 0.22, duration: 320 }));
+      window.requestAnimationFrame(() => reactFlow.fitView({ padding: 0.22, duration: ANIMATION_DURATION }));
     });
   }, [followFocus, graph.nodes.length, graphStructureKey, nodes.length, positions, reactFlow]);
 
@@ -249,7 +275,7 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         reactFlow.setCenter(focusPosition.x + nodeWidth / 2, focusPosition.y + nodeHeight / 2, {
-          duration: 320,
+          duration: ANIMATION_DURATION,
           zoom: Math.max(reactFlow.getZoom(), MIN_FOLLOW_ZOOM),
         });
       });
@@ -265,10 +291,7 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
       defaultViewport={{ x: 42, y: 132, zoom: 0.68 }}
       minZoom={0.32}
       maxZoom={1.45}
-      translateExtent={[
-        [-420, -320],
-        [2200, 1400],
-      ]}
+      translateExtent={translateExtent}
       nodesDraggable
       onNodesChange={handleNodesChange}
       onNodeDragStop={handleNodeDragStop}

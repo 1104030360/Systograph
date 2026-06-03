@@ -7,11 +7,19 @@ import { ProgressStrip } from "./components/ProgressStrip";
 import { ReplayTimeline } from "./components/ReplayTimeline";
 import { Sidebar } from "./components/Sidebar";
 import { SystemGraph } from "./components/SystemGraph";
-import { getTraceEvents, graphViewModel, viewerPayload as sampleViewerPayload } from "./data/sampleMap";
+import { getTraceEvents, viewerPayload as sampleViewerPayload } from "./data/sampleMap";
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useViewerPayload } from "./hooks/useViewerPayload";
 import { useViewerStore } from "./store/viewerStore";
+import type { GraphViewModel } from "./types";
 import { createProgressTargets, resolveProgressTargetId } from "./utils/graph";
+
+const EMPTY_GRAPH: GraphViewModel = {
+  nodes: [],
+  edges: [],
+  details: { evidence_by_id: {}, risk_hints_by_id: {} },
+  filters: { available: [] },
+};
 
 export default function App() {
   const dataSourceMode = useViewerStore((state) => state.dataSourceMode);
@@ -19,9 +27,9 @@ export default function App() {
   const setDataSourceMode = useViewerStore((state) => state.setDataSourceMode);
   const setApiBaseUrl = useViewerStore((state) => state.setApiBaseUrl);
   const payloadQuery = useViewerPayload(dataSourceMode, apiBaseUrl);
-  const payload = payloadQuery.data ?? sampleViewerPayload;
-  const graph = payload.viewer_load_result.graph_view_model ?? graphViewModel;
-  const traceEvents = useMemo(() => getTraceEvents(payload), [payload]);
+  const payload = payloadQuery.data ?? (dataSourceMode === "sample" ? sampleViewerPayload : undefined);
+  const graph = payload?.viewer_load_result.graph_view_model ?? EMPTY_GRAPH;
+  const traceEvents = useMemo(() => (payload ? getTraceEvents(payload) : []), [payload]);
   const progressTargets = useMemo(() => createProgressTargets(graph), [graph]);
   const selected = useViewerStore((state) => state.selected);
   const activeFilterIds = useViewerStore((state) => state.activeFilterIds);
@@ -49,6 +57,7 @@ export default function App() {
   const progressTargetId = liveProgressTargetId ?? progressTarget?.id;
   const sourceError = payloadQuery.error instanceof Error ? payloadQuery.error.message : undefined;
   const scanError = liveProgressEvent?.event === "sse_error" ? liveProgressEvent.message : undefined;
+  const isApiUnavailable = dataSourceMode === "api" && !payloadQuery.data;
 
   const handleScanEvent = useCallback(
     (event: typeof liveProgressEvent) => {
@@ -79,22 +88,26 @@ export default function App() {
   useEffect(() => {
     if (!isReplayRunning || traceEvents.length === 0) return;
 
+    // Read the latest index from the store inside the tick so the interval is set up
+    // once per run instead of being torn down and recreated on every index change.
     const timer = window.setInterval(() => {
-      setActiveTraceIndex((activeTraceIndex + 1) % traceEvents.length);
+      const current = useViewerStore.getState().activeTraceIndex;
+      setActiveTraceIndex((current + 1) % traceEvents.length);
     }, 1100);
 
     return () => window.clearInterval(timer);
-  }, [activeTraceIndex, isReplayRunning, setActiveTraceIndex, traceEvents.length]);
+  }, [isReplayRunning, setActiveTraceIndex, traceEvents.length]);
 
   useEffect(() => {
     if (!isProgressRunning || progressTargets.length === 0 || (dataSourceMode === "api" && liveProgressEvent?.event !== "sse_error")) return;
 
     const timer = window.setInterval(() => {
-      setProgressIndex((progressIndex + 1) % progressTargets.length);
+      const current = useViewerStore.getState().progressIndex;
+      setProgressIndex((current + 1) % progressTargets.length);
     }, 850);
 
     return () => window.clearInterval(timer);
-  }, [dataSourceMode, isProgressRunning, liveProgressEvent?.event, progressIndex, progressTargets.length, setProgressIndex]);
+  }, [dataSourceMode, isProgressRunning, liveProgressEvent?.event, progressTargets.length, setProgressIndex]);
 
   useEffect(() => {
     if (activeTraceIndex >= traceEvents.length) {
@@ -104,7 +117,13 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <Sidebar graph={graph} activeFilterIds={activeFilterIds} onToggleFilter={toggleFilter} onClearFilters={clearFilters} />
+      <Sidebar
+        graph={graph}
+        scanDepth={payload ? String(payload.viewer_load_result.ai_system_map.scan_depth ?? "system") : undefined}
+        activeFilterIds={activeFilterIds}
+        onToggleFilter={toggleFilter}
+        onClearFilters={clearFilters}
+      />
 
       <section className="workspace">
         <header className="toolbar">
@@ -126,7 +145,7 @@ export default function App() {
             </span>
             <span>
               <Database size={15} />
-              {String(payload.viewer_load_result.ai_system_map.scan_depth ?? "system")}
+              {String(payload?.viewer_load_result.ai_system_map.scan_depth ?? "system")}
             </span>
           </div>
           <DataSourceControl
@@ -141,6 +160,7 @@ export default function App() {
           <button
             className={followFocus ? "toolbar-button follow-button is-active" : "toolbar-button follow-button"}
             type="button"
+            aria-pressed={followFocus}
             onClick={() => setFollowFocus(!followFocus)}
             title={followFocus ? "Disable follow focus" : "Enable follow focus"}
           >
@@ -161,6 +181,16 @@ export default function App() {
             liveEvent={liveProgressEvent}
             onRunningChange={setProgressRunning}
           />
+          {isApiUnavailable ? (
+            <div className="graph-status-overlay">
+              <strong>{payloadQuery.isError ? "API unavailable" : "Loading from API…"}</strong>
+              <p>
+                {payloadQuery.isError
+                  ? `Could not load the viewer payload from ${apiBaseUrl}.${sourceError ? ` ${sourceError}.` : ""} Sample data is not shown while in API mode.`
+                  : "Waiting for the local Python API to respond."}
+              </p>
+            </div>
+          ) : null}
           <SystemGraph
             graph={graph}
             activeFilterIds={activeFilterIds}
@@ -182,14 +212,16 @@ export default function App() {
       </section>
 
       <ChatPanel />
-      <DetailPanel
-        graph={graph}
-        payload={payload}
-        selected={selected}
-        detailMode={detailMode}
-        onDetailModeChange={setDetailMode}
-        onClose={() => setSelected(null)}
-      />
+      {payload ? (
+        <DetailPanel
+          graph={graph}
+          payload={payload}
+          selected={selected}
+          detailMode={detailMode}
+          onDetailModeChange={setDetailMode}
+          onClose={() => setSelected(null)}
+        />
+      ) : null}
     </main>
   );
 }
