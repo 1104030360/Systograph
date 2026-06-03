@@ -148,6 +148,44 @@ def test_collect_emits_javascript_and_typescript_route_facts(
     assert facts_by_file["server.js"].value == "router.get('/health'"
 
 
+def test_collect_uses_injected_code_pattern_rule_catalog(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    catalog_path = tmp_path / "code_pattern_rules.toml"
+    catalog_path.write_text(
+        "\n".join(
+            [
+                "[[patterns]]",
+                'rule_id = "code_pattern_custom_retriever"',
+                'kind = "retriever"',
+                'languages = ["python"]',
+                'extensions = [".py"]',
+                'regex = "\\\\bCustomRetriever\\\\s*\\\\("',
+                'snippet_group = ""',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (project_root / "app.py").write_text(
+        "client = QdrantClient(url='http://localhost:6333')\n"
+        "retriever = CustomRetriever()\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "app.py")
+
+    result = CodePatternProvider(
+        rule_catalog_path=catalog_path,
+    ).collect(inventory)
+
+    assert {fact.rule_id for fact in result.facts} == {
+        "code_pattern_custom_retriever"
+    }
+    assert result.facts[0].value == "CustomRetriever("
+
+
 def test_collect_masks_secret_values_in_snippets(
     tmp_path: Path,
 ) -> None:

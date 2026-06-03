@@ -12,6 +12,7 @@ import yaml  # type: ignore[import-untyped]
 from kai_mind.core.models.filesystem import FileInventory
 from kai_mind.core.models.scan import ParseIssue, ProviderScanResult, ScanFact
 from kai_mind.core.models.system_map import Evidence
+from kai_mind.core.services.rule_catalog_loader import RuleCatalogLoader
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
 DOCKER_COMPOSE_PARSE_STAGE: Literal["docker_compose_parse"] = (
@@ -27,9 +28,6 @@ DOCKER_ENV_FILE_KIND = "docker_env_file"
 DOCKER_VOLUME_KIND = "docker_volume"
 DOCKER_DEPENDS_ON_KIND = "docker_depends_on"
 GENERIC_IMAGE_RULE_ID = "docker_service_image_detected"
-QDRANT_IMAGE_RULE_ID = "docker_qdrant_image_detected"
-OLLAMA_IMAGE_RULE_ID = "docker_ollama_image_detected"
-PGVECTOR_IMAGE_RULE_ID = "docker_pgvector_image_detected"
 PUBLISHED_PORT_RULE_ID = "docker_published_port_detected"
 ENVIRONMENT_RULE_ID = "docker_environment_detected"
 ENV_FILE_RULE_ID = "docker_env_file_detected"
@@ -60,8 +58,15 @@ class DockerComposeProvider:
         self,
         *,
         masking_service: SecretMaskingService | None = None,
+        image_rule_catalog_path: Path | str | None = None,
     ) -> None:
         self._masking_service = masking_service or SecretMaskingService()
+        image_rules = RuleCatalogLoader().load_docker_image_rules(
+            image_rule_catalog_path,
+        )
+        self._image_rule_ids = {
+            rule.repository: rule.rule_id for rule in image_rules
+        }
 
     def collect(self, inventory: FileInventory) -> ProviderScanResult:
         result = ProviderScanResult()
@@ -405,13 +410,7 @@ class DockerComposeProvider:
     def _image_rule_id(self, image: str) -> str:
         normalized = image.lower().split("@", maxsplit=1)[0]
         repository = normalized.split(":", maxsplit=1)[0]
-        if repository == "qdrant/qdrant":
-            return QDRANT_IMAGE_RULE_ID
-        if repository == "ollama/ollama":
-            return OLLAMA_IMAGE_RULE_ID
-        if repository == "pgvector/pgvector":
-            return PGVECTOR_IMAGE_RULE_ID
-        return GENERIC_IMAGE_RULE_ID
+        return self._image_rule_ids.get(repository, GENERIC_IMAGE_RULE_ID)
 
     def _render_ordered_mapping(
         self,
