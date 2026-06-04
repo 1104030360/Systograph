@@ -115,6 +115,7 @@ class SystemMapValidationService:
                 self._reject_unmasked_secrets(
                     child,
                     f"{path}[{index}]",
+                    key_context=key_context,
                 )
 
     def _contains_unmasked_secret(

@@ -78,6 +78,25 @@ def test_rejects_unmasked_structured_secret_value(
         SystemMapValidationService().validate(data)
 
 
+def test_rejects_unmasked_secret_keyed_list_value(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["query_trace_events"].append(
+        {
+            "id": "trace_event:secret-keyed-list",
+            "sequence_index": 0,
+            "timestamp": "2026-06-04T00:00:00Z",
+            "input": {
+                "api_key": ["ordinary-looking-secret"],
+            },
+        }
+    )
+
+    with pytest.raises(SystemMapValidationError, match="Unmasked secret"):
+        SystemMapValidationService().validate(data)
+
+
 def test_rejects_windows_absolute_evidence_path(
     minimal_map: dict[str, Any],
 ) -> None:
