@@ -52,6 +52,42 @@ System map 不只是元件清單，還要能讓使用者看到元件關係與 re
 - 不要自行升級 severity 成 final verdict。
 - 參考依據：Docker Compose services docs 的 `ports`/`environment`；OpenInference/OpenTelemetry GenAI docs 可作 replay/step vocabulary 與 sensitive IO 注意事項。
 
+## Chroma endpoint 與 local persistence 補強
+
+這段補強屬於 Task 14，不放在 Task 13。Task 13 只負責判斷 `vector_store` 是否可由 evidence 映射成 detected component；Task 14 才負責把 Chroma HTTP/server config 轉成 endpoint，或把 local persistence 轉成 release-readiness risk hint。
+
+來源：
+- https://docs.trychroma.com/reference/python/client
+- https://docs.trychroma.com/docs/run-chroma/clients
+- https://docs.trychroma.com/reference/server-env-vars
+- https://cookbook.chromadb.dev/core/storage-layout/
+
+Task 14 應處理：
+- `chromadb.HttpClient(host=..., port=...)` / `chromadb.AsyncHttpClient(...)` 的 code evidence 若包含可安全解析的 literal host/port，可推導 Chroma external/local endpoint。
+- `.env` / config 出現 `CHROMA_HOST`、`CHROMA_ENDPOINT`、`CHROMA_API_KEY`、`CHROMA_TENANT`、`CHROMA_DATABASE`，且 Task 13 已確認 Chroma component 時，可推導 external provider / cloud vector store endpoint hint；secret-like values 只能使用 masked evidence。
+- Docker / server config 出現 `CHROMA_PORT`、`CHROMA_LISTEN_ADDRESS`、`CHROMA_PERSIST_PATH`，只有在 Docker image 或 Chroma server context 明確時，才推導 server endpoint 或 persistence hint。
+- `chromadb.PersistentClient(path=...)` 或 Chroma storage path evidence 可產生 local persistence risk hint，但 wording 必須保守：這是「local vector store data exists / may require privacy, backup, and cleanup review」，不是直接宣告不安全。
+
+不應處理：
+- 不呼叫 `heartbeat()`。
+- 不送 HTTP request 驗證 Chroma server 是否在線。
+- 不查 `docker ps`。
+- 不因為看到 `CHROMA_*` 單一 key 就產生 final risk verdict。
+
+建議 risk hint：
+
+| Rule id | 觸發條件 | Target | Rationale | Uncertainty |
+|---|---|---|---|---|
+| `chroma_http_endpoint_detected` | Task 13 已確認 Chroma component，且有 HTTP host/port/endpoint evidence | endpoint 或 component_instance | Chroma vector store appears to be accessed over HTTP/server mode | Static scan does not verify runtime reachability |
+| `chroma_local_persistence_detected` | `PersistentClient(path=...)` 或明確 local Chroma persist path | component_instance 或 file | Local Chroma persistence may store embeddings, metadata, or documents on disk | Static scan does not inspect stored data contents |
+| `chroma_server_published_port` | Docker Chroma service published port | component_instance / endpoint | Published Chroma port may expose vector store service beyond localhost | Compose port binding does not prove firewall or runtime exposure |
+
+測試補強：
+- `HttpClient(host="localhost", port=8000)` 產生 endpoint，並引用 valid evidence。
+- `PersistentClient(path="./chroma")` 產生 local persistence risk hint，且不產生 external endpoint。
+- Docker `chromadb/chroma` + `ports: ["8000:8000"]` 產生 endpoint / network exposure hint。
+- `CHROMA_API_KEY` 或 cloud env evidence 不得輸出完整 secret value。
+
 ## 新手提示
 Risk hint 是「提醒你可能有風險」，不是正式安全掃描結論。Epic 1 只提供 evidence-based hint。
 
