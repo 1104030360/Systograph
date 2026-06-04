@@ -1,0 +1,83 @@
+[[risk_hints]]
+rule_id = "docker_published_port_exposure"
+type = "network_exposure"
+default_severity_hint = "medium"
+rationale = "Docker published port may expose a service endpoint beyond the container network."
+uncertainty = "Compose port binding does not prove firewall, runtime reachability, or public network exposure."
+
+[[risk_hints]]
+rule_id = "external_provider_detected"
+type = "external_provider"
+default_severity_hint = "medium"
+rationale = "External provider endpoint detected; review data egress, retention, and provider configuration."
+uncertainty = "Static scan identifies provider configuration but does not observe actual runtime requests or payload contents."
+
+[[risk_hints]]
+rule_id = "config_parse_error"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "A configuration or manifest parse error may make the system map incomplete."
+uncertainty = "Static scan can only derive facts from files that parsed successfully."
+
+[[risk_hints]]
+rule_id = "docker_compose_parse_error"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "A Docker Compose parse error may make service, port, environment, volume, or dependency evidence incomplete."
+uncertainty = "Static scan can only derive Docker deployment facts from Compose files that parsed successfully."
+
+[[risk_hints]]
+rule_id = "dependency_manifest_parse_error"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "A dependency manifest parse error may make package-based component evidence incomplete."
+uncertainty = "Static scan can only derive dependency facts from manifests that parsed successfully."
+
+[[risk_hints]]
+rule_id = "code_pattern_read_error"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "A source file read error may make code-pattern component or endpoint evidence incomplete."
+uncertainty = "Static scan can only derive code facts from source files that were readable during the scan."
+
+[[risk_hints]]
+rule_id = "project_scan_provider_failed"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "A scanner provider failed during project scan, so the derived system map may be incomplete."
+uncertainty = "Static scan could not use facts from the failed provider; failure details may depend on the local filesystem and runtime environment."
+
+[[risk_hints]]
+rule_id = "secret_like_config_key_detected"
+type = "secret_config"
+default_severity_hint = "medium"
+rationale = "Secret-like configuration key detected; ensure masking, storage, and access controls are reviewed."
+uncertainty = "Key name is a heuristic and does not prove whether the value is a live credential."
+
+[[risk_hints]]
+rule_id = "missing_required_slot"
+type = "missing_component"
+default_severity_hint = "medium"
+rationale = "Required rag-core-v1 slot was not detected in the available evidence."
+uncertainty = "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it."
+
+[[risk_hints]]
+rule_id = "chroma_http_endpoint_detected"
+type = "vector_store_endpoint"
+default_severity_hint = "low"
+rationale = "Chroma vector store appears to be accessed over HTTP/server mode."
+uncertainty = "Static scan does not verify runtime reachability."
+
+[[risk_hints]]
+rule_id = "chroma_local_persistence_detected"
+type = "local_persistence"
+default_severity_hint = "medium"
+rationale = "Local Chroma persistence may store embeddings, metadata, or documents on disk."
+uncertainty = "Static scan does not inspect stored data contents or local filesystem permissions."
+
+[[risk_hints]]
+rule_id = "chroma_server_published_port"
+type = "vector_store_network_exposure"
+default_severity_hint = "medium"
+rationale = "Published Chroma port may expose vector store service beyond localhost."
+uncertainty = "Compose port binding does not prove firewall or runtime exposure."

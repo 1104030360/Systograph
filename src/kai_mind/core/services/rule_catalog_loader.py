@@ -14,6 +14,7 @@ RULE_PACKAGE = "kai_mind.core.rules"
 DEPENDENCY_RULE_CATALOG = "dependency_manifest_rules.toml"
 DOCKER_IMAGE_RULE_CATALOG = "docker_image_rules.toml"
 CODE_PATTERN_RULE_CATALOG = "code_pattern_rules.toml"
+RISK_HINT_RULE_CATALOG = "risk_hint_rules.toml"
 
 
 class RuleCatalogError(ValueError):
@@ -58,6 +59,17 @@ class CodePatternRule:
     snippet_group: str
 
 
+@dataclass(frozen=True)
+class RiskHintRuleMetadata:
+    """Metadata for one emitted risk hint rule."""
+
+    rule_id: str
+    type: str
+    default_severity_hint: str
+    rationale: str
+    uncertainty: str
+
+
 class RuleCatalogLoader:
     """Load and validate deterministic provider rule catalogs."""
 
@@ -69,6 +81,11 @@ class RuleCatalogLoader:
 
     def load_default_code_pattern_rules(self) -> tuple[CodePatternRule, ...]:
         return self.load_code_pattern_rules(None)
+
+    def load_default_risk_hint_rules(
+        self,
+    ) -> tuple[RiskHintRuleMetadata, ...]:
+        return self.load_risk_hint_rules(None)
 
     def load_dependency_rules(
         self,
@@ -196,6 +213,57 @@ class RuleCatalogLoader:
                     regex=regex,
                     fact_kind=fact_kind,
                     snippet_group=snippet_group,
+                )
+            )
+        return tuple(rules)
+
+    def load_risk_hint_rules(
+        self,
+        catalog_path: Path | str | None,
+    ) -> tuple[RiskHintRuleMetadata, ...]:
+        loaded = self._load_toml(
+            catalog_path,
+            default_name=RISK_HINT_RULE_CATALOG,
+        )
+        self._reject_unknown_sections(loaded, {"risk_hints"})
+        entries = self._section_list(loaded, "risk_hints")
+        rule_ids: set[str] = set()
+        rules: list[RiskHintRuleMetadata] = []
+        for index, entry in enumerate(entries):
+            section = f"risk_hints[{index}]"
+            rule_id = self._required_string(
+                entry,
+                "rule_id",
+                section=section,
+            )
+            self._reject_duplicate(
+                rule_ids,
+                rule_id,
+                label="duplicate rule_id",
+            )
+            rules.append(
+                RiskHintRuleMetadata(
+                    rule_id=rule_id,
+                    type=self._required_string(
+                        entry,
+                        "type",
+                        section=section,
+                    ),
+                    default_severity_hint=self._required_string(
+                        entry,
+                        "default_severity_hint",
+                        section=section,
+                    ),
+                    rationale=self._required_string(
+                        entry,
+                        "rationale",
+                        section=section,
+                    ),
+                    uncertainty=self._required_string(
+                        entry,
+                        "uncertainty",
+                        section=section,
+                    ),
                 )
             )
         return tuple(rules)

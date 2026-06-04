@@ -9,6 +9,24 @@ from kai_mind.core.services.rule_catalog_loader import (
     RuleCatalogLoader,
 )
 
+TASK14_RISK_RULE_IDS = {
+    "docker_published_port_exposure",
+    "external_provider_detected",
+    "config_parse_error",
+    "secret_like_config_key_detected",
+    "missing_required_slot",
+    "chroma_http_endpoint_detected",
+    "chroma_local_persistence_detected",
+    "chroma_server_published_port",
+}
+PROVIDER_PARSE_RISK_RULE_IDS = {
+    "config_parse_error",
+    "docker_compose_parse_error",
+    "dependency_manifest_parse_error",
+    "code_pattern_read_error",
+    "project_scan_provider_failed",
+}
+
 
 def write_catalog(path: Path, content: str) -> Path:
     path.write_text(content, encoding="utf-8")
@@ -224,3 +242,97 @@ def test_catalog_loader_rejects_malformed_toml(tmp_path: Path) -> None:
 
     with pytest.raises(RuleCatalogError, match="Failed to parse"):
         RuleCatalogLoader().load_dependency_rules(catalog_path)
+
+
+def test_load_risk_hint_rules_from_valid_catalog(tmp_path: Path) -> None:
+    catalog_path = write_catalog(
+        tmp_path / "risk_hint_rules.toml",
+        "\n".join(
+            [
+                "[[risk_hints]]",
+                'rule_id = "docker_published_port_exposure"',
+                'type = "network_exposure"',
+                'default_severity_hint = "medium"',
+                (
+                    'rationale = "Docker published port may expose a '
+                    'service endpoint."'
+                ),
+                (
+                    'uncertainty = "Static scan does not verify runtime '
+                    'reachability."'
+                ),
+            ]
+        )
+        + "\n",
+    )
+
+    rules = RuleCatalogLoader().load_risk_hint_rules(catalog_path)
+
+    assert rules[0].rule_id == "docker_published_port_exposure"
+    assert rules[0].type == "network_exposure"
+    assert rules[0].default_severity_hint == "medium"
+    assert "Docker published port" in rules[0].rationale
+    assert "Static scan" in rules[0].uncertainty
+
+
+def test_risk_hint_catalog_rejects_duplicate_rule_id(
+    tmp_path: Path,
+) -> None:
+    catalog_path = write_catalog(
+        tmp_path / "risk_hint_rules.toml",
+        "\n".join(
+            [
+                "[[risk_hints]]",
+                'rule_id = "external_provider_detected"',
+                'type = "external_provider"',
+                'default_severity_hint = "medium"',
+                'rationale = "External provider detected."',
+                'uncertainty = "Static scan only."',
+                "",
+                "[[risk_hints]]",
+                'rule_id = "external_provider_detected"',
+                'type = "external_provider"',
+                'default_severity_hint = "medium"',
+                'rationale = "Duplicate external provider detected."',
+                'uncertainty = "Static scan only."',
+            ]
+        )
+        + "\n",
+    )
+
+    with pytest.raises(RuleCatalogError, match="duplicate rule_id"):
+        RuleCatalogLoader().load_risk_hint_rules(catalog_path)
+
+
+@pytest.mark.parametrize("missing_field", ["rationale", "uncertainty"])
+def test_risk_hint_catalog_requires_wording_fields(
+    tmp_path: Path,
+    missing_field: str,
+) -> None:
+    fields = {
+        "rule_id": 'rule_id = "config_parse_error"',
+        "type": 'type = "partial_scan"',
+        "default_severity_hint": 'default_severity_hint = "medium"',
+        "rationale": 'rationale = "Config parse error may make map partial."',
+        "uncertainty": 'uncertainty = "Only parsed files produce facts."',
+    }
+    del fields[missing_field]
+    catalog_path = write_catalog(
+        tmp_path / "risk_hint_rules.toml",
+        "\n".join(["[[risk_hints]]", *fields.values()]) + "\n",
+    )
+
+    with pytest.raises(RuleCatalogError, match=missing_field):
+        RuleCatalogLoader().load_risk_hint_rules(catalog_path)
+
+
+def test_default_risk_hint_catalog_covers_task14_rule_ids() -> None:
+    rules = RuleCatalogLoader().load_default_risk_hint_rules()
+
+    assert {rule.rule_id for rule in rules} >= TASK14_RISK_RULE_IDS
+
+
+def test_default_risk_hint_catalog_covers_provider_parse_rule_ids() -> None:
+    rules = RuleCatalogLoader().load_default_risk_hint_rules()
+
+    assert {rule.rule_id for rule in rules} >= PROVIDER_PARSE_RISK_RULE_IDS

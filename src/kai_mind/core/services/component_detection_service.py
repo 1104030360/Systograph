@@ -50,6 +50,7 @@ class ManualMappingHook(Protocol):
         result: ComponentDetectionResult,
     ) -> ComponentDetectionResult:
         """Return a result with confirmed manual mappings applied."""
+        ...
 
 
 @dataclass(frozen=True)
