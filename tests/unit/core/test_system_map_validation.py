@@ -31,6 +31,53 @@ def test_rejects_nested_confidence_field(
         SystemMapValidationService().validate(data)
 
 
+@pytest.mark.parametrize(
+    "secret_value",
+    [
+        "sk-live-secret-value",
+        "ghp_abcdefghijklmnopqrstuvwxyz1234567890",
+        "glpat-abcdefghijklmnopqrstuvwxyz123456",
+        "AKIAABCDEFGHIJKLMNOP",
+        "xoxb-123456789012-123456789012-secretvalue",
+        (
+            "https://hooks.slack.com/services/"
+            "T00000000/B00000000/abcdefghijklmnopqrstuvwx"
+        ),
+        "Authorization: Bearer live-token-value-1234567890",
+    ],
+)
+def test_rejects_unmasked_token_patterns_supported_by_masking_service(
+    minimal_map: dict[str, Any],
+    secret_value: str,
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["evidence"][0]["value"] = secret_value
+
+    with pytest.raises(SystemMapValidationError, match="Unmasked secret"):
+        SystemMapValidationService().validate(data)
+
+
+def test_rejects_unmasked_secret_key_value(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["evidence"][0]["value"] = "OPENAI_API_KEY=sk-live-secret-value"
+
+    with pytest.raises(SystemMapValidationError, match="Unmasked secret"):
+        SystemMapValidationService().validate(data)
+
+
+def test_rejects_unmasked_structured_secret_value(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["evidence"][0]["key"] = "OPENAI_API_KEY"
+    data["evidence"][0]["value"] = "ordinary-looking-secret"
+
+    with pytest.raises(SystemMapValidationError, match="Unmasked secret"):
+        SystemMapValidationService().validate(data)
+
+
 def test_rejects_windows_absolute_evidence_path(
     minimal_map: dict[str, Any],
 ) -> None:

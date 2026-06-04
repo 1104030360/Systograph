@@ -10,8 +10,25 @@ from typing import Any
 from pydantic import ValidationError
 
 from kai_mind.core.models.system_map import RagSystemMap
+from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
 WINDOWS_ABSOLUTE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")
+STRUCTURAL_SECRET_SCAN_KEYS = frozenset(
+    {
+        "component_instance_id",
+        "evidence_id",
+        "flow_id",
+        "from_slot",
+        "id",
+        "rule_id",
+        "slot",
+        "status",
+        "target",
+        "target_type",
+        "to_slot",
+        "type",
+    }
+)
 
 
 class SystemMapValidationError(ValueError):
@@ -21,9 +38,17 @@ class SystemMapValidationError(ValueError):
 class SystemMapValidationService:
     """Validate schema-level shape and cross-reference invariants."""
 
+    def __init__(
+        self,
+        secret_masking_service: SecretMaskingService | None = None,
+    ) -> None:
+        self._secret_masking_service = (
+            secret_masking_service or SecretMaskingService()
+        )
+
     def validate(self, data: Mapping[str, Any]) -> RagSystemMap:
         self._reject_confidence(data)
-        self._reject_unmasked_fixture_secrets(data)
+        self._reject_unmasked_secrets(data)
 
         try:
             system_map = RagSystemMap.model_validate(data)
@@ -58,32 +83,51 @@ class SystemMapValidationService:
             for index, child in enumerate(value):
                 self._reject_confidence(child, f"{path}[{index}]")
 
-    def _reject_unmasked_fixture_secrets(
+    def _reject_unmasked_secrets(
         self,
         value: Any,
         path: str = "$",
+        key_context: str | None = None,
     ) -> None:
         if isinstance(value, str):
-            if "sk-test" in value:
+            if self._contains_unmasked_secret(value, key=key_context):
                 raise SystemMapValidationError(
-                    f"Unmasked fixture secret is not allowed at {path}"
+                    f"Unmasked secret-like value is not allowed at {path}"
                 )
             return
 
         if isinstance(value, Mapping):
+            sibling_key = value.get("key")
             for key, child in value.items():
-                self._reject_unmasked_fixture_secrets(
+                child_key_context = str(key)
+                if key == "value" and isinstance(sibling_key, str):
+                    child_key_context = sibling_key
+
+                self._reject_unmasked_secrets(
                     child,
                     f"{path}.{key}",
+                    key_context=child_key_context,
                 )
             return
 
         if isinstance(value, list):
             for index, child in enumerate(value):
-                self._reject_unmasked_fixture_secrets(
+                self._reject_unmasked_secrets(
                     child,
                     f"{path}[{index}]",
                 )
+
+    def _contains_unmasked_secret(
+        self,
+        value: str,
+        *,
+        key: str | None,
+    ) -> bool:
+        return self._secret_masking_service.contains_unmasked_secret(
+            value,
+            key=key,
+            scan_key_value_pairs=key not in STRUCTURAL_SECRET_SCAN_KEYS,
+        )
 
     def _validate_unique_ids(self, system_map: RagSystemMap) -> None:
         self._reject_duplicate_ids(
