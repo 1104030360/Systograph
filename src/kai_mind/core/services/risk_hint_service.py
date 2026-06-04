@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Final
 
 from kai_mind.core.models.scan import ParseIssue, ScanFact
@@ -12,9 +13,14 @@ from kai_mind.core.models.system_map import (
     Endpoint,
     Evidence,
     RiskHint,
+    RiskTargetType,
 )
 from kai_mind.core.services.component_detection_service import (
     ComponentDetectionResult,
+)
+from kai_mind.core.services.rule_catalog_loader import (
+    RiskHintRuleMetadata,
+    RuleCatalogLoader,
 )
 
 PUBLISHED_PORT_RULE_ID: Final = "docker_published_port_detected"
@@ -33,8 +39,20 @@ CHROMA_HTTP_RULE_IDS: Final = {
 }
 
 
+class RiskHintMetadataError(ValueError):
+    """Raised when an emitted risk hint has no metadata catalog entry."""
+
+
 class RiskHintService:
     """Build conservative risk hints with valid evidence references."""
+
+    def __init__(
+        self,
+        *,
+        rule_catalog_path: Path | str | None = None,
+    ) -> None:
+        rules = RuleCatalogLoader().load_risk_hint_rules(rule_catalog_path)
+        self._metadata_by_rule_id = {rule.rule_id: rule for rule in rules}
 
     def derive(
         self,
@@ -127,48 +145,28 @@ class RiskHintService:
         evidence: Evidence,
     ) -> RiskHint:
         local_bound = _is_loopback_binding(evidence.value)
-        severity = "low" if local_bound else "medium"
-        rationale = (
-            "Docker published port is bound to loopback; review whether this "
-            "local-only endpoint is expected."
-            if local_bound
-            else (
-                "Docker published port may expose a service endpoint beyond "
-                "the container network."
-            )
-        )
-        return RiskHint(
+        return self._risk_hint(
             id=f"risk:docker_published_port_exposure:{_slug(endpoint.id)}",
-            type="network_exposure",
+            rule_id="docker_published_port_exposure",
             target=endpoint.id,
             target_type="endpoint",
             evidence_id=evidence.id,
-            rule_id="docker_published_port_exposure",
-            rationale=rationale,
-            uncertainty=(
-                "Compose port binding does not prove firewall, runtime "
-                "reachability, or public network exposure."
+            rationale=(
+                "Docker published port is bound to loopback; review whether "
+                "this local-only endpoint is expected."
+                if local_bound
+                else None
             ),
-            severity_hint=severity,
+            severity_hint="low" if local_bound else None,
         )
 
     def _external_provider_hint(self, endpoint: Endpoint) -> RiskHint:
-        return RiskHint(
+        return self._risk_hint(
             id=f"risk:external_provider_detected:{_slug(endpoint.id)}",
-            type="external_provider",
+            rule_id="external_provider_detected",
             target=endpoint.id,
             target_type="endpoint",
             evidence_id=endpoint.evidence_id,
-            rule_id="external_provider_detected",
-            rationale=(
-                "External provider endpoint detected; review data egress, "
-                "retention, and provider configuration."
-            ),
-            uncertainty=(
-                "Static scan identifies provider configuration but does not "
-                "observe actual runtime requests or payload contents."
-            ),
-            severity_hint="medium",
         )
 
     def _parse_issue_hint(
@@ -179,22 +177,12 @@ class RiskHintService:
         evidence = evidence_lookup.parse_evidence_for_issue(issue)
         if evidence is None or evidence.file is None:
             return None
-        return RiskHint(
+        return self._risk_hint(
             id=f"risk:{_slug(issue.rule_id)}:{_slug(issue.file)}",
-            type="partial_scan",
+            rule_id=issue.rule_id,
             target=evidence.file,
             target_type="file",
             evidence_id=evidence.id,
-            rule_id=issue.rule_id,
-            rationale=(
-                "A configuration or manifest parse error may make the system "
-                "map incomplete."
-            ),
-            uncertainty=(
-                "Static scan can only derive facts from files that parsed "
-                "successfully."
-            ),
-            severity_hint="medium",
         )
 
     def _secret_like_config_hint(
@@ -202,22 +190,12 @@ class RiskHintService:
         fact: ScanFact,
         evidence_id: str,
     ) -> RiskHint:
-        return RiskHint(
+        return self._risk_hint(
             id=f"risk:secret_like_config_key_detected:{_slug(evidence_id)}",
-            type="secret_config",
+            rule_id="secret_like_config_key_detected",
             target=evidence_id,
             target_type="evidence",
             evidence_id=evidence_id,
-            rule_id="secret_like_config_key_detected",
-            rationale=(
-                "Secret-like configuration key detected; ensure masking, "
-                "storage, and access controls are reviewed."
-            ),
-            uncertainty=(
-                "Key name is a heuristic and does not prove whether the value "
-                "is a live credential."
-            ),
-            severity_hint="medium",
         )
 
     def _missing_required_slot_hint(
@@ -225,38 +203,23 @@ class RiskHintService:
         slot: str,
         evidence_id: str,
     ) -> RiskHint:
-        return RiskHint(
+        metadata = self._metadata("missing_required_slot")
+        return self._risk_hint(
             id=f"risk:missing_required_slot:{_slug(slot)}",
-            type="missing_component",
+            rule_id="missing_required_slot",
             target=slot,
             target_type="component_slot",
             evidence_id=evidence_id,
-            rule_id="missing_required_slot",
-            rationale=(
-                f"Required rag-core-v1 slot '{slot}' was not detected in the "
-                "available evidence."
-            ),
-            uncertainty=(
-                "Missing detection may mean the project lacks this component "
-                "or the current static scan rules did not recognize it."
-            ),
-            severity_hint="medium",
+            rationale=(f"{metadata.rationale} Missing slot: '{slot}'."),
         )
 
     def _chroma_http_endpoint_hint(self, endpoint: Endpoint) -> RiskHint:
-        return RiskHint(
+        return self._risk_hint(
             id=f"risk:chroma_http_endpoint_detected:{_slug(endpoint.id)}",
-            type="vector_store_endpoint",
+            rule_id="chroma_http_endpoint_detected",
             target=endpoint.id,
             target_type="endpoint",
             evidence_id=endpoint.evidence_id,
-            rule_id="chroma_http_endpoint_detected",
-            rationale=(
-                "Chroma vector store appears to be accessed over HTTP/server "
-                "mode."
-            ),
-            uncertainty="Static scan does not verify runtime reachability.",
-            severity_hint="low",
         )
 
     def _chroma_local_persistence_hint(
@@ -264,22 +227,12 @@ class RiskHintService:
         component: ComponentInstance,
         evidence_id: str,
     ) -> RiskHint:
-        return RiskHint(
+        return self._risk_hint(
             id=f"risk:chroma_local_persistence_detected:{_slug(component.id)}",
-            type="local_persistence",
+            rule_id="chroma_local_persistence_detected",
             target=component.id,
             target_type="component_instance",
             evidence_id=evidence_id,
-            rule_id="chroma_local_persistence_detected",
-            rationale=(
-                "Local Chroma persistence may store embeddings, metadata, or "
-                "documents on disk."
-            ),
-            uncertainty=(
-                "Static scan does not inspect stored data contents or local "
-                "filesystem permissions."
-            ),
-            severity_hint="medium",
         )
 
     def _chroma_server_port_hint(
@@ -287,23 +240,46 @@ class RiskHintService:
         endpoint: Endpoint,
         evidence: Evidence,
     ) -> RiskHint:
-        return RiskHint(
+        return self._risk_hint(
             id=f"risk:chroma_server_published_port:{_slug(endpoint.id)}",
-            type="vector_store_network_exposure",
+            rule_id="chroma_server_published_port",
             target=endpoint.id,
             target_type="endpoint",
             evidence_id=evidence.id,
-            rule_id="chroma_server_published_port",
-            rationale=(
-                "Published Chroma port may expose vector store service beyond "
-                "localhost."
-            ),
-            uncertainty=(
-                "Compose port binding does not prove firewall or runtime "
-                "exposure."
-            ),
-            severity_hint="medium",
         )
+
+    def _risk_hint(
+        self,
+        *,
+        id: str,
+        rule_id: str,
+        target: str,
+        target_type: RiskTargetType,
+        evidence_id: str,
+        rationale: str | None = None,
+        uncertainty: str | None = None,
+        severity_hint: str | None = None,
+    ) -> RiskHint:
+        metadata = self._metadata(rule_id)
+        return RiskHint(
+            id=id,
+            type=metadata.type,
+            target=target,
+            target_type=target_type,
+            evidence_id=evidence_id,
+            rule_id=rule_id,
+            rationale=rationale or metadata.rationale,
+            uncertainty=uncertainty or metadata.uncertainty,
+            severity_hint=severity_hint or metadata.default_severity_hint,
+        )
+
+    def _metadata(self, rule_id: str) -> RiskHintRuleMetadata:
+        metadata = self._metadata_by_rule_id.get(rule_id)
+        if metadata is None:
+            raise RiskHintMetadataError(
+                f"Missing risk hint metadata for emitted rule_id: {rule_id}"
+            )
+        return metadata
 
     def _is_secret_like_config(self, fact: ScanFact) -> bool:
         if fact.kind not in {"config_value", "docker_environment"}:
