@@ -16,6 +16,9 @@ from kai_mind.core.services.flow_derivation_service import (
 from kai_mind.core.services.project_scan_service import ProjectScanService
 from kai_mind.core.services.rag_template_service import RagTemplateService
 from kai_mind.core.services.risk_hint_service import RiskHintService
+from kai_mind.core.services.system_map_normalize_service import (
+    SystemMapNormalizeService,
+)
 from kai_mind.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
@@ -47,48 +50,19 @@ def derive_phase14_map(fixture_name: str) -> dict[str, Any]:
         components=components,
     )
 
-    return {
-        "schema_version": "ai-system-map/v1",
-        "system_type": "rag",
-        "classification": {
-            "mode": "user_selected_or_default",
-            "selected_template": "rag-core-v1",
-        },
-        "project": {
-            "name": fixture_name,
-            "root_path": "<project_root>",
-            "root_path_redacted": "<project_root>",
-            "path_mode": "redacted",
-            "system_map_schema_version": "ai-system-map/v1",
-        },
-        "reference_architecture": {
-            "id": template.id,
-            "version": template.version,
-            "slots": [slot.id for slot in template.slots],
-            "flows": [flow.id for flow in template.flows],
-        },
-        "scan_depth": "system",
-        "components_by_slot": {
-            key: value.model_dump(mode="json")
-            for key, value in components.components_by_slot.items()
-        },
-        "evidence": [
-            item.model_dump(mode="json") for item in raw_scan.evidence
-        ],
-        "endpoints": [item.model_dump(mode="json") for item in endpoints],
-        "flows": [item.model_dump(mode="json") for item in flows],
-        "extensions": [
-            item.model_dump(mode="json") for item in components.extensions
-        ],
-        "unmapped_components": [
-            item.model_dump(mode="json")
-            for item in components.unmapped_components
-        ],
-        "detail_scans": [],
-        "risk_hints": [item.model_dump(mode="json") for item in risk_hints],
-        "recommended_next_checks": [],
-        "query_trace_events": [],
-    }
+    return (
+        SystemMapNormalizeService()
+        .normalize(
+            project_name=fixture_name,
+            raw_scan=raw_scan,
+            template=template,
+            components=components,
+            endpoints=endpoints,
+            flows=flows,
+            risk_hints=risk_hints,
+        )
+        .model_dump(mode="json")
+    )
 
 
 def test_basic_qdrant_fixture_derives_valid_endpoint_risk_and_flow() -> None:

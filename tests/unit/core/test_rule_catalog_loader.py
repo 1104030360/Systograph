@@ -26,6 +26,11 @@ PROVIDER_PARSE_RISK_RULE_IDS = {
     "code_pattern_read_error",
     "project_scan_provider_failed",
 }
+RECOMMENDED_NEXT_CHECK_IDS = {
+    "runtime_readiness",
+    "privacy_exposure",
+    "rag_knowledge_trust",
+}
 
 
 def write_catalog(path: Path, content: str) -> Path:
@@ -336,3 +341,85 @@ def test_default_risk_hint_catalog_covers_provider_parse_rule_ids() -> None:
     rules = RuleCatalogLoader().load_default_risk_hint_rules()
 
     assert {rule.rule_id for rule in rules} >= PROVIDER_PARSE_RISK_RULE_IDS
+
+
+def test_load_recommended_next_check_rules_from_valid_catalog(
+    tmp_path: Path,
+) -> None:
+    catalog_path = write_catalog(
+        tmp_path / "recommended_next_check_rules.toml",
+        "\n".join(
+            [
+                "[[recommended_next_checks]]",
+                'id = "runtime_readiness"',
+                'default_target_type = "system"',
+                'reason = "Static scan found runtime-dependent services."',
+                (
+                    'action = "Verify services start and endpoints are '
+                    'reachable."'
+                ),
+            ]
+        )
+        + "\n",
+    )
+
+    rules = RuleCatalogLoader().load_recommended_next_check_rules(catalog_path)
+
+    assert rules[0].id == "runtime_readiness"
+    assert rules[0].default_target_type == "system"
+    assert "runtime-dependent" in rules[0].reason
+    assert "endpoints" in rules[0].action
+
+
+def test_recommended_next_check_catalog_rejects_duplicate_id(
+    tmp_path: Path,
+) -> None:
+    catalog_path = write_catalog(
+        tmp_path / "recommended_next_check_rules.toml",
+        "\n".join(
+            [
+                "[[recommended_next_checks]]",
+                'id = "runtime_readiness"',
+                'default_target_type = "system"',
+                'reason = "Static scan found runtime-dependent services."',
+                'action = "Verify services start."',
+                "",
+                "[[recommended_next_checks]]",
+                'id = "runtime_readiness"',
+                'default_target_type = "system"',
+                'reason = "Duplicate runtime check."',
+                'action = "Duplicate action."',
+            ]
+        )
+        + "\n",
+    )
+
+    with pytest.raises(RuleCatalogError, match="duplicate id"):
+        RuleCatalogLoader().load_recommended_next_check_rules(catalog_path)
+
+
+@pytest.mark.parametrize("missing_field", ["reason", "action"])
+def test_recommended_next_check_catalog_requires_wording_fields(
+    tmp_path: Path,
+    missing_field: str,
+) -> None:
+    fields = {
+        "id": 'id = "runtime_readiness"',
+        "default_target_type": 'default_target_type = "system"',
+        "reason": 'reason = "Static scan found runtime services."',
+        "action": 'action = "Verify runtime services."',
+    }
+    del fields[missing_field]
+    catalog_path = write_catalog(
+        tmp_path / "recommended_next_check_rules.toml",
+        "\n".join(["[[recommended_next_checks]]", *fields.values()]) + "\n",
+    )
+
+    with pytest.raises(RuleCatalogError, match=missing_field):
+        RuleCatalogLoader().load_recommended_next_check_rules(catalog_path)
+
+
+def test_default_recommended_next_check_catalog_covers_initial_ids() -> None:
+    rules = RuleCatalogLoader().load_default_recommended_next_check_rules()
+
+    assert {rule.id for rule in rules} == RECOMMENDED_NEXT_CHECK_IDS

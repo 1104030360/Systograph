@@ -38,6 +38,14 @@ def test_non_secret_endpoint_is_not_masked() -> None:
     assert masked == "http://localhost:6333"
 
 
+def test_secret_key_name_detection_is_available_publicly() -> None:
+    service = SecretMaskingService()
+
+    assert service.is_secret_key_name("OPENAI_API_KEY")
+    assert service.is_secret_key_name("api_token")
+    assert not service.is_secret_key_name("QDRANT_URL")
+
+
 def test_env_text_masks_fake_openai_key_without_hiding_key_name() -> None:
     service = SecretMaskingService()
     env_text = (
@@ -187,3 +195,31 @@ def test_json_like_data_is_masked_recursively() -> None:
         ],
     }
     assert github_token not in str(masked)
+
+
+def test_contains_unmasked_secret_detects_supported_patterns() -> None:
+    service = SecretMaskingService()
+
+    assert service.contains_unmasked_secret("sk-live-secret-value")
+    assert service.contains_unmasked_secret(
+        "github=ghp_abcdefghijklmnopqrstuvwxyz1234567890"
+    )
+    assert service.contains_unmasked_secret("OPENAI_API_KEY=plain-secret")
+
+
+def test_contains_unmasked_secret_can_skip_key_value_pair_detection() -> None:
+    service = SecretMaskingService()
+    structural_id = "risk:secret_like_config_key_detected:openai-api-key"
+    embedded_token = (
+        "risk:secret_like_config_key_detected:"
+        "ghp_abcdefghijklmnopqrstuvwxyz1234567890"
+    )
+
+    assert not service.contains_unmasked_secret(
+        structural_id,
+        scan_key_value_pairs=False,
+    )
+    assert service.contains_unmasked_secret(
+        embedded_token,
+        scan_key_value_pairs=False,
+    )

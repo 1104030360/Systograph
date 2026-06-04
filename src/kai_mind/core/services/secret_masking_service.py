@@ -91,6 +91,24 @@ JsonLike = Mapping[str, Any] | Sequence[Any] | str | int | float | bool | None
 class SecretMaskingService:
     """Apply one masking policy to strings and JSON-like values."""
 
+    def is_secret_key_name(self, key: str | None) -> bool:
+        return self._is_secret_key(key)
+
+    def contains_unmasked_secret(
+        self,
+        value: str,
+        key: str | None = None,
+        *,
+        scan_key_value_pairs: bool = True,
+    ) -> bool:
+        if self.mask_value(value, key=key) != value:
+            return True
+
+        if scan_key_value_pairs:
+            return self.mask_text(value) != value
+
+        return any(pattern.regex.search(value) for pattern in SECRET_PATTERNS)
+
     def mask_value(self, value: str, key: str | None = None) -> str:
         if not self._should_mask_value(value, key):
             return value
