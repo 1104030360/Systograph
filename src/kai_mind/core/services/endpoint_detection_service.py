@@ -156,6 +156,9 @@ class EndpointDetectionService:
         parsed_url = _first_url(fact.value)
         if parsed_url is None or parsed_url.hostname is None:
             return None
+        port = _safe_url_port(parsed_url)
+        if port is None:
+            return None
 
         provider = service_providers.get(parsed_url.hostname)
         if provider is None:
@@ -169,8 +172,7 @@ class EndpointDetectionService:
 
         return Endpoint(
             id=(
-                "endpoint:docker-internal:"
-                f"{_slug(parsed_url.hostname)}:{_slug(str(parsed_url.port))}"
+                f"endpoint:docker-internal:{_slug(parsed_url.hostname)}:{port}"
             ),
             value=parsed_url.geturl(),
             endpoint_type="local",
@@ -370,6 +372,13 @@ def _first_url(value: str) -> ParseResult | None:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return None
     return parsed
+
+
+def _safe_url_port(parsed: ParseResult) -> int | None:
+    try:
+        return parsed.port
+    except ValueError:
+        return None
 
 
 def _parse_chroma_http_literal_args(

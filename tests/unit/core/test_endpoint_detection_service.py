@@ -139,6 +139,48 @@ def test_compose_service_reference_creates_internal_endpoint() -> None:
     assert endpoints[0].evidence_id == api_env[1].id
 
 
+def test_malformed_internal_service_port_is_skipped() -> None:
+    qdrant_image = fact_with_evidence(
+        kind="docker_service",
+        file="docker-compose.yml",
+        path="services.qdrant.image",
+        value="qdrant/qdrant:v1.12.1",
+        rule_id="docker_qdrant_image_detected",
+    )
+    api_env = fact_with_evidence(
+        kind="docker_environment",
+        file="docker-compose.yml",
+        path="services.api.environment.QDRANT_URL",
+        value="http://qdrant:notaport",
+        rule_id="docker_environment_detected",
+    )
+
+    endpoints = detect_endpoints([qdrant_image, api_env])
+
+    assert endpoints == []
+
+
+def test_out_of_range_internal_service_port_is_skipped() -> None:
+    qdrant_image = fact_with_evidence(
+        kind="docker_service",
+        file="docker-compose.yml",
+        path="services.qdrant.image",
+        value="qdrant/qdrant:v1.12.1",
+        rule_id="docker_qdrant_image_detected",
+    )
+    api_env = fact_with_evidence(
+        kind="docker_environment",
+        file="docker-compose.yml",
+        path="services.api.environment.QDRANT_URL",
+        value="http://qdrant:99999",
+        rule_id="docker_environment_detected",
+    )
+
+    endpoints = detect_endpoints([qdrant_image, api_env])
+
+    assert endpoints == []
+
+
 def test_openai_config_creates_external_endpoint_no_secret_value() -> None:
     openai_key = fact_with_evidence(
         kind="config_value",
