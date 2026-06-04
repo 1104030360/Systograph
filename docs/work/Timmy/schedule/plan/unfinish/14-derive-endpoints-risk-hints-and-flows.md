@@ -91,6 +91,40 @@ Task 14 應處理：
 ## 新手提示
 Risk hint 是「提醒你可能有風險」，不是正式安全掃描結論。Epic 1 只提供 evidence-based hint。
 
+## 架構決策紀錄（ADR）
+
+### ADR-14-01：Risk rules 實作方式
+
+**問題**：Risk hint rules 要 hard code 在 Python、放 TOML catalog，還是用本地 AI 動態生成？
+
+**決策**：**觸發邏輯 hard code 在 Python service，rule metadata 可用 Python 常數或 TOML 補充說明。不使用本地 AI 動態生成 risk hints。**
+
+**理由**：
+
+業界主流 SAST 工具（Semgrep、Bandit、SonarQube）的設計都是「規則邏輯預先定義好，metadata 可設定」，不是動態生成：
+- Semgrep：YAML 宣告式 pattern，本質上仍是人工定義後固定的
+- Bandit：Python plugin 寫死邏輯，pyproject.toml 只控制開關
+- SonarQube：6,500+ rules 全部是人工撰寫的 Java plugin
+
+**不使用本地 AI 動態生成的原因**：
+
+| 問題 | 影響 |
+|---|---|
+| LLM 輸出非確定性 | 同一 evidence 每次可能產生不同 risk hint，無法寫穩定 unit test |
+| 無法追溯 evidence | `RiskHint.evidence_id` 是必填欄位，AI 無法保證引用 valid ID |
+| 不了解威脅模型 | LLM 不知道 KAI-Mind 的 RAG slot 定義與 Epic 1 scope |
+| 違反 evidence-based 原則 | GEMINI.md 明訂 evidence-based findings，AI 生成的 hint 無來源 |
+| 違反 read-only 原則 | 引入本地 AI 增加不必要的運算與維運複雜度 |
+
+**「Rules 永遠不完整」的正確處理方式**：
+
+Epic 1 的 5 條初始 rules 是有意識的 scope 決定，不是設計缺陷。
+- 使用 `uncertainty` 欄位說明每條 hint 的局限性
+- 版本迭代補充（Semgrep 從 0 條累積到 2,000+）
+- 不在 Epic 1 追求完整性，先追求可測試、可追溯、可信賴
+
+**Secret masking 分工**：`SecretMaskingService` 在 provider scan 階段（Task 12）就已對 Evidence value 做 mask，`RiskHintService` 只讀取已 masked 的 Evidence，不需要自行再做 mask。
+
 ## 視覺化說明
 ```text
 ┌──────────────────────┐
