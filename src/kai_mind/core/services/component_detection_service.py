@@ -23,6 +23,14 @@ MISSING_STATUS: Final = "missing"
 NOT_APPLICABLE_STATUS: Final = "not_applicable"
 NEEDS_CONFIRMATION_STATUS: Final = "needs_confirmation"
 EXTENSION_CANDIDATE_STATUS: Final = "candidate"
+VECTOR_STORE_CONFIG_PROVIDERS: Final = {
+    "chroma": ("vector_db_config", "Chroma", "chroma"),
+    "qdrant": ("vector_db_config", "Qdrant", "qdrant"),
+    "pgvector": ("vector_db_config", "pgvector", "pgvector"),
+}
+LLM_CONFIG_PROVIDERS: Final = {
+    "ollama": ("local_llm_runtime", "Ollama", "ollama"),
+}
 
 
 @dataclass(frozen=True)
@@ -210,13 +218,15 @@ class ComponentDetectionService:
                 )
             ]
 
-        if self._looks_like_chroma_vector_store_config(fact):
+        config_provider = self._vector_store_provider_from_config(fact)
+        if config_provider is not None:
+            kind, name, provider = config_provider
             return [
                 ComponentCandidate(
                     slot="vector_store",
-                    kind="vector_db_config",
-                    name="Chroma",
-                    provider="chroma",
+                    kind=kind,
+                    name=name,
+                    provider=provider,
                     evidence_ids=evidence_ids,
                 )
             ]
@@ -246,6 +256,18 @@ class ComponentDetectionService:
                     kind="external_llm_provider",
                     name="OpenAI",
                     provider="openai",
+                    evidence_ids=evidence_ids,
+                )
+            ]
+        config_provider = self._llm_provider_from_config(fact)
+        if config_provider is not None:
+            kind, name, provider = config_provider
+            return [
+                ComponentCandidate(
+                    slot="llm",
+                    kind=kind,
+                    name=name,
+                    provider=provider,
                     evidence_ids=evidence_ids,
                 )
             ]
@@ -443,16 +465,27 @@ class ComponentDetectionService:
     def _looks_like_openai_global_config(self, fact: ScanFact) -> bool:
         return "openai" in fact.path.lower()
 
-    def _looks_like_chroma_vector_store_config(
+    def _vector_store_provider_from_config(
         self,
         fact: ScanFact,
-    ) -> bool:
-        if fact.kind != "config_value":
-            return False
-        return (
+    ) -> tuple[str, str, str] | None:
+        if fact.kind != "config_value" or not (
             self._has_vector_store_provider_path(fact)
-            and (fact.value or "").strip().lower() == "chroma"
-        )
+        ):
+            return None
+        provider = (fact.value or "").strip().lower()
+        return VECTOR_STORE_CONFIG_PROVIDERS.get(provider)
+
+    def _llm_provider_from_config(
+        self,
+        fact: ScanFact,
+    ) -> tuple[str, str, str] | None:
+        if fact.kind != "config_value" or not self._has_llm_provider_path(
+            fact
+        ):
+            return None
+        provider = (fact.value or "").strip().lower()
+        return LLM_CONFIG_PROVIDERS.get(provider)
 
     def _has_vector_store_provider_path(self, fact: ScanFact) -> bool:
         path_tokens = set(re.split(r"[^a-zA-Z0-9]+", fact.path.lower()))
@@ -461,6 +494,12 @@ class ComponentDetectionService:
             path_tokens
         ) or "vectorstore" in compact_path
         return has_vector_store and "provider" in path_tokens
+
+    def _has_llm_provider_path(self, fact: ScanFact) -> bool:
+        return self._has_path_token(fact, {"llm"}) and self._has_path_token(
+            fact,
+            {"provider"},
+        )
 
     def _has_path_token(self, fact: ScanFact, tokens: set[str]) -> bool:
         path_tokens = set(re.split(r"[^a-zA-Z0-9]+", fact.path.lower()))
