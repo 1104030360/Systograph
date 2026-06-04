@@ -202,6 +202,55 @@ def test_openai_code_patterns_detect_embedding_and_llm_slots() -> None:
     assert llm_slot.instances[0].provider == "openai"
 
 
+def test_openai_provider_config_detects_slot_specific_components() -> None:
+    llm_provider_fact = fact_with_evidence(
+        kind="config_value",
+        file="config.yaml",
+        path="providers.llm.provider",
+        value="openai",
+        rule_id="config_yaml_value_detected",
+    )
+    embedding_provider_fact = fact_with_evidence(
+        kind="config_value",
+        file="config.yaml",
+        path="providers.embedding.provider",
+        value="openai",
+        rule_id="config_yaml_value_detected",
+    )
+
+    result = detect([llm_provider_fact, embedding_provider_fact])
+
+    llm_slot = result.components_by_slot["llm"]
+    embedding_slot = result.components_by_slot["embedding_model"]
+    assert llm_slot.status == "detected"
+    assert llm_slot.instances[0].provider == "openai"
+    assert llm_slot.instances[0].evidence_ids == [llm_provider_fact[1].id]
+    assert embedding_slot.status == "detected"
+    assert embedding_slot.instances[0].provider == "openai"
+    assert embedding_slot.instances[0].evidence_ids == [
+        embedding_provider_fact[1].id
+    ]
+
+
+def test_openai_env_config_still_detects_embedding_and_llm_slots() -> None:
+    openai_env_fact = fact_with_evidence(
+        kind="config_value",
+        file=".env",
+        path="OPENAI_API_KEY",
+        value="sk-t...mple",
+        rule_id="config_env_value_detected",
+    )
+
+    result = detect([openai_env_fact])
+
+    llm_slot = result.components_by_slot["llm"]
+    embedding_slot = result.components_by_slot["embedding_model"]
+    assert llm_slot.status == "detected"
+    assert llm_slot.instances[0].provider == "openai"
+    assert embedding_slot.status == "detected"
+    assert embedding_slot.instances[0].provider == "openai"
+
+
 def test_custom_router_goes_to_unmapped_not_retriever() -> None:
     router_fact = fact_with_evidence(
         kind="config_value",

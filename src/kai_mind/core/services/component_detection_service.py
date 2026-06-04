@@ -238,7 +238,7 @@ class ComponentDetectionService:
                     evidence_ids=evidence_ids,
                 )
             ]
-        if self._looks_like_openai_config(fact):
+        if self._looks_like_openai_llm_config(fact):
             return [
                 ComponentCandidate(
                     slot="llm",
@@ -269,7 +269,7 @@ class ComponentDetectionService:
                     evidence_ids=evidence_ids,
                 )
             ]
-        if self._looks_like_openai_config(fact):
+        if self._looks_like_openai_embedding_config(fact):
             return [
                 ComponentCandidate(
                     slot="embedding_model",
@@ -411,10 +411,30 @@ class ComponentDetectionService:
         ).lower()
         return "router" in haystack or "route" in haystack
 
-    def _looks_like_openai_config(self, fact: ScanFact) -> bool:
+    def _looks_like_openai_llm_config(self, fact: ScanFact) -> bool:
         if fact.kind != "config_value":
             return False
+        if self._looks_like_openai_global_config(fact):
+            return True
+        return self._has_path_token(fact, {"llm", "chat"}) and (
+            "openai" in (fact.value or "").lower()
+        )
+
+    def _looks_like_openai_embedding_config(self, fact: ScanFact) -> bool:
+        if fact.kind != "config_value":
+            return False
+        if self._looks_like_openai_global_config(fact):
+            return True
+        return self._has_path_token(fact, {"embedding", "embeddings"}) and (
+            "openai" in (fact.value or "").lower()
+        )
+
+    def _looks_like_openai_global_config(self, fact: ScanFact) -> bool:
         return "openai" in fact.path.lower()
+
+    def _has_path_token(self, fact: ScanFact, tokens: set[str]) -> bool:
+        path_tokens = set(re.split(r"[^a-zA-Z0-9]+", fact.path.lower()))
+        return bool(path_tokens & tokens)
 
     def _observed_kind(self, fact: ScanFact) -> str:
         if self._looks_like_router(fact):
