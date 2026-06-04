@@ -23,6 +23,7 @@ export const graphEdgeSchema = z.object({
   to: z.string(),
   relationship: z.string().optional(),
   label: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
   evidence_ids: stringArray,
   risk_hint_ids: stringArray,
 });
@@ -32,13 +33,18 @@ export const evidenceDetailSchema = z
     title: z.string().optional(),
     file: z.string().optional(),
     path: z.string().optional(),
+    value: z.string().optional(),
   })
   .passthrough();
 
 export const riskHintDetailSchema = z
   .object({
     title: z.string().optional(),
+    // Backend uses `severity_hint`; keep `severity` too for forward/back compatibility.
+    severity_hint: z.string().optional(),
     severity: z.string().optional(),
+    rationale: z.string().optional(),
+    uncertainty: z.string().optional(),
   })
   .passthrough();
 
@@ -49,6 +55,22 @@ export const graphFilterSchema = z.object({
   matches_node_ids: stringArray,
   matches_edge_ids: stringArray,
 });
+
+export const scanSummarySchema = z
+  .object({
+    status: z.string().optional(),
+    files_scanned: z.number().optional(),
+    files_skipped: z.number().optional(),
+    detected_slots: z.number().optional(),
+    missing_slots: z.number().optional(),
+    not_configured_slots: z.number().optional(),
+    unmapped_components: z.number().optional(),
+    risk_hints: z.number().optional(),
+    secret_masking_applied: z.boolean().optional(),
+  })
+  .passthrough();
+
+export type ScanSummary = z.infer<typeof scanSummarySchema>;
 
 export const graphViewModelSchema = z.object({
   schema_version: z.string().optional(),
@@ -78,6 +100,7 @@ export const viewerPayloadSchema = z.object({
         schema_version: z.string().optional(),
         system_type: z.string().optional(),
         scan_depth: z.string().optional(),
+        scan_summary: scanSummarySchema.optional(),
         query_trace_events: z.array(z.record(z.unknown())).optional(),
         unmapped_components: z.array(z.record(z.unknown())).optional(),
       }),

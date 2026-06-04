@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
+  BackgroundVariant,
   BaseEdge,
-  Controls,
   EdgeLabelRenderer,
   MiniMap,
   applyNodeChanges,
@@ -12,14 +12,16 @@ import ReactFlow, {
   type NodeChange,
   ReactFlowProvider,
   useReactFlow,
+  useViewport,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { Maximize, Minus, Plus } from "lucide-react";
 import type { GraphViewModel, Selection, TraceEvent } from "../types";
 import { createFlowElements, layoutGraph, makeGraphIndexes, type FlowEdgeData, type FlowNodeData } from "../utils/graph";
 import { SystemNode } from "./SystemNode";
 
-const NODE_WIDTH = 230;
-const NODE_HEIGHT = 96;
+const NODE_WIDTH = 208;
+const NODE_HEIGHT = 88;
 const MIN_FOLLOW_ZOOM = 0.62;
 const prefersReducedMotion =
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -76,6 +78,7 @@ function OrderedEdge({
               "edge-label-pill",
               data?.isFocused ? "is-focused" : "",
               data?.isDimmed ? "is-dimmed" : "",
+              data?.isUnmapped ? "is-unmapped" : "",
               data?.labelSide === "below" ? "is-below" : "",
             ].join(" ")}
             style={{
@@ -94,6 +97,34 @@ function OrderedEdge({
 const edgeTypes = {
   ordered: OrderedEdge,
 };
+
+function CanvasControls() {
+  const reactFlow = useReactFlow();
+  return (
+    <div className="canvas-controls">
+      <button className="icon-btn" type="button" aria-label="Zoom in" title="Zoom in" onClick={() => reactFlow.zoomIn()}>
+        <Plus size={15} />
+      </button>
+      <button className="icon-btn" type="button" aria-label="Zoom out" title="Zoom out" onClick={() => reactFlow.zoomOut()}>
+        <Minus size={15} />
+      </button>
+      <button
+        className="icon-btn"
+        type="button"
+        aria-label="Fit to view"
+        title="Fit to view"
+        onClick={() => reactFlow.fitView({ padding: 0.22, duration: ANIMATION_DURATION })}
+      >
+        <Maximize size={15} />
+      </button>
+    </div>
+  );
+}
+
+function ZoomHint() {
+  const { zoom } = useViewport();
+  return <div className="canvas-hint">{Math.round(zoom * 100)}% · drag to pan</div>;
+}
 
 function resolveEdgeTargetNodeId(graph: GraphViewModel, edgeId: string | undefined) {
   if (!edgeId) return null;
@@ -155,10 +186,11 @@ type Props = {
   traceEvent?: TraceEvent;
   progressTargetId?: string;
   followFocus: boolean;
+  fitSignal: number;
   onSelect: (selection: Selection) => void;
 };
 
-function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTargetId, followFocus, onSelect }: Props) {
+function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTargetId, followFocus, fitSignal, onSelect }: Props) {
   const selectedKind = selected?.kind === "node" || selected?.kind === "edge" ? selected.kind : undefined;
   const selectedId = selected?.kind === "node" || selected?.kind === "edge" ? selected.id : undefined;
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
@@ -246,6 +278,12 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
     }));
   }
 
+  // Toolbar "Reset" requests a fit; fitSignal starts at 0 (no fit on mount).
+  useEffect(() => {
+    if (fitSignal === 0 || nodes.length === 0) return;
+    reactFlow.fitView({ padding: 0.22, duration: ANIMATION_DURATION });
+  }, [fitSignal, nodes.length, reactFlow]);
+
   useEffect(() => {
     if (followFocus || nodes.length === 0 || lastFitGraphKey.current === graphStructureKey) return;
     if (Object.keys(positions).length < graph.nodes.length) return;
@@ -301,9 +339,10 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
       onEdgeClick={(_, edge) => onSelect({ kind: "edge", id: edge.id })}
       onPaneClick={() => onSelect(null)}
     >
-      <Background color="#d6dde4" gap={24} size={1} />
-      <MiniMap pannable zoomable nodeStrokeWidth={3} />
-      <Controls position="bottom-left" />
+      <Background variant={BackgroundVariant.Dots} color="var(--grid)" gap={22} size={1.1} />
+      <MiniMap pannable zoomable nodeStrokeWidth={2} nodeColor="var(--line-strong)" maskColor="var(--canvas)" />
+      <CanvasControls />
+      <ZoomHint />
     </ReactFlow>
   );
 }

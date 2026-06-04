@@ -14,6 +14,7 @@ export type FlowEdgeData = GraphEdgeModel & {
   isDimmed: boolean;
   isSelected: boolean;
   isProgressTarget: boolean;
+  isUnmapped: boolean;
   routeOffset: number;
   sourceYOffset: number;
   targetYOffset: number;
@@ -23,8 +24,8 @@ export type FlowEdgeData = GraphEdgeModel & {
 };
 
 const elk = new ELK();
-const NODE_WIDTH = 230;
-const NODE_HEIGHT = 96;
+const NODE_WIDTH = 208;
+const NODE_HEIGHT = 88;
 
 function getLaneOffsets(edges: GraphEdgeModel[], key: "from" | "to") {
   const groups = new Map<string, GraphEdgeModel[]>();
@@ -192,6 +193,15 @@ export function createFlowElements(
     const focused = selected || filterFocused || traceFocused || progressFocused;
     const dimmed = (filterMatches.hasFilters || hasTraceFocus) && !focused;
     const labelOffset = labelOffsets.get(edge.id);
+    const isRisk = edge.risk_hint_ids.length > 0;
+    const isUnmapped = edge.status === "needs_confirmation";
+    const strokeColor = focused
+      ? "var(--accent)"
+      : isRisk
+        ? "var(--risk)"
+        : isUnmapped
+          ? "var(--unmapped)"
+          : "var(--line-strong)";
 
     return {
       id: edge.id,
@@ -204,7 +214,7 @@ export function createFlowElements(
         type: MarkerType.ArrowClosed,
         width: 18,
         height: 18,
-        color: focused ? "#0f8b8d" : "#73808d",
+        color: strokeColor,
       },
       data: {
         ...edge,
@@ -212,6 +222,7 @@ export function createFlowElements(
         isDimmed: dimmed,
         isSelected: selected,
         isProgressTarget: progressFocused,
+        isUnmapped,
         routeOffset: sourceRouteOffsets.get(edge.id) ?? 48,
         sourceYOffset: sourceYOffsets.get(edge.id) ?? 0,
         targetYOffset: targetYOffsets.get(edge.id) ?? 0,
@@ -220,9 +231,10 @@ export function createFlowElements(
         labelSide: labelOffset?.labelSide ?? "above",
       },
       style: {
-        stroke: focused ? "#0f8b8d" : "#73808d",
-        strokeWidth: focused ? 2.6 : 1.7,
-        opacity: dimmed ? 0.22 : 0.82,
+        stroke: strokeColor,
+        strokeWidth: focused ? 2.4 : 1.6,
+        opacity: dimmed ? 0.18 : 1,
+        strokeDasharray: isUnmapped ? "5 4" : undefined,
       },
     };
   });

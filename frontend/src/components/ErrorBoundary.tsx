@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="error-boundary" role="alert">
           <h1>Something went wrong</h1>
           <p>{this.state.error.message}</p>
-          <button className="toolbar-button" type="button" onClick={this.handleRetry}>
+          <button className="btn primary" type="button" onClick={this.handleRetry}>
             Try again
           </button>
         </div>
