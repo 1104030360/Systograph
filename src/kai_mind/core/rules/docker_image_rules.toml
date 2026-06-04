@@ -9,3 +9,7 @@ rule_id = "docker_ollama_image_detected"
 [[images]]
 repository = "pgvector/pgvector"
 rule_id = "docker_pgvector_image_detected"
+
+[[images]]
+repository = "chromadb/chroma"
+rule_id = "docker_chromadb_chroma_image_detected"

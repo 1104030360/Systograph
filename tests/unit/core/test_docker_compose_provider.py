@@ -103,6 +103,31 @@ def test_collect_emits_service_image_and_published_port_evidence(
     assert evidence_by_path["services.qdrant.ports[0]"].value == "6333:6333"
 
 
+def test_collect_recognizes_chromadb_chroma_image(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "docker-compose.yml").write_text(
+        "\n".join(
+            [
+                "services:",
+                "  chroma:",
+                "    image: chromadb/chroma:0.5.23",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "docker-compose.yml")
+
+    result = DockerComposeProvider().collect(inventory)
+
+    fact_by_path = {fact.path: fact for fact in result.facts}
+    assert (
+        fact_by_path["services.chroma.image"].rule_id
+        == "docker_chromadb_chroma_image_detected"
+    )
+
+
 def test_collect_uses_injected_docker_image_rule_catalog(
     tmp_path: Path,
 ) -> None:
