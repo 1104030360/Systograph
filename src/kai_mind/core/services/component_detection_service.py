@@ -210,6 +210,17 @@ class ComponentDetectionService:
                 )
             ]
 
+        if self._looks_like_chroma_vector_store_config(fact):
+            return [
+                ComponentCandidate(
+                    slot="vector_store",
+                    kind="vector_db_config",
+                    name="Chroma",
+                    provider="chroma",
+                    evidence_ids=evidence_ids,
+                )
+            ]
+
         return []
 
     def _llm_candidates(
@@ -431,6 +442,25 @@ class ComponentDetectionService:
 
     def _looks_like_openai_global_config(self, fact: ScanFact) -> bool:
         return "openai" in fact.path.lower()
+
+    def _looks_like_chroma_vector_store_config(
+        self,
+        fact: ScanFact,
+    ) -> bool:
+        if fact.kind != "config_value":
+            return False
+        return (
+            self._has_vector_store_provider_path(fact)
+            and (fact.value or "").strip().lower() == "chroma"
+        )
+
+    def _has_vector_store_provider_path(self, fact: ScanFact) -> bool:
+        path_tokens = set(re.split(r"[^a-zA-Z0-9]+", fact.path.lower()))
+        compact_path = re.sub(r"[^a-zA-Z0-9]+", "", fact.path.lower())
+        has_vector_store = {"vector", "store"}.issubset(
+            path_tokens
+        ) or "vectorstore" in compact_path
+        return has_vector_store and "provider" in path_tokens
 
     def _has_path_token(self, fact: ScanFact, tokens: set[str]) -> bool:
         path_tokens = set(re.split(r"[^a-zA-Z0-9]+", fact.path.lower()))

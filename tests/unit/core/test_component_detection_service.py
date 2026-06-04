@@ -159,6 +159,41 @@ def test_chroma_host_config_only_does_not_detect_vector_store() -> None:
     assert vector_store.instances == []
 
 
+def test_chroma_provider_config_detects_vector_store() -> None:
+    direct_config = fact_with_evidence(
+        kind="config_value",
+        file="config.yaml",
+        path="vector_store.provider",
+        value="chroma",
+        rule_id="config_yaml_value_detected",
+    )
+    nested_config = fact_with_evidence(
+        kind="config_value",
+        file="settings.toml",
+        path="providers.vector_store.provider",
+        value="chroma",
+        rule_id="config_toml_value_detected",
+    )
+
+    direct_result = detect([direct_config])
+    nested_result = detect([nested_config])
+
+    direct_vector_store = direct_result.components_by_slot["vector_store"]
+    nested_vector_store = nested_result.components_by_slot["vector_store"]
+    assert direct_vector_store.status == "detected"
+    assert direct_vector_store.instances[0].provider == "chroma"
+    assert direct_vector_store.instances[0].kind == "vector_db_config"
+    assert direct_vector_store.instances[0].evidence_ids == [
+        direct_config[1].id
+    ]
+    assert nested_vector_store.status == "detected"
+    assert nested_vector_store.instances[0].provider == "chroma"
+    assert nested_vector_store.instances[0].kind == "vector_db_config"
+    assert nested_vector_store.instances[0].evidence_ids == [
+        nested_config[1].id
+    ]
+
+
 def test_api_route_detection_does_not_create_unmapped_router() -> None:
     route_fact = fact_with_evidence(
         kind="api_route",
