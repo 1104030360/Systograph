@@ -31,6 +31,30 @@ regex = "\\bChroma\\s*\\("
 snippet_group = ""
 
 [[patterns]]
+rule_id = "code_pattern_vector_store_chroma_http"
+kind = "vector_store_client"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bchromadb\\.HttpClient\\s*\\("
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_vector_store_chroma_async_http"
+kind = "vector_store_client"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bchromadb\\.AsyncHttpClient\\s*\\("
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_vector_store_chroma_persistent"
+kind = "vector_store_client"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bchromadb\\.PersistentClient\\s*\\("
+snippet_group = ""
+
+[[patterns]]
 rule_id = "code_pattern_retriever_as_retriever"
 kind = "retriever"
 languages = ["python"]

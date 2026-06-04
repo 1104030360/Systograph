@@ -120,6 +120,40 @@ def test_collect_emits_python_rag_pattern_facts_and_evidence(
     assert not result.issues
 
 
+def test_collect_emits_chromadb_client_mode_facts(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "vector.py").write_text(
+        "\n".join(
+            [
+                "import chromadb",
+                'remote = chromadb.HttpClient(host="localhost", port=8000)',
+                'async_remote = chromadb.AsyncHttpClient(host="chroma")',
+                'local = chromadb.PersistentClient(path="./chroma")',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "vector.py")
+
+    result = CodePatternProvider().collect(inventory)
+
+    facts_by_rule = {fact.rule_id: fact for fact in result.facts}
+    assert (
+        facts_by_rule["code_pattern_vector_store_chroma_http"].value
+        == "chromadb.HttpClient("
+    )
+    assert (
+        facts_by_rule["code_pattern_vector_store_chroma_async_http"].value
+        == "chromadb.AsyncHttpClient("
+    )
+    assert (
+        facts_by_rule["code_pattern_vector_store_chroma_persistent"].value
+        == "chromadb.PersistentClient("
+    )
+
+
 def test_collect_emits_javascript_and_typescript_route_facts(
     tmp_path: Path,
 ) -> None:
