@@ -20,6 +20,34 @@ rationale = "A configuration or manifest parse error may make the system map inc
 uncertainty = "Static scan can only derive facts from files that parsed successfully."
 
 [[risk_hints]]
+rule_id = "docker_compose_parse_error"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "A Docker Compose parse error may make service, port, environment, volume, or dependency evidence incomplete."
+uncertainty = "Static scan can only derive Docker deployment facts from Compose files that parsed successfully."
+
+[[risk_hints]]
+rule_id = "dependency_manifest_parse_error"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "A dependency manifest parse error may make package-based component evidence incomplete."
+uncertainty = "Static scan can only derive dependency facts from manifests that parsed successfully."
+
+[[risk_hints]]
+rule_id = "code_pattern_read_error"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "A source file read error may make code-pattern component or endpoint evidence incomplete."
+uncertainty = "Static scan can only derive code facts from source files that were readable during the scan."
+
+[[risk_hints]]
+rule_id = "project_scan_provider_failed"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "A scanner provider failed during project scan, so the derived system map may be incomplete."
+uncertainty = "Static scan could not use facts from the failed provider; failure details may depend on the local filesystem and runtime environment."
+
+[[risk_hints]]
 rule_id = "secret_like_config_key_detected"
 type = "secret_config"
 default_severity_hint = "medium"

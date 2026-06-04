@@ -19,6 +19,13 @@ TASK14_RISK_RULE_IDS = {
     "chroma_local_persistence_detected",
     "chroma_server_published_port",
 }
+PROVIDER_PARSE_RISK_RULE_IDS = {
+    "config_parse_error",
+    "docker_compose_parse_error",
+    "dependency_manifest_parse_error",
+    "code_pattern_read_error",
+    "project_scan_provider_failed",
+}
 
 
 def write_catalog(path: Path, content: str) -> Path:
@@ -323,3 +330,9 @@ def test_default_risk_hint_catalog_covers_task14_rule_ids() -> None:
     rules = RuleCatalogLoader().load_default_risk_hint_rules()
 
     assert {rule.rule_id for rule in rules} >= TASK14_RISK_RULE_IDS
+
+
+def test_default_risk_hint_catalog_covers_provider_parse_rule_ids() -> None:
+    rules = RuleCatalogLoader().load_default_risk_hint_rules()
+
+    assert {rule.rule_id for rule in rules} >= PROVIDER_PARSE_RISK_RULE_IDS

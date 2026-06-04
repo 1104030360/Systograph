@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -18,6 +19,14 @@ from kai_mind.core.services.risk_hint_service import (
     RiskHintMetadataError,
     RiskHintService,
 )
+
+ParseStage = Literal[
+    "config_parse",
+    "docker_compose_parse",
+    "dependency_manifest_parse",
+    "code_pattern_scan",
+    "project_scan",
+]
 
 
 def fact_with_evidence(
@@ -314,6 +323,59 @@ def test_parse_issue_creates_config_parse_error_hint() -> None:
     )
     assert parse_risk.target_type == "file"
     assert parse_risk.target == "settings.yaml"
+    assert parse_risk.evidence_id == evidence.id
+
+
+@pytest.mark.parametrize(
+    ("provider", "scan_stage", "file", "rule_id"),
+    [
+        (
+            "docker_compose",
+            "docker_compose_parse",
+            "docker-compose.yml",
+            "docker_compose_parse_error",
+        ),
+        (
+            "dependency_manifest",
+            "dependency_manifest_parse",
+            "package.json",
+            "dependency_manifest_parse_error",
+        ),
+        (
+            "code_pattern",
+            "code_pattern_scan",
+            "src/app.py",
+            "code_pattern_read_error",
+        ),
+    ],
+)
+def test_provider_parse_issue_rule_ids_create_partial_scan_hints(
+    provider: str,
+    scan_stage: ParseStage,
+    file: str,
+    rule_id: str,
+) -> None:
+    evidence = parse_evidence(file=file, rule_id=rule_id)
+    issue = ParseIssue(
+        provider=provider,
+        scan_stage=scan_stage,
+        file=file,
+        message="Provider parse/read issue",
+        rule_id=rule_id,
+    )
+
+    risks = RiskHintService().derive(
+        facts=[],
+        evidence=[evidence],
+        issues=[issue],
+        components=detect_components([]),
+        endpoints=[],
+    )
+
+    parse_risk = next(risk for risk in risks if risk.rule_id == rule_id)
+    assert parse_risk.type == "partial_scan"
+    assert parse_risk.target_type == "file"
+    assert parse_risk.target == file
     assert parse_risk.evidence_id == evidence.id
 
 
