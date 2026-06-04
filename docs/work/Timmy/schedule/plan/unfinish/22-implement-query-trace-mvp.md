@@ -22,12 +22,15 @@ Query trace 會呼叫 runtime endpoint，可能有副作用，因此必須在 st
 - timeout/error 產生 trace event，不丟棄 partial replay。
 - input/output/retrieved_chunks 必須 masking。
 - confirmed extension/unmapped trace step mapping。
+- 明確承接 Task 14 未解決的 unmapped flow 問題：未確認的 unmapped component 不進 baseline `Flow.edges`，但 replay 若觀察到相關 evidence，應以 `Unknown / Needs confirmation` step 保留 partial replay。
 
 ## 不包含範圍
 - 不做 proxy wrapper。
 - 不做 full runtime observability。
 - 不預設在 `kai-mind map` 呼叫 endpoint。
 - 不保存 raw sensitive query。
+- 不把 trace 觀察到的 unmapped component 自動升級成 detected slot 或 confirmed extension。
+- 不在 replay 中替使用者做 manual mapping；確認與持久化仍交給 Task 19/20。
 
 ## 建議實作步驟
 1. 建立 `src/kai_mind/core/providers/endpoint_call_provider.py`。
@@ -35,11 +38,15 @@ Query trace 會呼叫 runtime endpoint，可能有副作用，因此必須在 st
 3. 實作 endpoint selection by endpoint_id。
 4. 實作 bounded timeout。
 5. 實作 basic response/error to QueryTraceEvent mapping。
-6. 實作 trace events append 或 trace result output。
-7. 建立 FastAPI trace route，要求明確 endpoint/query input。
-8. 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`，補上 trace API request/response、`endpoint_not_found`、timeout/error response、masking rule。
-9. 建立 `kai-mind trace` thin CLI adapter，呼叫同一個 service。
-10. 測試 endpoint_not_found、timeout partial replay、masked input/output、web API 和 CLI 都不預設送 query。
+6. 實作 confirmed extension / unmapped trace step mapping：
+   - standard slot match -> `slot`。
+   - confirmed extension match -> `component_id` / extension step metadata。
+   - unmapped evidence match -> unknown step / needs_mapping_confirmation warning，不寫入 baseline `Flow.edges`。
+7. 實作 trace events append 或 trace result output。
+8. 建立 FastAPI trace route，要求明確 endpoint/query input。
+9. 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`，補上 trace API request/response、`endpoint_not_found`、timeout/error response、masking rule。
+10. 建立 `kai-mind trace` thin CLI adapter，呼叫同一個 service。
+11. 測試 endpoint_not_found、timeout partial replay、masked input/output、web API 和 CLI 都不預設送 query；trace 遇到 unmapped evidence 時保留 unknown step，不讓 replay 失敗。
 
 ## 預期輸出
 - `src/kai_mind/core/providers/endpoint_call_provider.py`
@@ -60,12 +67,16 @@ Query trace 會呼叫 runtime endpoint，可能有副作用，因此必須在 st
 - trace step 可映射 standard slot、confirmed extension 或 unknown/unmapped。
 - full query/output secret 不出現在 event。
 - API guide 已同步記錄 trace API 必須 opt-in、不得由 map build 預設觸發、以及敏感資料 masking 規則。
+- 未確認的 unmapped component 在 replay 中只能顯示為 unknown / needs_confirmation，不得變成 confirmed extension step。
+- confirmed manual mapping 後，重新 normalize / regenerate 的 map 才能讓 replay 顯示正式 extension step。
+- replay unknown step 不修改 canonical baseline `flows`，避免把 runtime observation 誤寫成靜態架構事實。
 
 ## 可能風險與注意事項
 - 呼叫 endpoint 是 side effect，必須 opt-in。
 - 測試應使用 mock HTTP server，不依賴真實服務。
 - trace API contract 改動會直接影響 replay UI 和 desktop app，因此改 endpoint / response / error code 時必須同步更新 API guide。
 - 參考依據：OpenTelemetry GenAI docs 提醒 inputs/outputs 敏感；OpenInference span kinds 可作 Retriever/LLM/Embedding/Tool vocabulary 參考。
+- 如果 `QueryTraceEvent` 現有 schema 無法表達 `unmapped_component_id`、`step_type=unknown` 或 warning，必須在 Task 15/本任務中同步擴充模型與 validation；不可用任意 extra fields 繞過 contract。
 
 ## 新手提示
 Query trace 是「真的問系統一次」。因為會碰 runtime，所以不能偷偷做，必須使用者明確要求。
