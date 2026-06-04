@@ -23,12 +23,14 @@ class SystemMapValidationService:
 
     def validate(self, data: Mapping[str, Any]) -> RagSystemMap:
         self._reject_confidence(data)
+        self._reject_unmasked_fixture_secrets(data)
 
         try:
             system_map = RagSystemMap.model_validate(data)
         except ValidationError as exc:
             raise SystemMapValidationError(str(exc)) from exc
 
+        self._validate_unique_ids(system_map)
         self._validate_evidence_paths(system_map)
         self._validate_components(system_map)
         self._validate_endpoints(system_map)
@@ -36,6 +38,7 @@ class SystemMapValidationService:
         self._validate_extensions(system_map)
         self._validate_unmapped_components(system_map)
         self._validate_risk_hints(system_map)
+        self._validate_recommended_next_checks(system_map)
         self._validate_detail_scans(system_map)
         self._validate_query_trace_events(system_map)
         return system_map
@@ -54,6 +57,83 @@ class SystemMapValidationService:
         if isinstance(value, list):
             for index, child in enumerate(value):
                 self._reject_confidence(child, f"{path}[{index}]")
+
+    def _reject_unmasked_fixture_secrets(
+        self,
+        value: Any,
+        path: str = "$",
+    ) -> None:
+        if isinstance(value, str):
+            if "sk-test" in value:
+                raise SystemMapValidationError(
+                    f"Unmasked fixture secret is not allowed at {path}"
+                )
+            return
+
+        if isinstance(value, Mapping):
+            for key, child in value.items():
+                self._reject_unmasked_fixture_secrets(
+                    child,
+                    f"{path}.{key}",
+                )
+            return
+
+        if isinstance(value, list):
+            for index, child in enumerate(value):
+                self._reject_unmasked_fixture_secrets(
+                    child,
+                    f"{path}[{index}]",
+                )
+
+    def _validate_unique_ids(self, system_map: RagSystemMap) -> None:
+        self._reject_duplicate_ids(
+            [evidence.id for evidence in system_map.evidence],
+            "Evidence",
+        )
+        self._reject_duplicate_ids(
+            [
+                instance.id
+                for slot in system_map.components_by_slot.values()
+                for instance in slot.instances
+            ],
+            "ComponentInstance",
+        )
+        self._reject_duplicate_ids(
+            [endpoint.id for endpoint in system_map.endpoints],
+            "Endpoint",
+        )
+        self._reject_duplicate_ids(
+            [flow.id for flow in system_map.flows],
+            "Flow",
+        )
+        self._reject_duplicate_ids(
+            [edge.id for flow in system_map.flows for edge in flow.edges],
+            "Edge",
+        )
+        self._reject_duplicate_ids(
+            [extension.id for extension in system_map.extensions],
+            "ExtensionComponent",
+        )
+        self._reject_duplicate_ids(
+            [component.id for component in system_map.unmapped_components],
+            "UnmappedComponent",
+        )
+        self._reject_duplicate_ids(
+            [scan.id for scan in system_map.detail_scans],
+            "DetailScan",
+        )
+        self._reject_duplicate_ids(
+            [risk.id for risk in system_map.risk_hints],
+            "RiskHint",
+        )
+        self._reject_duplicate_ids(
+            [check.id for check in system_map.recommended_next_checks],
+            "RecommendedNextCheck",
+        )
+        self._reject_duplicate_ids(
+            [event.id for event in system_map.query_trace_events],
+            "QueryTraceEvent",
+        )
 
     def _validate_evidence_paths(self, system_map: RagSystemMap) -> None:
         for evidence in system_map.evidence:
@@ -191,6 +271,41 @@ class SystemMapValidationService:
                     f"{risk_hint.target_type} target"
                 )
 
+    def _validate_recommended_next_checks(
+        self,
+        system_map: RagSystemMap,
+    ) -> None:
+        valid_targets_by_type = {
+            "system": {"system"},
+            "component_slot": set(system_map.components_by_slot),
+            "component_instance": self._component_ids(system_map),
+            "endpoint": {endpoint.id for endpoint in system_map.endpoints},
+            "risk": {risk.id for risk in system_map.risk_hints},
+            "evidence": self._evidence_ids(system_map),
+            "unmapped_component": {
+                component.id for component in system_map.unmapped_components
+            },
+            "extension": {extension.id for extension in system_map.extensions},
+            "file": {
+                evidence.file
+                for evidence in system_map.evidence
+                if evidence.file is not None
+            },
+        }
+
+        for check in system_map.recommended_next_checks:
+            valid_targets = valid_targets_by_type.get(check.target_type)
+            if valid_targets is None:
+                raise SystemMapValidationError(
+                    f"RecommendedNextCheck '{check.id}' uses unknown "
+                    "target_type"
+                )
+            if check.target not in valid_targets:
+                raise SystemMapValidationError(
+                    f"RecommendedNextCheck '{check.id}' references "
+                    f"missing {check.target_type} target"
+                )
+
     def _validate_extensions(self, system_map: RagSystemMap) -> None:
         evidence_ids = self._evidence_ids(system_map)
 
@@ -298,6 +413,15 @@ class SystemMapValidationService:
             for slot in system_map.components_by_slot.values()
             for instance in slot.instances
         }
+
+    def _reject_duplicate_ids(self, values: list[str], owner: str) -> None:
+        seen: set[str] = set()
+        for value in values:
+            if value in seen:
+                raise SystemMapValidationError(
+                    f"{owner} duplicate id: {value}"
+                )
+            seen.add(value)
 
     def _is_project_relative_posix_path(self, value: str) -> bool:
         path = PurePosixPath(value)

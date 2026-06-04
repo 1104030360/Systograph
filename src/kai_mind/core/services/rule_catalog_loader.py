@@ -15,6 +15,7 @@ DEPENDENCY_RULE_CATALOG = "dependency_manifest_rules.toml"
 DOCKER_IMAGE_RULE_CATALOG = "docker_image_rules.toml"
 CODE_PATTERN_RULE_CATALOG = "code_pattern_rules.toml"
 RISK_HINT_RULE_CATALOG = "risk_hint_rules.toml"
+RECOMMENDED_NEXT_CHECK_RULE_CATALOG = "recommended_next_check_rules.toml"
 
 
 class RuleCatalogError(ValueError):
@@ -70,6 +71,16 @@ class RiskHintRuleMetadata:
     uncertainty: str
 
 
+@dataclass(frozen=True)
+class RecommendedNextCheckRuleMetadata:
+    """Metadata for one emitted recommended next check."""
+
+    id: str
+    default_target_type: str
+    reason: str
+    action: str
+
+
 class RuleCatalogLoader:
     """Load and validate deterministic provider rule catalogs."""
 
@@ -86,6 +97,11 @@ class RuleCatalogLoader:
         self,
     ) -> tuple[RiskHintRuleMetadata, ...]:
         return self.load_risk_hint_rules(None)
+
+    def load_default_recommended_next_check_rules(
+        self,
+    ) -> tuple[RecommendedNextCheckRuleMetadata, ...]:
+        return self.load_recommended_next_check_rules(None)
 
     def load_dependency_rules(
         self,
@@ -262,6 +278,44 @@ class RuleCatalogLoader:
                     uncertainty=self._required_string(
                         entry,
                         "uncertainty",
+                        section=section,
+                    ),
+                )
+            )
+        return tuple(rules)
+
+    def load_recommended_next_check_rules(
+        self,
+        catalog_path: Path | str | None,
+    ) -> tuple[RecommendedNextCheckRuleMetadata, ...]:
+        loaded = self._load_toml(
+            catalog_path,
+            default_name=RECOMMENDED_NEXT_CHECK_RULE_CATALOG,
+        )
+        self._reject_unknown_sections(loaded, {"recommended_next_checks"})
+        entries = self._section_list(loaded, "recommended_next_checks")
+        ids: set[str] = set()
+        rules: list[RecommendedNextCheckRuleMetadata] = []
+        for index, entry in enumerate(entries):
+            section = f"recommended_next_checks[{index}]"
+            check_id = self._required_string(entry, "id", section=section)
+            self._reject_duplicate(ids, check_id, label="duplicate id")
+            rules.append(
+                RecommendedNextCheckRuleMetadata(
+                    id=check_id,
+                    default_target_type=self._required_string(
+                        entry,
+                        "default_target_type",
+                        section=section,
+                    ),
+                    reason=self._required_string(
+                        entry,
+                        "reason",
+                        section=section,
+                    ),
+                    action=self._required_string(
+                        entry,
+                        "action",
                         section=section,
                     ),
                 )

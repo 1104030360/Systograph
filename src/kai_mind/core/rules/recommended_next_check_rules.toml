@@ -1,0 +1,23 @@
+[[recommended_next_checks]]
+id = "runtime_readiness"
+# Used only as fallback when Python target resolution cannot find a more
+# precise component, endpoint, or slot target.
+default_target_type = "system"
+reason = "Static scan found runtime-dependent services, endpoints, or missing runtime-critical RAG slots."
+action = "Verify required services start successfully and configured endpoints are reachable in the intended runtime environment."
+
+[[recommended_next_checks]]
+id = "privacy_exposure"
+# Used only as fallback when Python target resolution cannot find a more
+# precise component, endpoint, or slot target.
+default_target_type = "system"
+reason = "Static scan found potential data egress, published port, secret-like config, or local persistence evidence."
+action = "Review data flow, access control, retention, and whether sensitive data can leave the local environment."
+
+[[recommended_next_checks]]
+id = "rag_knowledge_trust"
+# Used only as fallback when Python target resolution cannot find a more
+# precise component, endpoint, or slot target.
+default_target_type = "system"
+reason = "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition."
+action = "Review source trust, retrieval quality, citation traceability, and answer reliability before release."

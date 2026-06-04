@@ -89,6 +89,18 @@ def test_rejects_endpoint_with_dangling_evidence_id(
         SystemMapValidationService().validate(data)
 
 
+def test_rejects_duplicate_endpoint_id(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    duplicate_endpoint = copy.deepcopy(data["endpoints"][0])
+    duplicate_endpoint["value"] = "http://localhost:8000/duplicate"
+    data["endpoints"].append(duplicate_endpoint)
+
+    with pytest.raises(SystemMapValidationError, match="duplicate id"):
+        SystemMapValidationService().validate(data)
+
+
 def test_rejects_flow_edge_with_unknown_slot(
     minimal_map: dict[str, Any],
 ) -> None:
@@ -200,3 +212,39 @@ def test_accepts_detail_scan_targets_for_extension_and_evidence(
     )
 
     SystemMapValidationService().validate(data)
+
+
+def test_accepts_recommended_next_check_with_valid_endpoint_target(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    endpoint_id = data["endpoints"][0]["id"]
+    data["recommended_next_checks"].append(
+        {
+            "id": "check:runtime_readiness",
+            "target_type": "endpoint",
+            "target": endpoint_id,
+            "reason": "Runtime endpoint should be verified.",
+            "action": "Start the app and verify the endpoint is reachable.",
+        }
+    )
+
+    SystemMapValidationService().validate(data)
+
+
+def test_rejects_recommended_next_check_with_missing_target(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["recommended_next_checks"].append(
+        {
+            "id": "check:runtime_readiness",
+            "target_type": "endpoint",
+            "target": "endpoint:missing",
+            "reason": "Runtime endpoint should be verified.",
+            "action": "Start the app and verify the endpoint is reachable.",
+        }
+    )
+
+    with pytest.raises(SystemMapValidationError, match="RecommendedNextCheck"):
+        SystemMapValidationService().validate(data)
