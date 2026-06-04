@@ -88,12 +88,16 @@ class ComponentDetectionService:
             if not evidence_ids:
                 continue
 
-            for candidate in self._component_candidates(fact, evidence_ids):
+            fact_candidates = self._component_candidates(fact, evidence_ids)
+            for candidate in fact_candidates:
                 self._merge_candidate(candidates, candidate)
 
             extension = self._extension_candidate(fact, evidence_ids)
             if extension is not None:
                 extensions.setdefault(extension.id, extension)
+                continue
+
+            if fact_candidates:
                 continue
 
             ambiguous = self._unmapped_candidate(fact, evidence_ids)
@@ -202,17 +206,6 @@ class ComponentDetectionService:
                     kind="local_persistent_vector_store",
                     name="Chroma Persistent",
                     provider="chroma_persistent",
-                    evidence_ids=evidence_ids,
-                )
-            ]
-
-        if self._looks_like_chroma_config(fact):
-            return [
-                ComponentCandidate(
-                    slot="vector_store",
-                    kind="vector_db_config",
-                    name="Chroma",
-                    provider="chroma",
                     evidence_ids=evidence_ids,
                 )
             ]
@@ -417,19 +410,6 @@ class ComponentDetectionService:
             ]
         ).lower()
         return "router" in haystack or "route" in haystack
-
-    def _looks_like_chroma_config(self, fact: ScanFact) -> bool:
-        if fact.kind != "config_value":
-            return False
-        haystack = f"{fact.path} {fact.value or ''}".lower()
-        return "chroma" in haystack and not any(
-            key in haystack
-            for key in (
-                "chroma_port",
-                "chroma_listen_address",
-                "chroma_persist_path",
-            )
-        )
 
     def _looks_like_openai_config(self, fact: ScanFact) -> bool:
         if fact.kind != "config_value":

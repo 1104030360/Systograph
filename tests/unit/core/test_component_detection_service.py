@@ -143,6 +143,39 @@ def test_chroma_client_code_patterns_detect_vector_store() -> None:
     assert all(instance.evidence_ids for instance in instances)
 
 
+def test_chroma_host_config_only_does_not_detect_vector_store() -> None:
+    chroma_config = fact_with_evidence(
+        kind="config_value",
+        file=".env",
+        path="CHROMA_HOST",
+        value="localhost",
+        rule_id="config_env_value_detected",
+    )
+
+    result = detect([chroma_config])
+
+    vector_store = result.components_by_slot["vector_store"]
+    assert vector_store.status == "missing"
+    assert vector_store.instances == []
+
+
+def test_api_route_detection_does_not_create_unmapped_router() -> None:
+    route_fact = fact_with_evidence(
+        kind="api_route",
+        file="src/api.py",
+        path="line[12]",
+        value='@app.get("/health")',
+        rule_id="code_pattern_route_fastapi",
+    )
+
+    result = detect([route_fact])
+
+    app_slot = result.components_by_slot["app_api_or_orchestrator"]
+    assert app_slot.status == "detected"
+    assert app_slot.instances[0].kind == "api_route"
+    assert result.unmapped_components == []
+
+
 def test_openai_code_patterns_detect_embedding_and_llm_slots() -> None:
     embedding_fact = fact_with_evidence(
         kind="embedding",
