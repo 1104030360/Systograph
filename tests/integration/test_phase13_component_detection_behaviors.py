@@ -58,3 +58,43 @@ def test_reranker_fixture_creates_extension_candidate() -> None:
     assert result.extensions
     assert result.extensions[0].kind == "reranker"
     assert result.extensions[0].status == "candidate"
+
+
+def test_qdrant_provider_config_fixture_supports_vector_store_mapping() -> (
+    None
+):
+    raw_scan = ProjectScanService().scan(
+        rag_project_fixture_path("graph_rag_extension_rag")
+    )
+    template = RagTemplateService.load("rag-core-v1")
+    result = ComponentDetectionService().detect(
+        template=template,
+        facts=raw_scan.facts,
+        evidence=raw_scan.evidence,
+    )
+    config_evidence_ids = {
+        evidence.id
+        for evidence in raw_scan.evidence
+        if evidence.file == "config.yaml"
+        and evidence.path == "vector_store.provider"
+        and evidence.value == "qdrant"
+    }
+
+    vector_store = result.components_by_slot["vector_store"]
+    qdrant_instances = [
+        instance
+        for instance in vector_store.instances
+        if instance.provider == "qdrant"
+    ]
+    assert vector_store.status == "detected"
+    assert qdrant_instances
+    assert config_evidence_ids
+    assert config_evidence_ids <= set(qdrant_instances[0].evidence_ids)
+
+
+def test_unsupported_provider_config_fixture_stays_missing() -> None:
+    result = detect_fixture("lancedb_or_chroma_local_rag")
+
+    assert result.components_by_slot["vector_store"].status == "missing"
+    assert result.components_by_slot["llm"].status == "missing"
+    assert result.components_by_slot["embedding_model"].status == "missing"

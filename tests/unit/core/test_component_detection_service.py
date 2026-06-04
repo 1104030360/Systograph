@@ -194,6 +194,62 @@ def test_chroma_provider_config_detects_vector_store() -> None:
     ]
 
 
+def test_supported_vector_store_provider_config_detects_vector_store() -> None:
+    qdrant_config = fact_with_evidence(
+        kind="config_value",
+        file="config.yaml",
+        path="vector_store.provider",
+        value="qdrant",
+        rule_id="config_yaml_value_detected",
+    )
+    nested_qdrant_config = fact_with_evidence(
+        kind="config_value",
+        file="settings.toml",
+        path="providers.vector_store.provider",
+        value="qdrant",
+        rule_id="config_toml_value_detected",
+    )
+    pgvector_config = fact_with_evidence(
+        kind="config_value",
+        file="config.json",
+        path="vector_store.provider",
+        value="pgvector",
+        rule_id="config_json_value_detected",
+    )
+    nested_pgvector_config = fact_with_evidence(
+        kind="config_value",
+        file="config.yaml",
+        path="providers.vector_store.provider",
+        value="pgvector",
+        rule_id="config_yaml_value_detected",
+    )
+
+    result = detect(
+        [
+            qdrant_config,
+            nested_qdrant_config,
+            pgvector_config,
+            nested_pgvector_config,
+        ]
+    )
+
+    vector_store = result.components_by_slot["vector_store"]
+    assert vector_store.status == "detected"
+    evidence_by_provider = {
+        instance.provider: set(instance.evidence_ids)
+        for instance in vector_store.instances
+    }
+    assert evidence_by_provider == {
+        "qdrant": {qdrant_config[1].id, nested_qdrant_config[1].id},
+        "pgvector": {
+            pgvector_config[1].id,
+            nested_pgvector_config[1].id,
+        },
+    }
+    assert result.components_by_slot["llm"].status == "missing"
+    assert result.components_by_slot["embedding_model"].status == "missing"
+
+
 def test_api_route_detection_does_not_create_unmapped_router() -> None:
     route_fact = fact_with_evidence(
         kind="api_route",
@@ -284,6 +340,89 @@ def test_openai_env_config_still_detects_embedding_and_llm_slots() -> None:
     assert llm_slot.instances[0].provider == "openai"
     assert embedding_slot.status == "detected"
     assert embedding_slot.instances[0].provider == "openai"
+
+
+def test_ollama_provider_config_detects_llm_only() -> None:
+    direct_config = fact_with_evidence(
+        kind="config_value",
+        file="config.yaml",
+        path="llm.provider",
+        value="ollama",
+        rule_id="config_yaml_value_detected",
+    )
+    nested_config = fact_with_evidence(
+        kind="config_value",
+        file="settings.toml",
+        path="providers.llm.provider",
+        value="ollama",
+        rule_id="config_toml_value_detected",
+    )
+
+    result = detect([direct_config, nested_config])
+
+    llm_slot = result.components_by_slot["llm"]
+    assert llm_slot.status == "detected"
+    assert llm_slot.instances[0].name == "Ollama"
+    assert llm_slot.instances[0].provider == "ollama"
+    assert set(llm_slot.instances[0].evidence_ids) == {
+        direct_config[1].id,
+        nested_config[1].id,
+    }
+    assert result.components_by_slot["vector_store"].status == "missing"
+    assert result.components_by_slot["embedding_model"].status == "missing"
+
+
+def test_dependency_only_supported_providers_remain_weak_signals() -> None:
+    qdrant_dependency = fact_with_evidence(
+        kind="dependency_candidate",
+        file="requirements.txt",
+        path="line[1]",
+        value="qdrant-client",
+        rule_id="dependency_vector_store_client_qdrant",
+    )
+    ollama_dependency = fact_with_evidence(
+        kind="dependency_candidate",
+        file="requirements.txt",
+        path="line[2]",
+        value="ollama",
+        rule_id="dependency_local_llm_provider_ollama",
+    )
+
+    result = detect([qdrant_dependency, ollama_dependency])
+
+    assert result.components_by_slot["vector_store"].status == "missing"
+    assert result.components_by_slot["llm"].status == "missing"
+    assert {
+        component.observed_kind for component in result.unmapped_components
+    } == {"dependency_candidate"}
+    assert {
+        evidence_id
+        for component in result.unmapped_components
+        for evidence_id in component.evidence_ids
+    } == {qdrant_dependency[1].id, ollama_dependency[1].id}
+
+
+def test_unsupported_provider_config_does_not_detect_component() -> None:
+    faiss_config = fact_with_evidence(
+        kind="config_value",
+        file="config.yaml",
+        path="vector_store.provider",
+        value="faiss",
+        rule_id="config_yaml_value_detected",
+    )
+    embedding_ollama_config = fact_with_evidence(
+        kind="config_value",
+        file="config.yaml",
+        path="embedding.provider",
+        value="ollama",
+        rule_id="config_yaml_value_detected",
+    )
+
+    result = detect([faiss_config, embedding_ollama_config])
+
+    assert result.components_by_slot["vector_store"].status == "missing"
+    assert result.components_by_slot["llm"].status == "missing"
+    assert result.components_by_slot["embedding_model"].status == "missing"
 
 
 def test_custom_router_goes_to_unmapped_not_retriever() -> None:
