@@ -29,6 +29,20 @@ STRUCTURAL_SECRET_SCAN_KEYS = frozenset(
         "type",
     }
 )
+SECRET_CONTEXT_METADATA_KEYS = frozenset(
+    {
+        "description",
+        "fingerprint",
+        "is_present",
+        "key",
+        "last4",
+        "masked",
+        "present",
+        "provider",
+        "redacted",
+        "source",
+    }
+)
 
 
 class SystemMapValidationError(ValueError):
@@ -99,14 +113,14 @@ class SystemMapValidationService:
         if isinstance(value, Mapping):
             sibling_key = value.get("key")
             for key, child in value.items():
-                child_key_context = str(key)
-                if key == "value" and isinstance(sibling_key, str):
-                    child_key_context = sibling_key
-
                 self._reject_unmasked_secrets(
                     child,
                     f"{path}.{key}",
-                    key_context=child_key_context,
+                    key_context=self._child_key_context(
+                        inherited_key_context=key_context,
+                        key=key,
+                        sibling_key=sibling_key,
+                    ),
                 )
             return
 
@@ -129,6 +143,31 @@ class SystemMapValidationService:
             key=key,
             scan_key_value_pairs=key not in STRUCTURAL_SECRET_SCAN_KEYS,
         )
+
+    def _child_key_context(
+        self,
+        *,
+        inherited_key_context: str | None,
+        key: Any,
+        sibling_key: Any,
+    ) -> str:
+        candidate = str(key)
+        if key == "value" and isinstance(sibling_key, str):
+            candidate = sibling_key
+
+        if self._secret_masking_service.is_secret_key_name(candidate):
+            return candidate
+
+        if (
+            self._secret_masking_service.is_secret_key_name(
+                inherited_key_context
+            )
+            and candidate not in SECRET_CONTEXT_METADATA_KEYS
+            and candidate not in STRUCTURAL_SECRET_SCAN_KEYS
+        ):
+            return str(inherited_key_context)
+
+        return candidate
 
     def _validate_unique_ids(self, system_map: RagSystemMap) -> None:
         self._reject_duplicate_ids(

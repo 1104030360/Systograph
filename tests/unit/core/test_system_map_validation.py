@@ -97,6 +97,57 @@ def test_rejects_unmasked_secret_keyed_list_value(
         SystemMapValidationService().validate(data)
 
 
+@pytest.mark.parametrize(
+    "api_key_payload",
+    [
+        {"value": "ordinary-looking-secret"},
+        {"nested": {"value": "ordinary-looking-secret"}},
+    ],
+)
+def test_rejects_unmasked_secret_keyed_nested_object_value(
+    minimal_map: dict[str, Any],
+    api_key_payload: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["query_trace_events"].append(
+        {
+            "id": "trace_event:secret-keyed-object",
+            "sequence_index": 0,
+            "timestamp": "2026-06-04T00:00:00Z",
+            "input": {
+                "api_key": api_key_payload,
+            },
+        }
+    )
+
+    with pytest.raises(SystemMapValidationError, match="Unmasked secret"):
+        SystemMapValidationService().validate(data)
+
+
+def test_accepts_secret_keyed_metadata_fields(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["query_trace_events"].append(
+        {
+            "id": "trace_event:secret-keyed-metadata",
+            "sequence_index": 0,
+            "timestamp": "2026-06-04T00:00:00Z",
+            "input": {
+                "api_key": {
+                    "source": "env",
+                    "provider": "openai",
+                    "redacted": True,
+                    "last4": "1234",
+                    "value": "[MASKED]",
+                },
+            },
+        }
+    )
+
+    SystemMapValidationService().validate(data)
+
+
 def test_rejects_windows_absolute_evidence_path(
     minimal_map: dict[str, Any],
 ) -> None:

@@ -38,6 +38,14 @@ def test_non_secret_endpoint_is_not_masked() -> None:
     assert masked == "http://localhost:6333"
 
 
+def test_secret_key_name_detection_is_available_publicly() -> None:
+    service = SecretMaskingService()
+
+    assert service.is_secret_key_name("OPENAI_API_KEY")
+    assert service.is_secret_key_name("api_token")
+    assert not service.is_secret_key_name("QDRANT_URL")
+
+
 def test_env_text_masks_fake_openai_key_without_hiding_key_name() -> None:
     service = SecretMaskingService()
     env_text = (
