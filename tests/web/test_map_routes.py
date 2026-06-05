@@ -34,6 +34,79 @@ def test_map_build_route_updates_api_map_payload(tmp_path: Path) -> None:
     assert api_payload["viewer_load_result"]["graph_view_model"]["nodes"]
 
 
+def test_map_report_route_returns_latest_markdown_report(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(create_app())
+    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
+
+    build_response = client.post(
+        "/api/map/build",
+        json={
+            "project_path": str(project_root),
+            "output": str(tmp_path / "outputs"),
+        },
+    )
+    report_response = client.get("/api/map/report")
+
+    assert build_response.status_code == 200
+    assert report_response.status_code == 200
+    assert report_response.headers["content-type"].startswith("text/markdown")
+    assert report_response.text.startswith("# KAI-Mind System Map\n")
+    assert "## Slot Coverage" in report_response.text
+    assert "## Recommended Next Checks" in report_response.text
+
+
+def test_map_report_route_can_return_download_attachment(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(create_app())
+    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
+    client.post(
+        "/api/map/build",
+        json={
+            "project_path": str(project_root),
+            "output": str(tmp_path / "outputs"),
+        },
+    )
+
+    response = client.get("/api/map/report?download=true")
+
+    assert response.status_code == 200
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="ai_system_map.md"'
+    )
+
+
+def test_map_report_route_before_build_returns_404() -> None:
+    client = TestClient(create_app())
+
+    response = client.get("/api/map/report")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "map_markdown_not_available"
+
+
+def test_map_report_route_ignores_arbitrary_path_query(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(create_app())
+    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
+    client.post(
+        "/api/map/build",
+        json={
+            "project_path": str(project_root),
+            "output": str(tmp_path / "outputs"),
+        },
+    )
+
+    response = client.get("/api/map/report?path=/etc/passwd")
+
+    assert response.status_code == 200
+    assert response.text.startswith("# KAI-Mind System Map\n")
+    assert "root:" not in response.text
+
+
 def test_map_payload_before_build_is_contract_compatible() -> None:
     client = TestClient(create_app())
 

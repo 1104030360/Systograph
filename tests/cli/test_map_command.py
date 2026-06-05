@@ -32,7 +32,11 @@ def test_map_command_builds_same_canonical_artifact_contract(
 
     assert result.exit_code == 0
     map_json_path = tmp_path / "outputs" / "ai_system_map.json"
+    map_markdown_path = tmp_path / "outputs" / "ai_system_map.md"
     assert map_json_path.is_file()
+    assert map_markdown_path.is_file()
+    assert str(map_json_path) in result.stdout
+    assert str(map_markdown_path) in result.stdout
     artifact_data = json.loads(map_json_path.read_text(encoding="utf-8"))
     assert (
         SystemMapValidationService().validate(artifact_data).schema_version

@@ -22,6 +22,9 @@ from kai_mind.core.services.endpoint_detection_service import (
 from kai_mind.core.services.flow_derivation_service import (
     FlowDerivationService,
 )
+from kai_mind.core.services.markdown_summary_service import (
+    MarkdownSummaryService,
+)
 from kai_mind.core.services.minimal_viewer_projection_service import (
     MinimalViewerProjectionService,
 )
@@ -49,6 +52,7 @@ class MapBuildService:
         risk_hint_service: RiskHintService | None = None,
         flow_derivation_service: FlowDerivationService | None = None,
         normalize_service: SystemMapNormalizeService | None = None,
+        markdown_summary_service: MarkdownSummaryService | None = None,
         projection_service: MinimalViewerProjectionService | None = None,
         validation_service: SystemMapValidationService | None = None,
     ) -> None:
@@ -70,6 +74,9 @@ class MapBuildService:
         )
         self._normalize_service = (
             normalize_service or SystemMapNormalizeService()
+        )
+        self._markdown_summary_service = (
+            markdown_summary_service or MarkdownSummaryService()
         )
         self._projection_service = (
             projection_service or MinimalViewerProjectionService()
@@ -109,6 +116,11 @@ class MapBuildService:
             system_map,
             output_run=precondition.output_run,
         )
+        markdown = self._markdown_summary_service.render(system_map)
+        map_markdown_path = self._output_artifact_provider.write_markdown(
+            markdown,
+            output_run=precondition.output_run,
+        )
         viewer_load_result = self._projection_service.build(
             system_map,
             map_json_path=map_json_path,
@@ -119,6 +131,7 @@ class MapBuildService:
             project_name=precondition.project_root.name,
             output_run_dir=precondition.output_run.root_dir,
             map_json_path=map_json_path,
+            map_markdown_path=map_markdown_path,
             map_error_path=None,
             viewer_load_result=viewer_load_result,
             ai_system_map=system_map,
@@ -146,6 +159,7 @@ class MapBuildService:
             project_name=project_name,
             output_run_dir=output_run.root_dir if output_run else None,
             map_json_path=None,
+            map_markdown_path=None,
             map_error_path=map_error_path,
             viewer_load_result=None,
             ai_system_map=None,

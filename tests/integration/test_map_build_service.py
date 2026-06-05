@@ -38,6 +38,8 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     assert result.map_error_path is None
     assert result.map_json_path is not None
     assert result.map_json_path.is_file()
+    assert result.map_markdown_path is not None
+    assert result.map_markdown_path.is_file()
     assert result.viewer_load_result is not None
     assert result.viewer_load_result.loaded
     assert result.viewer_load_result.graph_view_model.nodes
@@ -49,6 +51,11 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     assert validated.schema_version == "ai-system-map/v1"
     assert "viewer_load_result" not in artifact_data
     assert "graph_view_model" not in artifact_data
+
+    markdown = result.map_markdown_path.read_text(encoding="utf-8")
+    assert markdown.startswith("# KAI-Mind System Map\n")
+    assert "## Slot Coverage" in markdown
+    assert "## Recommended Next Checks" in markdown
 
 
 def test_map_build_service_missing_project_writes_map_error_only(
@@ -70,9 +77,11 @@ def test_map_build_service_missing_project_writes_map_error_only(
         == PreconditionFailureReason.PROJECT_PATH_NOT_FOUND
     )
     assert result.map_json_path is None
+    assert result.map_markdown_path is None
     assert result.map_error_path == tmp_path / "outputs" / "map-error.md"
     assert result.map_error_path.is_file()
     assert not (tmp_path / "outputs" / "ai_system_map.json").exists()
+    assert not (tmp_path / "outputs" / "ai_system_map.md").exists()
 
 
 def test_map_build_service_uses_timestamped_output_run_when_artifact_exists(
@@ -92,6 +101,9 @@ def test_map_build_service_uses_timestamped_output_run_when_artifact_exists(
     assert result.map_json_path == (
         output_dir / "20260605T093000" / "ai_system_map.json"
     )
+    assert result.map_markdown_path == (
+        output_dir / "20260605T093000" / "ai_system_map.md"
+    )
 
 
 def test_map_build_service_keeps_secret_values_masked(tmp_path: Path) -> None:
@@ -106,6 +118,9 @@ def test_map_build_service_keeps_secret_values_masked(tmp_path: Path) -> None:
 
     assert result.status == "ok"
     assert result.map_json_path is not None
+    assert result.map_markdown_path is not None
     artifact_text = result.map_json_path.read_text(encoding="utf-8")
+    markdown_text = result.map_markdown_path.read_text(encoding="utf-8")
     assert "sk-test" not in artifact_text
+    assert "sk-test" not in markdown_text
     assert "[MASKED]" in artifact_text or "..." in artifact_text
