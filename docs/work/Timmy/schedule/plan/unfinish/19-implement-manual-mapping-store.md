@@ -6,6 +6,12 @@
 ## 為什麼要先做這個
 unmapped components 不能永遠停在 needs_confirmation。設計文件要求 user-confirmed mapping 寫入 KAI-Mind-managed store，而不是修改被掃描 repo 或只改 output JSON。
 
+## 承接 Task 16 延後功能
+- 承接 Task 16 「不做 manual mapping」的延後範圍。
+- Task 16 / Task 18 只會把 unmapped component 顯示為 `needs_confirmation`；本任務提供使用者確認後的持久化落點。
+- 因為 Epic 1 優先 GUI/local web UI，本任務除了 core store，也要提供 local web API 讓前端提交 accept/edit/reject 後的 manual mapping。
+- Manual mapping 生效方式是下次 scan / normalize 時套用，不是在現有 `ai_system_map.json` 上直接手改 canonical facts。
+
 ## 前置需求
 - Task 13 已產生 unmapped components。
 - Task 15 已有 validation。
@@ -18,6 +24,8 @@ unmapped components 不能永遠停在 needs_confirmation。設計文件要求 u
 - 支援 existing slot mapping 與 new extension mapping。
 - 驗證 mapping references source file/evidence/slot。
 - 將 confirmed mapping 套回 `ComponentDetectionService` 或 normalize flow。
+- 使用 FastAPI 建立 local mapping routes，例如 `GET /api/mappings`、`POST /api/mappings`、`PATCH /api/mappings/{mapping_id}`。
+- 更新 Epic 1 local API guide，加入 manual mapping request/response、validation error、rerun scan 生效規則。
 - 明確處理 Task 14 留下的 unmapped component 邊界：未確認前不得進 baseline `Flow.edges`；使用者確認後才可轉成 existing slot mapping 或 confirmed extension mapping。
 
 ## 不包含範圍
@@ -38,13 +46,18 @@ unmapped components 不能永遠停在 needs_confirmation。設計文件要求 u
 7. 將 valid manual mapping 套用到 component detection。
 8. 對 existing slot mapping：確認後才讓原本的 unmapped evidence 進入對應 `components_by_slot.<slot>`，並保留 confirmed mapping source。
 9. 對 new extension mapping：確認後才產生 `ExtensionComponent`；若 mapping 帶 extension edge，必須在 normalize/validation 階段確認所有 edge endpoint 都存在。
-10. 寫測試：confirmed reranker mapping 下次 scan 穩定重現；invalid slot 被拒絕；未確認 unmapped 不會進 `Flow.edges`；confirmed extension edge 不可有 dangling refs。
+10. 建立 FastAPI mapping routes，route 只能呼叫 `ManualMappingService`。
+11. 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`。
+12. 寫測試：confirmed reranker mapping 下次 scan 穩定重現；invalid slot 被拒絕；未確認 unmapped 不會進 `Flow.edges`；confirmed extension edge 不可有 dangling refs；web route 不直接改 canonical JSON。
 
 ## 預期輸出
 - `src/kai_mind/config/user_mapping_store.py`
 - `src/kai_mind/core/models/mapping.py`
 - `src/kai_mind/core/services/manual_mapping_service.py`
+- `src/kai_mind/web/routes/mapping_routes.py`
+- 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
 - `tests/unit/core/test_manual_mapping_service.py`
+- `tests/web/test_mapping_routes.py`
 
 ## 驗收標準
 - confirmed mapping 不寫入 project root。
@@ -55,6 +68,8 @@ unmapped components 不能永遠停在 needs_confirmation。設計文件要求 u
 - Task 14 產生的 `unmapped_components` 在未確認前仍維持 `needs_confirmation`，不會被自動接進 baseline flow。
 - confirmed existing slot mapping 可在重新 normalize 後參與 standard slot / baseline flow derivation。
 - confirmed extension mapping 可在重新 normalize 後成為 `extensions[]`；若有 extension edge，必須通過 validation 後才進 canonical JSON。
+- local web API 可提交 confirmed mapping，但不得直接 mutate 既有 artifact。
+- API guide 已同步記錄 mapping routes 與「下次 scan 生效」規則。
 
 ## 可能風險與注意事項
 - mapping store path 在測試中要可注入，不能寫真實 user home。

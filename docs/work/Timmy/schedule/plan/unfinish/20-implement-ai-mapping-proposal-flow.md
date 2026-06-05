@@ -6,6 +6,12 @@
 ## 為什麼要先做這個
 Manual mapping store 先完成後，AI proposal 才有安全落點。這符合設計文件的分期：baseline manual selection first，AI mapping proposal later milestone。
 
+## 承接 Task 16 延後功能
+- 承接 Task 16 「不做 AI mapping proposal」的延後範圍。
+- Task 16 / Task 18 只能呈現 unmapped；本任務負責提供「可能怎麼映射」的 pending proposal。
+- Proposal 只能輔助使用者決策，不能直接改 `components_by_slot`、`extensions`、`flows` 或 query trace。
+- 因為 GUI/local web UI 需要 proposal queue，本任務要提供 local web API 讀取 proposal、建立 proposal、accept/edit/reject proposal。
+
 ## 前置需求
 - Task 13 已有 unmapped components。
 - Task 19 已有 manual mapping store。
@@ -19,6 +25,8 @@ Manual mapping store 先完成後，AI proposal 才有安全落點。這符合�
 - proposal 若涉及 extension placement，可包含 `suggested_edges` / `flow_hint`，但只能作為 pending proposal，不得進 baseline `Flow.edges`。
 - 產生 proposal status：`pending_user_confirmation`。
 - 支援 accept/edit/reject 轉成 manual mapping。
+- 使用 FastAPI 建立 proposal routes，例如 `GET /api/mapping-proposals`、`POST /api/mapping-proposals`、`POST /api/mapping-proposals/{proposal_id}/decision`。
+- 更新 Epic 1 local API guide，加入 proposal lifecycle、pending-only rule、AI unavailable degrade behavior。
 
 ## 不包含範圍
 - 不要求連接外部 LLM。
@@ -37,12 +45,17 @@ Manual mapping store 先完成後，AI proposal 才有安全落點。這符合�
 6. 預留 optional local LLM provider interface，但 unavailable 時 graceful degrade。
 7. 實作 proposal validation。
 8. 實作 accept -> manual mapping draft。
-9. 測試：proposal pending、不進 canonical map、accept 後需 validation；proposal 不會讓 unmapped component 直接出現在 baseline `Flow.edges`。
+9. 建立 FastAPI proposal routes，所有 decision 都必須走 `MappingProposalService` / `ManualMappingService`。
+10. 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`。
+11. 測試：proposal pending、不進 canonical map、accept 後需 validation；proposal 不會讓 unmapped component 直接出現在 baseline `Flow.edges`；web route 不會在 AI unavailable 時讓 scan 失敗。
 
 ## 預期輸出
 - `src/kai_mind/core/services/mapping_proposal_service.py`
 - 更新 `src/kai_mind/core/models/mapping.py`
+- `src/kai_mind/web/routes/mapping_proposal_routes.py`
+- 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
 - `tests/unit/core/test_mapping_proposal_service.py`
+- `tests/web/test_mapping_proposal_routes.py`
 
 ## 驗收標準
 - proposal status 永遠先是 `pending_user_confirmation`。
@@ -52,6 +65,8 @@ Manual mapping store 先完成後，AI proposal 才有安全落點。這符合�
 - 使用者面對 unmapped component 時，可以取得候選 mapping 說明，而不是只看到 `confirm_mapping` 這種動作名稱。
 - 候選 placement 資訊存在 `MappingProposal`，不是存在 `UnmappedComponent.suggested_actions`。
 - 未 accept 的 proposal 不會改動 `components_by_slot`、`extensions`、`flows` 或 replay events。
+- local web API 可列出 / 建立 / 決策 proposal，但 response 不包含 unmasked evidence。
+- API guide 已同步記錄 proposal status transition。
 
 ## 可能風險與注意事項
 - 不要把 AI output 當 source of truth。

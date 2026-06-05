@@ -6,6 +6,12 @@
 ## 為什麼要先做這個
 Query trace 會呼叫 runtime endpoint，可能有副作用，因此必須在 static map、viewer boundary、detail scan 都穩定後才做。它支援 replay UX；因為 Epic 1 優先 GUI/local web UI，本任務先提供 local API，CLI `kai-mind trace` 仍保留為同服務的 thin adapter。
 
+## 承接 Task 16 延後功能
+- 承接 Task 16 「不做 query trace / runtime endpoint 呼叫」的延後範圍。
+- Task 16 的 map build 與 `GET /api/map` 永遠不得預設呼叫 runtime endpoint。
+- 本任務才可建立會送出 query 的 local API，但必須由使用者明確提供 endpoint/query 並 opt-in。
+- 若 Task 16 已建立 basic `GET /api/scan/events`，本任務可延伸 replay/progress event，但不得改壞既有 event target priority。
+
 ## 前置需求
 - Task 14 已有 endpoint detection。
 - Task 15 已有 QueryTraceEvent model/validation。
