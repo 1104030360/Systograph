@@ -58,18 +58,29 @@ graph_view_model
   https://fastapi.tiangolo.com/tutorial/cors/
 - FastAPI SSE: FastAPI 官方 SSE 使用 `EventSourceResponse` 與 `text/event-stream`，瀏覽器原生 `EventSource` 可消費；目前 `uv.lock` FastAPI 為 `0.136.3`，可用官方 SSE 路線，但版本下限 `fastapi>=0.115,<1` 仍需在 API guide 標註。  
   https://fastapi.tiangolo.com/tutorial/server-sent-events/
+- FastAPI SSE version boundary: `EventSourceResponse` 是 FastAPI `0.135.0` 新增；若 Task 16 實作用它，`pyproject.toml` 應把 FastAPI 下限調整為 `>=0.135,<1`，避免 lock 重解時退回不支援 SSE 的版本。  
+  https://fastapi.tiangolo.com/tutorial/server-sent-events/
+- WHATWG / MDN SSE format: SSE response 必須是 `text/event-stream`；event stream 以 UTF-8 文字傳輸，message 由空白行分隔，`data:` 欄位可被瀏覽器 `EventSource` 消費。`Cache-Control: no-cache` 與 `X-Accel-Buffering: no` 屬於實務上的 buffering 防護，特別是日後若經過 proxy。  
+  https://html.spec.whatwg.org/multipage/server-sent-events.html  
+  https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
 - OWASP API Security Top 10 2023: API4 unrestricted resource consumption、API8 security misconfiguration 直接對應 local scan API 的資源限制與 local-only policy。  
   https://owasp.org/API-Security/editions/2023/en/0x00-header/
 - React single source of truth / Thinking in React: 前端 state 應只保存互動狀態，canonical facts 與 graph projection 不應在前端重複推導。  
   https://react.dev/learn/sharing-state-between-components  
   https://react.dev/learn/thinking-in-react
+- Langflow 1.9.x: 官方文件顯示 Langflow 由 React/TypeScript frontend 與 Python/FastAPI backend 組成，開發時 frontend/backend 分 port 執行，API 文件也列出 `/api/v1/...` endpoint。它適合參考 route 分層、typed API 與 graph/backend state 轉前端 payload 的模式；但資料庫、權限、自訂程式碼、public build endpoint 與 file upload 不是 Task 16 範圍，且 Langflow 曾有 public build endpoint RCE，因此只能借鑑邊界設計，不可照抄其執行/上傳/公開 build 行為。  
+  https://docs.langflow.org/contributing-how-to-contribute  
+  https://docs.langflow.org/api  
+  https://github.com/langflow-ai/langflow/security/advisories/GHSA-vwmf-pq79-vjvx
+- Microsoft Promptflow: `promptflow` 已拆成 `promptflow-core`、`promptflow-devkit` 等套件；官方 changelog 顯示 local serve 已加入 FastAPI engine，且 devkit 負責啟動本地 serving、解析 flow path 與處理 host/port。可參考其 core serving 與 devkit serving helper 的分層，但 KAI-Mind Task 16 不應引入 Promptflow 的 flow execution、連線管理或瀏覽器開啟行為。  
+  https://microsoft.github.io/promptflow/reference/changelog/promptflow.html
 
-### 需要修正的原 Task 16 方向
-- 原 plan 只提 `MapBuildService` 與 map build route，但前端已明確需要 `viewer_load_result.graph_view_model` wrapper。
-- 原 plan 沒有明確區分 Task 16 與 Task 18；現在要修正為：Task 16 建立 minimal viewer response shell，Task 18 補完整 graph projection。
-- 原 plan 沒有寫清楚 local path import vs upload；本任務採 local path，不做 zip upload。
-- 原 plan 沒有寫清楚 `GET /api/map` / `GET /map` 與 `POST /api/map/build` 的關係；本任務需固定。
-- 原 plan 沒有寫清楚 SSE / `scan_id` / source id mapping；本任務先記錄 contract 與基本 event shell，完整 progress 可留後續。
+### Research 校正結論
+- 你的 research 大方向正確：Task 16 應用 FastAPI typed route、`response_model`、`APIRouter`、local-only CORS allowlist、core/web 解耦、minimal projection 與 SSE contract。
+- 需要修正的地方是 SSE 參考來源：不要把 LangGraph 生態圈當主要依據；本任務以 FastAPI 官方 SSE、WHATWG SSE 規範、MDN EventSource 文件為主要依據。Langflow 可作為實務參考，因它目前仍大量使用 FastAPI `APIRouter` 與 `StreamingResponse`。
+- 若採 FastAPI 官方 `EventSourceResponse`，實作必須同步更新 dependency lower bound 到 `fastapi>=0.135,<1`；否則未來重新解 lock 可能破壞 SSE import。
+- CORS `allow_origins=["*"]` 不是本地 scanner API 的合理預設。Task 16 預設只能 allowlist `http://127.0.0.1:5173` 與 `http://localhost:5173`；server bind guide 預設 `127.0.0.1`。
+- `graph_view_model` 是 API/viewer projection，不是 `RagSystemMap` canonical truth；`ai_system_map.json` 不得寫入 `viewer_load_result` 或 `graph_view_model`。
 
 ## 前置需求
 - Task 6 已完成 precondition/output policy。
