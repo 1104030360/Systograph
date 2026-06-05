@@ -6,6 +6,12 @@
 ## 為什麼要先做這個
 Local web API 產生 JSON 後，使用者還需要可讀報告快速理解 system map。設計文件要求 Markdown 是 artifact output 的一部分，但它不能成為第二份 truth。
 
+## 承接 Task 16 延後功能
+- 承接 Task 16 「不產生 Markdown」的延後範圍。
+- Task 16 只保證 `ai_system_map.json` 與 map build result；本任務補上同一 run directory 內的 `ai_system_map.md`。
+- Markdown artifact 必須由 `MapBuildService` 在 validated map 通過後呼叫產生，不能另外開一條 scanner pipeline。
+- Local web API / CLI 回傳 artifact list 時，應同時顯示 JSON 與 Markdown 路徑，但 canonical truth 仍只有 `ai_system_map.json`。
+
 ## 前置需求
 - Task 15 已完成 normalized validated map。
 - Task 16 已完成 `MapBuildService`、local web API map build 與 JSON output。
@@ -15,6 +21,8 @@ Local web API 產生 JSON 後，使用者還需要可讀報告快速理解 syste
 - 建立 `MarkdownSummaryService`。
 - 產生 sections：系統總覽、slot coverage、detected/missing slots、indexing flow、query/answer flow、external endpoints、network exposure、recommended next checks。
 - 串接 `MapBuildService` 寫出 `ai_system_map.md`。
+- 更新 map build response artifact metadata，讓 local API 可以回傳 Markdown artifact path。
+- 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`，說明 Markdown artifact 是 report view，不是 schema source。
 - 確認 Markdown 不含 full secret。
 
 ## 不包含範圍

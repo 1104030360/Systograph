@@ -6,6 +6,12 @@
 ## 為什麼要先做這個
 設計文件明確標註這兩項是 Epic 1 最後才做。scan boundary review 依賴 inventory/skip reason/masking/user policy store；template import 依賴 schema/template validation/supply-chain guardrails。Remote template import 採已決策選項 B：Epic 1 先支援 local archive/mock import，GitHub API 留到下一階段。因為產品入口優先 GUI/local web UI，pending proposal 應先能被 local API 讀取與確認。
 
+## 承接 Task 16 延後功能
+- 承接 Task 16 未處理的進階 scan boundary review 與 import 類能力，但只限「template import」，不包含一般 project upload。
+- 一般 project zip / multipart upload 已拆到 Task 25；本任務的 archive 是 template source，不是被掃描 project source。
+- Task 16 的 local API shell 可作為 route pattern，但本任務不得讓 AI 自動更改 scan boundary。
+- 所有 review/import API 都必須同步更新 Epic 1 local API guide，讓 GUI 可以顯示 pending proposal 與 user decision。
+
 ## 前置需求
 - Task 23 已完成 baseline hardening。
 - Task 7 已有 deterministic `FileInventory`。

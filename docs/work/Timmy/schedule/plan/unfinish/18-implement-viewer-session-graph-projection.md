@@ -6,6 +6,12 @@
 ## 為什麼要先做這個
 設計文件明確決定 `GraphViewModel` 由 backend 轉，frontend 只渲染。因為 Epic 1 優先 GUI/local web UI，本任務要直接提供 viewer API，避免前端自行讀 JSON 後重做 backend 判斷。
 
+## 承接 Task 16 延後功能
+- 承接 Task 16 「不實作完整 `ViewerSessionService` graph projection」與「不做 viewer command」的延後範圍。
+- Task 16 的 `GraphViewModel` 只允許是 minimal shell；本任務要把它升級成完整 projection。
+- 若 Task 16 已建立 `GET /api/map` / `GET /map` minimal wrapper，本任務要保留 endpoint 相容性，只替換內部 projection service，不破壞 `frontend/src/types.ts`。
+- viewer command / map validate CLI 若在本任務補上，只能呼叫 `ViewerSessionService`，不得直接讀 raw JSON 後自行推 graph。
+
 ## 前置需求
 - Task 15 已完成 map validation。
 - Task 16 已能產生 map JSON。
@@ -18,6 +24,7 @@
 - 更新 Epic 1 local API guide，加入 viewer graph endpoint、request/response、invalid map error state。
 - 載入 map 後再次 validate。
 - 將 components、extensions、unmapped、flows、risk hints 轉成 nodes/edges/details。
+- 確保每個 node/edge/detail 都能追回 canonical `source_id` / evidence id。
 - invalid map 回傳 error state。
 - Local web API 完成後，可補 CLI `viewer` / map validate thin adapter；CLI 只能呼叫同一個 `ViewerSessionService`。
 

@@ -6,6 +6,12 @@
 ## 為什麼要先做這個
 設計文件與 AGENTS.md 都要求 Windows/macOS path、secret-safe snapshots、scanner tests、evidence-based findings。功能完成後若不做 hardening，很容易在 review 時出現 P1。
 
+## 承接 Task 16 延後功能
+- 承接 Task 16 中未集中處理的 cross-platform path、structured logging、snapshot safety、API resource limits hardening。
+- Task 16 只要先守住 basic local-only / CORS / no raw secret；本任務要用更完整的 tests 與 helpers 收斂品質。
+- 本任務也要回頭檢查 Task 17-22 新增 artifact/API/event 是否符合同一套 path、masking、logging、validation policy。
+- 若 Task 25/26 已排入後續，本任務要在 docs 補上 upload/session store 的安全前置要求。
+
 ## 前置需求
 - Task 16 已完成 end-to-end map build。
 - Task 21/22 已完成 progressive scan/query trace。
@@ -17,6 +23,7 @@
 - Structured logging events。
 - Provider failure structured warnings。
 - Validation hardening：dangling references、invalid target、unmasked secret pattern。
+- Local API hardening：CORS allowlist、local-only bind、request size/resource limit、error response 不含 raw path/secret。
 - Docs update：開發命令與 known limitations。
 
 ## 不包含範圍
@@ -32,11 +39,13 @@
 4. 加入 structured logging wrapper 或 helper。
 5. 確認 logs 不輸出 full secret。
 6. 補 target validation tests。
-7. 更新 docs 或 README 的 backend test commands。
+7. 補 local API resource limit / error masking tests。
+8. 更新 docs 或 README 的 backend test commands。
 
 ## 預期輸出
 - `tests/contracts/test_secret_snapshot_safety.py`
 - `tests/unit/core/test_cross_platform_paths.py`
+- `tests/web/test_local_api_hardening.py`
 - `src/kai_mind/core/services/logging_service.py` 或等價 helper
 - 更新相關 tests/docs
 
