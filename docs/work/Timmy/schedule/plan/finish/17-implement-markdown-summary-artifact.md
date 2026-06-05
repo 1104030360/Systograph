@@ -51,7 +51,7 @@ Local web API 產生 JSON 後，使用者還需要可讀報告快速理解 syste
 
 ## 實作範圍
 - 建立 `MarkdownSummaryService`。
-- 產生 sections：系統總覽、slot coverage、detected/missing slots、indexing flow、query/answer flow、external endpoints、network exposure、recommended next checks。
+- 產生 sections：系統總覽、slot coverage、detected/missing slots、indexing flow、query/answer flow、local endpoints、external endpoints、network exposure、recommended next checks。
 - 串接 `MapBuildService` 寫出 `ai_system_map.md`。
 - 更新 map build response artifact metadata，讓 local API 可以回傳 Markdown artifact path。
 - 建立 local-only report read endpoint，讓 frontend 可以 view / download latest Markdown report。

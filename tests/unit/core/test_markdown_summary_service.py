@@ -40,6 +40,7 @@ def test_render_includes_required_sections_in_deterministic_order() -> None:
         "## Detected And Missing Slots",
         "## Indexing Flow",
         "## Query Answer Flow",
+        "## Local Endpoints",
         "## External Endpoints",
         "## Network Exposure",
         "## Recommended Next Checks",
@@ -57,6 +58,11 @@ def test_render_summarizes_slots_flows_endpoints_and_risks() -> None:
     assert "| guardrails | optional | missing | - |" in markdown
     assert "- data_sources -> document_loader: loads_documents" in markdown
     assert "- prompt_builder -> llm: sends_grounded_prompt" in markdown
+    assert "| local | GET | http://localhost:6333 | vector_store |" in markdown
+    assert (
+        "| local | POST | http://localhost:8000/query | "
+        "app_api_or_orchestrator |"
+    ) in markdown
     assert "| external | POST | https://api.openai.com/v1 | llm |" in markdown
     assert (
         "Epic 1 does not run full port security or firewall checks."

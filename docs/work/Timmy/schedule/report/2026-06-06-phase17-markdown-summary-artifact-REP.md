@@ -14,6 +14,7 @@
   - Detected And Missing Slots
   - Indexing Flow
   - Query Answer Flow
+  - Local Endpoints
   - External Endpoints
   - Network Exposure
   - Recommended Next Checks
@@ -126,6 +127,16 @@
 
 - 拆行。
 - 使用 ruff 自動修正 import block。
+
+### Review follow-up：Markdown endpoint section 漏掉 local endpoints
+
+Reviewer 指出原本 Markdown 只 render `endpoint_type="external"`，會讓只有 local endpoints 的專案在 report 內看起來像 endpoint not detected。
+
+處理方式：
+
+- 確認這是真問題，因為 local endpoint / Docker published port 是 release-readiness review 需要看的 host/port evidence。
+- 補 regression test，要求 Markdown 包含 `http://localhost:6333` 與 `http://localhost:8000/query`。
+- 將 endpoint report 拆成 `Local Endpoints` 與 `External Endpoints` 兩個 sections。
 
 ## 驗收對照
 

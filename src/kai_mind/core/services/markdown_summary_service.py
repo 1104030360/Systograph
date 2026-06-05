@@ -42,6 +42,14 @@ class MarkdownSummaryService:
                 self._find_flow(system_map.flows, "query_answer"),
             ),
             *self._render_endpoint_section(
+                "Local Endpoints",
+                [
+                    endpoint
+                    for endpoint in system_map.endpoints
+                    if endpoint.endpoint_type == "local"
+                ],
+            ),
+            *self._render_endpoint_section(
                 "External Endpoints",
                 [
                     endpoint
