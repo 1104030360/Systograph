@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from kai_mind.core.models.map_build import MapBuildResult
 from kai_mind.core.models.viewer import ViewerPayload
@@ -34,6 +34,36 @@ def get_api_map(
 ) -> ViewerPayload:
     """回傳目前暫存的 viewer payload，供前端讀取最新地圖狀態。"""
     return store.latest_viewer_payload()
+
+
+@router.get("/api/map/report")
+def get_map_report(
+    store: Annotated[InMemorySessionStore, Depends(session_store)],
+    download: bool = False,
+) -> Response:
+    """Return the latest controlled Markdown report artifact."""
+    result = store.latest_build_result()
+    if result is None or result.map_markdown_path is None:
+        raise HTTPException(
+            status_code=404,
+            detail="map_markdown_not_available",
+        )
+    if not result.map_markdown_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="map_markdown_not_available",
+        )
+
+    headers = {}
+    if download:
+        headers["Content-Disposition"] = (
+            'attachment; filename="ai_system_map.md"'
+        )
+    return Response(
+        content=result.map_markdown_path.read_text(encoding="utf-8"),
+        media_type="text/markdown; charset=utf-8",
+        headers=headers,
+    )
 
 
 @router.get("/map", response_model=ViewerPayload)

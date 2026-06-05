@@ -30,6 +30,7 @@ class MapBuildResult(MapBuildModel):
     project_name: str
     output_run_dir: Path | None = None
     map_json_path: Path | None = None
+    map_markdown_path: Path | None = None
     map_error_path: Path | None = None
     viewer_load_result: ViewerLoadResult | None = None
     ai_system_map: RagSystemMap | None = None

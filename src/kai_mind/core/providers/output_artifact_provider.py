@@ -99,6 +99,17 @@ class OutputArtifactProvider:
         )
         return artifact_path
 
+    def write_markdown(
+        self,
+        markdown: str,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        output_run.root_dir.mkdir(parents=True, exist_ok=True)
+        artifact_path = output_run.map_markdown_path
+        artifact_path.write_text(markdown, encoding="utf-8")
+        return artifact_path
+
     def _validate_project_path(
         self, project_path: Path
     ) -> PreconditionError | None:

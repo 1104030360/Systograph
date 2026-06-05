@@ -37,3 +37,17 @@ def test_write_json_writes_validated_ai_system_map_artifact(
     )
     assert "viewer_load_result" not in written
     assert "graph_view_model" not in written
+
+
+def test_write_markdown_writes_summary_artifact(tmp_path: Path) -> None:
+    provider = OutputArtifactProvider()
+
+    artifact_path = provider.write_markdown(
+        "# KAI-Mind System Map\n",
+        output_run=OutputRun(root_dir=tmp_path),
+    )
+
+    assert artifact_path == tmp_path / "ai_system_map.md"
+    assert artifact_path.read_text(encoding="utf-8") == (
+        "# KAI-Mind System Map\n"
+    )

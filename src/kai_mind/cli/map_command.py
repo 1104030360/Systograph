@@ -65,3 +65,5 @@ def map_command(
 
     if result.map_json_path is not None:
         typer.echo(str(result.map_json_path))
+    if result.map_markdown_path is not None:
+        typer.echo(str(result.map_markdown_path))
