@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -13,6 +14,7 @@ from kai_mind.core.models.errors import (
     PreconditionFailureReason,
 )
 from kai_mind.core.models.scan import OutputRun, PreconditionResult
+from kai_mind.core.models.system_map import RagSystemMap
 
 Clock = Callable[[], datetime]
 
@@ -76,6 +78,26 @@ class OutputArtifactProvider:
         error_path = output_run.map_error_path
         error_path.write_text(self._render_map_error(error), encoding="utf-8")
         return error_path
+
+    def write_json(
+        self,
+        system_map: RagSystemMap,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        output_run.root_dir.mkdir(parents=True, exist_ok=True)
+        artifact_path = output_run.map_json_path
+        artifact_path.write_text(
+            json.dumps(
+                system_map.model_dump(mode="json"),
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return artifact_path
 
     def _validate_project_path(
         self, project_path: Path

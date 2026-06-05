@@ -48,7 +48,7 @@ export const graphViewModelSchema = z.object({
   }),
   filters: z.object({
     available: z.array(graphFilterSchema).default([]),
-    behavior: z.string().optional(),
+    behavior: z.string().nullable().optional(),
   }),
 });
 
