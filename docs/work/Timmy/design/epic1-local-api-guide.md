@@ -55,6 +55,7 @@ MapBuildResult
 ├─ project_name
 ├─ output_run_dir
 ├─ map_json_path
+├─ map_markdown_path
 ├─ map_error_path
 ├─ viewer_load_result
 ├─ ai_system_map
@@ -64,7 +65,7 @@ MapBuildResult
 
 規則：
 
-- `status="ok"` 時必須有 `map_json_path`、`viewer_load_result` 與 `ai_system_map`。
+- `status="ok"` 時必須有 `map_json_path`、`map_markdown_path`、`viewer_load_result` 與 `ai_system_map`。
 - `status="error"` 且 precondition 有可寫 output run 時，寫出 `map-error.md`，不寫 normal map。
 - 已存在 artifact 時，輸出到 timestamped run directory。
 - Route handler 不做 scanner logic，只轉換 request 並呼叫 `MapBuildService`。
@@ -127,6 +128,45 @@ Response:
   }
 }
 ```
+
+## GET /api/map/report
+
+用途：frontend 直接檢視目前 session 最新的 Markdown report。這個 endpoint 讀取 `POST /api/map/build` 成功後保存於 latest build result 的 `map_markdown_path`，不接受任意 filesystem path。
+
+View:
+
+```http
+GET /api/map/report
+```
+
+Download:
+
+```http
+GET /api/map/report?download=true
+```
+
+Response:
+
+```text
+Content-Type: text/markdown; charset=utf-8
+
+# KAI-Mind System Map
+...
+```
+
+下載模式會增加：
+
+```text
+Content-Disposition: attachment; filename="ai_system_map.md"
+```
+
+規則：
+
+- Markdown report 是 human-readable report view，不是 schema source。
+- Canonical scanner truth 仍然只有 `ai_system_map.json`。
+- Endpoint 只讀 latest session 的受控 `map_markdown_path`。
+- Endpoint 不接受 `path`、`file` 或任何 raw local path 作為讀檔來源。
+- 尚未 build、build 失敗、或 Markdown artifact 不存在時，回傳 HTTP 404，`detail="map_markdown_not_available"`。
 
 ## POST /api/projects/import
 
