@@ -1,5 +1,44 @@
 # Task 18: Implement Viewer Session Graph Projection
 
+## Research 查證修正（2026-06-06）
+
+本節承接使用者 research，並依目前前端程式碼與外部來源校正 Task 18 的實作邊界。
+
+### 已查證正確的方向
+
+- 「後端輸出語義 graph、前端負責 layout/interaction」是正確方向。目前前端 `frontend/src/utils/graph.ts` 已用 React Flow + ELK 在前端把 nodes/edges 排版成畫布座標；React Flow 官方文件也把 layouting 視為由 dagre/ELK 等外部 layout 工具在前端處理的工作。後端 `GraphViewModel` 因此不得輸出 `x` / `y` / `position`。
+- Prefect 可以作為「workflow graph response schema」的概念參考。Prefect `prefect.server.schemas.graph` 的 `Node` / `Edge` / `Graph` 模型表達 flow/task run、parents/children、state/artifacts 等拓撲與狀態資料，沒有畫布座標。這支持 Task 18 的 graph projection 只輸出 topology/state semantics。
+- LangGraph 可以作為「節點、邊、狀態流轉」的概念參考。LangGraph 官方文件以 `StateGraph.add_node()` / `add_edge()` 建構 state graph，node 回傳 state updates，並可用 `get_graph().draw_mermaid_png()` 視覺化；可參考其把 graph wiring 與 runtime state 分開的邊界，但不要把 LangGraph 的 agent runtime model 搬進 KAI-Mind。
+- Marquez 可以作為「lineage/provenance id」的概念參考。Marquez lineage API 用 `nodeId` 查 lineage graph，回傳 graph node id、node type、inEdges/outEdges；Task 18 應採同樣可追溯精神，但使用 KAI-Mind canonical `source_id`、`evidence_ids`、`risk_hint_ids`，而不是引入 Marquez dataset/job namespace。
+- FastAPI route 使用 `response_model` / Pydantic response model 仍是正確做法。官方文件說 `response_model` 會做 response 文件、驗證、轉換與過濾；Task 18 的 route handler 應只做 request schema 轉換、呼叫 service、回 typed payload。
+
+### 需要修正的研究結論
+
+- invalid map 的錯誤狀態不是放在 `GraphViewModel.loaded`。目前前端 `frontend/src/types.ts` 與 `frontend/API_CONTRACT.md` 明確要求 `loaded` / `error_reason` 位於 `viewer_load_result` 層：
+
+```text
+viewer_load_result
+├─ loaded
+├─ error_reason
+├─ ai_system_map
+└─ graph_view_model
+```
+
+因此 `GraphViewModel` 應保持 rendering projection；載入狀態由 `ViewerLoadResult.loaded` / `error_reason` 表達。invalid map 時 HTTP 可回 200 且 payload `viewer_load_result.loaded=false`，這是 KAI-Mind frontend contract 的 graceful degradation，不是 Prefect 的直接規範。
+
+- `ViewerSessionService` 可以提供 `load_map(path)` 讀取並 validate `ai_system_map.json`，但真正的 projection 函式必須保持無 FastAPI dependency、無 provider dependency、無重新掃描 project folder。換句話說：讀檔/validate 是 viewer session load 邊界；`project_to_graph(canonical_map)` 才是純 projection 邊界。
+
+- `source_id` 不只給 node，也要給 edge。前端 `makeGraphIndexes()` 會把 node/edge 的 `id` 與 `source_id` 都建立索引，SSE progress / replay 會依 `node_id`、`edge_id`、`component_id`、`source_id`、`slot` 尋找 highlight 目標。
+
+### 外部查證來源
+
+- Prefect graph schema：`https://docs.prefect.io/v3/api-ref/python/prefect-server-schemas-graph` 與 `https://raw.githubusercontent.com/PrefectHQ/prefect/main/src/prefect/server/schemas/graph.py`
+- LangGraph graph API：`https://docs.langchain.com/oss/python/langgraph/use-graph-api`
+- Marquez lineage API：`https://marquezproject.ai/docs/api/get-lineage/`
+- React Flow layouting：`https://reactflow.dev/learn/layouting/layouting`
+- React Flow Node type：`https://reactflow.dev/api-reference/types/node`
+- FastAPI response model：`https://fastapi.tiangolo.com/tutorial/response-model/`
+
 ## 目標
 實作 `ViewerSessionService` 與 local web viewer API，將 canonical `ai_system_map.json` 轉成 GUI 可消費的 `GraphViewModel`。Graph projection 只表達 backend domain semantics，不做前端 layout。
 
@@ -25,7 +64,7 @@
 - 載入 map 後再次 validate。
 - 將 components、extensions、unmapped、flows、risk hints 轉成 nodes/edges/details。
 - 確保每個 node/edge/detail 都能追回 canonical `source_id` / evidence id。
-- invalid map 回傳 error state。
+- invalid map 回傳 `viewer_load_result.loaded=false` 與 `error_reason`；`GraphViewModel` 本身只保留 rendering projection 欄位。
 - Local web API 完成後，可補 CLI `viewer` / map validate thin adapter；CLI 只能呼叫同一個 `ViewerSessionService`。
 
 ## 不包含範圍
@@ -34,15 +73,16 @@
 - 不重新掃描 project folder。
 - 不做 filter UI，只提供可 highlight 的 metadata。
 - 不做 CLI viewer command 的完整 UX；若補 CLI，只做 validate/load result。
+- 不在 backend graph node/edge 輸出 `x`、`y`、`position` 或 ELK/React Flow layout 狀態。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/models/graph_view.py`。
+1. 建立或補齊 `src/kai_mind/core/models/graph_view.py`。若 Task 16 已有 `core/models/viewer.py`，此檔可作為相容 re-export，避免破壞既有 import 與前端 schema。
 2. 建立 `src/kai_mind/core/services/viewer_session_service.py`。
 3. 實作 map JSON load + validation。
 4. 實作 standard slot component nodes。
 5. 實作 extension/unmapped nodes。
 6. 實作 flow edges 與 details lookup。
-7. 建立 FastAPI viewer route，回傳 graph view model 或 invalid map error state。
+7. 建立 FastAPI viewer route，回傳 `ViewerPayload`；valid map 時更新 latest session，invalid map 時也用 `loaded=false` payload 更新 session，避免前端只看到空白畫布。
 8. 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`，補上 viewer graph API 與 invalid map response 範例。
 9. 可選補上 CLI viewer/map validate thin adapter，輸出 loaded/error status。
 10. 寫測試：valid map loaded、invalid map error、viewer 不呼叫 providers、API 不掃 project folder。
@@ -69,6 +109,7 @@
 - GraphViewModel 不能變第二份 truth；所有欄位都要可追回 canonical JSON。
 - 不要把 frontend layout 決策放進 backend。
 - Viewer load invalid JSON 時不應顯示空白 graph。
+- invalid map 的 `loaded=false` / `error_reason` 必須在 `viewer_load_result` 層，不能漂移到 `graph_view_model` 層。
 - 若 `GraphViewModel` response 欄位變更，必須同步更新 API guide，避免 frontend / desktop app 用錯 contract。
 
 ## 新手提示
