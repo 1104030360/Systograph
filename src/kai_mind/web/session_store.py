@@ -8,9 +8,7 @@ from uuid import uuid4
 
 from kai_mind.core.models.map_build import MapBuildResult
 from kai_mind.core.models.viewer import ViewerPayload
-from kai_mind.core.services.minimal_viewer_projection_service import (
-    MinimalViewerProjectionService,
-)
+from kai_mind.core.services.viewer_session_service import ViewerSessionService
 
 
 @dataclass(frozen=True)
@@ -27,11 +25,9 @@ class InMemorySessionStore:
     def __init__(
         self,
         *,
-        projection_service: MinimalViewerProjectionService | None = None,
+        projection_service: ViewerSessionService | None = None,
     ) -> None:
-        self._projection_service = (
-            projection_service or MinimalViewerProjectionService()
-        )
+        self._projection_service = projection_service or ViewerSessionService()
         self._projects: dict[str, ProjectRecord] = {}
         self._latest_viewer_payload = ViewerPayload(
             viewer_load_result=self._projection_service.empty()
@@ -59,9 +55,12 @@ class InMemorySessionStore:
     def save_build_result(self, result: MapBuildResult) -> None:
         self._latest_build_result = result
         if result.viewer_load_result is not None:
-            self._latest_viewer_payload = ViewerPayload(
-                viewer_load_result=result.viewer_load_result
+            self.save_viewer_payload(
+                ViewerPayload(viewer_load_result=result.viewer_load_result)
             )
+
+    def save_viewer_payload(self, payload: ViewerPayload) -> None:
+        self._latest_viewer_payload = payload
 
     def latest_viewer_payload(self) -> ViewerPayload:
         return self._latest_viewer_payload
