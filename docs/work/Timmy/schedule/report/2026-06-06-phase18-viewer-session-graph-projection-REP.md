@@ -31,6 +31,10 @@
 - 已移除舊版 `MinimalViewerProjectionService`：
   - Phase 16 minimal projection 驗收已併入 `tests/unit/core/test_viewer_session_service.py`。
   - code/test 已確認沒有 production caller 依賴舊 service。
+- 已修正 Codex Review 指出的 slot-only edge projection：
+  - 合法 `ai-system-map/v1` edge 可省略 `from_component_id` / `to_component_id`。
+  - Projection 現在會先用 component id，缺少 component id 時用 slot 找 deterministic existing component node。
+  - 若 slot 沒有任何 node，才 fallback 到 `node:slot:<slot>`。
 - 已更新 API guide：
   - `ViewerSessionService`
   - `graph-view-model/v1`
@@ -84,6 +88,7 @@ ViewerPayload / GET /api/map
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider tests/unit/core/test_viewer_session_service.py tests/web/test_viewer_routes.py tests/cli/test_viewer_command.py`
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider tests/unit/core/test_viewer_session_service.py tests/integration/test_map_build_service.py tests/web/test_map_routes.py tests/web/test_project_scan_routes.py tests/cli/test_map_command.py tests/web/test_viewer_routes.py tests/cli/test_viewer_command.py`
 - `rg -n "MinimalViewerProjectionService|minimal_viewer_projection_service|test_minimal_viewer_projection_service" src tests`
+- `npx --yes pyright src/kai_mind/core/services/viewer_session_service.py`
 - `.venv/bin/ruff check src tests`
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/mypy src tests`
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider`
@@ -94,9 +99,10 @@ ViewerPayload / GET /api/map
 - Phase 18 targeted tests：10 passed。
 - ViewerSessionService + map/web/CLI regression：24 passed。
 - Minimal viewer caller 搜尋：`src` / `tests` 無命中。
+- Pyright / Pylance equivalent：0 errors, 0 warnings, 0 informations。
 - Ruff：All checks passed。
 - Mypy：Success, no issues found in 90 source files。
-- Full pytest：292 passed。
+- Full pytest：293 passed。
 - Frontend build：通過。
 
 ## 遇到的問題與處理
@@ -109,6 +115,8 @@ ViewerPayload / GET /api/map
   - 處理：build exit code 0，這不是 Phase 18 改動造成的阻塞；記錄為既有 frontend bundling warning。
 - 問題：Phase 18 完成後 `MinimalViewerProjectionService` 已不再是主路徑，但仍保留舊 service 與舊測試會增加雙軌維護成本。
   - 處理：確認 production code 沒有外部 caller 後，將 Phase 16 minimal projection 驗收併入 `ViewerSessionService` 測試，刪除舊 service / 舊測試，並重跑 ruff、mypy、完整 pytest。
+- 問題：Codex Review 指出合法 slot-only edge 可能指到不存在的 `node:slot:<slot>`。
+  - 處理：新增 regression test `test_slot_only_edges_route_to_existing_component_nodes`，並讓 projection 在缺少 component id 時用 slot 對應到 deterministic existing component node，避免 React Flow / ELK 收到 dangling edge。
 
 ## 驗收對照
 
@@ -119,3 +127,4 @@ ViewerPayload / GET /api/map
 - local web viewer API 不直接讀 project folder，只讀 map JSON / validated map input：已完成。
 - API guide 已同步記錄 viewer graph API、invalid map error state、response 欄位用途：已完成。
 - 舊版 `MinimalViewerProjectionService` 已移除，所有 viewer projection 驗收集中到 `ViewerSessionService`：已完成。
+- slot-only edge 不會產生 dangling graph edge：已完成。

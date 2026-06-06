@@ -117,6 +117,34 @@ def test_project_to_graph_filters_highlight_without_removing() -> None:
     assert risk_filter.matches_edge_ids
 
 
+def test_slot_only_edges_route_to_existing_component_nodes() -> None:
+    data = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    target_edge = data["flows"][1]["edges"][2]
+    assert target_edge["id"] == "edge:query_answer:retriever:vector_store"
+    target_edge["from_component_id"] = None
+    target_edge["to_component_id"] = None
+    system_map = SystemMapValidationService().validate(data)
+
+    graph = ViewerSessionService().project_to_graph(system_map)
+
+    node_ids = {node.id for node in graph.nodes}
+    node_by_source = {
+        node.source_id: node for node in graph.nodes if node.source_id
+    }
+    edge = next(
+        item
+        for item in graph.edges
+        if item.source_id == "edge:query_answer:retriever:vector_store"
+    )
+    assert edge.from_id in node_ids
+    assert edge.to in node_ids
+    assert (
+        edge.from_id
+        == node_by_source["component:retriever:qdrant-retriever"].id
+    )
+    assert edge.to == node_by_source["component:vector_store:qdrant"].id
+
+
 def test_viewer_session_service_is_pure_projection_boundary() -> None:
     source = inspect.getsource(viewer_session_module)
 

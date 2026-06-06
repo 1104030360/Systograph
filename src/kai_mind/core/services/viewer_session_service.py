@@ -100,10 +100,12 @@ class ViewerSessionService:
         node_ids_by_source = {
             node.source_id: node.id for node in nodes if node.source_id
         }
+        node_ids_by_slot = _node_ids_by_slot(nodes)
         edges = [
             self._edge_for_graph(
                 edge=edge,
                 node_ids_by_source=node_ids_by_source,
+                node_ids_by_slot=node_ids_by_slot,
                 risk_index=risk_index,
             )
             for flow in system_map.flows
@@ -160,14 +162,25 @@ class ViewerSessionService:
         *,
         edge: Edge,
         node_ids_by_source: dict[str, str],
+        node_ids_by_slot: dict[str, str],
         risk_index: RiskHintIndex,
     ) -> GraphEdgeModel:
         return GraphEdgeModel(
             id=_graph_edge_id(edge.id),
             source_id=edge.id,
             flow_id=edge.flow_id,
-            from_id=_edge_endpoint_id(edge, "from", node_ids_by_source),
-            to=_edge_endpoint_id(edge, "to", node_ids_by_source),
+            from_id=_edge_endpoint_id(
+                edge,
+                "from",
+                node_ids_by_source,
+                node_ids_by_slot,
+            ),
+            to=_edge_endpoint_id(
+                edge,
+                "to",
+                node_ids_by_source,
+                node_ids_by_slot,
+            ),
             relationship=edge.relationship,
             label=_humanize(edge.relationship),
             evidence_ids=sorted(edge.evidence_ids),
@@ -361,17 +374,35 @@ def _edge_endpoint_id(
     edge: Edge,
     side: str,
     node_ids_by_source: dict[str, str],
+    node_ids_by_slot: dict[str, str],
 ) -> str:
     if side == "from":
-        candidates = [edge.from_component_id, edge.from_slot]
+        component_id = edge.from_component_id
+        slot = edge.from_slot
     else:
-        candidates = [edge.to_component_id, edge.to_slot]
+        component_id = edge.to_component_id
+        slot = edge.to_slot
 
-    for candidate in candidates:
-        if candidate and candidate in node_ids_by_source:
-            return node_ids_by_source[candidate]
+    if component_id and component_id in node_ids_by_source:
+        return node_ids_by_source[component_id]
 
-    return _slot_node_id(candidates[-1] or "unknown")
+    if slot in node_ids_by_slot:
+        return node_ids_by_slot[slot]
+
+    return _slot_node_id(slot or "unknown")
+
+
+def _node_ids_by_slot(nodes: list[GraphNodeModel]) -> dict[str, str]:
+    nodes_by_slot: dict[str, list[GraphNodeModel]] = defaultdict(list)
+    for node in nodes:
+        if node.slot:
+            nodes_by_slot[node.slot].append(node)
+
+    return {
+        slot: sorted(slot_nodes, key=lambda node: node.id)[0].id
+        for slot, slot_nodes in nodes_by_slot.items()
+        if slot_nodes
+    }
 
 
 def _filters(
