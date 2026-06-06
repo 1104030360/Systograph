@@ -14,26 +14,43 @@ type Props = {
 export function DataSourceControl({ mode, apiBaseUrl, isLoading, error, onModeChange, onApiBaseUrlChange, onRefresh }: Props) {
   return (
     <div className="source-control">
-      <div className="segmented-control compact">
-        <button className={mode === "sample" ? "is-active" : ""} type="button" onClick={() => onModeChange("sample")}>
+      <div className="segment">
+        <button
+          className={mode === "sample" ? "is-active" : ""}
+          type="button"
+          aria-pressed={mode === "sample"}
+          onClick={() => onModeChange("sample")}
+        >
           Sample
         </button>
-        <button className={mode === "api" ? "is-active" : ""} type="button" onClick={() => onModeChange("api")}>
+        <button
+          className={mode === "api" ? "is-active" : ""}
+          type="button"
+          aria-pressed={mode === "api"}
+          onClick={() => onModeChange("api")}
+        >
           API
         </button>
       </div>
 
-      <label className={mode === "api" ? "api-url is-enabled" : "api-url"}>
-        <Server size={14} />
+      <label className={mode === "api" ? "api-field is-on" : "api-field"}>
+        <Server size={13} />
         <input
-          aria-label="Python API base URL"
+          aria-label="API base URL"
           disabled={mode !== "api"}
           value={apiBaseUrl}
           onChange={(event) => onApiBaseUrlChange(event.target.value)}
         />
       </label>
 
-      <button className="icon-button" disabled={isLoading} type="button" onClick={onRefresh} title="Reload viewer payload">
+      <button
+        className="icon-btn"
+        type="button"
+        disabled={isLoading}
+        onClick={onRefresh}
+        title="Reload payload"
+        aria-label="Reload payload"
+      >
         <RefreshCw size={15} />
       </button>
 

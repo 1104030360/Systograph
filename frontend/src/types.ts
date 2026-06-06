@@ -23,9 +23,30 @@ export const graphEdgeSchema = z.object({
   to: z.string(),
   relationship: z.string().optional(),
   label: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
   evidence_ids: stringArray,
   risk_hint_ids: stringArray,
 });
+
+export const evidenceDetailSchema = z
+  .object({
+    title: z.string().optional(),
+    file: z.string().optional(),
+    path: z.string().optional(),
+    value: z.string().optional(),
+  })
+  .passthrough();
+
+export const riskHintDetailSchema = z
+  .object({
+    title: z.string().optional(),
+    // Backend uses `severity_hint`; keep `severity` too for forward/back compatibility.
+    severity_hint: z.string().optional(),
+    severity: z.string().optional(),
+    rationale: z.string().optional(),
+    uncertainty: z.string().optional(),
+  })
+  .passthrough();
 
 export const graphFilterSchema = z.object({
   id: z.string(),
@@ -35,6 +56,22 @@ export const graphFilterSchema = z.object({
   matches_edge_ids: stringArray,
 });
 
+export const scanSummarySchema = z
+  .object({
+    status: z.string().optional(),
+    files_scanned: z.number().optional(),
+    files_skipped: z.number().optional(),
+    detected_slots: z.number().optional(),
+    missing_slots: z.number().optional(),
+    not_configured_slots: z.number().optional(),
+    unmapped_components: z.number().optional(),
+    risk_hints: z.number().optional(),
+    secret_masking_applied: z.boolean().optional(),
+  })
+  .passthrough();
+
+export type ScanSummary = z.infer<typeof scanSummarySchema>;
+
 export const graphViewModelSchema = z.object({
   schema_version: z.string().optional(),
   source_schema_version: z.string().optional(),
@@ -43,8 +80,8 @@ export const graphViewModelSchema = z.object({
   nodes: z.array(graphNodeSchema),
   edges: z.array(graphEdgeSchema),
   details: z.object({
-    evidence_by_id: z.record(z.record(z.unknown())).default({}),
-    risk_hints_by_id: z.record(z.record(z.unknown())).default({}),
+    evidence_by_id: z.record(evidenceDetailSchema).default({}),
+    risk_hints_by_id: z.record(riskHintDetailSchema).default({}),
   }),
   filters: z.object({
     available: z.array(graphFilterSchema).default([]),
@@ -63,6 +100,7 @@ export const viewerPayloadSchema = z.object({
         schema_version: z.string().optional(),
         system_type: z.string().optional(),
         scan_depth: z.string().optional(),
+        scan_summary: scanSummarySchema.optional(),
         query_trace_events: z.array(z.record(z.unknown())).optional(),
         unmapped_components: z.array(z.record(z.unknown())).optional(),
       }),
@@ -107,21 +145,26 @@ export type Selection =
   | { kind: "trace"; id: string }
   | null;
 
-export type TraceEvent = {
-  id?: string;
-  trace_id?: string;
-  sequence_index?: number;
-  replay_depth?: string;
-  slot?: string | null;
-  component_id?: string | null;
-  unmapped_component_id?: string | null;
-  edge_id?: string | null;
-  step_type?: string;
-  latency_ms?: number;
-  error?: { code?: string; message?: string } | null;
-  input?: Record<string, unknown>;
-  output?: Record<string, unknown>;
-};
+export const traceEventSchema = z.object({
+  id: z.string().optional(),
+  trace_id: z.string().optional(),
+  sequence_index: z.number().optional(),
+  replay_depth: z.string().optional(),
+  slot: z.string().nullable().optional(),
+  component_id: z.string().nullable().optional(),
+  unmapped_component_id: z.string().nullable().optional(),
+  edge_id: z.string().nullable().optional(),
+  step_type: z.string().optional(),
+  latency_ms: z.number().optional(),
+  error: z
+    .object({ code: z.string().optional(), message: z.string().optional() })
+    .nullable()
+    .optional(),
+  input: z.record(z.unknown()).optional(),
+  output: z.record(z.unknown()).optional(),
+});
+
+export type TraceEvent = z.infer<typeof traceEventSchema>;
 
 export type ScanTarget = {
   id: string;

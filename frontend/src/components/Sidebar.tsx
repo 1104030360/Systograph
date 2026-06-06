@@ -1,58 +1,171 @@
-import { RotateCcw } from "lucide-react";
-import type { GraphViewModel } from "../types";
+import { Eye, Info, RotateCcw, Sparkles } from "lucide-react";
+import type { GraphFilterModel, ScanSummary } from "../types";
 
 type Props = {
-  graph: GraphViewModel;
+  scanSummary?: ScanSummary;
+  systemType?: string;
+  scanDepth?: string;
+  dataAvailable: boolean;
+  filters: GraphFilterModel[];
   activeFilterIds: string[];
+  isOpen: boolean;
   onToggleFilter: (id: string) => void;
   onClearFilters: () => void;
 };
 
-export function Sidebar({ graph, activeFilterIds, onToggleFilter, onClearFilters }: Props) {
-  const summary = graph.summary ?? {};
+const DEPTH_ROWS = [
+  { level: "L1", name: "System", index: 0 },
+  { level: "L2", name: "Component", index: 1 },
+  { level: "L3", name: "Code Path", index: 2 },
+];
+const DEPTH_ORDER = ["system", "component", "code_path"];
+
+const LEGEND: Array<[string, string]> = [
+  ["var(--line-strong)", "Detected"],
+  ["var(--accent)", "Confirmed extension"],
+  ["var(--risk)", "Risk hint attached"],
+  ["var(--unmapped)", "Needs confirmation"],
+  ["var(--text-faint)", "Missing / not configured"],
+];
+
+function fdotKind(kind: string): string {
+  if (kind === "flow" || kind === "risk" || kind === "mapping") return kind;
+  return "";
+}
+
+export function Sidebar({
+  scanSummary,
+  systemType,
+  scanDepth,
+  dataAvailable,
+  filters,
+  activeFilterIds,
+  isOpen,
+  onToggleFilter,
+  onClearFilters,
+}: Props) {
+  const cell = (value: number | undefined) => (dataAvailable && value != null ? String(value) : "—");
+  const missingAndNotConfigured =
+    dataAvailable && (scanSummary?.missing_slots != null || scanSummary?.not_configured_slots != null)
+      ? String((scanSummary?.missing_slots ?? 0) + (scanSummary?.not_configured_slots ?? 0))
+      : "—";
+  const reached = dataAvailable && scanDepth ? DEPTH_ORDER.indexOf(scanDepth) : -1;
 
   return (
-    <aside className="sidebar">
-      <div className="traffic-lights" aria-hidden="true">
-        <span className="light red" />
-        <span className="light yellow" />
-        <span className="light green" />
+    <aside className={isOpen ? "sidebar is-open" : "sidebar"}>
+      <div className="brand">
+        <div className="brand-mark">
+          <Sparkles size={17} />
+        </div>
+        <div className="brand-text">
+          <strong>Health Doctor</strong>
+          <span className="mono">system map viewer</span>
+        </div>
       </div>
 
-      <section className="sidebar-section">
-        <div className="section-label">System Map</div>
-        <h1>KAI-Mind Viewer</h1>
-        <p className="sidebar-copy">{String(summary.title ?? "RAG architecture viewer")}</p>
+      <section className="side-section">
+        <div className="side-head">
+          <span className="eyebrow">Scan summary</span>
+          <span className="count mono">{dataAvailable ? (systemType ?? "rag") : "—"}</span>
+        </div>
+        <div className="summary-grid">
+          <div className="summary-cell">
+            <div className="v">{cell(scanSummary?.detected_slots)}</div>
+            <div className="k">detected</div>
+          </div>
+          <div className="summary-cell is-warn">
+            <div className="v">{missingAndNotConfigured}</div>
+            <div className="k">missing / n.c.</div>
+          </div>
+          <div className="summary-cell is-risk">
+            <div className="v">{cell(scanSummary?.risk_hints)}</div>
+            <div className="k">risk hints</div>
+          </div>
+          <div className="summary-cell">
+            <div className="v">{cell(scanSummary?.unmapped_components)}</div>
+            <div className="k">unmapped</div>
+          </div>
+        </div>
+        {dataAvailable ? (
+          <div className="scan-banner">
+            <Info className="ico" size={14} />
+            <span>
+              Scan status: <b>{scanSummary?.status ?? "unknown"}</b>
+              {scanSummary?.files_scanned != null
+                ? ` — ${scanSummary.files_scanned} scanned, ${scanSummary.files_skipped ?? 0} skipped.`
+                : "."}{" "}
+              Not a complete audit.
+            </span>
+          </div>
+        ) : (
+          <div className="scan-banner is-neutral">
+            <Info className="ico" size={14} />
+            <span>No map loaded. Summary unavailable until the backend returns a system map.</span>
+          </div>
+        )}
       </section>
 
-      <section className="sidebar-section">
-        <div className="section-row">
-          <div className="section-label">Highlight</div>
-          <button className="icon-button" type="button" onClick={onClearFilters} title="Reset filters">
-            <RotateCcw size={15} />
+      <section className="side-section">
+        <div className="side-head">
+          <span className="eyebrow">Highlight</span>
+          <button className="icon-btn" type="button" onClick={onClearFilters} title="Clear highlights" aria-label="Clear highlights">
+            <RotateCcw size={14} />
           </button>
         </div>
         <div className="filter-list">
-          {graph.filters.available.map((filter) => (
-            <button
-              className={activeFilterIds.includes(filter.id) ? "filter-pill is-active" : "filter-pill"}
-              key={filter.id}
-              type="button"
-              onClick={() => onToggleFilter(filter.id)}
-            >
-              <span className={`filter-dot ${filter.kind}`} />
-              {filter.label}
-            </button>
-          ))}
+          {filters.map((filter) => {
+            const active = activeFilterIds.includes(filter.id);
+            return (
+              <button
+                key={filter.id}
+                className={active ? "filter-pill is-active" : "filter-pill"}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onToggleFilter(filter.id)}
+              >
+                <span className={`fdot ${fdotKind(filter.kind)}`} />
+                {filter.label}
+                <span className="fcount">{filter.matches_node_ids.length + filter.matches_edge_ids.length}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="scan-banner is-accent">
+          <Eye className="ico" size={14} />
+          <span>Highlight only — unmatched elements stay visible, never hidden.</span>
         </div>
       </section>
 
-      <section className="sidebar-section">
-        <div className="section-label">Depth</div>
-        <div className="depth-stack">
-          <span className="depth-item is-ready">L1 System</span>
-          <span className="depth-item">L2 Component</span>
-          <span className="depth-item">L3 Code Path</span>
+      <section className="side-section">
+        <div className="side-head">
+          <span className="eyebrow">Scan depth</span>
+        </div>
+        <div className="depth-list">
+          {DEPTH_ROWS.map((row) => {
+            const ready = reached >= row.index;
+            const isCurrent = reached === row.index;
+            return (
+              <div key={row.level} className={ready ? "depth-item is-ready" : "depth-item is-pending"}>
+                <span className="dlevel">{row.level}</span>
+                <span>{row.name}</span>
+                <span className="dstate">{isCurrent ? "current" : ready ? "done" : "pending"}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="side-section grow">
+        <div className="side-head">
+          <span className="eyebrow">Legend</span>
+        </div>
+        <div className="legend">
+          {LEGEND.map(([color, label]) => (
+            <div className="legend-row" key={label}>
+              <span className="swatch" style={{ background: color }} />
+              {label}
+            </div>
+          ))}
         </div>
       </section>
     </aside>

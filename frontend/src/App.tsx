@@ -1,28 +1,60 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { Crosshair, Database, GitBranch, Layers3, SearchCode } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Crosshair, Layers3, Maximize, Menu, MessageCircle, Moon, Share2, Sun } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { ReplayTimeline } from "./components/ReplayTimeline";
 import { Sidebar } from "./components/Sidebar";
+import { StateOverlay, type ViewerState } from "./components/StateOverlay";
 import { SystemGraph } from "./components/SystemGraph";
-import { getTraceEvents, graphViewModel, viewerPayload as sampleViewerPayload } from "./data/sampleMap";
+import { getTraceEvents, viewerPayload as sampleViewerPayload } from "./data/sampleMap";
 import { useScanProgress } from "./hooks/useScanProgress";
+import { useTheme } from "./hooks/useTheme";
 import { useViewerPayload } from "./hooks/useViewerPayload";
 import { useViewerStore } from "./store/viewerStore";
+import type { GraphViewModel } from "./types";
 import { createProgressTargets, resolveProgressTargetId } from "./utils/graph";
 
+const EMPTY_GRAPH: GraphViewModel = {
+  nodes: [],
+  edges: [],
+  details: { evidence_by_id: {}, risk_hints_by_id: {} },
+  filters: { available: [] },
+};
+
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
+
   const dataSourceMode = useViewerStore((state) => state.dataSourceMode);
   const apiBaseUrl = useViewerStore((state) => state.apiBaseUrl);
   const setDataSourceMode = useViewerStore((state) => state.setDataSourceMode);
   const setApiBaseUrl = useViewerStore((state) => state.setApiBaseUrl);
   const payloadQuery = useViewerPayload(dataSourceMode, apiBaseUrl);
-  const payload = payloadQuery.data ?? sampleViewerPayload;
-  const graph = payload.viewer_load_result.graph_view_model ?? graphViewModel;
-  const traceEvents = useMemo(() => getTraceEvents(payload), [payload]);
+  const data = payloadQuery.data;
+
+  // ---- state matrix (explicit and honest) --------------------------------
+  const appState: ViewerState =
+    dataSourceMode === "sample"
+      ? "loaded"
+      : payloadQuery.isError
+        ? "error"
+        : !data
+          ? "loading"
+          : data.viewer_load_result.loaded === false
+            ? "pending"
+            : "loaded";
+  const dataAvailable = appState === "loaded";
+  const showOverlay = appState !== "loaded";
+
+  const payload = dataSourceMode === "sample" ? sampleViewerPayload : data;
+  const graph = dataAvailable && payload ? payload.viewer_load_result.graph_view_model : EMPTY_GRAPH;
+  const aiSystemMap = dataAvailable ? payload?.viewer_load_result.ai_system_map : undefined;
+  const scanSummary = aiSystemMap?.scan_summary;
+
+  const traceEvents = useMemo(() => (dataAvailable && payload ? getTraceEvents(payload) : []), [dataAvailable, payload]);
   const progressTargets = useMemo(() => createProgressTargets(graph), [graph]);
+
   const selected = useViewerStore((state) => state.selected);
   const activeFilterIds = useViewerStore((state) => state.activeFilterIds);
   const activeTraceIndex = useViewerStore((state) => state.activeTraceIndex);
@@ -43,12 +75,27 @@ export default function App() {
   const setLiveProgressEvent = useViewerStore((state) => state.setLiveProgressEvent);
   const setDetailMode = useViewerStore((state) => state.setDetailMode);
   const resetFocus = useViewerStore((state) => state.resetFocus);
+
+  const [chatOpen, setChatOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [fitSignal, setFitSignal] = useState(0);
+
   const activeTraceEvent = traceEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
   const liveProgressTargetId = resolveProgressTargetId(liveProgressEvent, graph);
-  const progressTargetId = liveProgressTargetId ?? progressTarget?.id;
+  const progressTargetId = liveProgressTargetId ?? (isProgressRunning ? progressTarget?.id : undefined);
   const sourceError = payloadQuery.error instanceof Error ? payloadQuery.error.message : undefined;
-  const scanError = liveProgressEvent?.event === "sse_error" ? liveProgressEvent.message : undefined;
+  const scanError = liveProgressEvent?.event === "sse_error";
+
+  // ---- progress strip values (honest: never implies completion) ----------
+  const progressPercent = liveProgressEvent?.percent ?? (isProgressRunning && progressTargets.length > 0
+    ? Math.round(((progressIndex + 1) / progressTargets.length) * 100)
+    : 0);
+  const progressMessage =
+    liveProgressEvent?.message ??
+    (isProgressRunning ? `Inspecting ${progressTarget?.label ?? "component"}` : "Scan idle — showing committed map");
+  const progressStage =
+    liveProgressEvent?.stage ?? (isProgressRunning ? (dataSourceMode === "api" ? "sse stream" : "mock walk") : "idle");
 
   const handleScanEvent = useCallback(
     (event: typeof liveProgressEvent) => {
@@ -59,11 +106,7 @@ export default function App() {
 
   const handleScanError = useCallback(
     (message: string) => {
-      setLiveProgressEvent({
-        event: "sse_error",
-        status: "warning",
-        message,
-      });
+      setLiveProgressEvent({ event: "sse_error", status: "warning", message });
     },
     [setLiveProgressEvent],
   );
@@ -76,91 +119,139 @@ export default function App() {
     onError: handleScanError,
   });
 
+  // replay loop — interval created once per run (latest index read from store)
   useEffect(() => {
     if (!isReplayRunning || traceEvents.length === 0) return;
-
     const timer = window.setInterval(() => {
-      setActiveTraceIndex((activeTraceIndex + 1) % traceEvents.length);
+      const current = useViewerStore.getState().activeTraceIndex;
+      setActiveTraceIndex((current + 1) % traceEvents.length);
     }, 1100);
-
     return () => window.clearInterval(timer);
-  }, [activeTraceIndex, isReplayRunning, setActiveTraceIndex, traceEvents.length]);
+  }, [isReplayRunning, setActiveTraceIndex, traceEvents.length]);
 
+  // scan progress loop
   useEffect(() => {
     if (!isProgressRunning || progressTargets.length === 0 || (dataSourceMode === "api" && liveProgressEvent?.event !== "sse_error")) return;
-
     const timer = window.setInterval(() => {
-      setProgressIndex((progressIndex + 1) % progressTargets.length);
+      const current = useViewerStore.getState().progressIndex;
+      setProgressIndex((current + 1) % progressTargets.length);
     }, 850);
-
     return () => window.clearInterval(timer);
-  }, [dataSourceMode, isProgressRunning, liveProgressEvent?.event, progressIndex, progressTargets.length, setProgressIndex]);
+  }, [dataSourceMode, isProgressRunning, liveProgressEvent?.event, progressTargets.length, setProgressIndex]);
 
   useEffect(() => {
-    if (activeTraceIndex >= traceEvents.length) {
-      setActiveTraceIndex(0);
-    }
+    if (activeTraceIndex >= traceEvents.length) setActiveTraceIndex(0);
   }, [activeTraceIndex, setActiveTraceIndex, traceEvents.length]);
 
+  const handleReset = useCallback(() => {
+    resetFocus();
+    setFitSignal((value) => value + 1);
+  }, [resetFocus]);
+
+  const projectName = graph.summary?.project_name ? String(graph.summary.project_name) : "Local AI Health Doctor";
+
   return (
-    <main className="app-shell">
-      <Sidebar graph={graph} activeFilterIds={activeFilterIds} onToggleFilter={toggleFilter} onClearFilters={clearFilters} />
+    <div className="app">
+      {menuOpen ? <div className="sidebar-scrim" role="presentation" onClick={() => setMenuOpen(false)} /> : null}
+
+      <Sidebar
+        scanSummary={scanSummary}
+        systemType={aiSystemMap?.system_type}
+        scanDepth={aiSystemMap?.scan_depth}
+        dataAvailable={dataAvailable}
+        filters={graph.filters.available}
+        activeFilterIds={activeFilterIds}
+        isOpen={menuOpen}
+        onToggleFilter={toggleFilter}
+        onClearFilters={clearFilters}
+      />
 
       <section className="workspace">
         <header className="toolbar">
-          <div className="toolbar-title">
-            <GitBranch size={18} />
-            <div>
-              <span className="section-label">Epic 1 Viewer</span>
-              <strong>{graph.summary?.project_name ? String(graph.summary.project_name) : "Local AI Health Doctor"}</strong>
-            </div>
+          <button className="icon-btn menu-btn" type="button" onClick={() => setMenuOpen(true)} title="Menu" aria-label="Open menu">
+            <Menu size={16} />
+          </button>
+          <div className="tb-title">
+            <strong>{projectName}</strong>
+            <span className="mono">ai-system-map/v1 · projection</span>
           </div>
-          <div className="toolbar-metrics">
-            <span>
-              <Layers3 size={15} />
-              {graph.nodes.length} nodes
+          <div className="tb-metrics">
+            <span className="metric">
+              <Layers3 size={14} />
+              <b>{graph.nodes.length}</b>
+              nodes
             </span>
-            <span>
-              <SearchCode size={15} />
-              {graph.edges.length} edges
+            <span className="metric">
+              <Share2 size={14} />
+              <b>{graph.edges.length}</b>
+              edges
             </span>
-            <span>
-              <Database size={15} />
-              {String(payload.viewer_load_result.ai_system_map.scan_depth ?? "system")}
+            <span className="metric is-status" title="Backend scan status">
+              <span className="pulse" />
+              status <b>{dataAvailable ? (scanSummary?.status ?? "unknown") : "—"}</b>
             </span>
           </div>
+          <div className="tb-spacer" />
+
           <DataSourceControl
             mode={dataSourceMode}
             apiBaseUrl={apiBaseUrl}
             isLoading={payloadQuery.isFetching}
-            error={sourceError ?? scanError}
+            error={sourceError}
             onModeChange={setDataSourceMode}
             onApiBaseUrlChange={setApiBaseUrl}
             onRefresh={() => void payloadQuery.refetch()}
           />
+
           <button
-            className={followFocus ? "toolbar-button follow-button is-active" : "toolbar-button follow-button"}
+            className={followFocus ? "btn is-active" : "btn"}
             type="button"
+            aria-pressed={followFocus}
             onClick={() => setFollowFocus(!followFocus)}
-            title={followFocus ? "Disable follow focus" : "Enable follow focus"}
+            title="Follow active focus"
           >
-            <Crosshair size={15} />
+            <Crosshair size={14} />
             Follow
           </button>
-          <button className="toolbar-button" type="button" onClick={resetFocus}>
-            Reset
+          <button className="icon-btn" type="button" onClick={handleReset} title="Reset view" aria-label="Reset view">
+            <Maximize size={15} />
+          </button>
+          <button
+            className="icon-btn"
+            type="button"
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          >
+            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <button className="icon-btn" type="button" onClick={() => setChatOpen(true)} title="Local model chat" aria-label="Open chat">
+            <MessageCircle size={15} />
           </button>
         </header>
 
         <div className="graph-frame">
-          <ProgressStrip
-            targets={progressTargets}
-            activeIndex={progressIndex}
-            isRunning={isProgressRunning}
-            mode={dataSourceMode}
-            liveEvent={liveProgressEvent}
-            onRunningChange={setProgressRunning}
-          />
+          {!showOverlay ? (
+            <ProgressStrip
+              isRunning={isProgressRunning}
+              percent={progressPercent}
+              message={progressMessage}
+              stage={progressStage}
+              isError={scanError}
+              onToggle={() => setProgressRunning(!isProgressRunning)}
+            />
+          ) : null}
+
+          {showOverlay ? (
+            <StateOverlay
+              kind={appState}
+              apiBaseUrl={apiBaseUrl}
+              message={sourceError}
+              onRetry={() => void payloadQuery.refetch()}
+              onUseSample={() => setDataSourceMode("sample")}
+            />
+          ) : null}
+
           <SystemGraph
             graph={graph}
             activeFilterIds={activeFilterIds}
@@ -168,12 +259,26 @@ export default function App() {
             traceEvent={activeTraceEvent}
             progressTargetId={progressTargetId}
             followFocus={followFocus}
+            fitSignal={fitSignal}
             onSelect={setSelected}
           />
+
+          {selected && !showOverlay && payload ? (
+            <div className="inspector">
+              <DetailPanel
+                graph={graph}
+                payload={payload}
+                selected={selected}
+                detailMode={detailMode}
+                onDetailModeChange={setDetailMode}
+                onClose={() => setSelected(null)}
+              />
+            </div>
+          ) : null}
         </div>
 
         <ReplayTimeline
-          events={traceEvents}
+          events={dataAvailable ? traceEvents : []}
           activeIndex={activeTraceIndex}
           isRunning={isReplayRunning}
           onIndexChange={setActiveTraceIndex}
@@ -181,15 +286,7 @@ export default function App() {
         />
       </section>
 
-      <ChatPanel />
-      <DetailPanel
-        graph={graph}
-        payload={payload}
-        selected={selected}
-        detailMode={detailMode}
-        onDetailModeChange={setDetailMode}
-        onClose={() => setSelected(null)}
-      />
-    </main>
+      <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+    </div>
   );
 }

@@ -14,18 +14,18 @@ export type FlowEdgeData = GraphEdgeModel & {
   isDimmed: boolean;
   isSelected: boolean;
   isProgressTarget: boolean;
+  isUnmapped: boolean;
   routeOffset: number;
   sourceYOffset: number;
   targetYOffset: number;
+  labelLaneOffset: number;
+  labelStackOffset: number;
+  labelSide: "above" | "below";
 };
 
 const elk = new ELK();
-const NODE_WIDTH = 230;
-const NODE_HEIGHT = 96;
-
-function createEdgeLabel(index: number) {
-  return String(index + 1);
-}
+const NODE_WIDTH = 208;
+const NODE_HEIGHT = 88;
 
 function getLaneOffsets(edges: GraphEdgeModel[], key: "from" | "to") {
   const groups = new Map<string, GraphEdgeModel[]>();
@@ -40,6 +40,32 @@ function getLaneOffsets(edges: GraphEdgeModel[], key: "from" | "to") {
       const laneIndex = group.findIndex((item) => item.id === edge.id);
       const centeredIndex = Math.max(laneIndex, 0) - (group.length - 1) / 2;
       return [edge.id, centeredIndex * 22];
+    }),
+  );
+}
+
+function getLabelOffsets(edges: GraphEdgeModel[]): Map<string, { labelLaneOffset: number; labelStackOffset: number; labelSide: "above" | "below" }> {
+  const groups = new Map<string, GraphEdgeModel[]>();
+
+  edges.forEach((edge) => {
+    const key = `${edge.from}->${edge.to}`;
+    groups.set(key, [...(groups.get(key) ?? []), edge]);
+  });
+
+  return new Map(
+    edges.map((edge) => {
+      const group = groups.get(`${edge.from}->${edge.to}`) ?? [edge];
+      const laneIndex = Math.max(group.findIndex((item) => item.id === edge.id), 0);
+      const centeredIndex = laneIndex - (group.length - 1) / 2;
+
+      return [
+        edge.id,
+        {
+          labelLaneOffset: centeredIndex * 26,
+          labelStackOffset: laneIndex % 2 === 0 ? 0 : 18,
+          labelSide: laneIndex % 2 === 0 ? "above" : "below",
+        },
+      ];
     }),
   );
 }
@@ -80,15 +106,16 @@ export function makeGraphIndexes(graph: GraphViewModel) {
 export function getFilterMatches(filters: GraphFilterModel[], activeFilterIds: string[]) {
   const nodeIds = new Set<string>();
   const edgeIds = new Set<string>();
+  const activeFilters = filters.filter((filter) => activeFilterIds.includes(filter.id));
 
-  filters
-    .filter((filter) => activeFilterIds.includes(filter.id))
-    .forEach((filter) => {
-      filter.matches_node_ids.forEach((id) => nodeIds.add(id));
-      filter.matches_edge_ids.forEach((id) => edgeIds.add(id));
-    });
+  activeFilters.forEach((filter) => {
+    filter.matches_node_ids.forEach((id) => nodeIds.add(id));
+    filter.matches_edge_ids.forEach((id) => edgeIds.add(id));
+  });
 
-  return { nodeIds, edgeIds, hasFilters: activeFilterIds.length > 0 };
+  // Only treat filters that actually exist in the payload as "active" so a default
+  // filter id that the payload does not define cannot dim the entire graph on load.
+  return { nodeIds, edgeIds, hasFilters: activeFilters.length > 0 };
 }
 
 export function getTraceFocus(event: TraceEvent | undefined, graph: GraphViewModel) {
@@ -132,6 +159,7 @@ export function createFlowElements(
   const traceFocus = getTraceFocus(options.traceEvent, graph);
   const hasTraceFocus = traceFocus.focusedNodeIds.size > 0 || traceFocus.focusedEdgeIds.size > 0;
   const sourceRouteOffsets = getSourceRouteOffsets(graph.edges);
+  const labelOffsets = getLabelOffsets(graph.edges);
   const sourceYOffsets = getLaneOffsets(graph.edges, "from");
   const targetYOffsets = getLaneOffsets(graph.edges, "to");
 
@@ -157,13 +185,23 @@ export function createFlowElements(
     };
   });
 
-  const edges: Edge<FlowEdgeData>[] = graph.edges.map((edge, index) => {
+  const edges: Edge<FlowEdgeData>[] = graph.edges.map((edge) => {
     const selected = options.selectedKind === "edge" && options.selectedId === edge.id;
     const filterFocused = filterMatches.edgeIds.has(edge.id);
     const traceFocused = traceFocus.focusedEdgeIds.has(edge.id);
     const progressFocused = options.progressTargetId === edge.id;
     const focused = selected || filterFocused || traceFocused || progressFocused;
     const dimmed = (filterMatches.hasFilters || hasTraceFocus) && !focused;
+    const labelOffset = labelOffsets.get(edge.id);
+    const isRisk = edge.risk_hint_ids.length > 0;
+    const isUnmapped = edge.status === "needs_confirmation";
+    const strokeColor = focused
+      ? "var(--accent)"
+      : isRisk
+        ? "var(--risk)"
+        : isUnmapped
+          ? "var(--unmapped)"
+          : "var(--line-strong)";
 
     return {
       id: edge.id,
@@ -171,12 +209,12 @@ export function createFlowElements(
       target: edge.to,
       type: "ordered",
       animated: false,
-      label: createEdgeLabel(index),
+      label: edge.label ?? edge.relationship ?? undefined,
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 18,
         height: 18,
-        color: focused ? "#0f8b8d" : "#73808d",
+        color: strokeColor,
       },
       data: {
         ...edge,
@@ -184,14 +222,19 @@ export function createFlowElements(
         isDimmed: dimmed,
         isSelected: selected,
         isProgressTarget: progressFocused,
+        isUnmapped,
         routeOffset: sourceRouteOffsets.get(edge.id) ?? 48,
         sourceYOffset: sourceYOffsets.get(edge.id) ?? 0,
         targetYOffset: targetYOffsets.get(edge.id) ?? 0,
+        labelLaneOffset: labelOffset?.labelLaneOffset ?? 0,
+        labelStackOffset: labelOffset?.labelStackOffset ?? 0,
+        labelSide: labelOffset?.labelSide ?? "above",
       },
       style: {
-        stroke: focused ? "#0f8b8d" : "#73808d",
-        strokeWidth: focused ? 2.8 : 1.7,
-        opacity: dimmed ? 0.18 : 0.86,
+        stroke: strokeColor,
+        strokeWidth: focused ? 2.4 : 1.6,
+        opacity: dimmed ? 0.18 : 1,
+        strokeDasharray: isUnmapped ? "5 4" : undefined,
       },
     };
   });
@@ -205,8 +248,8 @@ export async function layoutGraph(nodes: Node<FlowNodeData>[], edges: Edge<FlowE
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "RIGHT",
-      "elk.spacing.nodeNode": "42",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "88",
+      "elk.spacing.nodeNode": "54",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "118",
       "elk.edgeRouting": "ORTHOGONAL",
     },
     children: nodes.map((node) => ({
@@ -259,7 +302,7 @@ export function resolveProgressTargetId(event: ScanProgressEvent | null, graph: 
   }
 
   if (event.slot) {
-    return graph.nodes.find((node) => node.slot === event.slot || node.source_id?.includes(`:${event.slot}:`))?.id;
+    return graph.nodes.find((node) => node.slot === event.slot)?.id;
   }
 
   return undefined;

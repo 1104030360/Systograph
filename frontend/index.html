@@ -1,9 +1,22 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en" data-theme="light" data-density="comfortable">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KAI-Mind Viewer</title>
+    <title>Health Doctor — System Map Viewer</title>
+    <script>
+      // Apply the persisted/system theme before paint to avoid a flash.
+      (function () {
+        try {
+          // Default theme is Light; only a previously persisted choice overrides it.
+          var stored = localStorage.getItem("viewer-theme");
+          var theme = stored === "light" || stored === "dark" ? stored : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

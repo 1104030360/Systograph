@@ -1,6 +1,6 @@
 import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import type { TraceEvent } from "../types";
-import { compactId } from "../utils/format";
+import { compactId, titleCase } from "../utils/format";
 
 type Props = {
   events: TraceEvent[];
@@ -15,48 +15,79 @@ export function ReplayTimeline({ events, activeIndex, isRunning, onIndexChange, 
   const maxIndex = Math.max(events.length - 1, 0);
 
   return (
-    <footer className="replay-panel">
-      <div className="replay-toolbar">
-        <div>
-          <span className="section-label">Query Replay</span>
-          <strong>{active?.replay_depth ?? "coarse_replay"}</strong>
+    <footer className="replay">
+      <div className="replay-head">
+        <div className="r-title">
+          <strong>Query replay</strong>
+          <span className="mono">{active?.replay_depth ?? "no trace"}</span>
         </div>
-        <div className="replay-actions">
-          <button className="icon-button" type="button" onClick={() => onIndexChange(Math.max(activeIndex - 1, 0))} title="Previous step">
-            <SkipBack size={15} />
-          </button>
-          <button className="icon-button primary" type="button" onClick={() => onRunningChange(!isRunning)} title={isRunning ? "Pause" : "Play"}>
-            {isRunning ? <Pause size={15} /> : <Play size={15} />}
-          </button>
-          <button className="icon-button" type="button" onClick={() => onIndexChange(Math.min(activeIndex + 1, maxIndex))} title="Next step">
-            <SkipForward size={15} />
-          </button>
-        </div>
-      </div>
-
-      <div className="timeline-track">
-        {events.map((event, index) => (
+        <div className="r-ctrls">
           <button
-            className={[
-              "timeline-step",
-              index === activeIndex ? "is-active" : "",
-              event.error ? "has-error" : "",
-            ].join(" ")}
-            key={event.id ?? index}
+            className="icon-btn"
             type="button"
-            onClick={() => onIndexChange(index)}
+            aria-label="Previous step"
+            title="Previous step"
+            onClick={() => onIndexChange(Math.max(activeIndex - 1, 0))}
           >
-            <span className="step-dot" />
-            <span className="step-label">{event.slot ?? event.step_type ?? compactId(event.component_id ?? event.edge_id ?? event.id ?? "step")}</span>
+            <SkipBack size={14} />
           </button>
-        ))}
+          <button
+            className="icon-btn primary"
+            type="button"
+            aria-pressed={isRunning}
+            aria-label={isRunning ? "Pause replay" : "Play replay"}
+            title={isRunning ? "Pause" : "Play"}
+            onClick={() => onRunningChange(!isRunning)}
+          >
+            {isRunning ? <Pause size={14} /> : <Play size={14} />}
+          </button>
+          <button
+            className="icon-btn"
+            type="button"
+            aria-label="Next step"
+            title="Next step"
+            onClick={() => onIndexChange(Math.min(activeIndex + 1, maxIndex))}
+          >
+            <SkipForward size={14} />
+          </button>
+        </div>
+        <div className="r-meta">
+          {active ? (
+            <span className="chip">
+              step {activeIndex + 1}/{events.length}
+            </span>
+          ) : null}
+          {active?.latency_ms != null ? <span className="chip">{active.latency_ms} ms</span> : null}
+          <span className={active?.error ? "" : "ok"}>{active?.error ? (active.error.code ?? "error") : "ok"}</span>
+        </div>
       </div>
 
-      <div className="replay-status">
-        <span>{active ? `Step ${activeIndex + 1} / ${events.length}` : "No replay events"}</span>
-        <span>{active?.latency_ms ? `${active.latency_ms} ms` : "sample trace"}</span>
-        <span>{active?.error?.code ?? "ok"}</span>
-      </div>
+      {events.length === 0 ? (
+        <div className="replay-empty">No replay events in this payload.</div>
+      ) : (
+        <div className="timeline">
+          {events.map((event, index) => (
+            <button
+              key={event.id ?? index}
+              className={[
+                "tl-step",
+                index === activeIndex ? "is-active" : "",
+                event.error ? "has-error" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              type="button"
+              onClick={() => onIndexChange(index)}
+            >
+              <span className="tl-idx">{index + 1}</span>
+              <span className="tl-body">
+                <span className="tl-slot">{titleCase(event.slot ?? event.step_type ?? "step")}</span>
+                <span className="tl-sub">{event.step_type ?? compactId(event.component_id ?? "")}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </footer>
   );
 }
