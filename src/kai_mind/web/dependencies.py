@@ -7,11 +7,19 @@ from typing import cast
 from fastapi import Request
 
 from kai_mind.core.services.map_build_service import MapBuildService
+from kai_mind.core.services.viewer_session_service import ViewerSessionService
 from kai_mind.web.session_store import InMemorySessionStore
 
 
 def map_build_service(request: Request) -> MapBuildService:
     return cast(MapBuildService, request.app.state.map_build_service)
+
+
+def viewer_session_service(request: Request) -> ViewerSessionService:
+    return cast(
+        ViewerSessionService,
+        request.app.state.viewer_session_service,
+    )
 
 
 def session_store(request: Request) -> InMemorySessionStore:

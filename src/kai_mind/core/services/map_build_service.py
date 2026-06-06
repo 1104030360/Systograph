@@ -25,9 +25,6 @@ from kai_mind.core.services.flow_derivation_service import (
 from kai_mind.core.services.markdown_summary_service import (
     MarkdownSummaryService,
 )
-from kai_mind.core.services.minimal_viewer_projection_service import (
-    MinimalViewerProjectionService,
-)
 from kai_mind.core.services.project_scan_service import ProjectScanService
 from kai_mind.core.services.rag_template_service import RagTemplateService
 from kai_mind.core.services.risk_hint_service import RiskHintService
@@ -37,6 +34,7 @@ from kai_mind.core.services.system_map_normalize_service import (
 from kai_mind.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
+from kai_mind.core.services.viewer_session_service import ViewerSessionService
 
 
 class MapBuildService:
@@ -53,7 +51,7 @@ class MapBuildService:
         flow_derivation_service: FlowDerivationService | None = None,
         normalize_service: SystemMapNormalizeService | None = None,
         markdown_summary_service: MarkdownSummaryService | None = None,
-        projection_service: MinimalViewerProjectionService | None = None,
+        projection_service: ViewerSessionService | None = None,
         validation_service: SystemMapValidationService | None = None,
     ) -> None:
         self._output_artifact_provider = (
@@ -78,15 +76,13 @@ class MapBuildService:
         self._markdown_summary_service = (
             markdown_summary_service or MarkdownSummaryService()
         )
-        self._projection_service = (
-            projection_service or MinimalViewerProjectionService()
-        )
+        self._projection_service = projection_service or ViewerSessionService()
         self._validation_service = (
             validation_service or SystemMapValidationService()
         )
 
     def build(self, request: MapBuildRequest) -> MapBuildResult:
-        """Build map artifacts and a minimal viewer payload."""
+        """Build map artifacts and a frontend viewer payload."""
 
         precondition = self._output_artifact_provider.check_preconditions(
             project_path=request.project_path,

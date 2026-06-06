@@ -13,7 +13,7 @@ MapBuildService
         ↓
 validated ai_system_map.json
         ↓
-MinimalViewerProjectionService
+ViewerSessionService
         ↓
 viewer_load_result.graph_view_model
 ```
@@ -90,21 +90,55 @@ Response:
     "map_json": "{...}",
     "ai_system_map": {},
     "graph_view_model": {
-      "schema_version": "graph-view-model/minimal-v1",
+      "schema_version": "graph-view-model/v1",
       "source_schema_version": "ai-system-map/v1",
-      "nodes": [],
-      "edges": [],
+      "nodes": [
+        {
+          "id": "node:component:component-vector-store-qdrant",
+          "source_id": "component:vector_store:qdrant",
+          "type": "vector_db",
+          "slot": "vector_store",
+          "status": "detected",
+          "label": "Qdrant",
+          "subtitle": "Vector Store",
+          "badges": ["detected", "vector_db"],
+          "evidence_ids": ["evidence:docker:qdrant-service"],
+          "risk_hint_ids": []
+        }
+      ],
+      "edges": [
+        {
+          "id": "graph:edge:query_answer:retriever:vector_store",
+          "source_id": "edge:query_answer:retriever:vector_store",
+          "flow_id": "flow:query_answer",
+          "from": "node:component:component-retriever-qdrant-retriever",
+          "to": "node:component:component-vector-store-qdrant",
+          "relationship": "queries_vector_store",
+          "label": "Queries Vector Store",
+          "evidence_ids": ["evidence:code_pattern:retriever"],
+          "risk_hint_ids": []
+        }
+      ],
       "details": {
         "evidence_by_id": {},
         "risk_hints_by_id": {}
       },
       "filters": {
-        "available": []
+        "available": [],
+        "behavior": "highlight"
       }
     }
   }
 }
 ```
+
+Graph rules:
+
+- `graph_view_model` 是 rendering projection，不是 canonical truth。
+- Node/edge 都可帶 `source_id`，對應 canonical component、slot、extension、unmapped component 或 edge id。
+- Node/edge 不輸出 `x`、`y`、`position`；React Flow + ELK 在 frontend 做 layout。
+- `details.evidence_by_id` 與 `details.risk_hints_by_id` 是 id lookup table，供 detail panel 使用。
+- `filters.available` 只提供 highlight metadata，不要求 frontend 移除 graph elements。
 
 尚未 build 前，API 仍回傳 contract-compatible payload：
 
@@ -128,6 +162,84 @@ Response:
   }
 }
 ```
+
+## POST /api/viewer/load
+
+用途：載入一份已存在的 `ai_system_map.json`，再次 validate 後轉成目前 session 最新 viewer payload。這個 endpoint 不掃描 project folder，也不呼叫 scanner providers。
+
+Request:
+
+```json
+{
+  "map_json_path": "outputs/ai_system_map.json"
+}
+```
+
+Valid response:
+
+```json
+{
+  "viewer_load_result": {
+    "loaded": true,
+    "error_reason": null,
+    "map_json": "{...}",
+    "ai_system_map": {},
+    "graph_view_model": {
+      "schema_version": "graph-view-model/v1",
+      "source_schema_version": "ai-system-map/v1",
+      "summary": {
+        "project_name": "sample-health-rag",
+        "scan_depth": "system",
+        "node_count": 15,
+        "edge_count": 9
+      },
+      "nodes": [],
+      "edges": [],
+      "details": {
+        "evidence_by_id": {},
+        "risk_hints_by_id": {}
+      },
+      "filters": {
+        "available": [],
+        "behavior": "highlight"
+      }
+    }
+  }
+}
+```
+
+Invalid map response still uses HTTP 200 so the local viewer can render an explicit broken-map state instead of crashing:
+
+```json
+{
+  "viewer_load_result": {
+    "loaded": false,
+    "error_reason": "invalid_map: Field 'confidence' is not allowed at $.confidence",
+    "map_json": null,
+    "ai_system_map": {},
+    "graph_view_model": {
+      "schema_version": "graph-view-model/v1",
+      "nodes": [],
+      "edges": [],
+      "details": {
+        "evidence_by_id": {},
+        "risk_hints_by_id": {}
+      },
+      "filters": {
+        "available": [],
+        "behavior": "highlight"
+      }
+    }
+  }
+}
+```
+
+規則：
+
+- `loaded=false` / `error_reason` 位於 `viewer_load_result`，不是 `graph_view_model`。
+- Valid 或 invalid load 都會更新 latest `/api/map` payload。
+- `map_json_path` 只代表 map artifact load；不得拿它重新掃描 project folder。
+- CLI `validate-map` 使用同一個 `ViewerSessionService`，只做 thin adapter。
 
 ## GET /api/map/report
 
@@ -290,7 +402,7 @@ Precondition failure is represented inside `MapBuildResult`:
 }
 ```
 
-Request validation errors use FastAPI 422. Unknown imported projects use HTTP 404 with `detail`.
+Request validation errors use FastAPI 422. Unknown imported projects use HTTP 404 with `detail`. Viewer map load failures use `viewer_load_result.loaded=false` for contract-compatible graceful degradation.
 
 ## Compatibility Rule
 
@@ -298,7 +410,6 @@ Any task that adds, removes, renames, or changes endpoint paths, request fields,
 
 ## 後續邊界
 
-- Task 18: full `ViewerSessionService` / complete `GraphViewModel` projection、filter metadata、invalid map viewer state。
 - Task 21: progressive L2/L3 detail scan endpoint；append-only detail evidence，不直接改 canonical facts。
 - Task 22: opt-in runtime query trace；不得由 Task 16 map build 預設觸發。
 - Task 25: project upload ingestion；獨立處理 archive size limit、path traversal、binary/model/dependency skip policy。
