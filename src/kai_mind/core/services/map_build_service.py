@@ -22,6 +22,9 @@ from kai_mind.core.services.endpoint_detection_service import (
 from kai_mind.core.services.flow_derivation_service import (
     FlowDerivationService,
 )
+from kai_mind.core.services.manual_mapping_service import (
+    ManualMappingService,
+)
 from kai_mind.core.services.markdown_summary_service import (
     MarkdownSummaryService,
 )
@@ -49,6 +52,7 @@ class MapBuildService:
         endpoint_detection_service: EndpointDetectionService | None = None,
         risk_hint_service: RiskHintService | None = None,
         flow_derivation_service: FlowDerivationService | None = None,
+        manual_mapping_service: ManualMappingService | None = None,
         normalize_service: SystemMapNormalizeService | None = None,
         markdown_summary_service: MarkdownSummaryService | None = None,
         projection_service: ViewerSessionService | None = None,
@@ -70,6 +74,7 @@ class MapBuildService:
         self._flow_derivation_service = (
             flow_derivation_service or FlowDerivationService()
         )
+        self._manual_mapping_service = manual_mapping_service
         self._normalize_service = (
             normalize_service or SystemMapNormalizeService()
         )
@@ -81,7 +86,12 @@ class MapBuildService:
             validation_service or SystemMapValidationService()
         )
 
-    def build(self, request: MapBuildRequest) -> MapBuildResult:
+    def build(
+        self,
+        request: MapBuildRequest,
+        *,
+        project_id: str | None = None,
+    ) -> MapBuildResult:
         """Build map artifacts and a frontend viewer payload."""
 
         precondition = self._output_artifact_provider.check_preconditions(
@@ -107,6 +117,7 @@ class MapBuildService:
             project_root=precondition.project_root,
             project_name=precondition.project_root.name,
             request=request,
+            project_id=project_id,
         )
         map_json_path = self._output_artifact_provider.write_json(
             system_map,
@@ -169,12 +180,14 @@ class MapBuildService:
         project_root: Path,
         project_name: str,
         request: MapBuildRequest,
+        project_id: str | None,
     ) -> RagSystemMap:
         raw_scan = self._project_scan_service.scan(project_root)
         template = RagTemplateService.load("rag-core-v1")
         components = self._detect_components(
             raw_scan=raw_scan,
             template=template,
+            project_id=project_id,
         )
         endpoints = self._endpoint_detection_service.detect(
             facts=raw_scan.facts,
@@ -212,8 +225,16 @@ class MapBuildService:
         *,
         raw_scan: ProjectScanResult,
         template: RagTemplate,
+        project_id: str | None,
     ) -> ComponentDetectionResult:
-        return self._component_detection_service.detect(
+        service = self._component_detection_service
+        if project_id is not None and self._manual_mapping_service is not None:
+            service = ComponentDetectionService(
+                manual_mapping_hook=self._manual_mapping_service.for_project(
+                    project_id
+                )
+            )
+        return service.detect(
             template=template,
             facts=raw_scan.facts,
             evidence=raw_scan.evidence,

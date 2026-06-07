@@ -7,10 +7,14 @@ from collections.abc import Sequence
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from kai_mind.core.services.manual_mapping_service import (
+    ManualMappingService,
+)
 from kai_mind.core.services.map_build_service import MapBuildService
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
 from kai_mind.web.routes import (
     map_routes,
+    mapping_routes,
     project_routes,
     scan_routes,
     viewer_routes,
@@ -26,12 +30,18 @@ DEFAULT_ALLOWED_ORIGINS = (
 def create_app(
     *,
     map_build_service: MapBuildService | None = None,
+    manual_mapping_service: ManualMappingService | None = None,
     viewer_session_service: ViewerSessionService | None = None,
     session_store: InMemorySessionStore | None = None,
     allowed_origins: Sequence[str] | None = None,
 ) -> FastAPI:
     app = FastAPI(title="KAI-Mind Local API", version="0.1.0")
-    app.state.map_build_service = map_build_service or MapBuildService()
+    app.state.manual_mapping_service = (
+        manual_mapping_service or ManualMappingService()
+    )
+    app.state.map_build_service = map_build_service or MapBuildService(
+        manual_mapping_service=app.state.manual_mapping_service
+    )
     app.state.viewer_session_service = (
         viewer_session_service or ViewerSessionService()
     )
@@ -40,10 +50,11 @@ def create_app(
         CORSMiddleware,
         allow_origins=list(allowed_origins or DEFAULT_ALLOWED_ORIGINS),
         allow_credentials=False,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "PATCH", "POST", "OPTIONS"],
         allow_headers=["Accept", "Content-Type"],
     )
     app.include_router(map_routes.router)
+    app.include_router(mapping_routes.router)
     app.include_router(project_routes.router)
     app.include_router(scan_routes.router)
     app.include_router(viewer_routes.router)
