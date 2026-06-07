@@ -38,6 +38,27 @@ def ambiguous_vector_dependency() -> tuple[ScanFact, Evidence]:
     )
 
 
+def reranker_extension_candidate() -> tuple[ScanFact, Evidence]:
+    evidence = Evidence(
+        id="evidence:reranker",
+        kind="code_pattern",
+        file="src/rerank.py",
+        path="Reranker.rerank",
+        value="rerank_documents",
+        rule_id="code_pattern_reranker",
+    )
+    return (
+        ScanFact(
+            kind=evidence.kind,
+            file=evidence.file or "",
+            path=evidence.path or "",
+            value=evidence.value,
+            rule_id=evidence.rule_id,
+        ),
+        evidence,
+    )
+
+
 def test_confirmed_mapping_moves_unmapped_into_existing_slot() -> None:
     fact, evidence = ambiguous_vector_dependency()
     repository = InMemoryManualMappingRepository()
@@ -104,3 +125,37 @@ def test_rejected_mapping_keeps_unmapped_component_out_of_slots() -> None:
 
     assert result.components_by_slot["vector_store"].status == "missing"
     assert len(result.unmapped_components) == 1
+
+
+def test_confirmed_extension_mapping_replays_live_candidate() -> None:
+    fact, evidence = reranker_extension_candidate()
+    manual_mapping_service = ManualMappingService(
+        repository=InMemoryManualMappingRepository(),
+        project_id="project:demo",
+    )
+    manual_mapping_service.create_mapping(
+        ManualMappingCreate(
+            project_id="project:demo",
+            mapping_type=ManualMappingType.NEW_EXTENSION,
+            decision=ManualMappingDecision.CONFIRMED,
+            source_file="src/rerank.py",
+            observed_kind="code_pattern",
+            evidence_ids=[evidence.id],
+            extension_id="extension:src_rerank_py:reranker",
+            extension_name="Reranker",
+            extension_kind="reranker",
+        )
+    )
+
+    result = ComponentDetectionService(
+        manual_mapping_hook=manual_mapping_service,
+    ).detect(
+        template=RagTemplateService.load("rag-core-v1"),
+        facts=[fact],
+        evidence=[evidence],
+    )
+
+    assert result.unmapped_components == []
+    assert result.extensions[0].id == "extension:src_rerank_py:reranker"
+    assert result.extensions[0].status == "confirmed"
+    assert result.extensions[0].confirmed_by_user is True

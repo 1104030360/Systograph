@@ -159,7 +159,7 @@ class ManualMappingService:
         unmapped = list(result.unmapped_components)
 
         for mapping in mappings:
-            if not _has_live_evidence(mapping, unmapped):
+            if not _has_live_evidence(mapping, unmapped, extensions):
                 continue
             if mapping.mapping_type == ManualMappingType.EXISTING_SLOT:
                 self._apply_existing_slot(mapping, components_by_slot)
@@ -324,11 +324,33 @@ def _now() -> str:
 def _has_live_evidence(
     mapping: ManualMapping,
     unmapped: list[UnmappedComponent],
+    extensions: list[ExtensionComponent],
+) -> bool:
+    if mapping.mapping_type == ManualMappingType.NEW_EXTENSION:
+        return _has_live_extension_evidence(mapping, extensions)
+    return _has_live_unmapped_evidence(mapping, unmapped)
+
+
+def _has_live_unmapped_evidence(
+    mapping: ManualMapping,
+    unmapped: list[UnmappedComponent],
 ) -> bool:
     mapping_evidence = set(mapping.evidence_ids)
     return any(
         mapping_evidence.intersection(component.evidence_ids)
         for component in unmapped
+    )
+
+
+def _has_live_extension_evidence(
+    mapping: ManualMapping,
+    extensions: list[ExtensionComponent],
+) -> bool:
+    mapping_evidence = set(mapping.evidence_ids)
+    return any(
+        extension.id == mapping.extension_id
+        and mapping_evidence.intersection(extension.evidence_ids)
+        for extension in extensions
     )
 
 
