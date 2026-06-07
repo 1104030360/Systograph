@@ -59,6 +59,27 @@ def reranker_extension_candidate() -> tuple[ScanFact, Evidence]:
     )
 
 
+def router_unmapped_candidate() -> tuple[ScanFact, Evidence]:
+    evidence = Evidence(
+        id="evidence:query_router",
+        kind="code_pattern",
+        file="src/query_router.py",
+        path="QueryRouter.route",
+        value="route_query",
+        rule_id="code_pattern_custom_router",
+    )
+    return (
+        ScanFact(
+            kind=evidence.kind,
+            file=evidence.file or "",
+            path=evidence.path or "",
+            value=evidence.value,
+            rule_id=evidence.rule_id,
+        ),
+        evidence,
+    )
+
+
 def test_confirmed_mapping_moves_unmapped_into_existing_slot() -> None:
     fact, evidence = ambiguous_vector_dependency()
     repository = InMemoryManualMappingRepository()
@@ -157,5 +178,43 @@ def test_confirmed_extension_mapping_replays_live_candidate() -> None:
 
     assert result.unmapped_components == []
     assert result.extensions[0].id == "extension:src_rerank_py:reranker"
+    assert result.extensions[0].status == "confirmed"
+    assert result.extensions[0].confirmed_by_user is True
+
+
+def test_confirmed_extension_mapping_replays_unmapped_candidate() -> None:
+    fact, evidence = router_unmapped_candidate()
+    manual_mapping_service = ManualMappingService(
+        repository=InMemoryManualMappingRepository(),
+        project_id="project:demo",
+    )
+    manual_mapping_service.create_mapping(
+        ManualMappingCreate(
+            project_id="project:demo",
+            mapping_type=ManualMappingType.NEW_EXTENSION,
+            decision=ManualMappingDecision.CONFIRMED,
+            source_unmapped_id=(
+                "unmapped:src_query_router_py:"
+                "queryrouter_route:code_pattern_custom_router"
+            ),
+            source_file="src/query_router.py",
+            observed_kind="code_pattern",
+            evidence_ids=[evidence.id],
+            extension_id="extension:query_router",
+            extension_name="Query Router",
+            extension_kind="routing_orchestration",
+        )
+    )
+
+    result = ComponentDetectionService(
+        manual_mapping_hook=manual_mapping_service,
+    ).detect(
+        template=RagTemplateService.load("rag-core-v1"),
+        facts=[fact],
+        evidence=[evidence],
+    )
+
+    assert result.unmapped_components == []
+    assert result.extensions[0].id == "extension:query_router"
     assert result.extensions[0].status == "confirmed"
     assert result.extensions[0].confirmed_by_user is True

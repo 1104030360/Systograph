@@ -327,7 +327,10 @@ def _has_live_evidence(
     extensions: list[ExtensionComponent],
 ) -> bool:
     if mapping.mapping_type == ManualMappingType.NEW_EXTENSION:
-        return _has_live_extension_evidence(mapping, extensions)
+        return _has_live_extension_evidence(
+            mapping,
+            extensions,
+        ) or _has_live_unmapped_evidence(mapping, unmapped)
     return _has_live_unmapped_evidence(mapping, unmapped)
 
 
