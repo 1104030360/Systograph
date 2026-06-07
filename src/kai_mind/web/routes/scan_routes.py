@@ -46,7 +46,8 @@ def create_scan(
             output=Path(payload.output),
             redact_root_path=payload.redact_root_path,
             no_snippets=payload.no_snippets,
-        )
+        ),
+        project_id=payload.project_id,
     )
     store.save_build_result(result)
     return ScanCreateResponse(

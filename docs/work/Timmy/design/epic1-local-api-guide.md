@@ -342,6 +342,128 @@ Response:
 - Unknown `project_id` 回傳 HTTP 404。
 - `scan_depth` 目前只允許 `system`。
 - `status` 依 `MapBuildResult.status` 對應為 `completed` 或 `error`。
+- 同一個 `project_id` 若已有 confirmed manual mappings，下一次 scan / normalize 會套用這些 decisions；API 不會直接修改既有 `ai_system_map.json`。
+
+## Manual Mapping Routes
+
+用途：保存使用者對 `unmapped / needs_confirmation` 元件做出的 project-level decision。這些 endpoints 只寫入 KAI-Mind-managed mapping store / repository，不直接 mutate 既有 map artifact。
+
+### GET /api/mappings
+
+Request:
+
+```http
+GET /api/mappings?project_id=project:...
+```
+
+Response:
+
+```json
+{
+  "project_id": "project:...",
+  "available_actions": [
+    "confirm",
+    "edit",
+    "reject",
+    "skip_for_now",
+    "mark_not_applicable"
+  ],
+  "mappings": [
+    {
+      "mapping_id": "mapping:...",
+      "project_id": "project:...",
+      "mapping_type": "existing_slot_mapping",
+      "decision": "confirmed",
+      "source_unmapped_id": "unmapped:requirements_txt:line_1:dependency_vector_store_client_chromadb",
+      "source_file": "requirements.txt",
+      "observed_kind": "dependency_candidate",
+      "evidence_ids": ["evidence:..."],
+      "target_slot": "vector_store",
+      "component_name": "Chroma",
+      "component_kind": "vector_db",
+      "mapping_digest": "sha256:...",
+      "created_at": "2026-06-07T...",
+      "updated_at": "2026-06-07T..."
+    }
+  ]
+}
+```
+
+### POST /api/mappings
+
+Request for confirmed existing slot mapping:
+
+```json
+{
+  "project_id": "project:...",
+  "mapping_type": "existing_slot_mapping",
+  "decision": "confirmed",
+  "source_unmapped_id": "unmapped:...",
+  "source_file": "requirements.txt",
+  "observed_kind": "dependency_candidate",
+  "evidence_ids": ["evidence:..."],
+  "target_slot": "vector_store",
+  "component_name": "Chroma",
+  "component_kind": "vector_db"
+}
+```
+
+Request for audit-only decisions:
+
+```json
+{
+  "project_id": "project:...",
+  "mapping_type": "existing_slot_mapping",
+  "decision": "rejected",
+  "source_unmapped_id": "unmapped:...",
+  "source_file": "requirements.txt",
+  "evidence_ids": ["evidence:..."],
+  "reason": "User rejected this mapping."
+}
+```
+
+Response:
+
+```text
+ManualMapping
+├─ mapping_id
+├─ project_id
+├─ mapping_type
+├─ decision
+├─ source_unmapped_id
+├─ source_file
+├─ observed_kind
+├─ evidence_ids[]
+├─ target_slot / extension fields
+├─ proposal_id / decision_source
+├─ mapping_digest
+├─ created_at
+└─ updated_at
+```
+
+### PATCH /api/mappings/{mapping_id}
+
+用途：更新既有 decision，例如把 `skip_for_now` 改成 `rejected`，或補上 reason。
+
+Request:
+
+```json
+{
+  "decision": "rejected",
+  "reason": "User rejected this mapping."
+}
+```
+
+規則：
+
+- Confirmed existing slot mapping 必須引用有效 `target_slot`、`component_name` 與至少一個 `evidence_id`。
+- Confirmed extension mapping 必須有 extension id/name/kind；若附 extension edge，endpoint 必須存在於已知 slot 或該 extension。
+- `rejected`、`skip_for_now`、`not_applicable` 是 audit-only decision，不會產生 component、extension 或 flow edge。
+- Mapping payload 不得包含 raw source code、raw AI prompt、unmasked secret-like values 或 `confidence`。
+- `source_file` 必須是 POSIX relative path，不得是 absolute path 或跳出 project。
+- Response 提供 `mapping_digest`，讓 report metadata / UI 可追蹤 applied decision。
+- Confirmed mapping 只有在下次 scan / normalize 且 source evidence 仍存在時才會影響 canonical map。
+- Route handler 只呼叫 `ManualMappingService`；不得直接讀寫 DB row、artifact JSON 或被掃描 repo。
 
 ## GET /api/scan/events
 

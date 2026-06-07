@@ -9,6 +9,11 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
+from kai_mind.core.models.mapping import (
+    ManualMapping,
+    ManualMappingCreate,
+    ManualMappingUpdate,
+)
 from kai_mind.core.models.viewer import ViewerPayload
 
 
@@ -84,9 +89,27 @@ class ScanProgressEvent(WebSchema):
     )
 
 
+class ManualMappingListResponse(WebSchema):
+    project_id: str
+    mappings: list[ManualMapping]
+    available_actions: list[str] = Field(
+        default_factory=lambda: [
+            "confirm",
+            "edit",
+            "reject",
+            "skip_for_now",
+            "mark_not_applicable",
+        ]
+    )
+
+
 __all__ = [
     "MapBuildApiRequest",
     "MapBuildResult",
+    "ManualMapping",
+    "ManualMappingCreate",
+    "ManualMappingListResponse",
+    "ManualMappingUpdate",
     "ProjectImportRequest",
     "ProjectImportResponse",
     "ScanCreateRequest",
