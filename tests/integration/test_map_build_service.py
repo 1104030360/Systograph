@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -8,10 +9,26 @@ from tests.helpers.fixtures import rag_project_fixture_path
 
 from kai_mind.core.models.errors import PreconditionFailureReason
 from kai_mind.core.models.map_build import MapBuildRequest
+from kai_mind.core.models.scan import ProjectScanResult, ScanFact
+from kai_mind.core.models.system_map import (
+    ComponentInstance,
+    ComponentSlot,
+    Evidence,
+)
+from kai_mind.core.models.template import RagTemplate
 from kai_mind.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
+from kai_mind.core.services.component_detection_service import (
+    ComponentDetectionResult,
+    ComponentDetectionService,
+)
+from kai_mind.core.services.manual_mapping_service import (
+    InMemoryManualMappingRepository,
+    ManualMappingService,
+)
 from kai_mind.core.services.map_build_service import MapBuildService
+from kai_mind.core.services.project_scan_service import ProjectScanService
 from kai_mind.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
@@ -19,6 +36,67 @@ from kai_mind.core.services.system_map_validation_service import (
 
 def fixed_clock() -> datetime:
     return datetime(2026, 6, 5, 9, 30, 0, tzinfo=UTC)
+
+
+class EmptyProjectScanService(ProjectScanService):
+    def scan(self, project_root: Path) -> ProjectScanResult:
+        return ProjectScanResult(
+            evidence=[
+                Evidence(
+                    id="evidence:custom-detector",
+                    kind="custom_signal",
+                    file="src/custom.py",
+                    path="custom.detector",
+                    value="Injected Vector Store",
+                    rule_id="custom_vector_store_rule",
+                )
+            ],
+            files_scanned=1,
+        )
+
+
+class InjectedVectorStoreDetector(ComponentDetectionService):
+    def __init__(self) -> None:
+        super().__init__()
+        self.called = False
+
+    def detect(
+        self,
+        *,
+        template: RagTemplate,
+        facts: Sequence[ScanFact],
+        evidence: Sequence[Evidence],
+    ) -> ComponentDetectionResult:
+        self.called = True
+        slots = {
+            slot.id: ComponentSlot(
+                slot=slot.id,
+                required_for_rag=slot.required_for_rag_hint,
+                status="missing",
+                instances=[],
+            )
+            for slot in template.slots
+        }
+        slots["vector_store"] = ComponentSlot(
+            slot="vector_store",
+            required_for_rag=True,
+            status="detected",
+            instances=[
+                ComponentInstance(
+                    id="component:vector_store:injected",
+                    slot="vector_store",
+                    kind="vector_db",
+                    name="Injected Vector Store",
+                    provider="custom",
+                    evidence_ids=["evidence:custom-detector"],
+                )
+            ],
+        )
+        return ComponentDetectionResult(
+            components_by_slot=slots,
+            extensions=[],
+            unmapped_components=[],
+        )
 
 
 def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
@@ -124,3 +202,33 @@ def test_map_build_service_keeps_secret_values_masked(tmp_path: Path) -> None:
     assert "sk-test" not in artifact_text
     assert "sk-test" not in markdown_text
     assert "[MASKED]" in artifact_text or "..." in artifact_text
+
+
+def test_project_mapping_preserves_injected_component_detector(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    detector = InjectedVectorStoreDetector()
+
+    result = MapBuildService(
+        project_scan_service=EmptyProjectScanService(),
+        component_detection_service=detector,
+        manual_mapping_service=ManualMappingService(
+            repository=InMemoryManualMappingRepository(),
+            allowed_slots={"vector_store"},
+        ),
+    ).build(
+        MapBuildRequest(
+            project_path=project_root,
+            output=tmp_path / "outputs",
+        ),
+        project_id="project:demo",
+    )
+
+    assert result.status == "ok"
+    assert detector.called
+    assert result.ai_system_map is not None
+    vector_store = result.ai_system_map.components_by_slot["vector_store"]
+    assert vector_store.status == "detected"
+    assert vector_store.instances[0].name == "Injected Vector Store"

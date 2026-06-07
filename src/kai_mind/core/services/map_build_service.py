@@ -227,18 +227,16 @@ class MapBuildService:
         template: RagTemplate,
         project_id: str | None,
     ) -> ComponentDetectionResult:
-        service = self._component_detection_service
-        if project_id is not None and self._manual_mapping_service is not None:
-            service = ComponentDetectionService(
-                manual_mapping_hook=self._manual_mapping_service.for_project(
-                    project_id
-                )
-            )
-        return service.detect(
+        result = self._component_detection_service.detect(
             template=template,
             facts=raw_scan.facts,
             evidence=raw_scan.evidence,
         )
+        if project_id is not None and self._manual_mapping_service is not None:
+            return self._manual_mapping_service.for_project(project_id).apply(
+                result
+            )
+        return result
 
     def _apply_request_options(
         self,
