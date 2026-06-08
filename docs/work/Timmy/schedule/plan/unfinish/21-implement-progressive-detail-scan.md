@@ -6,6 +6,56 @@
 ## 為什麼要先做這個
 L1 system map 先可用後，才需要 progressive drill-down。這符合設計文件要求：先粗看，再由使用者選特定元件深入，避免一開始做 whole-repo call graph。
 
+## 最新狀態校正（2026-06-08）
+
+Task 20 已完成下列可重用基礎，本任務需要知道以下邊界才能正確銜接：
+
+### 已完成可重用的部分
+
+- `src/kai_mind/core/models/system_map.py` 已定義 `DetailScanResult`、`DetailScanFinding`、`CodePathStep`。不需要另建 `detail_scan.py`。
+- `src/kai_mind/core/services/mapping_evidence_packet_builder.py` 已建立，由 Task 20 完成。本任務需擴充它，讓它能讀 detail scan 發現的 evidence，不要重複建立一個新的 builder。
+- `SystemMapNormalizeService.normalize()` 已接受 `detail_scans: Sequence[DetailScanResult] | None` 參數，`SystemMapValidationService` 也已驗證 `detail_scans[]` 的 target 是否存在、findings 的 evidence id 是否合法。Schema 端已準備好。
+
+### 目前的缺口（本任務要補的）
+
+- `MapBuildService._build_system_map()` 沒有把 `detail_scans` 傳進 `normalize()`，所以 `ai_system_map.json` 的 `detail_scans[]` 永遠是空陣列。本任務需提供獨立的 detail scan 觸發路徑，不走 `_build_system_map()`，而是由 `POST /api/detail-scans` route 觸發後 append 結果。
+- `DetailScanService`、`ComponentDetailScanService`、`CodePathScanService` 皆尚未存在。
+- Web route `detail_scan_routes.py` 尚未存在。
+
+### Evidence 連接機制（Task 21 最重要的設計決策）
+
+這是 Task 21 銜接 Task 20 的核心：
+
+**`MappingEvidencePacketBuilder` 的現行邏輯：**
+
+```python
+# mapping_evidence_packet_builder.py
+referenced = set(unmapped_component.evidence_ids)   # ← 只讀這個 index
+selected = [item for item in evidence if item.id in referenced]  # ← 從 canonical evidence[] 反查
+```
+
+也就是說，AI 能看到的 evidence 由兩個條件決定：
+1. `unmapped_component.evidence_ids` 包含該 evidence id
+2. `system_map.evidence[]` 中存在該 evidence id 對應的完整 Evidence 物件
+
+**Task 21 必須同時做到這兩件事，detail scan signal 才能進 AI input：**
+
+1. 把新抽取到的 signal 建立成 `Evidence` 物件，寫入 canonical `system_map.evidence[]`
+2. 把新 evidence id 掛到對應 `UnmappedComponent.evidence_ids`（或 extension、component）
+
+若 L2/L3 只把結果放在 `detail_scans[].findings[]` 而沒有同時更新 `evidence[]` 與 `unmapped_component.evidence_ids`，Task 20 的 proposal flow 永遠看不到這些 detail scan signal。
+
+**建議的兩層輸出：**
+
+```text
+detail scan 執行後：
+  ① detail_scans[]      ← 給前端顯示 findings summary、code_path、warnings
+  ② evidence[]          ← 把 detail signal 加進 canonical evidence，讓 Task 20 能用
+  ③ unmapped_component.evidence_ids ← 把新 evidence id 掛上去，讓 packet builder 能查到
+```
+
+這樣的好處是粗掃 evidence 和細掃 evidence 都用同一個 indexed 查詢，不需要改 packet builder 的核心邏輯。
+
 ## 產品與架構校正
 本任務是 Task 20 AI proposal 的安全上下文來源之一。它要幫使用者和 AI 看「足夠相關、已遮蔽、可追溯」的 evidence，而不是讓 AI 自己翻整個 repo。
 
@@ -79,42 +129,56 @@ Task 20 可以把這份 packet 餵給 deterministic fallback 或 optional local 
 - 不做 frontend detail panel；本任務只提供 backend API 與 data contract。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/models/detail_scan.py`。
-2. 建立 `src/kai_mind/core/services/detail_scan_service.py`。
-3. 建立 `component_detail_scan_service.py`，重用 existing evidence/files。
-4. 建立 `mapping_evidence_packet_builder.py` 或重用 Task 20 的 builder，將 detail scan 結果整理成 target-scoped `MappingEvidencePacket`。
-5. 建立 `code_path_scan_service.py`，先用 bounded import/call pattern；Python 專案可用 standard library `ast` 補 class/function/import/call-like extraction，不做 whole-repo call graph。
-6. 實作 target validation。
-7. 實作 context budget：限制 target files、snippet chars、packet chars、max findings，並在 response 標示 `best_effort` / truncated metadata。
-8. 對 Python AST extraction 加入 prompt-injection-safe handling：source text 只作資料解析，不可被放進 system/developer instruction；輸出只保留 masked snippets / normalized signatures。
-9. 實作 detail result append + validation。
-10. 建立 FastAPI detail scan routes，route 只能呼叫 `DetailScanService`。
-11. 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`。
-12. 測試 L2 retriever detail、L3 edge path、invalid target rejected、web route 不接受不存在的 target id；detail scan 不含 unmasked secret；packet 不包含 raw full file；不會呼叫 runtime endpoint；不會因 source comment 中的 prompt-like text 改變 scanner 行為。
+
+> `DetailScanResult`、`DetailScanFinding`、`CodePathStep` 已在 `system_map.py` 定義，步驟 1 改為確認而非新建。
+
+1. 確認 `src/kai_mind/core/models/system_map.py` 中 `DetailScanResult`、`DetailScanFinding`、`CodePathStep` 已符合本任務需要，必要時補充欄位（例如 `best_effort`、`context_budget_metadata`）。若有欄位需求超出現有 contract，記得同步更新 `SystemMapValidationService`。
+2. 建立 `src/kai_mind/core/services/detail_scan_service.py` 作為 L2/L3 入口 dispatcher；它接收 target type 與 target id，決定走 `ComponentDetailScanService` 或 `CodePathScanService`。
+3. 建立 `component_detail_scan_service.py` 做 L2 bounded scan：只看 target component 關聯的 source files，用 Python `ast` 抽取 imports、class/function signatures、decorators，並用 `SecretMaskingService` 遮蔽 snippet value。
+4. 建立 `code_path_scan_service.py` 做 L3 bounded call-like extraction：從 L2 找到的 function 往下抽 call-like hints；所有 call-like signal 必須帶 source file、line range；標示 `best_effort`，不可宣稱 runtime execution 已確認。
+5. **實作 evidence 連接機制（最關鍵步驟）**：L2/L3 找到的新 signal 必須同時：
+   - 建立 `Evidence` 物件（帶 id、kind、file、line_start、line_end、rule_id、masked snippet）
+   - 把新 evidence id 追加到對應 `UnmappedComponent.evidence_ids`（或 `ExtensionComponent.evidence_ids`）
+   - 把新 `Evidence` 加入 canonical `system_map.evidence[]`
+   - 把 `DetailScanResult` 加入 `system_map.detail_scans[]`
+   這樣 `MappingEvidencePacketBuilder`（Task 20）不需要修改核心邏輯，就能自動把 detail scan signal 納入 AI proposal input。
+6. 重用（不重建）`MappingEvidencePacketBuilder`，確認它能正確從更新後的 `evidence[]` 與 `unmapped_component.evidence_ids` 建立 packet，不需要額外感知 `detail_scans[]` 結構。
+7. 實作 target validation：slot/component/extension/unmapped/edge/evidence id 必須存在於目前 loaded map，不存在則回傳 422 並不寫入。
+8. 實作 context budget：限制 max target files、per-snippet max chars、per-packet max evidence items、max call-like hints；超過時在 `DetailScanResult.warnings` 與 `context_limits` metadata 標示 `truncated: true` / `best_effort: true`。
+9. 對 Python AST extraction 加入 prompt-injection-safe handling：source text 只作語法解析，不可被放進 system instruction；輸出只保留 masked snippets / normalized signatures，不輸出 raw 解析後的 docstring 或 annotation string literal。
+10. 呼叫 `SystemMapValidationService.validate()` 確認追加 evidence 與 detail scan 後整份 map 仍合法；失敗時不寫入，rollback 並記錄錯誤。
+11. 建立 FastAPI detail scan routes：`POST /api/detail-scans` 觸發掃描並更新 session store 的 map；`GET /api/detail-scans/{detail_scan_id}` 查詢結果。Route 只能呼叫 `DetailScanService`，不直接呼叫 `ComponentDetailScanService` 或 AST parser。
+12. 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`，加入 detail scan request/response contract、target id 規則、evidence 追加行為說明、lazy loading rule。
+13. 測試：L2 只掃 target 相關檔案；L3 標示 best_effort；invalid target 422；detail scan 後 `MappingEvidencePacketBuilder` 可在 AI proposal 中看到新 evidence；packet 不含 raw full file；不呼叫 runtime endpoint；source comment 中的 prompt-like text 不改變 scanner 行為；`SecretMaskingService` 套用在所有 snippet。
 
 ## 預期輸出
-- `src/kai_mind/core/models/detail_scan.py`
+
+> `DetailScanResult`、`DetailScanFinding`、`CodePathStep` 已在 `src/kai_mind/core/models/system_map.py` 定義，不需要另建 `detail_scan.py`。
+
+- 更新 `src/kai_mind/core/models/system_map.py`（若需補充 `best_effort`、`context_budget_metadata` 欄位）
 - `src/kai_mind/core/services/detail_scan_service.py`
 - `src/kai_mind/core/services/component_detail_scan_service.py`
 - `src/kai_mind/core/services/code_path_scan_service.py`
-- `src/kai_mind/core/services/mapping_evidence_packet_builder.py`（若未在 Task 20 建立，則本任務建立；若已建立，則本任務擴充）
+- 更新 `src/kai_mind/core/services/mapping_evidence_packet_builder.py`（Task 20 已建立；本任務確認 builder 可正確消費 detail scan 追加的新 evidence，必要時補充 test coverage）
 - `src/kai_mind/web/routes/detail_scan_routes.py`
 - 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
 - `tests/unit/core/test_detail_scan_service.py`
-- `tests/unit/core/test_mapping_evidence_packet_builder.py`
+- 更新 `tests/unit/core/test_mapping_evidence_packet_builder.py`（補 detail scan evidence 場景）
 - `tests/web/test_detail_scan_routes.py`
 
 ## 驗收標準
-- L2 只掃 target 相關檔案。
-- L3 標示 `best_effort` / bounded uncertainty。
-- `detail_scans[]` 不含大量 raw source 或 unmasked data。
-- `MappingEvidencePacket` 只包含 bounded、masked、target-scoped context。
-- L3 call-like hints 必須附 source file / line range / evidence id 或 finding id，且不可宣稱 runtime execution 已確認。
+- L2 只掃 target 相關檔案，不掃整個 repo。
+- L3 call-like hints 標示 `best_effort`，不宣稱 runtime execution 已確認，並附 source file / line range / evidence id。
+- `detail_scans[]` 不含大量 raw source 或 unmasked secret；所有 snippet 已過 `SecretMaskingService`。
+- **detail scan 執行後，`MappingEvidencePacketBuilder` 能在下一次 proposal 建立時，自動把 detail scan 抽到的新 evidence 納入 `MappingEvidencePacket`。** 這是連接 Task 21 與 Task 20 的核心驗收條件。
+- 新 evidence 同時出現在 `system_map.evidence[]` 與對應 `unmapped_component.evidence_ids`（或 extension）。
+- `MappingEvidencePacket` 只包含 bounded、masked、target-scoped context；packet builder 不需要另外讀 `detail_scans[]` 結構。
 - detail scan 不會給 AI file tool、project root、raw source dump 或 shell/runtime 權限。
 - detail scan 不會執行 target project、`sys.settrace` 或 runtime endpoint call。
-- invalid target 不會寫入 map。
+- 追加 detail scan 後，整份 map 仍通過 `SystemMapValidationService.validate()`；validation 失敗時不寫入。
+- invalid target 不會寫入 map，回傳 422。
 - local web API 可依 target id 觸發 bounded detail scan。
-- API guide 已同步記錄 detail scan request/response 與 progress event。
+- API guide 已同步記錄 detail scan request/response、evidence 追加行為與 lazy loading rule。
 
 ## 可能風險與注意事項
 - Tree-sitter 可作未來改善，但第一版不要因此卡住。
@@ -136,33 +200,83 @@ Task 20 可以把這份 packet 餵給 deterministic fallback 或 optional local 
 Detail scan 是放大鏡，不是重新掃整個城市。使用者點哪裡，就只看那附近。
 
 ## 視覺化說明
+
+### 掃描層次（粗 → 細）
+
 ```text
-┌──────────────┐
-│ L1 base map  │
-└──────┬───────┘
-       ↓
-┌──────────────────────┐
-│ user selected target  │
-└──────┬─────────┬─────┘
-       │         │
- component       │ edge/evidence
-       ↓         ↓
-┌──────────────────────┐ ┌──────────────────────┐
-│ L2 ComponentDetail    │ │ L3 CodePathScan       │
-│ Scan                  │ │                      │
-└──────────┬───────────┘ └──────────┬───────────┘
-           └──────────────┬─────────┘
-                          ↓
-┌──────────────────────┐
-│ masked bounded        │
-│ EvidencePacket        │
-└──────────┬───────────┘
-                          ↓
-┌──────────────────────┐
-│ detail_scans[]        │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ validate map          │
-└──────────────────────┘
+L1  System Map Scan（粗掃）
+    ├─ 掃整個 project 的 config、dependency、docker、code pattern
+    ├─ 產出 evidence[]、unmapped_components[]
+    └─ scan_depth = "system"
+
+    ↓ 使用者點某個 component node
+
+L2  ComponentDetailScan（中掃）
+    ├─ 只看 target component 相關的 source files
+    ├─ 用 Python ast 抽取 imports、class/function signatures、decorators
+    ├─ 產出較細的 Evidence（file + line range + masked snippet）
+    └─ scan_depth = "component"
+
+    ↓ 使用者再點某個 function / edge / call hint
+
+L3  CodePathScan（細掃）
+    ├─ 從 L2 找到的 function 往下追 call-like hints
+    ├─ 抽取 call chain：self.retriever.invoke(...)、vectorstore.search(...)
+    ├─ 每個 call-like hint 必須附 source file + line range
+    ├─ 標示 best_effort：static observation only，不代表 runtime 已確認
+    └─ scan_depth = "code_path"
 ```
+
+### Detail scan 觸發路徑與 evidence 連接
+
+```text
+┌──────────────────────────────────┐
+│ L1 base map                      │
+│ evidence[]  unmapped[]           │
+└──────────────────┬───────────────┘
+                   ↓ POST /api/detail-scans
+         ┌─────────┴─────────────┐
+         │ target_type?          │
+    component/slot            edge / evidence / call hint
+         ↓                        ↓
+┌──────────────────┐      ┌──────────────────────┐
+│ L2               │      │ L3                   │
+│ ComponentDetail  │  或   │ CodePathScan          │
+│ Scan             │  之後  │ (L2 之後可繼續深入)   │
+│ (ast + regex)    │ ────→ │ (call-like hints)    │
+└────────┬─────────┘      └──────────┬───────────┘
+         └──────────────────┬────────┘
+                            ↓ 同時寫入三個地方
+         ┌──────────────────────────────────────────┐
+         │ ① evidence[]        新 Evidence 物件      │
+         │ ② unmapped[].evidence_ids  追加新 id      │
+         │ ③ detail_scans[]    findings + code_path  │
+         └──────────────────────┬───────────────────┘
+                                ↓
+         ┌──────────────────────────────────┐
+         │ SystemMapValidationService       │
+         │ validate 整份 map 仍合法          │
+         └──────────────────────────────────┘
+```
+
+### Detail scan evidence 如何進入 Task 20 AI input
+
+```text
+L1 + L2 + L3 scan 後                Task 20 proposal 建立時
+─────────────────────────           ──────────────────────────────────
+unmapped_component                  MappingEvidencePacketBuilder.build()
+  .evidence_ids                       ↓
+  = ["evid:L1-a",     ←──────────  referenced = set(unmapped.evidence_ids)
+     "evid:L2-new",                 selected = [e for e in evidence
+     "evid:L3-call"]                            if e.id in referenced]
+                                      ↓
+evidence[]                          MappingEvidencePacket
+  = [Evidence(id="evid:L1-a"),       .evidence_ids = ["evid:L1-a",
+     Evidence(id="evid:L2-new"),                       "evid:L2-new",
+     Evidence(id="evid:L3-call")]                       "evid:L3-call"]
+                                      .masked_snippets = [L1, L2, L3 snippets]
+                                      ↓
+                                    LLM / deterministic fallback
+                                    → 粗/中/細掃 signal 全部進入 AI input
+```
+
