@@ -110,6 +110,42 @@ class ValidProvider:
         )
 
 
+class NewExtensionToConfirmedComponentProvider:
+    name = "confirmed-component-edge-provider"
+
+    def generate(
+        self,
+        *,
+        packet: MappingEvidencePacket,
+        output_schema: dict[str, object],
+        validation_error: str | None = None,
+    ) -> str:
+        return json.dumps(
+            {
+                "candidates": [
+                    {
+                        "candidate_type": "new_extension_component",
+                        "proposed_extension_id": "extension:query_router",
+                        "proposed_extension_name": "Query Router",
+                        "proposed_extension_kind": "routing_orchestration",
+                        "label": "Confirm Query Router as extension",
+                        "rationale": "Router evidence is bounded and masked.",
+                        "evidence_ids": ["evidence:router"],
+                        "rank": 1,
+                        "recommendation_level": "plausible_candidate",
+                        "suggested_edges": [
+                            {
+                                "source_ref": "component:retriever:retriever",
+                                "target_ref": "extension:query_router",
+                                "relationship": "routes_to",
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+
+
 def vector_store_packet() -> MappingEvidencePacket:
     return MappingEvidencePacket(
         project_id="project:demo",
@@ -137,6 +173,7 @@ def router_packet() -> MappingEvidencePacket:
         masked_evidence_values=["route_query"],
         call_like_signals=["QueryRouter.route"],
         available_slots=["app_api_or_orchestrator", "retriever"],
+        confirmed_component_ids=["component:retriever:retriever"],
     )
 
 
@@ -217,6 +254,19 @@ def test_valid_provider_candidates_are_saved() -> None:
     ]
 
 
+def test_provider_candidate_edges_must_be_persistable() -> None:
+    proposal = service(
+        provider=NewExtensionToConfirmedComponentProvider()
+    ).create_proposal(router_packet())
+
+    assert proposal.provider_name == "deterministic"
+    assert proposal.provider_error_reason is not None
+    assert "unknown endpoint" in proposal.provider_error_reason
+    assert all(
+        not candidate.suggested_edges for candidate in proposal.candidates
+    )
+
+
 def test_accept_candidate_creates_manual_mapping_draft() -> None:
     manual_mapping_service = ManualMappingService(
         repository=InMemoryManualMappingRepository(),
@@ -245,6 +295,40 @@ def test_accept_candidate_creates_manual_mapping_draft() -> None:
     assert manual_mapping_service.list_for_project("project:demo") == [
         result.manual_mapping
     ]
+
+
+def test_decision_requires_pending_proposal_status() -> None:
+    manual_mapping_service = ManualMappingService(
+        repository=InMemoryManualMappingRepository(),
+        allowed_slots={"vector_store"},
+    )
+    proposal_service = service(
+        manual_mapping_service=manual_mapping_service,
+    )
+    proposal = proposal_service.create_proposal(vector_store_packet())
+    candidate = proposal.candidates[0]
+    proposal_service.decide(
+        proposal.proposal_id,
+        MappingProposalDecisionRequest(
+            decision=MappingProposalDecisionAction.ACCEPT,
+            candidate_id=candidate.candidate_id,
+        ),
+    )
+
+    try:
+        proposal_service.decide(
+            proposal.proposal_id,
+            MappingProposalDecisionRequest(
+                decision=MappingProposalDecisionAction.REJECT,
+                reason="late retry",
+            ),
+        )
+    except ValueError as exc:
+        assert "Proposal is not pending" in str(exc)
+    else:
+        raise AssertionError("expected non-pending proposal decision to fail")
+
+    assert len(manual_mapping_service.list_for_project("project:demo")) == 1
 
 
 def test_reject_decision_does_not_create_manual_mapping() -> None:

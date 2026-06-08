@@ -49,7 +49,7 @@ def create_scan(
         ),
         project_id=payload.project_id,
     )
-    store.save_build_result(result)
+    store.save_build_result(result, project_id=payload.project_id)
     return ScanCreateResponse(
         scan_id=f"scan:{uuid4()}",
         project_id=payload.project_id,

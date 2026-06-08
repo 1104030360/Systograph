@@ -157,6 +157,10 @@ class MappingProposalService:
         proposal = self._repository.get(proposal_id)
         if proposal is None:
             raise KeyError(proposal_id)
+        if proposal.status != MappingProposalStatus.PENDING:
+            raise ValueError(
+                f"Proposal is not pending: {proposal.status.value}"
+            )
 
         if request.decision == MappingProposalDecisionAction.REJECT:
             updated = self._with_status(
@@ -280,8 +284,6 @@ class MappingProposalService:
         candidate: MappingCandidate,
     ) -> None:
         allowed = set(packet.available_slots)
-        allowed.update(packet.available_extensions)
-        allowed.update(packet.confirmed_component_ids)
         if candidate.proposed_extension_id is not None:
             allowed.add(candidate.proposed_extension_id)
 

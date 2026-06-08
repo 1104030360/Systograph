@@ -32,11 +32,14 @@ class UnavailableProvider:
 def import_and_scan_weak_project(
     client: TestClient,
     tmp_path: Path,
+    *,
+    name: str = "weak_chroma_project",
+    dependency: str = "chromadb==0.5.0",
 ) -> tuple[str, str]:
-    project_root = tmp_path / "weak_chroma_project"
+    project_root = tmp_path / name
     project_root.mkdir()
     (project_root / "requirements.txt").write_text(
-        "chromadb==0.5.0\n",
+        f"{dependency}\n",
         encoding="utf-8",
     )
     project_id = client.post(
@@ -111,6 +114,35 @@ def test_proposal_routes_create_and_list_pending_proposal(
     ]
 
 
+def test_proposal_create_uses_requested_project_build_result(
+    tmp_path: Path,
+) -> None:
+    client = create_deterministic_test_app()
+    project_b_id, _project_b_unmapped_id = import_and_scan_weak_project(
+        client,
+        tmp_path,
+        name="weak_chroma_project",
+        dependency="chromadb==0.5.0",
+    )
+    _project_a_id, project_a_unmapped_id = import_and_scan_weak_project(
+        client,
+        tmp_path,
+        name="weak_qdrant_project",
+        dependency="qdrant-client==1.7.0",
+    )
+
+    response = client.post(
+        "/api/mapping-proposals",
+        json={
+            "project_id": project_b_id,
+            "source_unmapped_id": project_a_unmapped_id,
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "unmapped_not_found"
+
+
 def test_proposal_decision_accept_creates_manual_mapping(
     tmp_path: Path,
 ) -> None:
@@ -175,13 +207,37 @@ def test_proposal_route_falls_back_when_provider_is_unavailable(
     assert payload["candidates"][0]["target_slot"] == "vector_store"
 
 
-def test_proposal_route_requires_loaded_map() -> None:
+def test_proposal_route_requires_existing_project() -> None:
     client = create_deterministic_test_app()
 
     response = client.post(
         "/api/mapping-proposals",
         json={
             "project_id": "project:missing",
+            "source_unmapped_id": "unmapped:missing",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "project_not_found"
+
+
+def test_proposal_route_requires_loaded_map(tmp_path: Path) -> None:
+    client = create_deterministic_test_app()
+    project_root = tmp_path / "unscanned_project"
+    project_root.mkdir()
+    project_id = client.post(
+        "/api/projects/import",
+        json={
+            "source_type": "local_path",
+            "project_path": str(project_root),
+        },
+    ).json()["project_id"]
+
+    response = client.post(
+        "/api/mapping-proposals",
+        json={
+            "project_id": project_id,
             "source_unmapped_id": "unmapped:missing",
         },
     )

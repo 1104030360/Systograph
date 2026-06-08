@@ -62,11 +62,11 @@ def create_mapping_proposal(
     store: Annotated[InMemorySessionStore, Depends(session_store)],
 ) -> MappingProposal:
     """Create a pending proposal from the latest masked map evidence."""
-    system_map = _latest_system_map(store)
-    if system_map is None:
-        raise HTTPException(status_code=404, detail="map_not_loaded")
     if store.project(payload.project_id) is None:
         raise HTTPException(status_code=404, detail="project_not_found")
+    system_map = _system_map_for_project(store, payload.project_id)
+    if system_map is None:
+        raise HTTPException(status_code=404, detail="map_not_loaded")
 
     unmapped = _find_unmapped(system_map, payload.source_unmapped_id)
     if unmapped is None:
@@ -117,8 +117,11 @@ def decide_mapping_proposal(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-def _latest_system_map(store: InMemorySessionStore) -> RagSystemMap | None:
-    result = store.latest_build_result()
+def _system_map_for_project(
+    store: InMemorySessionStore,
+    project_id: str,
+) -> RagSystemMap | None:
+    result = store.build_result(project_id)
     if result is None:
         return None
     return result.ai_system_map

@@ -33,6 +33,7 @@ class InMemorySessionStore:
             viewer_load_result=self._projection_service.empty()
         )
         self._latest_build_result: MapBuildResult | None = None
+        self._build_results_by_project: dict[str, MapBuildResult] = {}
 
     def import_project(
         self,
@@ -52,8 +53,15 @@ class InMemorySessionStore:
     def project(self, project_id: str) -> ProjectRecord | None:
         return self._projects.get(project_id)
 
-    def save_build_result(self, result: MapBuildResult) -> None:
+    def save_build_result(
+        self,
+        result: MapBuildResult,
+        *,
+        project_id: str | None = None,
+    ) -> None:
         self._latest_build_result = result
+        if project_id is not None:
+            self._build_results_by_project[project_id] = result
         if result.viewer_load_result is not None:
             self.save_viewer_payload(
                 ViewerPayload(viewer_load_result=result.viewer_load_result)
@@ -67,3 +75,6 @@ class InMemorySessionStore:
 
     def latest_build_result(self) -> MapBuildResult | None:
         return self._latest_build_result
+
+    def build_result(self, project_id: str) -> MapBuildResult | None:
+        return self._build_results_by_project.get(project_id)
