@@ -15,14 +15,13 @@ from kai_mind.core.services.llm_proposal_config_loader import (
     NvidiaNimProposalConfig,
     load_nvidia_nim_proposal_config,
 )
+from kai_mind.core.services.mapping_proposal_service import (
+    MappingProposalProviderUnavailableError,
+)
 from kai_mind.core.services.prompt_template_loader import (
     PromptTemplateError,
     load_yaml_prompt_template,
 )
-
-
-class MappingProposalProviderUnavailableError(RuntimeError):
-    """Raised when an optional proposal provider cannot return candidates."""
 
 
 class NvidiaNimProposalProvider:
@@ -182,6 +181,9 @@ def nvidia_nim_provider_from_env(
     config = load_nvidia_nim_proposal_config(path=config_file)
     env = dict(_dotenv_values(env_file or Path(".env")))
     env.update(environ or os.environ)
+    if not _bool_env(env, "KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", False):
+        return None
+
     api_key = env.get("NVIDIA_API_KEY")
     if api_key is None or not api_key.strip():
         return None

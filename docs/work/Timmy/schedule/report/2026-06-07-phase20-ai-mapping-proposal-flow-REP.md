@@ -25,6 +25,10 @@ latest ai_system_map.unmapped_components[]
 
 2026-06-08 review 修正：確認並修正三個 proposal lifecycle 問題。Proposal create 現在使用 requested project 的 build result，不再讀 process-wide latest map；proposal decision 現在只允許 pending proposal；provider suggested edge validation 現在和 `ManualMappingService` 可持久化的 endpoint 規則一致。
 
+2026-06-08 review 修正：hosted NVIDIA provider 現在是真正 explicit opt-in。即使 `.env` 或 process env 有 `NVIDIA_API_KEY`，也必須同時設定 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` 才會 wire `NvidiaNimProposalProvider`。
+
+2026-06-08 open-source config 校正：參考 R2R、LangChain、LlamaIndex、Dify 後，KAI-Mind 採用「runtime provider defaults 放 TOML/env；output schema / safety bounds 留在 Pydantic model」的分界。`timeout_seconds`、`max_tokens`、`temperature`、`top_p` 可由 TOML 設定並由 loader 檢查範圍；`MappingCandidate` 欄位長度、candidate count、suggested edge count、provider error reason 長度等屬於 API/safety contract，已集中成 Python constants 並保留在 `src/kai_mind/core/models/mapping.py`。
+
 ## 實作步驟
 1. 查證 NVIDIA 官方 NIM / Gemma 4 31B 文件，修正 Task 20 plan：hosted NIM 是外部 endpoint，不是本機模型；`google/gemma-4-31b-it` 只能作為 optional hosted provider adapter。
 2. 建立 Phase 20 TODO，先記錄資料流、TDD 步驟與驗收點。
@@ -40,8 +44,13 @@ latest ai_system_map.unmapped_components[]
 12. GREEN：修正 proposal route 的 project boundary，`InMemorySessionStore` 會保存 per-project build result，`POST /api/mapping-proposals` 只使用 requested project 的 map。
 13. GREEN：修正 proposal decision lifecycle，非 pending proposal 不能再 accept/edit/reject/skip，避免 retry 建立重複 manual mapping 或覆蓋 final status。
 14. GREEN：修正 suggested edge endpoint validation，只允許 manual mapping 可保存的 template slot ids 與 proposed extension id。
-15. Scope 修正：前端 proposal UI / API helper / candidate cards / decision mutation 不混入 Task 20，已拆到 Task 20a。
-16. 文件：更新 Epic 1 local API guide、Task 20 plan、Phase 20 TODO 與本 report 最新狀態。
+15. GREEN：新增 explicit opt-in guard，hosted NVIDIA provider 需 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` + `NVIDIA_API_KEY` 才啟用。
+16. GREEN：新增 provider output bounds，限制 candidate count、文字欄位長度、evidence id 數量、suggested edge 數量，避免 response bloat 或 UI/report leakage。
+17. GREEN：收斂 provider exception handling，只把預期 provider unavailable / validation 類錯誤轉 deterministic fallback，並用 stable sanitized reason code。
+18. GREEN：補 decision request invariant，accept/edit/reject/skip 的 payload shape 不再允許互相矛盾。
+19. GREEN：補 proposal decision lock，降低同 process concurrent decision 建立重複 manual mapping 的風險。
+20. Scope 修正：前端 proposal UI / API helper / candidate cards / decision mutation 不混入 Task 20，已拆到 Task 20a。
+21. 文件：更新 Epic 1 local API guide、Task 20 plan、Task 20a plan、Phase 20 TODO 與本 report 最新狀態。
 
 ## 測試方式
 新增測試：
@@ -53,13 +62,19 @@ latest ai_system_map.unmapped_components[]
   - deterministic proposal 預設 pending，使用 rank / recommendation_level，不使用 confidence。
   - provider output 含 `confidence` 時 retry 一次後 fallback。
   - provider 回傳不存在的 evidence / slot 時 fallback。
+  - provider output 含未遮蔽 secret 時 fallback，且 API reason 只保留 stable code。
+  - provider output 超過 bounded field length 時 fallback。
+  - provider unexpected bug 不被 broad catch 靜默吞掉。
   - valid provider output 會被保存成 pending proposal。
-  - accept 會建立 Phase 19 manual mapping draft；reject 不建立 manual mapping。
+  - accept / edit 會建立 Phase 19 manual mapping draft；reject / skip 不建立 manual mapping。
+  - unknown candidate、missing proposal、second decision、矛盾 decision payload 都會被拒絕。
+  - `MappingCandidate` tagged-union shape 會被 Pydantic validator 擋下。
 - `tests/unit/core/test_nvidia_nim_proposal_provider.py`
   - NVIDIA provider 只送 masked packet 與 schema summary。
   - NVIDIA provider 可從 YAML template render prompt messages。
   - YAML template 缺少必要變數時會回報 provider unavailable，讓上層可 fallback。
   - NVIDIA provider 可從 TOML 讀取 endpoint、model、max_tokens、temperature、top_p、stream、enable_thinking 等非敏感預設。
+  - NVIDIA provider 需要 explicit enable flag，不能只因 `NVIDIA_API_KEY` 存在就啟用。
   - `.env` / environment variable 可以覆蓋 TOML 的非敏感值；`NVIDIA_API_KEY` 不放 TOML。
   - HTTP 401 會轉成 provider unavailable error。
 - `tests/web/test_mapping_proposal_routes.py`
@@ -67,6 +82,7 @@ latest ai_system_map.unmapped_components[]
   - proposal create 不 mutate current `/api/map` payload。
   - 多專案情境下，proposal create 不會用 latest scan 的其他 project evidence。
   - decision accept 會建立 manual mapping。
+  - decision edit / skip / missing proposal / second decision lifecycle。
   - provider unavailable 時 route 仍 deterministic fallback。
   - 尚未載入 map 時回傳 `map_not_loaded`。
 - Review regression tests:
@@ -94,11 +110,26 @@ latest ai_system_map.unmapped_components[]
   - 解法：`MappingProposalService.decide()` 在任何 decision 前檢查 proposal status 必須是 `pending_user_confirmation`。
 - 問題：provider candidate suggested edge 可以引用 confirmed component id，但 manual mapping extension validation 不接受該 endpoint。
   - 解法：proposal validation 的 allowed edge endpoints 收斂為 template slot ids + proposed extension id，和 manual mapping persistence 規則一致。
+- 問題：只要 `.env` 存在 `NVIDIA_API_KEY` 就 wire hosted provider，和 explicit opt-in 承諾衝突。
+  - 解法：新增 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` guard；沒有 flag 時 deterministic fallback，不會呼叫 hosted endpoint。
+- 問題：provider output 缺少 bounded field / candidate count limits。
+  - 解法：`MappingCandidate` / `MappingProviderCandidateBatch` / `MappingProposal` 加上 Pydantic limits，並集中成 Python constants。這些是 API/safety contract，不放 TOML。
+- 問題：provider exception broad catch 會把 provider bug 也當 fallback，且可能把 `str(exc)` 帶到 API response。
+  - 解法：只 catch 預期 provider unavailable / validation 類錯誤，回 stable sanitized code `provider_unavailable` 或 `provider_invalid_output`。
+- 問題：decision payload 可同時帶互斥欄位。
+  - 解法：`MappingProposalDecisionRequest` 加 validator，固定 accept/edit/reject/skip 的 payload invariant。
+
+## 外部查證摘要
+- R2R 使用 TOML profile / generation config 管理 model、temperature、top_p、max_tokens、stream、api_base 等 provider runtime 參數；secret 仍走 env。
+- LangChain 文件把 model 參數如 temperature / max_tokens 視為 model invocation config，同時 structured output 仍透過 Pydantic / TypedDict / JSON Schema 表達資料形狀與驗證。
+- LlamaIndex 的 Settings pattern 也是集中設定 LLM / embedding / request_timeout 這類 runtime defaults。
+- Dify self-host docs 用 environment variables 管理 indexing token length、sandbox timeout、provider credentials 等部署參數。
+- 對 KAI-Mind 的結論：runtime/provider defaults 適合 TOML/env；proposal candidate 的欄位長度、candidate count、suggested edge count 屬於 output contract / safety guardrail，保留在 Pydantic model。
 
 ## 測試結果
 ```bash
 .venv/bin/pytest tests/unit/core/test_mapping_evidence_packet_builder.py tests/unit/core/test_mapping_proposal_service.py tests/unit/core/test_nvidia_nim_proposal_provider.py tests/web/test_mapping_proposal_routes.py tests/web/test_nvidia_provider_app_wiring.py -q
-# 21 passed
+# 37 passed
 
 .venv/bin/ruff check src tests
 # All checks passed
@@ -110,7 +141,7 @@ cd frontend && pnpm build
 # 前一輪 Phase 20 曾執行並通過；2026-06-08 prompt template 補強未修改 frontend，因此本輪未重跑。
 
 .venv/bin/pytest -q
-# 336 passed
+# 350 passed
 ```
 
 ## 驗收狀態

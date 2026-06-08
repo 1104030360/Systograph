@@ -550,12 +550,14 @@ Request:
 
 規則：
 
-- API 從目前 session 最新 `ai_system_map` 找 `source_unmapped_id`，再用 canonical evidence 建立 masked `MappingEvidencePacket`。
+- API 會從 requested `project_id` 對應的 latest scanned `ai_system_map` 找 `source_unmapped_id`，再用 canonical evidence 建立 masked `MappingEvidencePacket`；不得使用 process-wide latest scan 的其他 project evidence。
 - Client 不提交 raw evidence、raw source、project root 或 provider prompt。
+- 若 `project_id` 不存在，回傳 HTTP 404 `project_not_found`。
 - 若尚未 scan / load map，回傳 HTTP 404 `map_not_loaded`。
 - 若 `source_unmapped_id` 不存在，回傳 HTTP 404 `unmapped_not_found`。
 - Proposal status 一律先是 `pending_user_confirmation`。
-- Provider unavailable、timeout、HTTP error、invalid JSON、`confidence` 欄位、unknown evidence / slot / edge reference 都會被拒絕並 fallback 到 deterministic candidates。
+- Provider unavailable、timeout、HTTP error 會回到 deterministic candidates，`provider_error_reason` 使用 stable code `provider_unavailable`。
+- Provider invalid JSON、`confidence` 欄位、unknown evidence / slot / edge reference、unmasked secret、超出 bounded output limits 都會被拒絕並 fallback 到 deterministic candidates，`provider_error_reason` 使用 stable code `provider_invalid_output`。
 - Proposal create 不會修改 latest `/api/map` payload，也不會修改 `components_by_slot`、`extensions`、`flows`、`query_trace_events`。
 
 ### POST /api/mapping-proposals/{proposal_id}/decision
@@ -578,7 +580,25 @@ Request for rejecting a proposal:
 }
 ```
 
-Response:
+Request for editing a proposal:
+
+```json
+{
+  "decision": "edit",
+  "edited_mapping": {
+    "project_id": "project:...",
+    "mapping_type": "existing_slot_mapping",
+    "decision": "confirmed",
+    "source_unmapped_id": "unmapped:...",
+    "evidence_ids": ["evidence:..."],
+    "target_slot": "vector_store",
+    "component_name": "Edited Chroma",
+    "component_kind": "vector_db"
+  }
+}
+```
+
+Response excerpt:
 
 ```json
 {
@@ -598,18 +618,23 @@ Response:
 規則：
 
 - `accept` 會把候選轉成 `ManualMappingCreate`，再交給 `ManualMappingService` 驗證與保存。
-- `edit` 必須提供 `edited_mapping`，並同樣交給 `ManualMappingService` 驗證。
+- `accept` 必須提供 `candidate_id`，且不可同時提供 `edited_mapping`。
+- `edit` 必須提供完整 `edited_mapping`，不可同時提供 `candidate_id`，並同樣交給 `ManualMappingService` 驗證。
 - `reject` / `skip_for_now` 只更新 proposal status，不建立 manual mapping。
+- `reject` / `skip_for_now` 不可帶 `candidate_id` 或 `edited_mapping`。
+- 只有 `pending_user_confirmation` proposal 可以 decision；已 accepted / edited / rejected / skipped 的 proposal 再次 decision 會回 HTTP 422。
+- 上方 response 是節錄；實際 response 會包含完整 serialized `MappingProposal`，若有建立 manual mapping 則包含完整 serialized `ManualMapping`。
 - 即使 accept 成功，canonical map 仍要等同一個 `project_id` 下次 `/api/scans` / normalize 才會生效。
 - Response 不得包含 unmasked secret、raw prompt、raw source 或 `confidence`。
 
 ### Optional NVIDIA NIM Provider
 
-Phase 20 可注入 `NvidiaNimProposalProvider` 作為 hosted NIM adapter。它只接收 masked packet 與 schema summary，非敏感預設值由 bundled TOML `src/kai_mind/core/configs/llm_proposal.toml` 提供，例如模型 ID `google/gemma-4-31b-it` 與 endpoint `https://integrate.api.nvidia.com/v1/chat/completions`。此 adapter 是 explicit opt-in，不是 production default；沒有 `NVIDIA_API_KEY` 或 provider 失敗時，proposal flow 必須 deterministic fallback。
+Phase 20 可注入 `NvidiaNimProposalProvider` 作為 hosted NIM adapter。它只接收 masked packet 與 schema summary，非敏感預設值由 bundled TOML `src/kai_mind/core/configs/llm_proposal.toml` 提供，例如模型 ID `google/gemma-4-31b-it` 與 endpoint `https://integrate.api.nvidia.com/v1/chat/completions`。此 adapter 是 explicit opt-in，不是 production default；必須同時設定 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` 與 `NVIDIA_API_KEY` 才會啟用。沒有 enable flag、沒有 key 或 provider 失敗時，proposal flow 必須 deterministic fallback。
 
 Local development can opt in through `.env`; API key must stay in `.env` / environment variables and must not be committed:
 
 ```env
+KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true
 NVIDIA_API_KEY=nvapi-...
 ```
 
@@ -625,6 +650,13 @@ NVIDIA_NIM_TOP_P=0.95
 NVIDIA_NIM_STREAM=false
 NVIDIA_NIM_ENABLE_THINKING=true
 ```
+
+Only runtime/provider defaults belong in TOML or `.env`. Mapping proposal
+output limits, such as maximum candidate count, candidate label/rationale
+length, evidence id count, suggested edge count, and `provider_error_reason`
+length, are Pydantic schema limits in `src/kai_mind/core/models/mapping.py`;
+they are intentionally not configurable through TOML because they are part of
+the API and safety contract.
 
 The provider request mirrors NVIDIA Platform's non-streaming chat completion shape:
 

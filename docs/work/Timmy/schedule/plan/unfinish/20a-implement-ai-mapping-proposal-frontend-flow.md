@@ -1,11 +1,16 @@
 # Task 20a: Implement AI Mapping Proposal Frontend Flow
 
 ## 目標
+
+> [!IMPORTANT]
+> **提醒：本任務得要補完整所有前端測試**。包含導入測試框架（如 Vitest + React Testing Library），並確實撰寫 Component、API hook 等相關測試。
+
 在 frontend viewer 中接上 Task 20 的 mapping proposal API，讓使用者可以針對 `needs_confirmation` / unmapped target 產生 proposal、檢視候選 mapping、選擇 accept/edit/reject/skip，並在決策後刷新畫面。
 
 本任務只做前端接線與 UI，不改 Task 20 backend service 行為，也不改 canonical `ai_system_map.json` contract。
 
 ## 為什麼要拆成 20a
+
 Task 20 的核心是 backend pending-only proposal lifecycle。Frontend UI / API helper / candidate cards / mutation flow 是另一個獨立交付面，若混在 Task 20 會讓 scope 變大，也會讓後端驗收與前端 UX 驗收互相干擾。
 
 因此 Task 20a 專門處理：
@@ -20,6 +25,7 @@ Task 20 的核心是 backend pending-only proposal lifecycle。Frontend UI / API
 - 前端測試或最低限度 build 驗證。
 
 ## 已檢查的目前前端狀態（2026-06-08）
+
 已實際檢查：
 
 - `frontend/src/types.ts`
@@ -42,6 +48,7 @@ Task 20 的核心是 backend pending-only proposal lifecycle。Frontend UI / API
 - `frontend/package.json` 目前只有 `build` / `lint`，尚未看到 frontend test runner。
 
 ## 後端 API contract
+
 Task 20 backend 已提供：
 
 ```text
@@ -74,8 +81,16 @@ Decision request：
 ```json
 {
   "decision": "edit",
-  "candidate_id": "candidate:...",
-  "edited_mapping": {}
+  "edited_mapping": {
+    "project_id": "project:...",
+    "mapping_type": "existing_slot_mapping",
+    "decision": "confirmed",
+    "source_unmapped_id": "unmapped:...",
+    "evidence_ids": ["evidence:..."],
+    "target_slot": "vector_store",
+    "component_name": "Edited Chroma",
+    "component_kind": "vector_db"
+  }
 }
 ```
 
@@ -88,7 +103,14 @@ Decision request：
 }
 ```
 
+Payload 規則：
+
+- `accept` 必須帶 `candidate_id`，不可帶 `edited_mapping`。
+- `edit` 必須帶完整 `edited_mapping`，不可帶 `candidate_id`。
+- `reject` / `skip_for_now` 只能選擇性帶 `reason`，不可帶 `candidate_id` 或 `edited_mapping`。
+
 ## 實作範圍
+
 - 擴充 `frontend/src/types.ts`，加入 mapping proposal response / request schema。
 - 擴充 `frontend/src/services/viewerApi.ts`，加入 `listMappingProposals()`、`createMappingProposal()`、`decideMappingProposal()`。
 - 在 API mode 建立 proposal query，例如 `useMappingProposals(projectId)`。
@@ -125,6 +147,7 @@ Decision request：
   - API mode 必須讀真實 proposal endpoints。
 
 ## 不包含範圍
+
 - 不修改 Task 20 backend service / route 行為。
 - 不讓前端直接修改 canonical `ai_system_map.json`。
 - 不讓前端繞過 `POST /api/mapping-proposals/{proposal_id}/decision` 直接建立 confirmed mapping。
@@ -133,7 +156,8 @@ Decision request：
 - 不把 pending proposal 渲染成已確認 canonical fact。
 
 ## 建議實作步驟
-1. RED：新增 frontend contract/schema 測試或最低限度 type-level fixture 驗證，涵蓋 proposal list/create/decision response。
+
+1. RED：導入 Vitest 等測試框架，新增 frontend contract/schema 測試，以及 proposal list/create/decision 的 API hooks 與 Component 測試（得要補完整所有測試）。
 2. 實作 `frontend/src/types.ts` proposal schemas。
 3. 實作 `frontend/src/services/viewerApi.ts` proposal API helpers。
 4. 建立 `useMappingProposals(projectId)` query hook。
@@ -146,9 +170,10 @@ Decision request：
 11. Mutation success 後 refetch proposal list 與 viewer payload。
 12. 補 pending proposal badge / count。
 13. 更新 `frontend/API_CONTRACT.md`。
-14. 跑 `cd frontend && pnpm build`；若新增 test runner，跑對應 frontend tests。
+14. 跑 `cd frontend && pnpm build`，並執行所有 frontend 測試確認全數通過。
 
 ## 驗收標準
+
 - API mode 可以列出某 project 的 pending proposals。
 - 使用者點到需要確認的 target 時，可以從 UI 建立 proposal。
 - UI 顯示後端回來的真實 `MappingProposal.candidates[]`，不是 sample-only data。
@@ -159,9 +184,10 @@ Decision request：
 - Decision 成功後 proposal list 與 viewer payload 會刷新。
 - Sample mode 不會誤呼叫 backend proposal API。
 - API mode 不再把 `mapping_proposal_result_sample` 當成真實 proposal。
-- `pnpm build` 通過；若引入 frontend test runner，相關 proposal UI tests 通過。
+- `pnpm build` 通過；必須引入 frontend test runner，且相關的 proposal UI tests 等所有前端測試皆已補完整並通過。
 
 ## 前端工程師白話版
+
 現在後端已經會產生 mapping 建議，但前端還沒有真正接起來。畫面目前只有 sample button，看起來像能 Accept / Reject，實際上按了不會做事。
 
 Task 20a 要做的是把這套流程補完整：使用者看到 `Needs confirmation`，可以按「產生建議」，看到 AI / rule 給的候選卡片，選一個接受或編輯，也可以拒絕或先跳過。送出後畫面要更新，並清楚告訴使用者這個建議是 AI 產生、規則 fallback，還是 AI 失敗後改用 deterministic。

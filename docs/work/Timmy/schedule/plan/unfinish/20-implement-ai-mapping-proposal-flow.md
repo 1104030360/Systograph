@@ -13,10 +13,11 @@ Phase 20 已完成第一版 core / local API implementation：
 - 已新增 `MappingEvidencePacketBuilder`，從目前 canonical map 的 `unmapped_components[]` 與 `evidence[]` 建立 masked / bounded / traceable packet。
 - 已新增 `MappingProposalService`、proposal repository protocol / in-memory implementation。
 - 已支援 deterministic fallback candidates，包含 existing slot mapping、new extension candidate、needs more information、skip for now。
-- 已支援 optional provider protocol，provider output 會經 Pydantic schema validation、unknown evidence / slot / edge reference validation、secret validation、`confidence` rejection；失敗時最多 retry 一次後 fallback。
+- 已支援 optional provider protocol，provider output 會經 Pydantic schema validation、bounded output limits、unknown evidence / slot / edge reference validation、secret validation、`confidence` rejection；失敗時最多 retry 一次後 fallback。
 - 已新增 `NvidiaNimProposalProvider` hosted NIM adapter。它不是 production default，也不是本機模型；必須 explicit opt-in 注入 provider，測試不呼叫真實 NVIDIA endpoint。
 - `NvidiaNimProposalProvider` 的 prompt template 已外部化到 YAML，方便後續調整提示詞；但 schema validation、evidence/slot reference validation 與 secret validation 仍保留在 Python service 層。
-- `NvidiaNimProposalProvider` 的 endpoint、model、timeout、generation defaults 已外部化到 bundled TOML；`NVIDIA_API_KEY` 仍只允許由 `.env` / 環境變數提供。
+- `NvidiaNimProposalProvider` 的 endpoint、model、timeout、generation defaults 已外部化到 bundled TOML；`KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` 與 `NVIDIA_API_KEY` 仍只允許由 `.env` / 環境變數提供。
+- provider runtime defaults 參考 R2R / LangChain 這類開源 RAG/LLM 專案做成可設定值；但 `MappingCandidate` 的欄位長度、candidate count、suggested edge count 等 output bounds 屬於 API/schema safety contract，集中成 Python constants 並留在 Pydantic model，不放 TOML。
 - 已新增 `/api/mapping-proposals` list/create routes 與 `/api/mapping-proposals/{proposal_id}/decision` route。
 - Accept / edit 會轉成 Phase 19 `ManualMappingService` 的 manual mapping draft；reject / skip 只更新 proposal status。
 - 已更新 `docs/work/Timmy/design/epic1-local-api-guide.md`。
@@ -24,7 +25,7 @@ Phase 20 已完成第一版 core / local API implementation：
 
 仍刻意不包含：
 
-- 不自動讀取 `NVIDIA_API_KEY` 並把 hosted NIM 設為 default provider；production config / secrets policy / licensing / retention 需另開設定任務。
+- 不會只因 `.env` 或 process env 有 `NVIDIA_API_KEY` 就啟用 hosted NIM；必須同時設定 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true`。production config / secrets policy / licensing / retention 需另開設定任務。
 - 不做 frontend implementation、GUI candidate card UI、proposal button、decision mutation 或 frontend API helper；這些工作由 Task 20a 獨立處理。
 - 不把 proposal 寫進 canonical `ai_system_map.json`；confirmed 後仍要由下次 scan / normalize 套用 manual mapping。
 
@@ -79,6 +80,17 @@ Task 21 應負責：
 - Microsoft Presidio：參考 analyzer/anonymizer 的資料流觀念；目前不要直接引入核心依賴，因為 KAI-Mind 現階段主要處理 code/config/report secrets，已由 `SecretMaskingService` 負責。若未來要掃醫療個資或 report PII，再評估是否擴充。
 - OpenAI Structured Outputs / JSON Schema 類型約束：參考 structured output + schema validation 的作法；即使 local LLM 不支援 strict structured output，也必須在 KAI-Mind 端用 Pydantic / JSON Schema 做最終驗證。
 - OWASP LLM Top 10 / NIST SSDF：參考 prompt injection、sensitive information disclosure、excessive agency、secure-by-design、least privilege 與 auditability 原則。
+
+### 開源 RAG / LLM 專案設定模式校正
+
+已查 R2R、LangChain、LlamaIndex、Dify 的設定方式後，本任務採用以下分界：
+
+- 可調 runtime provider 設定放 TOML / env：model、endpoint、timeout、temperature、top_p、max_tokens、stream、enable_thinking。這類設定類似 R2R 的 `[completion.generation_config]`，或 LangChain / LlamaIndex 對 LLM model、temperature、request timeout 的設定。
+- Secret 不放 TOML：`NVIDIA_API_KEY` 只走 `.env` / process env，且 hosted NVIDIA provider 還需要 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` 才啟用。
+- Output schema / safety bounds 不放 TOML：`MappingCandidate` 的 `label`、`rationale`、`flow_hint` 長度、candidate 數量、evidence id 數量、suggested edge 數量是 API contract 與安全邊界，集中成 Python constants 並由 Pydantic model 產生 JSON Schema。
+- Provider TOML loader 仍會檢查 runtime 設定範圍，例如 timeout、temperature、top_p、max_tokens，避免 TOML 設成不合理值造成 hanging request 或超大 response。
+
+取捨理由：R2R / Dify 類產品會讓 ingestion chunk size、LLM generation、timeout 這些部署參數可調；但 KAI-Mind 的 proposal candidate 是前後端 API contract，也是防止 LLM output bloat / leakage 的 safety guardrail。若把這些 output bounds 變成 TOML，部署時一個錯誤設定就可能放寬 AI output 邊界，和 Task 20 的 bounded proposal 承諾衝突。
 
 ### NVIDIA NIM / Gemma 4 31B 查證與整合邊界
 
@@ -209,6 +221,11 @@ Task 21 應負責：
 - NVIDIA Gemma 4 31B IT inference reference: https://docs.api.nvidia.com/nim/reference/google-gemma-4-31b-it-infer
 - NVIDIA Gemma 4 31B IT model card: https://docs.api.nvidia.com/nim/reference/google-gemma-4-31b-it
 - NVIDIA NIM product / licensing FAQ: https://docs.api.nvidia.com/nim/docs/product
+- R2R GitHub / generation config examples: https://github.com/SciPhi-AI/R2R , https://raw.githubusercontent.com/SciPhi-AI/R2R/main/py/core/configs/full_ollama.toml
+- R2R self-hosting agent configuration: https://r2r-docs.sciphi.ai/self-hosting/configuration/agent
+- LangChain model parameters / structured output: https://docs.langchain.com/oss/python/langchain/models
+- LlamaIndex Settings / request timeout pattern: https://docs.llamaindex.ai/en/v0.10.20/module_guides/supporting_modules/service_context_migration.html
+- Dify self-host environment variables / indexing and timeout settings: https://docs.dify.ai/en/self-host/configuration/environments
 - OWASP Top 10 for LLM Applications: https://owasp.org/www-project-top-10-for-large-language-model-applications/
 - NIST Secure Software Development Framework: https://csrc.nist.gov/Projects/ssdf
 

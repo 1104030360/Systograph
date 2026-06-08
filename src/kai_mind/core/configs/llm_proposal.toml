@@ -1,4 +1,6 @@
 [mapping_proposal.provider]
+# Runtime/provider defaults only. Secret values stay in .env/environment
+# variables, and provider output schema limits stay in Pydantic models.
 name = "nvidia-nim"
 endpoint = "https://integrate.api.nvidia.com/v1/chat/completions"
 model = "google/gemma-4-31b-it"

@@ -5,12 +5,10 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from kai_mind.core.models.mapping import MappingEvidencePacket
-from kai_mind.core.providers.llm_proposal_provider import (
-    MappingProposalProviderUnavailableError,
-)
 from kai_mind.core.services.manual_mapping_service import ManualMappingService
 from kai_mind.core.services.mapping_proposal_service import (
     InMemoryMappingProposalRepository,
+    MappingProposalProviderUnavailableError,
     MappingProposalService,
 )
 from kai_mind.web.app import create_app
@@ -180,6 +178,110 @@ def test_proposal_decision_accept_creates_manual_mapping(
     ]
 
 
+def test_proposal_decision_edit_creates_manual_mapping(
+    tmp_path: Path,
+) -> None:
+    client = create_deterministic_test_app()
+    project_id, unmapped_id = import_and_scan_weak_project(client, tmp_path)
+    proposal = client.post(
+        "/api/mapping-proposals",
+        json={
+            "project_id": project_id,
+            "source_unmapped_id": unmapped_id,
+        },
+    ).json()
+
+    decision_response = client.post(
+        f"/api/mapping-proposals/{proposal['proposal_id']}/decision",
+        json={
+            "decision": "edit",
+            "edited_mapping": {
+                "project_id": project_id,
+                "mapping_type": "existing_slot_mapping",
+                "decision": "confirmed",
+                "source_unmapped_id": unmapped_id,
+                "evidence_ids": proposal["evidence_packet"]["evidence_ids"],
+                "target_slot": "vector_store",
+                "component_name": "Edited Chroma",
+                "component_kind": "vector_db",
+            },
+        },
+    )
+
+    assert decision_response.status_code == 200
+    payload = decision_response.json()
+    assert payload["proposal"]["status"] == "edited"
+    assert payload["manual_mapping"]["decision_source"] == "proposal_edit"
+    assert payload["manual_mapping"]["component_name"] == "Edited Chroma"
+
+
+def test_proposal_decision_skip_for_now_is_terminal(
+    tmp_path: Path,
+) -> None:
+    client = create_deterministic_test_app()
+    project_id, unmapped_id = import_and_scan_weak_project(client, tmp_path)
+    proposal = client.post(
+        "/api/mapping-proposals",
+        json={
+            "project_id": project_id,
+            "source_unmapped_id": unmapped_id,
+        },
+    ).json()
+
+    response = client.post(
+        f"/api/mapping-proposals/{proposal['proposal_id']}/decision",
+        json={"decision": "skip_for_now", "reason": "Later."},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["proposal"]["status"] == "skipped"
+    assert payload["manual_mapping"] is None
+
+
+def test_proposal_decision_missing_proposal_returns_404() -> None:
+    client = create_deterministic_test_app()
+
+    response = client.post(
+        "/api/mapping-proposals/proposal:missing/decision",
+        json={"decision": "reject", "reason": "No proposal."},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "proposal_not_found"
+
+
+def test_proposal_decision_second_request_returns_422(
+    tmp_path: Path,
+) -> None:
+    client = create_deterministic_test_app()
+    project_id, unmapped_id = import_and_scan_weak_project(client, tmp_path)
+    proposal = client.post(
+        "/api/mapping-proposals",
+        json={
+            "project_id": project_id,
+            "source_unmapped_id": unmapped_id,
+        },
+    ).json()
+    candidate_id = proposal["candidates"][0]["candidate_id"]
+    first_response = client.post(
+        f"/api/mapping-proposals/{proposal['proposal_id']}/decision",
+        json={
+            "decision": "accept",
+            "candidate_id": candidate_id,
+        },
+    )
+
+    second_response = client.post(
+        f"/api/mapping-proposals/{proposal['proposal_id']}/decision",
+        json={"decision": "reject", "reason": "late retry"},
+    )
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 422
+    assert "Proposal is not pending" in second_response.json()["detail"]
+
+
 def test_proposal_route_falls_back_when_provider_is_unavailable(
     tmp_path: Path,
 ) -> None:
@@ -203,7 +305,7 @@ def test_proposal_route_falls_back_when_provider_is_unavailable(
     assert response.status_code == 200
     payload = response.json()
     assert payload["provider_name"] == "deterministic"
-    assert payload["provider_error_reason"] == "timeout"
+    assert payload["provider_error_reason"] == "provider_unavailable"
     assert payload["candidates"][0]["target_slot"] == "vector_store"
 
 

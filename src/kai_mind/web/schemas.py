@@ -14,6 +14,7 @@ from kai_mind.core.models.mapping import (
     ManualMappingCreate,
     ManualMappingUpdate,
     MappingProposal,
+    MappingProposalDecisionAction,
     MappingProposalDecisionRequest,
     MappingProposalDecisionResult,
 )
@@ -115,12 +116,12 @@ class MappingProposalCreateRequest(WebSchema):
 class MappingProposalListResponse(WebSchema):
     project_id: str
     proposals: list[MappingProposal]
-    available_actions: list[str] = Field(
+    available_actions: list[MappingProposalDecisionAction] = Field(
         default_factory=lambda: [
-            "accept",
-            "edit",
-            "reject",
-            "skip_for_now",
+            MappingProposalDecisionAction.ACCEPT,
+            MappingProposalDecisionAction.EDIT,
+            MappingProposalDecisionAction.REJECT,
+            MappingProposalDecisionAction.SKIP_FOR_NOW,
         ]
     )
 

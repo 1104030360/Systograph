@@ -9,9 +9,11 @@ from pytest import MonkeyPatch
 
 from kai_mind.core.models.mapping import MappingEvidencePacket
 from kai_mind.core.providers.llm_proposal_provider import (
-    MappingProposalProviderUnavailableError,
     NvidiaNimProposalProvider,
     nvidia_nim_provider_from_env,
+)
+from kai_mind.core.services.mapping_proposal_service import (
+    MappingProposalProviderUnavailableError,
 )
 
 
@@ -202,6 +204,7 @@ def test_nvidia_provider_can_be_created_from_dotenv(
     env_file.write_text(
         "\n".join(
             [
+                "KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true",
                 "NVIDIA_API_KEY=nvapi-from-dotenv",
                 "NVIDIA_NIM_MODEL=google/gemma-4-31b-it",
             ]
@@ -212,6 +215,20 @@ def test_nvidia_provider_can_be_created_from_dotenv(
     provider = nvidia_nim_provider_from_env(env_file=env_file)
 
     assert isinstance(provider, NvidiaNimProposalProvider)
+
+
+def test_nvidia_provider_requires_explicit_enable_flag(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", raising=False)
+    monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("NVIDIA_API_KEY=nvapi-from-dotenv\n", encoding="utf-8")
+
+    provider = nvidia_nim_provider_from_env(env_file=env_file)
+
+    assert provider is None
 
 
 def test_nvidia_provider_uses_non_secret_defaults_from_toml(
@@ -254,7 +271,15 @@ template = "mapping_proposal.v1.yaml"
         encoding="utf-8",
     )
     env_file = tmp_path / ".env"
-    env_file.write_text("NVIDIA_API_KEY=nvapi-from-dotenv\n", encoding="utf-8")
+    env_file.write_text(
+        "\n".join(
+            [
+                "KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true",
+                "NVIDIA_API_KEY=nvapi-from-dotenv",
+            ]
+        ),
+        encoding="utf-8",
+    )
 
     provider = nvidia_nim_provider_from_env(
         env_file=env_file,
@@ -292,6 +317,7 @@ def test_env_can_override_non_secret_toml_values(
         )
 
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-from-env")
+    monkeypatch.setenv("KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
     monkeypatch.setenv("NVIDIA_NIM_MODEL", "google/env-model")
     monkeypatch.setenv("NVIDIA_NIM_MAX_TOKENS", "512")
     config_file = tmp_path / "llm_proposal.toml"
@@ -347,6 +373,7 @@ def test_env_var_takes_precedence_over_dotenv(
         )
 
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-from-env")
+    monkeypatch.setenv("KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
     env_file = tmp_path / ".env"
     env_file.write_text("NVIDIA_API_KEY=nvapi-from-dotenv\n", encoding="utf-8")
 

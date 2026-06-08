@@ -13,6 +13,16 @@ class LlmProposalConfigError(ValueError):
     """Raised when provider config cannot be safely loaded."""
 
 
+MIN_PROVIDER_TIMEOUT_SECONDS = 0.1
+MAX_PROVIDER_TIMEOUT_SECONDS = 300.0
+MIN_PROVIDER_MAX_TOKENS = 1
+MAX_PROVIDER_MAX_TOKENS = 65536
+MIN_PROVIDER_TEMPERATURE = 0.0
+MAX_PROVIDER_TEMPERATURE = 2.0
+MIN_PROVIDER_TOP_P = 0.0
+MAX_PROVIDER_TOP_P = 1.0
+
+
 @dataclass(frozen=True)
 class NvidiaNimGenerationConfig:
     max_tokens: int
@@ -67,11 +77,31 @@ def load_nvidia_nim_proposal_config(
         name=_required_str(provider, "name"),
         endpoint=_required_str(provider, "endpoint"),
         model=_required_str(provider, "model"),
-        timeout_seconds=_required_float(provider, "timeout_seconds"),
+        timeout_seconds=_bounded_float(
+            provider,
+            "timeout_seconds",
+            minimum=MIN_PROVIDER_TIMEOUT_SECONDS,
+            maximum=MAX_PROVIDER_TIMEOUT_SECONDS,
+        ),
         generation=NvidiaNimGenerationConfig(
-            max_tokens=_required_int(generation, "max_tokens"),
-            temperature=_required_float(generation, "temperature"),
-            top_p=_required_float(generation, "top_p"),
+            max_tokens=_bounded_int(
+                generation,
+                "max_tokens",
+                minimum=MIN_PROVIDER_MAX_TOKENS,
+                maximum=MAX_PROVIDER_MAX_TOKENS,
+            ),
+            temperature=_bounded_float(
+                generation,
+                "temperature",
+                minimum=MIN_PROVIDER_TEMPERATURE,
+                maximum=MAX_PROVIDER_TEMPERATURE,
+            ),
+            top_p=_bounded_float(
+                generation,
+                "top_p",
+                minimum=MIN_PROVIDER_TOP_P,
+                maximum=MAX_PROVIDER_TOP_P,
+            ),
             stream=_required_bool(generation, "stream"),
             enable_thinking=_required_bool(generation, "enable_thinking"),
         ),
@@ -102,6 +132,22 @@ def _required_int(data: dict[str, Any], key: str) -> int:
     return value
 
 
+def _bounded_int(
+    data: dict[str, Any],
+    key: str,
+    *,
+    minimum: int,
+    maximum: int,
+) -> int:
+    value = _required_int(data, key)
+    if value < minimum or value > maximum:
+        raise LlmProposalConfigError(
+            f"LLM proposal config {key} must be between "
+            f"{minimum} and {maximum}"
+        )
+    return value
+
+
 def _required_float(data: dict[str, Any], key: str) -> float:
     value = data.get(key)
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -109,6 +155,22 @@ def _required_float(data: dict[str, Any], key: str) -> float:
             f"LLM proposal config {key} must be numeric"
         )
     return float(value)
+
+
+def _bounded_float(
+    data: dict[str, Any],
+    key: str,
+    *,
+    minimum: float,
+    maximum: float,
+) -> float:
+    value = _required_float(data, key)
+    if value < minimum or value > maximum:
+        raise LlmProposalConfigError(
+            f"LLM proposal config {key} must be between "
+            f"{minimum} and {maximum}"
+        )
+    return value
 
 
 def _required_bool(data: dict[str, Any], key: str) -> bool:

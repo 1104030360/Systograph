@@ -74,7 +74,10 @@ def load_yaml_prompt_template(
             f"Prompt template could not be read: {exc}"
         ) from exc
 
-    loaded = yaml.safe_load(text)
+    try:
+        loaded = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise PromptTemplateError("Prompt template YAML is invalid") from exc
     if not isinstance(loaded, dict):
         raise PromptTemplateError("Prompt template root must be an object")
 

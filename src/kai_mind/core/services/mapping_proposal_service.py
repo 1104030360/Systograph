@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from threading import RLock
 from typing import Protocol
 from uuid import uuid4
 
@@ -31,6 +32,10 @@ from kai_mind.core.services.manual_mapping_service import (
 from kai_mind.core.services.secret_masking_service import (
     SecretMaskingService,
 )
+
+
+class MappingProposalProviderUnavailableError(RuntimeError):
+    """Raised when an optional proposal provider cannot return candidates."""
 
 
 class MappingProposalProvider(Protocol):
@@ -106,6 +111,7 @@ class MappingProposalService:
         self._secret_masking_service = (
             secret_masking_service or SecretMaskingService()
         )
+        self._decision_lock = RLock()
 
     def create_proposal(
         self,
@@ -154,39 +160,40 @@ class MappingProposalService:
         proposal_id: str,
         request: MappingProposalDecisionRequest,
     ) -> MappingProposalDecisionResult:
-        proposal = self._repository.get(proposal_id)
-        if proposal is None:
-            raise KeyError(proposal_id)
-        if proposal.status != MappingProposalStatus.PENDING:
-            raise ValueError(
-                f"Proposal is not pending: {proposal.status.value}"
-            )
+        with self._decision_lock:
+            proposal = self._repository.get(proposal_id)
+            if proposal is None:
+                raise KeyError(proposal_id)
+            if proposal.status != MappingProposalStatus.PENDING:
+                raise ValueError(
+                    f"Proposal is not pending: {proposal.status.value}"
+                )
 
-        if request.decision == MappingProposalDecisionAction.REJECT:
-            updated = self._with_status(
-                proposal,
-                MappingProposalStatus.REJECTED,
-            )
-            return MappingProposalDecisionResult(proposal=updated)
+            if request.decision == MappingProposalDecisionAction.REJECT:
+                updated = self._with_status(
+                    proposal,
+                    MappingProposalStatus.REJECTED,
+                )
+                return MappingProposalDecisionResult(proposal=updated)
 
-        if request.decision == MappingProposalDecisionAction.SKIP_FOR_NOW:
-            updated = self._with_status(
-                proposal,
-                MappingProposalStatus.SKIPPED,
-            )
-            return MappingProposalDecisionResult(proposal=updated)
+            if request.decision == MappingProposalDecisionAction.SKIP_FOR_NOW:
+                updated = self._with_status(
+                    proposal,
+                    MappingProposalStatus.SKIPPED,
+                )
+                return MappingProposalDecisionResult(proposal=updated)
 
-        manual_mapping = self._create_manual_mapping(proposal, request)
-        status = (
-            MappingProposalStatus.EDITED
-            if request.decision == MappingProposalDecisionAction.EDIT
-            else MappingProposalStatus.ACCEPTED
-        )
-        updated = self._with_status(proposal, status)
-        return MappingProposalDecisionResult(
-            proposal=updated,
-            manual_mapping=manual_mapping,
-        )
+            manual_mapping = self._create_manual_mapping(proposal, request)
+            status = (
+                MappingProposalStatus.EDITED
+                if request.decision == MappingProposalDecisionAction.EDIT
+                else MappingProposalStatus.ACCEPTED
+            )
+            updated = self._with_status(proposal, status)
+            return MappingProposalDecisionResult(
+                proposal=updated,
+                manual_mapping=manual_mapping,
+            )
 
     def _try_provider(
         self,
@@ -207,17 +214,17 @@ class MappingProposalService:
                     packet,
                     batch.candidates,
                 )
+            except MappingProposalProviderUnavailableError:
+                return None, "provider_unavailable"
             except (ValidationError, ValueError) as exc:
                 validation_error = self._safe_reason(str(exc))
                 continue
-            except Exception as exc:
-                return None, self._safe_reason(str(exc))
 
             if candidates:
                 return candidates, None
             validation_error = "Provider returned no candidates"
 
-        return None, validation_error
+        return None, "provider_invalid_output"
 
     def _validate_packet(self, packet: MappingEvidencePacket) -> None:
         _require_text("project_id", packet.project_id)
