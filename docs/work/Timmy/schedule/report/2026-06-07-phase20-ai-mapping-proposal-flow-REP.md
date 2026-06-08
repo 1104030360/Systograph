@@ -23,6 +23,8 @@ latest ai_system_map.unmapped_components[]
 
 2026-06-08 補強：`NvidiaNimProposalProvider` 的 endpoint、model、timeout、generation defaults 已從 Python hardcoded constants 移到 bundled TOML config。TOML 只放非敏感預設值；`NVIDIA_API_KEY` 仍只從 `.env` / 環境變數提供，不進 repo config。
 
+2026-06-08 review 修正：確認並修正三個 proposal lifecycle 問題。Proposal create 現在使用 requested project 的 build result，不再讀 process-wide latest map；proposal decision 現在只允許 pending proposal；provider suggested edge validation 現在和 `ManualMappingService` 可持久化的 endpoint 規則一致。
+
 ## 實作步驟
 1. 查證 NVIDIA 官方 NIM / Gemma 4 31B 文件，修正 Task 20 plan：hosted NIM 是外部 endpoint，不是本機模型；`google/gemma-4-31b-it` 只能作為 optional hosted provider adapter。
 2. 建立 Phase 20 TODO，先記錄資料流、TDD 步驟與驗收點。
@@ -35,8 +37,11 @@ latest ai_system_map.unmapped_components[]
 9. GREEN：新增 `/api/mapping-proposals` list/create routes 與 `/api/mapping-proposals/{proposal_id}/decision` route。
 10. GREEN：新增 `src/kai_mind/core/services/prompt_template_loader.py` 與 `src/kai_mind/core/prompts/mapping_proposal.v1.yaml`，讓 provider prompt 可以獨立調整。
 11. GREEN：新增 `src/kai_mind/core/services/llm_proposal_config_loader.py` 與 `src/kai_mind/core/configs/llm_proposal.toml`，讓 provider 非敏感預設值可以獨立調整。
-12. Scope 修正：前端 proposal UI / API helper / candidate cards / decision mutation 不混入 Task 20，已拆到 Task 20a。
-13. 文件：更新 Epic 1 local API guide、Task 20 plan、Phase 20 TODO 與本 report 最新狀態。
+12. GREEN：修正 proposal route 的 project boundary，`InMemorySessionStore` 會保存 per-project build result，`POST /api/mapping-proposals` 只使用 requested project 的 map。
+13. GREEN：修正 proposal decision lifecycle，非 pending proposal 不能再 accept/edit/reject/skip，避免 retry 建立重複 manual mapping 或覆蓋 final status。
+14. GREEN：修正 suggested edge endpoint validation，只允許 manual mapping 可保存的 template slot ids 與 proposed extension id。
+15. Scope 修正：前端 proposal UI / API helper / candidate cards / decision mutation 不混入 Task 20，已拆到 Task 20a。
+16. 文件：更新 Epic 1 local API guide、Task 20 plan、Phase 20 TODO 與本 report 最新狀態。
 
 ## 測試方式
 新增測試：
@@ -60,9 +65,13 @@ latest ai_system_map.unmapped_components[]
 - `tests/web/test_mapping_proposal_routes.py`
   - `/api/mapping-proposals` create/list。
   - proposal create 不 mutate current `/api/map` payload。
+  - 多專案情境下，proposal create 不會用 latest scan 的其他 project evidence。
   - decision accept 會建立 manual mapping。
   - provider unavailable 時 route 仍 deterministic fallback。
   - 尚未載入 map 時回傳 `map_not_loaded`。
+- Review regression tests:
+  - accepted/edited/rejected/skipped proposal 不可再次 decision。
+  - provider candidate suggested edge 不可引用 `ManualMappingService` 無法保存的 confirmed component id。
 
 ## 遇到的問題與解法
 - 問題：NVIDIA Platform 容易被誤寫成 local LLM。
@@ -79,6 +88,12 @@ latest ai_system_map.unmapped_components[]
   - 解法：新增 TOML config loader，預設 config 放在 `src/kai_mind/core/configs/llm_proposal.toml`。`.env` 仍可覆蓋非敏感值，但 secret 只允許由 `.env` / 環境變數提供。
 - 問題：本機 `.env` 若有 `NVIDIA_API_KEY`，web route deterministic 測試會真的接上 provider。
   - 解法：web route 測試改成明確注入無 provider 的 `MappingProposalService`，測試結果不再受本機 `.env` 影響；NVIDIA app wiring 另由專門測試覆蓋。
+- 問題：proposal route 使用 process-wide latest build result，可能把 A project evidence 塞進 B project proposal。
+  - 解法：session store 增加 per-project build result，scan 時用 project_id 保存，proposal create 只用 requested project 的 build result。
+- 問題：proposal accept 後 retry decision 會再次建立 manual mapping，reject/skip 也能覆蓋 final status。
+  - 解法：`MappingProposalService.decide()` 在任何 decision 前檢查 proposal status 必須是 `pending_user_confirmation`。
+- 問題：provider candidate suggested edge 可以引用 confirmed component id，但 manual mapping extension validation 不接受該 endpoint。
+  - 解法：proposal validation 的 allowed edge endpoints 收斂為 template slot ids + proposed extension id，和 manual mapping persistence 規則一致。
 
 ## 測試結果
 ```bash
@@ -95,7 +110,7 @@ cd frontend && pnpm build
 # 前一輪 Phase 20 曾執行並通過；2026-06-08 prompt template 補強未修改 frontend，因此本輪未重跑。
 
 .venv/bin/pytest -q
-# 332 passed
+# 336 passed
 ```
 
 ## 驗收狀態
@@ -108,5 +123,8 @@ cd frontend && pnpm build
 - Local web API 可 list/create/decision proposal：已完成。
 - Provider prompt template 外部化到 YAML，且不把 validation rule 搬進 prompt：已完成。
 - Provider 非敏感預設值外部化到 TOML，且 secret 仍只走 `.env` / 環境變數：已完成。
+- 多 project proposal create 不會跨 project 取錯 evidence：已完成。
+- Proposal final status 不可被重複 decision 覆蓋，也不會建立重複 manual mapping：已完成。
+- Provider suggested edge endpoints 和 manual mapping persistence 規則一致：已完成。
 - API guide 已同步；前端 proposal API helper / candidate UI 已拆到 Task 20a：已完成。
 - GUI candidate card UI、production provider config、NVIDIA key management / retention / licensing：未納入本階段，需另開任務。
