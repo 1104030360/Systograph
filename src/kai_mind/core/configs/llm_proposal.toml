@@ -1,0 +1,15 @@
+[mapping_proposal.provider]
+name = "nvidia-nim"
+endpoint = "https://integrate.api.nvidia.com/v1/chat/completions"
+model = "google/gemma-4-31b-it"
+timeout_seconds = 8.0
+
+[mapping_proposal.provider.generation]
+max_tokens = 16384
+temperature = 1.0
+top_p = 0.95
+stream = false
+enable_thinking = true
+
+[mapping_proposal.prompt]
+template = "mapping_proposal.v1.yaml"
