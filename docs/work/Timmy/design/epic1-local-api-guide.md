@@ -349,6 +349,112 @@ Response:
 - `status` 依 `MapBuildResult.status` 對應為 `completed` 或 `error`。
 - 同一個 `project_id` 若已有 confirmed manual mappings，下一次 scan / normalize 會套用這些 decisions；API 不會直接修改既有 `ai_system_map.json`。
 
+## Detail Scan Routes
+
+用途：frontend 使用者點選 graph target 後，針對目前 loaded map 的 target-related files 做 bounded lazy loading。這是 Task 21 的 L2/L3 靜態 detail scan，不是重新掃整個 repo，也不是 runtime trace。
+
+資料流：
+
+```text
+project_id + target_type + target
+  -> latest scanned ai_system_map
+  -> DetailScanService
+  -> ComponentDetailScanService / CodePathScanService
+  -> append evidence[] + target.evidence_ids + detail_scans[]
+  -> SystemMapValidationService
+  -> refresh latest /api/map viewer payload
+```
+
+### POST /api/detail-scans
+
+Request:
+
+```json
+{
+  "project_id": "project:...",
+  "target_type": "unmapped_component",
+  "target": "unmapped:src_router_py:route:code_pattern_custom_router",
+  "scan_depth": "code_path"
+}
+```
+
+Allowed `scan_depth`:
+
+- `component`：L2，抽取 target-related Python files 的 imports、class/function signatures、decorators。
+- `code_path`：L3，在 L2 基礎上加上 static call-like hints，例如 `Router.build_chain(...)`。這些 hints 一律是 `best_effort=true`，不代表 runtime path 已確認。
+
+Allowed `target_type`:
+
+- `component_slot` 或 alias `slot`
+- `component_instance` 或 alias `component`
+- `extension`
+- `unmapped_component` 或 alias `unmapped`
+- `edge`
+- `evidence`
+
+Response:
+
+```json
+{
+  "project_id": "project:...",
+  "detail_scan": {
+    "id": "detail-scan:code_path:unmapped_component:...",
+    "target_type": "unmapped_component",
+    "target": "unmapped:...",
+    "scan_depth": "code_path",
+    "status": "completed",
+    "best_effort": true,
+    "context_limits": {
+      "max_files_per_target": 4,
+      "max_symbols_per_file": 24,
+      "max_snippet_chars": 320,
+      "best_effort": true
+    },
+    "findings": [
+      {
+        "kind": "detail_scan_call_like",
+        "summary": "Static call-like hint: Router.build_chain",
+        "evidence_ids": ["evidence:detail-scan:..."],
+        "best_effort": true
+      }
+    ],
+    "code_path": [
+      {
+        "file": "src/router.py",
+        "symbol": "Router.build_chain",
+        "line_start": 11,
+        "line_end": 11,
+        "evidence_id": "evidence:detail-scan:...",
+        "best_effort": true
+      }
+    ],
+    "warnings": []
+  },
+  "ai_system_map": {}
+}
+```
+
+規則：
+
+- `project_id` 不存在回傳 HTTP 404 `project_not_found`。
+- `project_id` 尚未有 loaded map 回傳 HTTP 404 `map_not_loaded`。
+- target id 不存在回傳 HTTP 422 `target_not_found`，且不得寫入 latest map。
+- Detail scan 只讀 target 既有 evidence file / source file，不接受 client 提供 arbitrary file path。
+- Detail scan 不執行目標專案、不使用 `sys.settrace`、不呼叫 runtime endpoint；runtime evidence 留給 Task 22 opt-in query trace。
+- 所有 snippet / value 寫入前都必須經過 `SecretMaskingService`。
+- 新 signal 必須同時追加到 `ai_system_map.evidence[]` 與 target 的 `evidence_ids`，再把 `DetailScanResult` 追加到 `detail_scans[]`。
+- `MappingEvidencePacketBuilder` 只讀 canonical `evidence[]` 與 target `evidence_ids`；它不需要理解 `detail_scans[]` 結構，也不能讀 raw source file。
+- 追加後整份 map 必須通過 `SystemMapValidationService.validate()`；validation 失敗時不得保存變更。
+
+### GET /api/detail-scans/{detail_scan_id}
+
+用途：依 detail scan id 讀回目前 session 中已完成的 detail scan 與更新後的 canonical map。
+
+規則：
+
+- 找不到 detail scan 時回傳 HTTP 404 `detail_scan_not_found`。
+- Response shape 與 `POST /api/detail-scans` 相同。
+
 ## Manual Mapping Routes
 
 用途：保存使用者對 `unmapped / needs_confirmation` 元件做出的 project-level decision。這些 endpoints 只寫入 KAI-Mind-managed mapping store / repository，不直接 mutate 既有 map artifact。
