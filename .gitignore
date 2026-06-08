@@ -51,6 +51,13 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# KAI-Mind local scan artifacts
+outputs/
+
+# KAI-Mind local API smoke-test scripts
+scripts/test_mapping_proposal_llm.sh
+scripts/test_nvidia_nim_direct.sh
+
 # Translations
 *.mo
 *.pot
