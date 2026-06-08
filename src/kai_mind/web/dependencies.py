@@ -6,6 +6,7 @@ from typing import cast
 
 from fastapi import Request
 
+from kai_mind.core.services.detail_scan_service import DetailScanService
 from kai_mind.core.services.manual_mapping_service import (
     ManualMappingService,
 )
@@ -30,6 +31,10 @@ def mapping_proposal_service(request: Request) -> MappingProposalService:
         MappingProposalService,
         request.app.state.mapping_proposal_service,
     )
+
+
+def detail_scan_service(request: Request) -> DetailScanService:
+    return cast(DetailScanService, request.app.state.detail_scan_service)
 
 
 def viewer_session_service(request: Request) -> ViewerSessionService:

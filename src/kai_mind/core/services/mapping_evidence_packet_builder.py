@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Sequence
 
 from kai_mind.core.models.mapping import (
@@ -171,7 +172,8 @@ def _looks_like_signal(
             evidence.value or "",
         ]
     ).lower()
-    return any(token in haystack for token in tokens)
+    parts = {part for part in re.split(r"[^a-z0-9]+", haystack) if part}
+    return any(token in parts for token in tokens)
 
 
 def _looks_like_symbol_path(value: str) -> bool:

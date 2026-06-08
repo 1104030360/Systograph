@@ -18,6 +18,7 @@ from kai_mind.core.models.mapping import (
     MappingProposalDecisionRequest,
     MappingProposalDecisionResult,
 )
+from kai_mind.core.models.system_map import DetailScanResult, RagSystemMap
 from kai_mind.core.models.viewer import ViewerPayload
 
 
@@ -93,6 +94,19 @@ class ScanProgressEvent(WebSchema):
     )
 
 
+class DetailScanCreateRequest(WebSchema):
+    project_id: str
+    target_type: str
+    target: str
+    scan_depth: Literal["component", "code_path"] = "component"
+
+
+class DetailScanResponse(WebSchema):
+    project_id: str
+    detail_scan: DetailScanResult
+    ai_system_map: RagSystemMap
+
+
 class ManualMappingListResponse(WebSchema):
     project_id: str
     mappings: list[ManualMapping]
@@ -127,6 +141,8 @@ class MappingProposalListResponse(WebSchema):
 
 
 __all__ = [
+    "DetailScanCreateRequest",
+    "DetailScanResponse",
     "MapBuildApiRequest",
     "MapBuildResult",
     "ManualMapping",

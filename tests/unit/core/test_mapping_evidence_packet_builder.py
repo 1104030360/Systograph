@@ -128,3 +128,49 @@ def test_builder_masks_and_truncates_user_description() -> None:
     assert "sk-live-1234567890" not in packet.user_description
     assert len(packet.user_description) <= 1014
     assert packet.user_description.endswith("...[truncated]")
+
+
+def test_builder_consumes_detail_scan_evidence_from_existing_index() -> None:
+    packet = MappingEvidencePacketBuilder(max_value_chars=120).build(
+        project_id="project:demo",
+        unmapped_component=UnmappedComponent(
+            id="unmapped:router",
+            source_file="src/router.py",
+            observed_kind="router_like_evidence",
+            status="needs_confirmation",
+            reason="Custom router needs confirmation.",
+            evidence_ids=[
+                "evidence:l1-router",
+                "evidence:detail-scan:unmapped-router:src-router-py:11:call",
+            ],
+        ),
+        evidence=[
+            Evidence(
+                id="evidence:l1-router",
+                kind="code_pattern",
+                file="src/router.py",
+                path="line[10]",
+                value="custom router",
+                rule_id="code_pattern_custom_router",
+            ),
+            Evidence(
+                id="evidence:detail-scan:unmapped-router:src-router-py:11:call",
+                kind="detail_scan_call_like",
+                file="src/router.py",
+                path="Router.build_chain",
+                value="Router.build_chain(question)",
+                rule_id="detail_scan.python_call_like",
+                line_start=11,
+                line_end=11,
+                snippet="route = Router.build_chain(question)",
+            ),
+        ],
+        available_slots=["retriever"],
+    )
+
+    assert packet.evidence_ids == [
+        "evidence:l1-router",
+        "evidence:detail-scan:unmapped-router:src-router-py:11:call",
+    ]
+    assert packet.call_like_signals == ["Router.build_chain"]
+    assert packet.line_ranges == ["src/router.py:11-11"]

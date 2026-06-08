@@ -78,3 +78,6 @@ class InMemorySessionStore:
 
     def build_result(self, project_id: str) -> MapBuildResult | None:
         return self._build_results_by_project.get(project_id)
+
+    def build_results(self) -> tuple[tuple[str, MapBuildResult], ...]:
+        return tuple(self._build_results_by_project.items())

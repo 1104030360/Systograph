@@ -121,12 +121,16 @@ class DetailScanFinding(ContractModel):
     kind: str
     summary: str
     evidence_ids: list[str] = Field(default_factory=list)
+    best_effort: bool | None = None
 
 
 class CodePathStep(ContractModel):
     file: str
     symbol: str | None = None
     line_start: int | None = None
+    line_end: int | None = None
+    evidence_id: str | None = None
+    best_effort: bool | None = None
 
 
 class DetailScanResult(ContractModel):
@@ -139,6 +143,8 @@ class DetailScanResult(ContractModel):
     findings: list[DetailScanFinding] = Field(default_factory=list)
     code_path: list[CodePathStep] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    best_effort: bool | None = None
+    context_limits: dict[str, Any] = Field(default_factory=dict)
 
 
 class QueryTraceEvent(ContractModel):
