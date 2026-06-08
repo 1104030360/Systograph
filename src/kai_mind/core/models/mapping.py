@@ -101,6 +101,7 @@ MAX_SUGGESTED_EDGES = 8
 MAX_FLOW_HINT_CHARS = 800
 MAX_PROVIDER_CANDIDATES = 3
 MAX_PROVIDER_ERROR_REASON_CHARS = 80
+MAX_USER_DESCRIPTION_CHARS = 1000
 
 
 class SuggestedMappingEdge(MappingModel):
@@ -115,7 +116,10 @@ class MappingEvidencePacket(MappingModel):
     source_file: str | None = None
     observed_kind: str
     reason: str
-    user_description: str | None = None
+    user_description: str | None = Field(
+        default=None,
+        max_length=MAX_USER_DESCRIPTION_CHARS + len("...[truncated]"),
+    )
     evidence_ids: list[str] = Field(default_factory=list)
     rule_ids: list[str] = Field(default_factory=list)
     line_ranges: list[str] = Field(default_factory=list)
@@ -255,7 +259,10 @@ class MappingProposal(MappingModel):
         default=None,
         max_length=MAX_PROVIDER_ERROR_REASON_CHARS,
     )
-    user_description: str | None = None
+    user_description: str | None = Field(
+        default=None,
+        max_length=MAX_USER_DESCRIPTION_CHARS + len("...[truncated]"),
+    )
     available_actions: list[MappingProposalDecisionAction] = Field(
         default_factory=lambda: [
             MappingProposalDecisionAction.ACCEPT,
@@ -300,3 +307,25 @@ class MappingProposalDecisionRequest(MappingModel):
 class MappingProposalDecisionResult(MappingModel):
     proposal: MappingProposal
     manual_mapping: ManualMapping | None = None
+
+    @model_validator(mode="after")
+    def validate_decision_result(self) -> MappingProposalDecisionResult:
+        if self.proposal.status in {
+            MappingProposalStatus.ACCEPTED,
+            MappingProposalStatus.EDITED,
+        }:
+            if self.manual_mapping is None:
+                raise ValueError(
+                    f"{self.proposal.status.value} requires manual_mapping"
+                )
+            return self
+
+        if (
+            self.proposal.status
+            in {MappingProposalStatus.REJECTED, MappingProposalStatus.SKIPPED}
+            and self.manual_mapping is not None
+        ):
+            raise ValueError(
+                f"{self.proposal.status.value} must not include manual_mapping"
+            )
+        return self

@@ -29,6 +29,10 @@ latest ai_system_map.unmapped_components[]
 
 2026-06-08 open-source config 校正：參考 R2R、LangChain、LlamaIndex、Dify 後，KAI-Mind 採用「runtime provider defaults 放 TOML/env；output schema / safety bounds 留在 Pydantic model」的分界。`timeout_seconds`、`max_tokens`、`temperature`、`top_p` 可由 TOML 設定並由 loader 檢查範圍；`MappingCandidate` 欄位長度、candidate count、suggested edge count、provider error reason 長度等屬於 API/safety contract，已集中成 Python constants 並保留在 `src/kai_mind/core/models/mapping.py`。
 
+2026-06-08 follow-up 修正：同一個 `project_id` / `source_unmapped_id` 已有 pending proposal 時，`create_proposal()` 會回傳既有 proposal，不再重複建立；accept/edit 前會檢查同一個 source 是否已有 confirmed manual mapping，避免舊的重複 pending proposal 被後續 accept 成重複 mapping。Provider secret rejection 測試也已參數化覆蓋 `label`、`component_name`、`provider`、`flow_hint`、`suggested_edges`。`MappingProposalDecisionResult` 現在會用 model validator 擋下 accepted/edited 卻沒有 `manual_mapping` 的不可能狀態。
+
+2026-06-08 blocking 修正：edit decision 不再信任 client 傳入的 proposal identity fields。`project_id`、`source_unmapped_id`、`source_file`、`observed_kind`、`proposal_id`、`decision_source` 會由 server 從 proposal 覆蓋；`edited_mapping.evidence_ids` 必須是 proposal packet evidence ids 的 subset。`user_description` 現在會在 evidence packet builder 走 masking + truncation，並由 Pydantic schema 限長。NVIDIA `.env` numeric / boolean overrides 與 direct provider overrides 現在套用和 TOML loader 相同的 timeout / max_tokens / temperature / top_p / boolean guard；格式錯誤或超界會 raise sanitized `LlmProposalConfigError`，不再 silent fallback。
+
 ## 實作步驟
 1. 查證 NVIDIA 官方 NIM / Gemma 4 31B 文件，修正 Task 20 plan：hosted NIM 是外部 endpoint，不是本機模型；`google/gemma-4-31b-it` 只能作為 optional hosted provider adapter。
 2. 建立 Phase 20 TODO，先記錄資料流、TDD 步驟與驗收點。
@@ -49,8 +53,9 @@ latest ai_system_map.unmapped_components[]
 17. GREEN：收斂 provider exception handling，只把預期 provider unavailable / validation 類錯誤轉 deterministic fallback，並用 stable sanitized reason code。
 18. GREEN：補 decision request invariant，accept/edit/reject/skip 的 payload shape 不再允許互相矛盾。
 19. GREEN：補 proposal decision lock，降低同 process concurrent decision 建立重複 manual mapping 的風險。
-20. Scope 修正：前端 proposal UI / API helper / candidate cards / decision mutation 不混入 Task 20，已拆到 Task 20a。
-21. 文件：更新 Epic 1 local API guide、Task 20 plan、Task 20a plan、Phase 20 TODO 與本 report 最新狀態。
+20. GREEN：補 duplicate pending proposal guard、confirmed mapping guard、decision result impossible-state validator。
+21. Scope 修正：前端 proposal UI / API helper / candidate cards / decision mutation 不混入 Task 20，已拆到 Task 20a。
+22. 文件：更新 Epic 1 local API guide、Task 20 plan、Task 20a plan、Phase 20 TODO 與本 report 最新狀態。
 
 ## 測試方式
 新增測試：
@@ -63,12 +68,17 @@ latest ai_system_map.unmapped_components[]
   - provider output 含 `confidence` 時 retry 一次後 fallback。
   - provider 回傳不存在的 evidence / slot 時 fallback。
   - provider output 含未遮蔽 secret 時 fallback，且 API reason 只保留 stable code。
+  - provider output 未遮蔽 secret 出現在 `label`、`component_name`、`provider`、`flow_hint`、`suggested_edges` 時都會 fallback。
   - provider output 超過 bounded field length 時 fallback。
   - provider unexpected bug 不被 broad catch 靜默吞掉。
   - valid provider output 會被保存成 pending proposal。
   - accept / edit 會建立 Phase 19 manual mapping draft；reject / skip 不建立 manual mapping。
+  - edit decision 無法用 client payload 改寫 project/source/source_file/observed_kind，且 unknown evidence 會被拒絕。
+  - 同一個 project/source 的重複 pending proposal 不會被重複建立。
+  - 同一個 source 已有 confirmed manual mapping 時，後續 pending proposal accept/edit 會被拒絕。
   - unknown candidate、missing proposal、second decision、矛盾 decision payload 都會被拒絕。
   - `MappingCandidate` tagged-union shape 會被 Pydantic validator 擋下。
+  - `MappingProposalDecisionResult` 會拒絕 accepted/edited 但缺少 `manual_mapping` 的不可能狀態。
 - `tests/unit/core/test_nvidia_nim_proposal_provider.py`
   - NVIDIA provider 只送 masked packet 與 schema summary。
   - NVIDIA provider 可從 YAML template render prompt messages。
@@ -76,6 +86,8 @@ latest ai_system_map.unmapped_components[]
   - NVIDIA provider 可從 TOML 讀取 endpoint、model、max_tokens、temperature、top_p、stream、enable_thinking 等非敏感預設。
   - NVIDIA provider 需要 explicit enable flag，不能只因 `NVIDIA_API_KEY` 存在就啟用。
   - `.env` / environment variable 可以覆蓋 TOML 的非敏感值；`NVIDIA_API_KEY` 不放 TOML。
+  - `.env` numeric / boolean overrides 格式錯誤或超出 safe range 時會 raise sanitized config error。
+  - direct provider overrides 超出 safe range 時會 raise sanitized config error。
   - HTTP 401 會轉成 provider unavailable error。
 - `tests/web/test_mapping_proposal_routes.py`
   - `/api/mapping-proposals` create/list。
@@ -129,7 +141,7 @@ latest ai_system_map.unmapped_components[]
 ## 測試結果
 ```bash
 .venv/bin/pytest tests/unit/core/test_mapping_evidence_packet_builder.py tests/unit/core/test_mapping_proposal_service.py tests/unit/core/test_nvidia_nim_proposal_provider.py tests/web/test_mapping_proposal_routes.py tests/web/test_nvidia_provider_app_wiring.py -q
-# 37 passed
+# 54 passed
 
 .venv/bin/ruff check src tests
 # All checks passed
@@ -141,7 +153,7 @@ cd frontend && pnpm build
 # 前一輪 Phase 20 曾執行並通過；2026-06-08 prompt template 補強未修改 frontend，因此本輪未重跑。
 
 .venv/bin/pytest -q
-# 350 passed
+# 365 passed
 ```
 
 ## 驗收狀態

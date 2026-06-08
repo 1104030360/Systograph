@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-from kai_mind.core.models.mapping import MappingEvidencePacket
+from kai_mind.core.models.mapping import (
+    MAX_USER_DESCRIPTION_CHARS,
+    MappingEvidencePacket,
+)
 from kai_mind.core.models.system_map import Evidence, UnmappedComponent
 from kai_mind.core.services.secret_masking_service import (
     SecretMaskingService,
@@ -49,7 +52,9 @@ class MappingEvidencePacketBuilder:
             source_file=unmapped_component.source_file,
             observed_kind=unmapped_component.observed_kind,
             reason=unmapped_component.reason,
-            user_description=user_description,
+            user_description=self._bounded_masked_user_description(
+                user_description
+            ),
             evidence_ids=[item.id for item in selected],
             rule_ids=_unique(
                 item.rule_id for item in selected if item.rule_id
@@ -104,6 +109,17 @@ class MappingEvidencePacketBuilder:
         if len(masked) <= self._max_value_chars:
             return masked
         return f"{masked[: self._max_value_chars]}...[truncated]"
+
+    def _bounded_masked_user_description(
+        self,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+        masked = self._secret_masking_service.mask_text(value)
+        if len(masked) <= MAX_USER_DESCRIPTION_CHARS:
+            return masked
+        return f"{masked[:MAX_USER_DESCRIPTION_CHARS]}...[truncated]"
 
 
 def _unique(values: Iterable[str]) -> list[str]:

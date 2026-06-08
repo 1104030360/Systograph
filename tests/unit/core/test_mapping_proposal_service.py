@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 
 import pytest
 from pydantic import ValidationError
@@ -14,6 +15,7 @@ from kai_mind.core.models.mapping import (
     MappingEvidencePacket,
     MappingProposalDecisionAction,
     MappingProposalDecisionRequest,
+    MappingProposalDecisionResult,
     MappingProposalStatus,
 )
 from kai_mind.core.services.manual_mapping_service import (
@@ -179,6 +181,52 @@ class SecretLeakingProvider:
         )
 
 
+class FieldSecretLeakingProvider:
+    name = "field-secret-leaking-provider"
+
+    def __init__(self, field_name: str) -> None:
+        self._field_name = field_name
+
+    def generate(
+        self,
+        *,
+        packet: MappingEvidencePacket,
+        output_schema: dict[str, object],
+        validation_error: str | None = None,
+    ) -> str:
+        candidate: dict[str, object] = {
+            "candidate_type": "existing_slot_mapping",
+            "target_slot": "vector_store",
+            "label": "Map vector store",
+            "rationale": "The dependency is chromadb.",
+            "evidence_ids": ["evidence:chromadb"],
+            "rank": 1,
+            "recommendation_level": "strong_candidate",
+        }
+        if self._field_name == "suggested_edges":
+            candidate = {
+                "candidate_type": "new_extension_component",
+                "proposed_extension_id": "extension:query_router",
+                "proposed_extension_name": "Query Router",
+                "proposed_extension_kind": "routing_orchestration",
+                "label": "Confirm Query Router as extension",
+                "rationale": "Router evidence is bounded and masked.",
+                "evidence_ids": ["evidence:router"],
+                "rank": 1,
+                "recommendation_level": "plausible_candidate",
+                "suggested_edges": [
+                    {
+                        "source_ref": "retriever",
+                        "target_ref": "extension:query_router",
+                        "relationship": "sk-live-secret-value",
+                    }
+                ],
+            }
+            return json.dumps({"candidates": [candidate]})
+        candidate[self._field_name] = "sk-live-secret-value"
+        return json.dumps({"candidates": [candidate]})
+
+
 class LongOutputProvider:
     name = "long-output-provider"
 
@@ -313,6 +361,30 @@ def test_provider_output_with_unmasked_secret_falls_back_safely() -> None:
     assert "sk-live-secret-value" not in serialized
 
 
+@pytest.mark.parametrize(
+    "field_name,packet_factory",
+    [
+        ("label", vector_store_packet),
+        ("component_name", vector_store_packet),
+        ("provider", vector_store_packet),
+        ("flow_hint", vector_store_packet),
+        ("suggested_edges", router_packet),
+    ],
+)
+def test_provider_output_secret_fields_are_rejected(
+    field_name: str,
+    packet_factory: Callable[[], MappingEvidencePacket],
+) -> None:
+    proposal = service(
+        provider=FieldSecretLeakingProvider(field_name)
+    ).create_proposal(packet_factory())
+
+    serialized = json.dumps(proposal.model_dump(mode="json"))
+    assert proposal.provider_name == "deterministic"
+    assert proposal.provider_error_reason == "provider_invalid_output"
+    assert "sk-live-secret-value" not in serialized
+
+
 def test_provider_output_bounded_fields_are_enforced() -> None:
     proposal = service(provider=LongOutputProvider()).create_proposal(
         vector_store_packet()
@@ -321,6 +393,15 @@ def test_provider_output_bounded_fields_are_enforced() -> None:
     assert proposal.provider_name == "deterministic"
     assert proposal.provider_error_reason == "provider_invalid_output"
     assert proposal.candidates[0].target_slot == "vector_store"
+
+
+def test_duplicate_pending_proposal_for_same_source_returns_existing() -> None:
+    proposal_service = service()
+    first = proposal_service.create_proposal(vector_store_packet())
+    second = proposal_service.create_proposal(vector_store_packet())
+
+    assert second.proposal_id == first.proposal_id
+    assert proposal_service.list_for_project("project:demo") == [first]
 
 
 def test_unexpected_provider_bug_is_not_silently_fallback() -> None:
@@ -442,6 +523,79 @@ def test_edit_decision_creates_manual_mapping_draft() -> None:
     assert result.manual_mapping.component_name == "Edited Chroma"
 
 
+def test_edit_decision_overwrites_client_identity_fields() -> None:
+    manual_mapping_service = ManualMappingService(
+        repository=InMemoryManualMappingRepository(),
+        allowed_slots={"vector_store"},
+    )
+    proposal_service = service(
+        manual_mapping_service=manual_mapping_service,
+    )
+    proposal = proposal_service.create_proposal(vector_store_packet())
+    edited_mapping = ManualMappingCreate(
+        project_id="project:evil",
+        mapping_type=ManualMappingType.EXISTING_SLOT,
+        decision=ManualMappingDecision.CONFIRMED,
+        source_unmapped_id="unmapped:evil",
+        source_file="evil.py",
+        observed_kind="evil_kind",
+        evidence_ids=list(proposal.evidence_packet.evidence_ids),
+        target_slot="vector_store",
+        component_name="Edited Chroma",
+        component_kind="vector_db",
+    )
+
+    result = proposal_service.decide(
+        proposal.proposal_id,
+        MappingProposalDecisionRequest(
+            decision=MappingProposalDecisionAction.EDIT,
+            edited_mapping=edited_mapping,
+        ),
+    )
+
+    assert result.manual_mapping is not None
+    assert result.manual_mapping.project_id == proposal.project_id
+    assert result.manual_mapping.source_unmapped_id == (
+        proposal.source_unmapped_id
+    )
+    assert result.manual_mapping.source_file == (
+        proposal.evidence_packet.source_file
+    )
+    assert result.manual_mapping.observed_kind == (
+        proposal.evidence_packet.observed_kind
+    )
+
+
+def test_edit_decision_rejects_unknown_evidence() -> None:
+    manual_mapping_service = ManualMappingService(
+        repository=InMemoryManualMappingRepository(),
+        allowed_slots={"vector_store"},
+    )
+    proposal_service = service(
+        manual_mapping_service=manual_mapping_service,
+    )
+    proposal = proposal_service.create_proposal(vector_store_packet())
+    edited_mapping = ManualMappingCreate(
+        project_id=proposal.project_id,
+        mapping_type=ManualMappingType.EXISTING_SLOT,
+        decision=ManualMappingDecision.CONFIRMED,
+        source_unmapped_id=proposal.source_unmapped_id,
+        evidence_ids=["evidence:evil"],
+        target_slot="vector_store",
+        component_name="Edited Chroma",
+        component_kind="vector_db",
+    )
+
+    with pytest.raises(ValueError, match="unknown evidence"):
+        proposal_service.decide(
+            proposal.proposal_id,
+            MappingProposalDecisionRequest(
+                decision=MappingProposalDecisionAction.EDIT,
+                edited_mapping=edited_mapping,
+            ),
+        )
+
+
 def test_skip_decision_does_not_create_manual_mapping() -> None:
     manual_mapping_service = ManualMappingService(
         repository=InMemoryManualMappingRepository(),
@@ -549,6 +703,43 @@ def test_decision_requires_pending_proposal_status() -> None:
     assert len(manual_mapping_service.list_for_project("project:demo")) == 1
 
 
+def test_second_pending_accept_blocked_by_confirmed_mapping() -> None:
+    manual_mapping_service = ManualMappingService(
+        repository=InMemoryManualMappingRepository(),
+        allowed_slots={"vector_store"},
+    )
+    first_service = MappingProposalService(
+        repository=InMemoryMappingProposalRepository(),
+        manual_mapping_service=manual_mapping_service,
+    )
+    second_service = MappingProposalService(
+        repository=InMemoryMappingProposalRepository(),
+        manual_mapping_service=manual_mapping_service,
+    )
+    first = first_service.create_proposal(vector_store_packet())
+    second = second_service.create_proposal(vector_store_packet())
+    candidate = first.candidates[0]
+
+    first_service.decide(
+        first.proposal_id,
+        MappingProposalDecisionRequest(
+            decision=MappingProposalDecisionAction.ACCEPT,
+            candidate_id=candidate.candidate_id,
+        ),
+    )
+
+    with pytest.raises(ValueError, match="already has confirmed mapping"):
+        second_service.decide(
+            second.proposal_id,
+            MappingProposalDecisionRequest(
+                decision=MappingProposalDecisionAction.ACCEPT,
+                candidate_id=second.candidates[0].candidate_id,
+            ),
+        )
+
+    assert len(manual_mapping_service.list_for_project("project:demo")) == 1
+
+
 def test_reject_decision_does_not_create_manual_mapping() -> None:
     manual_mapping_service = ManualMappingService(
         repository=InMemoryManualMappingRepository(),
@@ -570,3 +761,15 @@ def test_reject_decision_does_not_create_manual_mapping() -> None:
     assert result.proposal.status == MappingProposalStatus.REJECTED
     assert result.manual_mapping is None
     assert manual_mapping_service.list_for_project("project:demo") == []
+
+
+def test_decision_result_rejects_accepted_without_manual_mapping() -> None:
+    proposal = service().create_proposal(vector_store_packet())
+
+    with pytest.raises(ValidationError):
+        MappingProposalDecisionResult(
+            proposal=proposal.model_copy(
+                update={"status": MappingProposalStatus.ACCEPTED}
+            ),
+            manual_mapping=None,
+        )

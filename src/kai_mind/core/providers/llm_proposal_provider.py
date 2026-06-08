@@ -11,6 +11,14 @@ import httpx
 
 from kai_mind.core.models.mapping import MappingEvidencePacket
 from kai_mind.core.services.llm_proposal_config_loader import (
+    MAX_PROVIDER_MAX_TOKENS,
+    MAX_PROVIDER_TEMPERATURE,
+    MAX_PROVIDER_TIMEOUT_SECONDS,
+    MAX_PROVIDER_TOP_P,
+    MIN_PROVIDER_MAX_TOKENS,
+    MIN_PROVIDER_TEMPERATURE,
+    MIN_PROVIDER_TIMEOUT_SECONDS,
+    MIN_PROVIDER_TOP_P,
     LlmProposalConfigError,
     NvidiaNimProposalConfig,
     load_nvidia_nim_proposal_config,
@@ -50,27 +58,43 @@ class NvidiaNimProposalProvider:
         self._api_key = api_key
         self._model = model or config.model
         self._endpoint = endpoint or config.endpoint
-        self._timeout = (
-            timeout if timeout is not None else config.timeout_seconds
+        self._timeout = _bounded_float_value(
+            "timeout",
+            timeout if timeout is not None else config.timeout_seconds,
+            minimum=MIN_PROVIDER_TIMEOUT_SECONDS,
+            maximum=MAX_PROVIDER_TIMEOUT_SECONDS,
         )
-        self._max_tokens = (
+        self._max_tokens = _bounded_int_value(
+            "max_tokens",
             max_tokens
             if max_tokens is not None
-            else config.generation.max_tokens
+            else config.generation.max_tokens,
+            minimum=MIN_PROVIDER_MAX_TOKENS,
+            maximum=MAX_PROVIDER_MAX_TOKENS,
         )
-        self._temperature = (
+        self._temperature = _bounded_float_value(
+            "temperature",
             temperature
             if temperature is not None
-            else config.generation.temperature
+            else config.generation.temperature,
+            minimum=MIN_PROVIDER_TEMPERATURE,
+            maximum=MAX_PROVIDER_TEMPERATURE,
         )
-        self._top_p = top_p if top_p is not None else config.generation.top_p
-        self._stream = (
-            stream if stream is not None else config.generation.stream
+        self._top_p = _bounded_float_value(
+            "top_p",
+            top_p if top_p is not None else config.generation.top_p,
+            minimum=MIN_PROVIDER_TOP_P,
+            maximum=MAX_PROVIDER_TOP_P,
         )
-        self._enable_thinking = (
+        self._stream = _bool_value(
+            "stream",
+            stream if stream is not None else config.generation.stream,
+        )
+        self._enable_thinking = _bool_value(
+            "enable_thinking",
             enable_thinking
             if enable_thinking is not None
-            else config.generation.enable_thinking
+            else config.generation.enable_thinking,
         )
         self._http_client = http_client
         self._prompt_template_path = prompt_template_path
@@ -197,18 +221,30 @@ def nvidia_nim_provider_from_env(
             env,
             "NVIDIA_NIM_TIMEOUT_SECONDS",
             config.timeout_seconds,
+            minimum=MIN_PROVIDER_TIMEOUT_SECONDS,
+            maximum=MAX_PROVIDER_TIMEOUT_SECONDS,
         ),
         max_tokens=_int_env(
             env,
             "NVIDIA_NIM_MAX_TOKENS",
             config.generation.max_tokens,
+            minimum=MIN_PROVIDER_MAX_TOKENS,
+            maximum=MAX_PROVIDER_MAX_TOKENS,
         ),
         temperature=_float_env(
             env,
             "NVIDIA_NIM_TEMPERATURE",
             config.generation.temperature,
+            minimum=MIN_PROVIDER_TEMPERATURE,
+            maximum=MAX_PROVIDER_TEMPERATURE,
         ),
-        top_p=_float_env(env, "NVIDIA_NIM_TOP_P", config.generation.top_p),
+        top_p=_float_env(
+            env,
+            "NVIDIA_NIM_TOP_P",
+            config.generation.top_p,
+            minimum=MIN_PROVIDER_TOP_P,
+            maximum=MAX_PROVIDER_TOP_P,
+        ),
         stream=_bool_env(env, "NVIDIA_NIM_STREAM", config.generation.stream),
         enable_thinking=_bool_env(
             env,
@@ -246,22 +282,100 @@ def _clean_env_value(value: str) -> str:
     return value
 
 
-def _int_env(env: dict[str, str], key: str, default: int) -> int:
-    try:
-        return int(env.get(key, str(default)))
-    except ValueError:
+def _int_env(
+    env: dict[str, str],
+    key: str,
+    default: int,
+    *,
+    minimum: int,
+    maximum: int,
+) -> int:
+    raw_value = env.get(key)
+    if raw_value is None:
         return default
+    try:
+        value = int(raw_value)
+    except ValueError:
+        raise LlmProposalConfigError(
+            f"LLM proposal env {key} must be integer"
+        ) from None
+    if value < minimum or value > maximum:
+        raise LlmProposalConfigError(
+            f"LLM proposal env {key} must be between {minimum} and {maximum}"
+        )
+    return value
 
 
-def _float_env(env: dict[str, str], key: str, default: float) -> float:
-    try:
-        return float(env.get(key, str(default)))
-    except ValueError:
+def _bounded_int_value(
+    name: str,
+    value: int,
+    *,
+    minimum: int,
+    maximum: int,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise LlmProposalConfigError(f"LLM proposal {name} must be integer")
+    if value < minimum or value > maximum:
+        raise LlmProposalConfigError(
+            f"LLM proposal {name} must be between {minimum} and {maximum}"
+        )
+    return value
+
+
+def _float_env(
+    env: dict[str, str],
+    key: str,
+    default: float,
+    *,
+    minimum: float,
+    maximum: float,
+) -> float:
+    raw_value = env.get(key)
+    if raw_value is None:
         return default
+    try:
+        value = float(raw_value)
+    except ValueError:
+        raise LlmProposalConfigError(
+            f"LLM proposal env {key} must be numeric"
+        ) from None
+    if value < minimum or value > maximum:
+        raise LlmProposalConfigError(
+            f"LLM proposal env {key} must be between {minimum} and {maximum}"
+        )
+    return value
+
+
+def _bounded_float_value(
+    name: str,
+    value: float,
+    *,
+    minimum: float,
+    maximum: float,
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise LlmProposalConfigError(f"LLM proposal {name} must be numeric")
+    normalized = float(value)
+    if normalized < minimum or normalized > maximum:
+        raise LlmProposalConfigError(
+            f"LLM proposal {name} must be between {minimum} and {maximum}"
+        )
+    return normalized
 
 
 def _bool_env(env: dict[str, str], key: str, default: bool) -> bool:
     raw = env.get(key)
     if raw is None:
         return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise LlmProposalConfigError(f"LLM proposal env {key} must be boolean")
+
+
+def _bool_value(name: str, value: bool) -> bool:
+    if not isinstance(value, bool):
+        raise LlmProposalConfigError(f"LLM proposal {name} must be boolean")
+    return value

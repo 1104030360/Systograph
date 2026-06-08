@@ -118,6 +118,10 @@ class MappingProposalService:
         packet: MappingEvidencePacket,
     ) -> MappingProposal:
         self._validate_packet(packet)
+        existing = self._pending_proposal_for_source(packet)
+        if existing is not None:
+            return existing
+
         candidates: list[MappingCandidate] | None = None
         provider_name = "deterministic"
         provider_error_reason: str | None = None
@@ -232,6 +236,19 @@ class MappingProposalService:
         if not packet.evidence_ids:
             raise ValueError("MappingEvidencePacket must include evidence")
         self._reject_unmasked_secret(packet.model_dump(mode="json"))
+
+    def _pending_proposal_for_source(
+        self,
+        packet: MappingEvidencePacket,
+    ) -> MappingProposal | None:
+        for proposal in self._repository.list_for_project(packet.project_id):
+            same_source = (
+                proposal.source_unmapped_id == packet.source_unmapped_id
+            )
+            is_pending = proposal.status == MappingProposalStatus.PENDING
+            if same_source and is_pending:
+                return proposal
+        return None
 
     def _validate_candidates(
         self,
@@ -440,11 +457,20 @@ class MappingProposalService:
     ) -> ManualMapping:
         if self._manual_mapping_service is None:
             raise ValueError("manual_mapping_service is required")
+        self._reject_duplicate_confirmed_mapping(proposal)
         if request.decision == MappingProposalDecisionAction.EDIT:
             if request.edited_mapping is None:
                 raise ValueError("edited_mapping is required for edit")
+            self._validate_edited_mapping_scope(
+                proposal,
+                request.edited_mapping,
+            )
             draft = request.edited_mapping.model_copy(
                 update={
+                    "project_id": proposal.project_id,
+                    "source_unmapped_id": proposal.source_unmapped_id,
+                    "source_file": proposal.evidence_packet.source_file,
+                    "observed_kind": proposal.evidence_packet.observed_kind,
                     "proposal_id": proposal.proposal_id,
                     "decision_source": "proposal_edit",
                 }
@@ -454,6 +480,41 @@ class MappingProposalService:
         candidate = self._candidate_by_id(proposal, request.candidate_id)
         draft = self._candidate_to_manual_mapping(proposal, candidate)
         return self._manual_mapping_service.create_mapping(draft)
+
+    def _validate_edited_mapping_scope(
+        self,
+        proposal: MappingProposal,
+        edited_mapping: ManualMappingCreate,
+    ) -> None:
+        allowed_evidence = set(proposal.evidence_packet.evidence_ids)
+        unknown_evidence = sorted(
+            set(edited_mapping.evidence_ids) - allowed_evidence
+        )
+        if unknown_evidence:
+            raise ValueError(
+                "edited_mapping references unknown evidence: "
+                f"{', '.join(unknown_evidence)}"
+            )
+
+    def _reject_duplicate_confirmed_mapping(
+        self,
+        proposal: MappingProposal,
+    ) -> None:
+        if proposal.source_unmapped_id is None:
+            return
+        manual_mapping_service = self._manual_mapping_service
+        if manual_mapping_service is None:
+            return
+        mappings = manual_mapping_service.list_for_project(proposal.project_id)
+        for mapping in mappings:
+            same_source = (
+                mapping.source_unmapped_id == proposal.source_unmapped_id
+            )
+            is_confirmed = mapping.decision == ManualMappingDecision.CONFIRMED
+            if same_source and is_confirmed:
+                raise ValueError(
+                    "source_unmapped_id already has confirmed mapping"
+                )
 
     def _candidate_by_id(
         self,

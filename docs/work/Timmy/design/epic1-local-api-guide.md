@@ -598,7 +598,7 @@ Request for editing a proposal:
 }
 ```
 
-Response excerpt:
+Response excerpt (abbreviated; do not use this as the full frontend type):
 
 ```json
 {
@@ -623,7 +623,7 @@ Response excerpt:
 - `reject` / `skip_for_now` 只更新 proposal status，不建立 manual mapping。
 - `reject` / `skip_for_now` 不可帶 `candidate_id` 或 `edited_mapping`。
 - 只有 `pending_user_confirmation` proposal 可以 decision；已 accepted / edited / rejected / skipped 的 proposal 再次 decision 會回 HTTP 422。
-- 上方 response 是節錄；實際 response 會包含完整 serialized `MappingProposal`，若有建立 manual mapping 則包含完整 serialized `ManualMapping`。
+- 上方 response 是節錄；實際 FastAPI response 會包含完整 serialized `MappingProposal`，若有建立 manual mapping 則包含完整 serialized `ManualMapping`。前端型別應以 backend OpenAPI / `frontend/src/types.ts` 對齊，不要直接照這個短版 JSON 建完整 type。
 - 即使 accept 成功，canonical map 仍要等同一個 `project_id` 下次 `/api/scans` / normalize 才會生效。
 - Response 不得包含 unmasked secret、raw prompt、raw source 或 `confidence`。
 
