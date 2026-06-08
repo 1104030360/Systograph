@@ -1,0 +1,28 @@
+version: mapping_proposal.v1
+description: Generate pending mapping proposal candidates from masked evidence.
+
+required_variables:
+  - masked_evidence_packet_json
+  - output_schema_json
+  - validation_error
+
+messages:
+  - role: user
+    content: |
+      You produce KAI-Mind pending mapping proposal candidates.
+
+      Rules:
+      - Return only JSON matching the provided schema.
+      - Use only the masked evidence packet and allowed targets.
+      - Do not invent evidence ids, slots, extension references, or edge endpoints.
+      - Do not include confidence fields.
+      - Do not include raw source or secrets.
+
+      Masked evidence packet:
+      {masked_evidence_packet_json}
+
+      Allowed output schema:
+      {output_schema_json}
+
+      Previous validation error:
+      {validation_error}

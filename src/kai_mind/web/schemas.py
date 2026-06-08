@@ -13,6 +13,10 @@ from kai_mind.core.models.mapping import (
     ManualMapping,
     ManualMappingCreate,
     ManualMappingUpdate,
+    MappingProposal,
+    MappingProposalDecisionAction,
+    MappingProposalDecisionRequest,
+    MappingProposalDecisionResult,
 )
 from kai_mind.core.models.viewer import ViewerPayload
 
@@ -103,6 +107,25 @@ class ManualMappingListResponse(WebSchema):
     )
 
 
+class MappingProposalCreateRequest(WebSchema):
+    project_id: str
+    source_unmapped_id: str
+    user_description: str | None = None
+
+
+class MappingProposalListResponse(WebSchema):
+    project_id: str
+    proposals: list[MappingProposal]
+    available_actions: list[MappingProposalDecisionAction] = Field(
+        default_factory=lambda: [
+            MappingProposalDecisionAction.ACCEPT,
+            MappingProposalDecisionAction.EDIT,
+            MappingProposalDecisionAction.REJECT,
+            MappingProposalDecisionAction.SKIP_FOR_NOW,
+        ]
+    )
+
+
 __all__ = [
     "MapBuildApiRequest",
     "MapBuildResult",
@@ -110,6 +133,11 @@ __all__ = [
     "ManualMappingCreate",
     "ManualMappingListResponse",
     "ManualMappingUpdate",
+    "MappingProposal",
+    "MappingProposalCreateRequest",
+    "MappingProposalDecisionRequest",
+    "MappingProposalDecisionResult",
+    "MappingProposalListResponse",
     "ProjectImportRequest",
     "ProjectImportResponse",
     "ScanCreateRequest",

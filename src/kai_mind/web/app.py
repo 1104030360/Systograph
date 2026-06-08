@@ -3,17 +3,25 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from kai_mind.core.providers.llm_proposal_provider import (
+    nvidia_nim_provider_from_env,
+)
 from kai_mind.core.services.manual_mapping_service import (
     ManualMappingService,
 )
 from kai_mind.core.services.map_build_service import MapBuildService
+from kai_mind.core.services.mapping_proposal_service import (
+    MappingProposalService,
+)
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
 from kai_mind.web.routes import (
     map_routes,
+    mapping_proposal_routes,
     mapping_routes,
     project_routes,
     scan_routes,
@@ -31,13 +39,24 @@ def create_app(
     *,
     map_build_service: MapBuildService | None = None,
     manual_mapping_service: ManualMappingService | None = None,
+    mapping_proposal_service: MappingProposalService | None = None,
     viewer_session_service: ViewerSessionService | None = None,
     session_store: InMemorySessionStore | None = None,
     allowed_origins: Sequence[str] | None = None,
+    env_file: Path | None = None,
 ) -> FastAPI:
     app = FastAPI(title="KAI-Mind Local API", version="0.1.0")
     app.state.manual_mapping_service = (
         manual_mapping_service or ManualMappingService()
+    )
+    app.state.mapping_proposal_service = (
+        mapping_proposal_service
+        or MappingProposalService(
+            provider=nvidia_nim_provider_from_env(
+                env_file=env_file or Path(".env"),
+            ),
+            manual_mapping_service=app.state.manual_mapping_service,
+        )
     )
     app.state.map_build_service = map_build_service or MapBuildService(
         manual_mapping_service=app.state.manual_mapping_service
@@ -54,6 +73,7 @@ def create_app(
         allow_headers=["Accept", "Content-Type"],
     )
     app.include_router(map_routes.router)
+    app.include_router(mapping_proposal_routes.router)
     app.include_router(mapping_routes.router)
     app.include_router(project_routes.router)
     app.include_router(scan_routes.router)

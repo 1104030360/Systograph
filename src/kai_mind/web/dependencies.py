@@ -10,6 +10,9 @@ from kai_mind.core.services.manual_mapping_service import (
     ManualMappingService,
 )
 from kai_mind.core.services.map_build_service import MapBuildService
+from kai_mind.core.services.mapping_proposal_service import (
+    MappingProposalService,
+)
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
 from kai_mind.web.session_store import InMemorySessionStore
 
@@ -20,6 +23,13 @@ def map_build_service(request: Request) -> MapBuildService:
 
 def manual_mapping_service(request: Request) -> ManualMappingService:
     return cast(ManualMappingService, request.app.state.manual_mapping_service)
+
+
+def mapping_proposal_service(request: Request) -> MappingProposalService:
+    return cast(
+        MappingProposalService,
+        request.app.state.mapping_proposal_service,
+    )
 
 
 def viewer_session_service(request: Request) -> ViewerSessionService:

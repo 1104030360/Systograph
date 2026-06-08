@@ -147,8 +147,13 @@ Graph rules:
   "viewer_load_result": {
     "loaded": false,
     "error_reason": "no_map_loaded",
+    "map_json": null,
     "ai_system_map": {},
     "graph_view_model": {
+      "schema_version": "graph-view-model/v1",
+      "source_schema_version": null,
+      "map_json": null,
+      "summary": null,
       "nodes": [],
       "edges": [],
       "details": {
@@ -464,6 +469,210 @@ Request:
 - Response 提供 `mapping_digest`，讓 report metadata / UI 可追蹤 applied decision。
 - Confirmed mapping 只有在下次 scan / normalize 且 source evidence 仍存在時才會影響 canonical map。
 - Route handler 只呼叫 `ManualMappingService`；不得直接讀寫 DB row、artifact JSON 或被掃描 repo。
+
+## Mapping Proposal Routes
+
+用途：針對目前 map 中的 `unmapped / needs_confirmation` 元件產生 pending-only 候選對應建議。Proposal 是使用者決策前的草稿，不是 canonical `ai_system_map.json` 事實。
+
+資料流：
+
+```text
+latest ai_system_map.unmapped_components[]
+  -> MappingEvidencePacketBuilder
+  -> masked MappingEvidencePacket
+  -> MappingProposalService
+  -> deterministic candidates / optional provider
+  -> pending_user_confirmation proposal
+  -> user decision
+  -> optional ManualMapping draft
+```
+
+### GET /api/mapping-proposals
+
+Request:
+
+```http
+GET /api/mapping-proposals?project_id=project:...
+```
+
+Response:
+
+```json
+{
+  "project_id": "project:...",
+  "available_actions": ["accept", "edit", "reject", "skip_for_now"],
+  "proposals": [
+    {
+      "proposal_id": "proposal:...",
+      "project_id": "project:...",
+      "source_unmapped_id": "unmapped:...",
+      "status": "pending_user_confirmation",
+      "provider_name": "deterministic",
+      "provider_error_reason": null,
+      "evidence_packet": {
+        "source_file": "requirements.txt",
+        "observed_kind": "dependency_candidate",
+        "evidence_ids": ["evidence:..."],
+        "masked_evidence_values": ["chromadb"],
+        "available_slots": ["vector_store", "retriever"]
+      },
+      "candidates": [
+        {
+          "candidate_id": "candidate:1",
+          "candidate_type": "existing_slot_mapping",
+          "target_slot": "vector_store",
+          "component_name": "Chroma",
+          "component_kind": "vector_db",
+          "label": "Map evidence to Vector Store",
+          "rationale": "...",
+          "evidence_ids": ["evidence:..."],
+          "rank": 1,
+          "recommendation_level": "strong_candidate",
+          "uncertainty_reason": "Static evidence only."
+        }
+      ]
+    }
+  ]
+}
+```
+
+### POST /api/mapping-proposals
+
+Request:
+
+```json
+{
+  "project_id": "project:...",
+  "source_unmapped_id": "unmapped:...",
+  "user_description": "This may be the vector store client."
+}
+```
+
+規則：
+
+- API 會從 requested `project_id` 對應的 latest scanned `ai_system_map` 找 `source_unmapped_id`，再用 canonical evidence 建立 masked `MappingEvidencePacket`；不得使用 process-wide latest scan 的其他 project evidence。
+- Client 不提交 raw evidence、raw source、project root 或 provider prompt。
+- 若 `project_id` 不存在，回傳 HTTP 404 `project_not_found`。
+- 若尚未 scan / load map，回傳 HTTP 404 `map_not_loaded`。
+- 若 `source_unmapped_id` 不存在，回傳 HTTP 404 `unmapped_not_found`。
+- Proposal status 一律先是 `pending_user_confirmation`。
+- Provider unavailable、timeout、HTTP error 會回到 deterministic candidates，`provider_error_reason` 使用 stable code `provider_unavailable`。
+- Provider invalid JSON、`confidence` 欄位、unknown evidence / slot / edge reference、unmasked secret、超出 bounded output limits 都會被拒絕並 fallback 到 deterministic candidates，`provider_error_reason` 使用 stable code `provider_invalid_output`。
+- Proposal create 不會修改 latest `/api/map` payload，也不會修改 `components_by_slot`、`extensions`、`flows`、`query_trace_events`。
+
+### POST /api/mapping-proposals/{proposal_id}/decision
+
+Request for accepting one candidate:
+
+```json
+{
+  "decision": "accept",
+  "candidate_id": "candidate:1"
+}
+```
+
+Request for rejecting a proposal:
+
+```json
+{
+  "decision": "reject",
+  "reason": "Not part of the RAG path."
+}
+```
+
+Request for editing a proposal:
+
+```json
+{
+  "decision": "edit",
+  "edited_mapping": {
+    "project_id": "project:...",
+    "mapping_type": "existing_slot_mapping",
+    "decision": "confirmed",
+    "source_unmapped_id": "unmapped:...",
+    "evidence_ids": ["evidence:..."],
+    "target_slot": "vector_store",
+    "component_name": "Edited Chroma",
+    "component_kind": "vector_db"
+  }
+}
+```
+
+Response excerpt (abbreviated; do not use this as the full frontend type):
+
+```json
+{
+  "proposal": {
+    "proposal_id": "proposal:...",
+    "status": "accepted"
+  },
+  "manual_mapping": {
+    "mapping_id": "mapping:...",
+    "proposal_id": "proposal:...",
+    "decision_source": "proposal_accept",
+    "target_slot": "vector_store"
+  }
+}
+```
+
+規則：
+
+- `accept` 會把候選轉成 `ManualMappingCreate`，再交給 `ManualMappingService` 驗證與保存。
+- `accept` 必須提供 `candidate_id`，且不可同時提供 `edited_mapping`。
+- `edit` 必須提供完整 `edited_mapping`，不可同時提供 `candidate_id`，並同樣交給 `ManualMappingService` 驗證。
+- `reject` / `skip_for_now` 只更新 proposal status，不建立 manual mapping。
+- `reject` / `skip_for_now` 不可帶 `candidate_id` 或 `edited_mapping`。
+- 只有 `pending_user_confirmation` proposal 可以 decision；已 accepted / edited / rejected / skipped 的 proposal 再次 decision 會回 HTTP 422。
+- 上方 response 是節錄；實際 FastAPI response 會包含完整 serialized `MappingProposal`，若有建立 manual mapping 則包含完整 serialized `ManualMapping`。前端型別應以 backend OpenAPI / `frontend/src/types.ts` 對齊，不要直接照這個短版 JSON 建完整 type。
+- 即使 accept 成功，canonical map 仍要等同一個 `project_id` 下次 `/api/scans` / normalize 才會生效。
+- Response 不得包含 unmasked secret、raw prompt、raw source 或 `confidence`。
+
+### Optional NVIDIA NIM Provider
+
+Phase 20 可注入 `NvidiaNimProposalProvider` 作為 hosted NIM adapter。它只接收 masked packet 與 schema summary，非敏感預設值由 bundled TOML `src/kai_mind/core/configs/llm_proposal.toml` 提供，例如模型 ID `google/gemma-4-31b-it` 與 endpoint `https://integrate.api.nvidia.com/v1/chat/completions`。此 adapter 是 explicit opt-in，不是 production default；必須同時設定 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` 與 `NVIDIA_API_KEY` 才會啟用。沒有 enable flag、沒有 key 或 provider 失敗時，proposal flow 必須 deterministic fallback。
+
+Local development can opt in through `.env`; API key must stay in `.env` / environment variables and must not be committed:
+
+```env
+KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true
+NVIDIA_API_KEY=nvapi-...
+```
+
+The following non-secret values have TOML defaults and can be temporarily overridden through `.env` during local testing:
+
+```env
+NVIDIA_NIM_MODEL=google/gemma-4-31b-it
+NVIDIA_NIM_ENDPOINT=https://integrate.api.nvidia.com/v1/chat/completions
+NVIDIA_NIM_TIMEOUT_SECONDS=8.0
+NVIDIA_NIM_MAX_TOKENS=16384
+NVIDIA_NIM_TEMPERATURE=1.0
+NVIDIA_NIM_TOP_P=0.95
+NVIDIA_NIM_STREAM=false
+NVIDIA_NIM_ENABLE_THINKING=true
+```
+
+Only runtime/provider defaults belong in TOML or `.env`. Mapping proposal
+output limits, such as maximum candidate count, candidate label/rationale
+length, evidence id count, suggested edge count, and `provider_error_reason`
+length, are Pydantic schema limits in `src/kai_mind/core/models/mapping.py`;
+they are intentionally not configurable through TOML because they are part of
+the API and safety contract.
+
+The provider request mirrors NVIDIA Platform's non-streaming chat completion shape:
+
+```json
+{
+  "model": "google/gemma-4-31b-it",
+  "messages": [{"role": "user", "content": "...masked packet..."}],
+  "max_tokens": 16384,
+  "temperature": 1.0,
+  "top_p": 0.95,
+  "stream": false,
+  "chat_template_kwargs": {"enable_thinking": true}
+}
+```
+
+`.env` is ignored by Git and must not be committed. Tests use mock HTTP transports and never call the real NVIDIA endpoint.
 
 ## GET /api/scan/events
 
