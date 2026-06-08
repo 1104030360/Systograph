@@ -1,0 +1,482 @@
+# KAI-Mind Local API Guide
+
+本機 Python 後端（FastAPI）的前端對接文件。涵蓋所有 endpoint 的輸入、輸出與錯誤。
+
+- 設計意圖與相容性規則：`docs/work/Timmy/design/epic1-local-api-guide.md`
+- 可執行的逐 endpoint 範例：`scripts/trace_*.sh`（每支對應一個 API）
+- 互動式型別瀏覽：後端啟動後開 `http://127.0.0.1:8000/docs`
+
+## 基本資訊
+
+- **Base URL**：`http://127.0.0.1:8000`（前端可用 `VITE_API_BASE_URL` 覆寫）
+- **Auth**：無。Local-only，server 只綁 `127.0.0.1`。
+- **CORS allowlist**：`http://127.0.0.1:5173`、`http://localhost:5173`
+- **Content-Type**：request/response 皆為 `application/json`（SSE 為 `text/event-stream`，report 為 `text/markdown`）
+
+## 約定
+
+- 所有寫入類 endpoint 拒絕未知欄位（`extra="forbid"`）。
+- 錯誤回傳統一為 `{ "detail": string }`；request 結構錯誤（422）的 `detail` 為陣列。
+- Session 狀態存在記憶體中，重啟後端會清空，`project_id` 需重新 import。
+- **兩種流程**：
+  - **Project session**（`import` → `scans`）：建立 `project_id`，掃描結果綁在該 project 上。`detail-scans`、`mapping-proposals`、`mappings` 都必須走這條。
+  - **Viewer demo**（`map/build`）：只掃 path、更新 latest viewer payload，**不建立 `project_id`**。適合快速載圖，不能接後續 project-scoped API。
+- `graph_view_model` 是前端渲染輸入；它是投影，不是 canonical truth，前端不應回寫。
+
+```json
+// 錯誤回傳範例
+{ "detail": "project_not_found" }
+```
+
+## 快速開始
+
+```bash
+# 1. 啟動後端
+.venv/bin/uvicorn kai_mind.web.app:create_app --factory --host 127.0.0.1 --port 8000
+
+# 2. 一次性掃描並取得 viewer payload（最簡單的 demo 路徑）
+curl -s -X POST http://127.0.0.1:8000/api/map/build \
+  -H 'Content-Type: application/json' \
+  -d '{"project_path":"/abs/path/to/rag_project"}' | jq '.status'
+
+# 3. 讀取最新地圖
+curl -s http://127.0.0.1:8000/api/map | jq '.viewer_load_result.loaded'
+```
+
+每個 endpoint 都有對應的可執行範例腳本，例如 `scripts/trace_map_build.sh`、`scripts/trace_all.sh`（一次跑完全部）。
+
+---
+
+## 1. 專案與掃描
+
+**Project session 流程**：`import` 取得 `project_id` → `scans` 觸發掃描 → `scan/events` 看進度。後續 detail scan / mapping 都依賴此 `project_id`。
+
+**Viewer demo 捷徑**：`map/build` 一次掃 path 並更新 `/api/map`，但不建立 project session（見下方說明）。
+
+### POST /api/projects/import
+
+登記本機專案路徑，建立 `project_id` 供後續掃描引用。不支援 upload / zip。
+
+```http
+POST /api/projects/import
+```
+
+```json
+{ "source_type": "local_path", "project_path": "/abs/path/to/project" }
+```
+
+Response `200`：
+
+```json
+{
+  "project_id": "project:<uuid>",
+  "source_type": "local_path",
+  "project_name": "custom_router_rag",
+  "project_path": "/abs/path/to/project"
+}
+```
+
+### POST /api/scans
+
+用已 import 的 `project_id` 執行 L1 系統掃描（同步），完成後會更新 `/api/map`。
+
+```http
+POST /api/scans
+```
+
+```json
+{
+  "project_id": "project:<uuid>",
+  "scan_depth": "system",
+  "output": "outputs",
+  "redact_root_path": true,
+  "no_snippets": false
+}
+```
+
+Response `200`：
+
+```ts
+{
+  scan_id: string;
+  project_id: string;
+  status: "completed" | "error";
+  build_result: MapBuildResult; // 見 POST /api/map/build
+}
+```
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `Project not found` | 404 | `project_id` 未 import 或後端已重啟 |
+
+### GET /api/scan/events
+
+掃描進度 SSE。現階段送出一筆 `scan_progress`（completed）後關閉串流。
+
+```http
+GET /api/scan/events
+Accept: text/event-stream
+```
+
+```text
+event: scan_progress
+data: {"event":"scan_progress","status":"completed","stage":"validate","message":"Scan completed.","percent":100,"scan_depth":"system","timestamp":"...Z"}
+```
+
+後端現階段固定送 `event: scan_progress`（payload 內 `event` 欄位同值）。前端 parser 可相容 `message` 別名，但不必期待後端送未命名 event。
+
+前端依序解析 `node_id` → `edge_id` → `component_id` → `source_id` → `slot` 找出要 highlight 的目標。
+
+### POST /api/map/build
+
+All-in-one viewer / demo build：送入 path 觸發 L1 build，寫出 artifact，更新 latest `/api/map`。
+
+> **不建立 project session**——沒有 `project_id`，build result 也不會存到 project-scoped store。若要接 `detail-scans` 或 `mapping-proposals`，請改走 `import` → `scans`。
+
+```http
+POST /api/map/build
+```
+
+```json
+{
+  "project_path": "/abs/path/to/project",
+  "output": "outputs",
+  "redact_root_path": true,
+  "no_snippets": false
+}
+```
+
+Response `200`（`MapBuildResult`）：
+
+```ts
+{
+  status: "ok" | "error";
+  project_name: string;
+  output_run_dir: string;
+  map_json_path: string | null;
+  map_markdown_path: string | null;
+  map_error_path: string | null;
+  viewer_load_result: ViewerLoadResult; // 見 GET /api/map
+  ai_system_map: object;                // canonical 掃描事實
+  warnings: string[];
+  error: string | null;
+}
+```
+
+> `status="ok"` 時必有 `map_json_path`、`map_markdown_path`、`viewer_load_result`、`ai_system_map`。
+
+---
+
+## 2. 地圖讀取（Viewer）
+
+### GET /api/map
+
+回傳目前 session 最新的 viewer payload。前端 API mode 的主要載入入口。
+
+```http
+GET /api/map
+```
+
+Response `200`（`ViewerPayload`）：
+
+```ts
+{
+  viewer_load_result: {
+    loaded: boolean;
+    error_reason: string | null;
+    map_json: string | null;
+    ai_system_map: object;
+    graph_view_model: {
+      schema_version: string;            // "graph-view-model/v1"
+      source_schema_version: string | null;
+      summary: object | null;
+      nodes: GraphNode[];
+      edges: GraphEdge[];
+      details: {
+        evidence_by_id: Record<string, object>;
+        risk_hints_by_id: Record<string, object>;
+      };
+      filters: { available: GraphFilter[]; behavior?: string };
+    };
+  };
+}
+```
+
+尚未 build 前仍回傳 contract-compatible payload：`loaded:false`、`error_reason:"no_map_loaded"`、空 `nodes`/`edges`。
+
+### GET /map
+
+`GET /api/map` 的 legacy fallback，回傳完全相同的 `ViewerPayload`。前端會先試 `/api/map`，失敗再退回 `/map`。
+
+### POST /api/viewer/load
+
+載入磁碟上既有的 `ai_system_map.json`，重新 validate 後成為最新 viewer payload。**不掃描專案、不呼叫 scanner。**
+
+```http
+POST /api/viewer/load
+```
+
+```json
+{ "map_json_path": "outputs/<run>/ai_system_map.json" }
+```
+
+Response `200`：`ViewerPayload`。
+map 無效時仍回 `200`，但 `loaded:false` 並帶 `error_reason`，讓前端渲染明確的 broken-map 狀態而非崩潰。
+
+### GET /api/map/report
+
+回傳目前 session 最新的 Markdown report（讀 `map_build` 寫出的 `map_markdown_path`，不接受任意路徑）。
+
+```http
+GET /api/map/report            # 行內檢視
+GET /api/map/report?download=true   # 觸發附件下載
+```
+
+Response `200`：`Content-Type: text/markdown; charset=utf-8`（純文字）。
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `map_markdown_not_available` | 404 | 尚無成功的 build，或檔案不存在 |
+
+---
+
+## 3. Detail Scan（L2 / L3 漸進式掃描）
+
+對單一目標做有界的深掃，結果以 append-only 方式追加到 canonical map 後再回傳。**需先完成 project session**（`import` → `scans`）；只用 `map/build` 不足以滿足 `map_not_loaded` 檢查。
+
+### POST /api/detail-scans
+
+```http
+POST /api/detail-scans
+```
+
+```json
+{
+  "project_id": "project:<uuid>",
+  "target_type": "component_slot",
+  "target": "app_api_or_orchestrator",
+  "scan_depth": "component"
+}
+```
+
+- `target_type`：`component_slot` | `component_instance` | `extension` | `unmapped_component` | `edge` | `evidence`
+  （另接受別名 `slot` / `component` / `unmapped`）
+- `scan_depth`：`component`（L2）| `code_path`（L3）
+
+Response `200`：
+
+```ts
+{
+  project_id: string;
+  detail_scan: DetailScanResult; // id, target_type, target, scan_depth, status, findings[], code_path[], warnings[]
+  ai_system_map: object;          // 已追加新 evidence 並通過 validation 的整份 map
+}
+```
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `project_not_found` | 404 | `project_id` 不存在 |
+| `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
+| `target_not_found` | 422 | `target` 在 map 中不存在 |
+
+### GET /api/detail-scans/{detail_scan_id}
+
+依 id 讀回已完成的 detail scan 與更新後的 map。
+
+```http
+GET /api/detail-scans/{detail_scan_id}
+```
+
+Response `200`：與 `POST /api/detail-scans` 相同。
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `detail_scan_not_found` | 404 | 找不到該 detail scan id |
+
+---
+
+## 4. Manual Mappings
+
+保存使用者對 `unmapped / needs_confirmation` 元件做出的 project-level 決定。只寫入 mapping store，不直接 mutate map artifact。
+
+### GET /api/mappings
+
+```http
+GET /api/mappings?project_id=project:<uuid>
+```
+
+Response `200`：
+
+```ts
+{
+  project_id: string;
+  mappings: ManualMapping[];
+  available_actions: ["confirm", "edit", "reject", "skip_for_now", "mark_not_applicable"];
+}
+```
+
+### POST /api/mappings
+
+建立一筆 mapping 決定。`evidence_ids` 必填。`decision: "confirmed"` 時依 `mapping_type` 補齊欄位：
+
+| `mapping_type` | `confirmed` 必填欄位 |
+| --- | --- |
+| `existing_slot_mapping` | `target_slot`（已知 slot）、`component_name` |
+| `new_extension_component` | `extension_id`、`extension_name`、`extension_kind`；`extension_edges` 的 `from`/`to` 須為已知 slot 或該 `extension_id` |
+
+```http
+POST /api/mappings
+```
+
+```json
+{
+  "project_id": "project:<uuid>",
+  "mapping_type": "existing_slot_mapping",
+  "decision": "confirmed",
+  "target_slot": "vector_store",
+  "component_name": "Qdrant",
+  "evidence_ids": ["evidence:<id>"]
+}
+```
+
+- `mapping_type`：`existing_slot_mapping` | `new_extension_component`
+- `decision`：`confirmed` | `rejected` | `skip_for_now` | `not_applicable`
+
+Response `200`：`ManualMapping`（含 `mapping_id`、`mapping_digest`、`created_at`、`updated_at`）。
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| 驗證失敗 | 422 | 缺 evidence、未知 slot、含未遮蔽 secret 等 |
+
+### PATCH /api/mappings/{mapping_id}
+
+部分更新一筆 mapping（會重新 validate 並產生新的 `mapping_digest`）。
+
+```http
+PATCH /api/mappings/{mapping_id}
+```
+
+```json
+{ "reason": "Confirmed after reviewing config.yaml" }
+```
+
+可更新欄位：`decision`、`reason`、`target_slot`、`component_name`、`component_kind`、`provider`、`audit_metadata`。
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `mapping_not_found` | 404 | id 不存在 |
+| 驗證失敗 | 422 | 更新後的結果不符合規則 |
+
+---
+
+## 5. Mapping Proposals（AI 建議）
+
+針對 unmapped 元件向 LLM 取得 mapping 候選，使用者再做決定。**需先完成 project session**（`import` → `scans`）。
+
+**Provider 啟用條件**（兩者缺一不可，否則走 deterministic fallback，仍可離線使用）：
+
+```bash
+KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true
+NVIDIA_API_KEY=<your-key>
+```
+
+僅有 `NVIDIA_API_KEY` 而沒有 explicit flag 時，後端仍用 deterministic provider（`provider_name: "deterministic"`）。
+
+### GET /api/mapping-proposals
+
+```http
+GET /api/mapping-proposals?project_id=project:<uuid>
+```
+
+Response `200`：
+
+```ts
+{
+  project_id: string;
+  proposals: MappingProposal[];
+  available_actions: ["accept", "edit", "reject", "skip_for_now"];
+}
+```
+
+### POST /api/mapping-proposals
+
+對某個 unmapped 元件建立一筆 pending proposal。
+
+```http
+POST /api/mapping-proposals
+```
+
+```json
+{
+  "project_id": "project:<uuid>",
+  "source_unmapped_id": "unmapped:<id>",
+  "user_description": "optional hint"
+}
+```
+
+Response `200`（`MappingProposal`）：
+
+```ts
+{
+  proposal_id: string;
+  project_id: string;
+  source_unmapped_id: string;
+  status: "pending_user_confirmation";
+  candidates: MappingCandidate[];   // candidate_id, candidate_type, target_slot, recommendation_level, rationale...
+  evidence_packet: object;          // 送給 provider 的 masked evidence 摘要
+  provider_name: string;            // "deterministic" | "nvidia-nim"
+  provider_error_reason: string | null; // fallback 時如 "provider_unavailable"
+  user_description: string | null;
+  available_actions: ["accept", "edit", "reject", "skip_for_now"];
+  created_at: string;
+  updated_at: string;
+}
+```
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `project_not_found` | 404 | `project_id` 不存在 |
+| `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
+| `unmapped_not_found` | 404 | `source_unmapped_id` 不存在 |
+
+### POST /api/mapping-proposals/{proposal_id}/decision
+
+對 pending proposal 套用決定。
+
+```http
+POST /api/mapping-proposals/{proposal_id}/decision
+```
+
+```json
+{ "decision": "accept", "candidate_id": "candidate:1" }
+```
+
+- `accept`：需 `candidate_id`，不可帶 `edited_mapping`
+- `edit`：需 `edited_mapping`（`ManualMappingCreate` 形狀），不可帶 `candidate_id`
+- `reject` / `skip_for_now`：兩者皆不帶
+
+Response `200`：
+
+```ts
+{
+  proposal: MappingProposal;          // status 變為 accepted / edited / rejected / skipped
+  manual_mapping: ManualMapping | null; // accept / edit 時必有
+}
+```
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `proposal_not_found` | 404 | `proposal_id` 不存在 |
+| 驗證失敗 | 422 | decision payload 不合法（如 accept 缺 candidate_id） |
+
+---
+
+## 錯誤對照表
+
+| 狀態 | 意義 | 常見 `detail` |
+| --- | --- | --- |
+| 200 | 成功（含「map 無效」這類明確的 loaded:false 狀態） | — |
+| 404 | 目標不存在 | `project_not_found`、`map_not_loaded`、`unmapped_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
+| 422 | 輸入不合法 / 驗證失敗 | `target_not_found`、validation 陣列 |
+
+> 後端重啟會清空記憶體 session。出現 404 `project_not_found` / `map_not_loaded` 時，請重新 `import` 並 `scan`。
