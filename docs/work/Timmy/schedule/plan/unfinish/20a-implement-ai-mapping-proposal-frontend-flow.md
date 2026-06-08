@@ -42,10 +42,29 @@ Task 20 的核心是 backend pending-only proposal lifecycle。Frontend UI / API
 
 - `DetailPanel.tsx` 目前仍只讀 `payload.mapping_proposal_result_sample`，不是後端 `/api/mapping-proposals` 的真實 response。
 - `DetailPanel.tsx` 目前會顯示 sample action buttons，但 buttons 沒有 `onClick`，不會呼叫 decision API。
+- `DetailPanel.tsx` 也已經有 `Overview` / `L2 Component` / `L3 Code Path` tab，但 L2/L3 目前只讀 `payload.detail_scan_result_sample`，不是後端 detail scan API。
 - `App.tsx` 目前沒有 proposal query / mutation wiring，也沒有把 proposal handler 傳給 `DetailPanel`。
 - `viewerStore.ts` 目前只管理 viewer selection、filters、trace/progress/detail mode，沒有 proposal lifecycle state。
 - `useViewerPayload()` 目前只讀 sample 或 `/api/map` / `/map`，沒有 proposal query。
 - `frontend/package.json` 目前只有 `build` / `lint`，尚未看到 frontend test runner。
+
+### 與 Task 21a 的分工（2026-06-08 補充）
+
+目前前端有兩個容易混在一起的未完成互動：
+
+1. **Mapping proposal frontend flow**：使用者針對 `needs_confirmation` / unmapped target 產生候選 mapping，並 accept/edit/reject/skip。
+2. **Progressive detail scan frontend flow**：使用者針對 graph node / edge / evidence 觸發 L2/L3 detail scan，讓後端補更多 bounded evidence。
+
+本任務只做第 1 項，也就是接 Task 20 的 `/api/mapping-proposals` lifecycle。
+
+第 2 項請由新增的 **Task 21a: Implement Detail Scan Frontend Flow** 負責。Task 21a 會接 Task 21 backend 的 `POST /api/detail-scans` / `GET /api/detail-scans/{detail_scan_id}`，並把 L2/L3 tab 從 sample-only 顯示改成真實 detail scan 結果。
+
+兩個任務的交會點是 `DetailPanel.tsx`：
+
+- Task 20a：在 selected unmapped target 上顯示 `Create proposal` / candidate cards / decision actions。
+- Task 21a：在 L2/L3 tab 上顯示 `Run component detail scan` / `Run code path scan` / scan progress / real `detail_scans[]`。
+
+Task 21a 完成後，detail scan 追加的新 evidence 會進 `system_map.evidence[]` 與 `unmapped_component.evidence_ids`。Task 20a 只需要在 create/decision 成功後 refetch viewer payload；不需要自己解析 source code 或 detail scan output。
 
 ## 後端 API contract
 
@@ -115,6 +134,7 @@ Payload 規則：
 - 擴充 `frontend/src/services/viewerApi.ts`，加入 `listMappingProposals()`、`createMappingProposal()`、`decideMappingProposal()`。
 - 在 API mode 建立 proposal query，例如 `useMappingProposals(projectId)`。
 - 在 selected node / edge 對應 `needs_confirmation` 或 unmapped source 時，顯示 `Create proposal` 入口。
+- 若 Task 21a 已完成 detail scan 並刷新 viewer payload，本任務可以自然使用更新後的 evidence/proposal response；但本任務不負責觸發 L2/L3 detail scan。
 - 將 proposal candidates render 成卡片，至少顯示：
   - `label`
   - `candidate_type`
@@ -145,6 +165,7 @@ Payload 規則：
 - 明確區分 sample mode 與 API mode：
   - sample mode 可繼續展示 `mapping_proposal_result_sample`。
   - API mode 必須讀真實 proposal endpoints。
+- 不改 L2/L3 tab 的 detail scan 觸發與結果呈現；那是 Task 21a。
 
 ## 不包含範圍
 
@@ -154,6 +175,8 @@ Payload 規則：
 - 不在前端保存 raw prompt、raw source、unmasked evidence 或 API key。
 - 不在 frontend 直接呼叫 NVIDIA / LLM；前端只能呼叫 KAI-Mind backend API。
 - 不把 pending proposal 渲染成已確認 canonical fact。
+- 不實作 `POST /api/detail-scans` / `GET /api/detail-scans/{detail_scan_id}` 前端接線；這由 Task 21a 負責。
+- 不在本任務把 `payload.detail_scan_result_sample` 改成真實 L2/L3 detail scan UI；這由 Task 21a 負責。
 
 ## 建議實作步驟
 
@@ -184,6 +207,7 @@ Payload 規則：
 - Decision 成功後 proposal list 與 viewer payload 會刷新。
 - Sample mode 不會誤呼叫 backend proposal API。
 - API mode 不再把 `mapping_proposal_result_sample` 當成真實 proposal。
+- API mode 不會把 L2/L3 detail scan sample 誤當成真實 proposal evidence；detail scan sample 的替換由 Task 21a 驗收。
 - `pnpm build` 通過；必須引入 frontend test runner，且相關的 proposal UI tests 等所有前端測試皆已補完整並通過。
 
 ## 前端工程師白話版
