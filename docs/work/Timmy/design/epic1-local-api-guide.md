@@ -455,6 +455,93 @@ Response:
 - 找不到 detail scan 時回傳 HTTP 404 `detail_scan_not_found`。
 - Response shape 與 `POST /api/detail-scans` 相同。
 
+## Query Trace Route
+
+用途：使用者明確指定 project、endpoint 與 query 後，對 `ai_system_map.endpoints[]` 中的 endpoint id 做一次 bounded black-box runtime trace。這是 Task 22 的 opt-in replay evidence，不是 L1/L2/L3 static scan。
+
+資料流：
+
+```text
+project_id + endpoint_id + query
+  -> latest scanned ai_system_map
+  -> project_path/pyproject.toml [tool.kai-mind.trace] config
+  -> QueryTraceService
+  -> EndpointCallProvider
+  -> transient TraceRunResult
+```
+
+### POST /api/trace
+
+Request:
+
+```json
+{
+  "project_id": "project:...",
+  "endpoint_id": "endpoint:local:rag-chat",
+  "query": "raw query sent once to the endpoint",
+  "timeout_seconds": 30
+}
+```
+
+Response:
+
+```json
+{
+  "trace_id": "trace:...",
+  "status": "completed",
+  "query_sent": true,
+  "endpoint_id": "endpoint:local:rag-chat",
+  "events": [
+    {
+      "event_type": "request_sent",
+      "query_sent": true,
+      "input": {
+        "query": {
+          "type": "string",
+          "length": 32,
+          "masked": "[MASKED]"
+        }
+      }
+    },
+    {
+      "event_type": "response_received",
+      "status": "completed",
+      "output": {}
+    }
+  ],
+  "warnings": [],
+  "error_reason": null
+}
+```
+
+規則：
+
+- `project_id` 不存在回傳 HTTP 404 `project_not_found`。
+- `project_id` 尚未有 loaded map 回傳 HTTP 404 `map_not_loaded`。
+- `endpoint_id` 找不到時仍回 HTTP 200，但 body 為 `status="endpoint_not_found"`、`query_sent=false`，且不得送任何 HTTP request。
+- timeout、transport error 或 HTTP error 回 `status="partial"`，保留 `request_sent` 與 `error` event，讓 replay 可以停在失敗點。
+- `query`、response output、`retrieved_chunks` 進入 event 前必須遮蔽/摘要化；API response、CLI output、report 不保存 raw query 或 raw answer。
+- retrieved chunks 欄位預設依序讀 `retrieved_chunks`、`chunks`、`documents`。若被掃描專案的 `pyproject.toml` 提供 `[tool.kai-mind.trace] retrieved_chunks_keys`，web route 會從 project session 的 `project_path` 讀取並注入 `QueryTraceService`。
+- CLI 不從 map artifact 猜測專案位置；需要使用專案設定時必須顯式傳入 `--project-root /abs/path/to/scanned-project`。
+- `retrieved_chunks_keys` 必須是非空字串陣列；設定存在但格式錯時 fail fast，避免 trace 看似成功但漏掉 retrieved chunks。
+- Trace result 是 transient `TraceRunResult`；不得寫回 canonical `ai_system_map.query_trace_events[]`，也不得修改 `flows`、`extensions`、manual mappings 或 proposal state。
+- 如果 runtime response metadata 指向已知 `unmapped_component_id`，只在 event 標示 `step_type="unknown"` 與 `needs_mapping_confirmation`，真正確認與持久化交給 manual mapping / mapping proposal。
+- `POST /api/scans`、`POST /api/map/build`、`GET /api/map` 與 `POST /api/viewer/load` 不會自動觸發 query trace。
+
+Project config example:
+
+```toml
+[tool.kai-mind.trace]
+retrieved_chunks_keys = [
+  "retrieved_chunks",
+  "chunks",
+  "documents",
+  "docs",
+  "retrieved_docs",
+  "context",
+]
+```
+
 ## Manual Mapping Routes
 
 用途：保存使用者對 `unmapped / needs_confirmation` 元件做出的 project-level decision。這些 endpoints 只寫入 KAI-Mind-managed mapping store / repository，不直接 mutate 既有 map artifact。

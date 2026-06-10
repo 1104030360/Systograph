@@ -295,7 +295,82 @@ Response `200`：與 `POST /api/detail-scans` 相同。
 
 ---
 
-## 4. Manual Mappings
+## 4. Query Trace（Runtime opt-in）
+
+對已載入 project map 的某個 endpoint id 執行一次黑箱 query trace。這是明確 opt-in 的 runtime 路徑；`POST /api/scans`、`POST /api/map/build`、`GET /api/map` 不會自動呼叫任何 endpoint。
+
+Trace 只回傳 transient `TraceRunResult`，不寫回 `ai_system_map.query_trace_events`，也不會把 observed unmapped component 自動升級成 confirmed mapping 或 baseline edge。
+
+Query Trace 會從該 project session 的 `project_path/pyproject.toml` 讀取 optional tool config。沒有設定時使用預設 retrieved chunk keys：`retrieved_chunks`、`chunks`、`documents`。
+
+```toml
+# 被掃描專案的 pyproject.toml
+[tool.kai-mind.trace]
+retrieved_chunks_keys = [
+  "retrieved_chunks",
+  "chunks",
+  "documents",
+  "docs",
+  "retrieved_docs",
+  "context",
+]
+```
+
+CLI 使用同一套設定 loader，但需要顯式傳入 project root，避免從 map artifact 猜測來源：
+
+```bash
+kai-mind trace outputs/run/ai_system_map.json \
+  --endpoint-id endpoint:chat \
+  --query "hello" \
+  --project-root /abs/path/to/scanned-project
+```
+
+### POST /api/trace
+
+```http
+POST /api/trace
+```
+
+```json
+{
+  "project_id": "project:<uuid>",
+  "endpoint_id": "endpoint:<id>",
+  "query": "raw query sent once to the endpoint",
+  "timeout_seconds": 30
+}
+```
+
+Response `200`：
+
+```ts
+{
+  trace_id: string;
+  status: "completed" | "partial" | "endpoint_not_found" | "error";
+  query_sent: boolean;
+  endpoint_id: string;
+  events: QueryTraceEvent[]; // request_sent / response_received / error / endpoint_not_found
+  warnings: string[];
+  error_reason: string | null;
+}
+```
+
+資料安全約定：
+
+- `query`、response output、`retrieved_chunks` 進入 event 前會被遮蔽/摘要化；response 不回傳 raw query 或 raw answer。
+- `endpoint_id` 必須存在於該 project 的 `ai_system_map.endpoints[]`；找不到時回 `status:"endpoint_not_found"`、`query_sent:false`，不送任何 HTTP request。
+- `retrieved_chunks_keys` 必須是非空字串陣列；設定錯誤會讓 route 回 `invalid_trace_config`，不會 fallback 成看似成功但漏資料的 trace。
+- timeout / transport error 回 `status:"partial"`，保留 `request_sent` 與 `error` events，讓前端可以 replay 到失敗點。
+- 若 response metadata 暗示已知 `unmapped_component_id`，event 只標示 `step_type:"unknown"` 與 `needs_mapping_confirmation`，確認與持久化仍交給 mapping / proposal 流程。
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `project_not_found` | 404 | `project_id` 不存在 |
+| `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
+| `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.kai-mind.trace]` 格式錯誤 |
+
+---
+
+## 5. Manual Mappings
 
 保存使用者對 `unmapped / needs_confirmation` 元件做出的 project-level 決定。只寫入 mapping store，不直接 mutate map artifact。
 
@@ -369,7 +444,7 @@ PATCH /api/mappings/{mapping_id}
 
 ---
 
-## 5. Mapping Proposals（AI 建議）
+## 6. Mapping Proposals（AI 建議）
 
 針對 unmapped 元件向 LLM 取得 mapping 候選，使用者再做決定。**需先完成 project session**（`import` → `scans`）。
 
