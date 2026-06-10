@@ -107,6 +107,13 @@ class DetailScanResponse(WebSchema):
     ai_system_map: RagSystemMap
 
 
+class TraceCreateRequest(WebSchema):
+    project_id: str
+    endpoint_id: str
+    query: str
+    timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+
+
 class ManualMappingListResponse(WebSchema):
     project_id: str
     mappings: list[ManualMapping]
@@ -159,6 +166,7 @@ __all__ = [
     "ScanCreateRequest",
     "ScanCreateResponse",
     "ScanProgressEvent",
+    "TraceCreateRequest",
     "ViewerLoadMapRequest",
     "ViewerPayload",
 ]
