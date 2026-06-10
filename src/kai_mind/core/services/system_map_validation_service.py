@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
-from pathlib import PurePosixPath
 from typing import Any
 
 from pydantic import ValidationError
 
 from kai_mind.core.models.system_map import RagSystemMap
+from kai_mind.core.services.path_safety_service import (
+    is_project_relative_posix_path,
+)
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
-WINDOWS_ABSOLUTE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")
 STRUCTURAL_SECRET_SCAN_KEYS = frozenset(
     {
         "component_instance_id",
@@ -508,10 +508,4 @@ class SystemMapValidationService:
             seen.add(value)
 
     def _is_project_relative_posix_path(self, value: str) -> bool:
-        path = PurePosixPath(value)
-        return (
-            "\\" not in value
-            and not path.is_absolute()
-            and ".." not in path.parts
-            and not WINDOWS_ABSOLUTE_PATH_RE.match(value)
-        )
+        return is_project_relative_posix_path(value)

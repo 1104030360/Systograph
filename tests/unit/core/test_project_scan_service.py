@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -48,7 +49,11 @@ class FailingProvider:
     name = "failing_provider"
 
     def collect(self, inventory: FileInventory) -> ProviderScanResult:
-        raise RuntimeError("provider exploded with sk-live-secret-value")
+        raise RuntimeError(
+            "provider exploded at "
+            "/Users/linjunting/Local_AI_Health_Doctor/.env "
+            "with sk-live-secret-value"
+        )
 
 
 def build_inventory(project_root: Path) -> FileInventory:
@@ -215,21 +220,32 @@ def test_scan_logs_provider_crash_traceback_for_developers(
 
     assert len(result.issues) == 1
     assert "sk-live-secret-value" not in result.issues[0].message
+    assert "/Users/linjunting/Local_AI_Health_Doctor" not in (
+        result.issues[0].message
+    )
     matching_records = [
         record
         for record in caplog.records
         if (
             record.name == project_scan_service.__name__
             and record.levelno == logging.ERROR
-            and "failing_provider" in record.getMessage()
+            and getattr(record, "event_data", {}).get("provider")
+            == "failing_provider"
         )
     ]
     assert len(matching_records) == 1
     assert matching_records[0].exc_info is None
-    assert "Traceback frames:" in caplog.text
-    assert "project_scan_service.py" in caplog.text
-    assert "test_project_scan_service.py" in caplog.text
+    record = cast(Any, matching_records[0])
+    event_data = cast(dict[str, Any], record.event_data)
+    assert event_data == {
+        "event": "provider_scan_failed",
+        "stage": "project_scan",
+        "provider": "failing_provider",
+        "exception_type": "RuntimeError",
+        "frame_count": 2,
+    }
     assert "sk-live-secret-value" not in caplog.text
+    assert "/Users/linjunting/Local_AI_Health_Doctor" not in caplog.text
 
 
 def test_scan_merges_duplicate_facts_and_keeps_all_evidence(

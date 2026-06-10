@@ -74,6 +74,16 @@ def test_schema_requires_canonical_top_level_arrays() -> None:
     }.issubset(set(schema["required"]))
 
 
+def test_schema_documents_project_relative_posix_path_fields() -> None:
+    schema = load_schema()
+
+    evidence_file = schema["$defs"]["Evidence"]["properties"]["file"]
+    code_path_file = schema["$defs"]["CodePathStep"]["properties"]["file"]
+
+    assert "project-relative posix" in evidence_file["description"].lower()
+    assert "project-relative posix" in code_path_file["description"].lower()
+
+
 def test_invalid_confidence_fixture_is_rejected() -> None:
     data = load_fixture("invalid_confidence.v1.json")
 

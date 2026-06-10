@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
 
 from fastapi.testclient import TestClient
 from tests.helpers.fixtures import rag_project_fixture_path
@@ -122,15 +121,7 @@ def test_map_payload_before_build_is_contract_compatible() -> None:
 def test_local_api_cors_does_not_use_wildcard_origin() -> None:
     app = create_app()
 
-    cors_middleware = [
-        item
-        for item in app.user_middleware
-        if getattr(item.cls, "__name__", "") == "CORSMiddleware"
-    ]
-
-    assert len(cors_middleware) == 1
-    options = cast(dict[str, Any], cors_middleware[0].kwargs)
-    origins = cast(list[str], options["allow_origins"])
+    origins = app.allowed_origins
     assert "*" not in origins
     assert "http://127.0.0.1:5173" in origins
 

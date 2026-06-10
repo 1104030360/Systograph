@@ -17,6 +17,9 @@ from kai_mind.core.services.component_detail_scan_service import (
     _unique_evidence_id,
     sanitized_python_snippet,
 )
+from kai_mind.core.services.path_safety_service import (
+    is_project_relative_posix_path,
+)
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
 PYTHON_CALL_RULE_ID = "detail_scan.python_call_like"
@@ -138,9 +141,7 @@ class CodePathScanService:
     ) -> Path | None:
         posix_path = PurePosixPath(relative_file)
         if (
-            "\\" in relative_file
-            or posix_path.is_absolute()
-            or ".." in posix_path.parts
+            not is_project_relative_posix_path(relative_file)
             or posix_path.suffix != ".py"
         ):
             return None
