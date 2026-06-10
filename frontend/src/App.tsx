@@ -8,6 +8,9 @@ import { ReplayTimeline } from "./components/ReplayTimeline";
 import { Sidebar } from "./components/Sidebar";
 import { StateOverlay, type ViewerState } from "./components/StateOverlay";
 import { SystemGraph } from "./components/SystemGraph";
+import { ScanTemplatePage } from "./pages/ScanTemplatePage";
+import { ProposalModal, type ProposalTarget } from "./components/proposal/ProposalModal";
+import { WordingProvider, type WordingMode } from "./wording";
 import { getTraceEvents, viewerPayload as sampleViewerPayload } from "./data/sampleMap";
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
@@ -79,6 +82,13 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [fitSignal, setFitSignal] = useState(0);
+  // Scan Template route (full-bleed overlay) + Mapping Proposal modal (z 60, can
+  // sit over the route or the graph). The selection API does not exist yet, so
+  // the page runs on the scanTemplateApi mock seam.
+  const [view, setView] = useState<"viewer" | "scan-template">("viewer");
+  const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
+  // TEMP: lets the team compare the two wording sets in-product (see wording.tsx).
+  const [wordingMode, setWordingMode] = useState<WordingMode>("explained");
 
   const activeTraceEvent = traceEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
@@ -193,6 +203,16 @@ export default function App() {
           </div>
           <div className="tb-spacer" />
 
+          <button
+            className="btn"
+            type="button"
+            onClick={() => setView("scan-template")}
+            title="Scan template & mapping profile"
+          >
+            <Layers3 size={14} />
+            Scan Template
+          </button>
+
           <DataSourceControl
             mode={dataSourceMode}
             apiBaseUrl={apiBaseUrl}
@@ -287,6 +307,27 @@ export default function App() {
       </section>
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+
+      <WordingProvider mode={wordingMode}>
+        {view === "scan-template" ? (
+          <ScanTemplatePage
+            onClose={() => setView("viewer")}
+            wordingMode={wordingMode}
+            onWordingModeChange={setWordingMode}
+            onOpenProposal={(row) =>
+              setProposalTarget({
+                unmapped_id: row.unmapped_id,
+                node_path: row.node_path,
+                node_kind: row.node_kind,
+              })
+            }
+          />
+        ) : null}
+
+        {proposalTarget ? (
+          <ProposalModal node={proposalTarget} scenario="ok" onClose={() => setProposalTarget(null)} />
+        ) : null}
+      </WordingProvider>
     </div>
   );
 }
