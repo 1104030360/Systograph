@@ -37,6 +37,7 @@
       "additionalProperties": false,
       "properties": {
         "file": {
+          "description": "Project-relative POSIX path. Must not contain a drive, UNC root, absolute path, backslash separator, or parent traversal.",
           "title": "File",
           "type": "string"
         },
@@ -486,6 +487,7 @@
             }
           ],
           "default": null,
+          "description": "Project-relative POSIX path. Must not contain a drive, UNC root, absolute path, backslash separator, or parent traversal.",
           "title": "File"
         },
         "path": {

@@ -27,6 +27,8 @@ from kai_mind.core.providers.docker_compose_provider import (
     DockerComposeProvider,
 )
 from kai_mind.core.providers.filesystem_provider import FilesystemProvider
+from kai_mind.core.services.logging_service import safe_log_event
+from kai_mind.core.services.path_safety_service import redact_local_paths
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
 PROJECT_SCAN_STAGE: Literal["project_scan"] = "project_scan"
@@ -112,13 +114,16 @@ class ProjectScanService:
         provider_name: str,
         exc: Exception,
     ) -> ParseIssue:
+        message = redact_local_paths(
+            self._masking_service.mask_text(
+                f"Provider failed during project scan: {exc}"
+            )
+        )
         return ParseIssue(
             provider=provider_name,
             scan_stage=PROJECT_SCAN_STAGE,
             file=PROVIDER_FAILURE_FILE,
-            message=self._masking_service.mask_text(
-                f"Provider failed during project scan: {exc}"
-            ),
+            message=message,
             rule_id=PROVIDER_FAILURE_RULE_ID,
         )
 
@@ -127,27 +132,24 @@ class ProjectScanService:
         provider_name: str,
         exc: Exception,
     ) -> None:
-        masked_message = self._masking_service.mask_text(str(exc))
         traceback_frames = self._format_traceback_frames(exc)
-        logger.error(
-            (
-                "Provider %s raised an unhandled exception during project "
-                "scan: %s: %s\nTraceback frames:\n%s"
-            ),
-            provider_name,
-            exc.__class__.__name__,
-            masked_message,
-            traceback_frames,
+        safe_log_event(
+            logger,
+            logging.ERROR,
+            "provider_scan_failed",
+            stage=PROJECT_SCAN_STAGE,
+            provider=provider_name,
+            exception_type=exc.__class__.__name__,
+            frame_count=len(traceback_frames),
+            masking_service=self._masking_service,
         )
 
-    def _format_traceback_frames(self, exc: Exception) -> str:
+    def _format_traceback_frames(
+        self,
+        exc: Exception,
+    ) -> list[traceback.FrameSummary]:
         frames = traceback.extract_tb(exc.__traceback__)
-        if not frames:
-            return "  <no traceback>"
-        return "\n".join(
-            f'  File "{frame.filename}", line {frame.lineno}, in {frame.name}'
-            for frame in frames
-        )
+        return list(frames)
 
     def _fact_with_provider(
         self,

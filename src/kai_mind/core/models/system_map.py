@@ -68,7 +68,13 @@ class ComponentSlot(ContractModel):
 class Evidence(ContractModel):
     id: str
     kind: str
-    file: str | None = None
+    file: str | None = Field(
+        default=None,
+        description=(
+            "Project-relative POSIX path. Must not contain a drive, UNC root, "
+            "absolute path, backslash separator, or parent traversal."
+        ),
+    )
     path: str | None = None
     value: str | None = None
     rule_id: str | None = None
@@ -125,7 +131,12 @@ class DetailScanFinding(ContractModel):
 
 
 class CodePathStep(ContractModel):
-    file: str
+    file: str = Field(
+        description=(
+            "Project-relative POSIX path. Must not contain a drive, UNC root, "
+            "absolute path, backslash separator, or parent traversal."
+        )
+    )
     symbol: str | None = None
     line_start: int | None = None
     line_end: int | None = None
