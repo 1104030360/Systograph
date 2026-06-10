@@ -12,11 +12,14 @@
 - **Auth**：無。Local-only，server 只綁 `127.0.0.1`。
 - **CORS allowlist**：`http://127.0.0.1:5173`、`http://localhost:5173`
 - **Content-Type**：request/response 皆為 `application/json`（SSE 為 `text/event-stream`，report 為 `text/markdown`）
+- **Request size limit**：寫入類 request body 預設上限 1 MB；超過時回 `413` 與 `{ "detail": "request_too_large" }`。
 
 ## 約定
 
 - 所有寫入類 endpoint 拒絕未知欄位（`extra="forbid"`）。
 - 錯誤回傳統一為 `{ "detail": string }`；request 結構錯誤（422）的 `detail` 為陣列。
+- 413 / 500 類安全錯誤回傳 stable error code，不包含 raw secret、Python exception string 或本機絕對路徑。
+- 只要 request `Origin` 在 allowlist 中，包含 413 / 500 在內的錯誤回應都會保留 CORS header，讓前端可讀取錯誤內容。
 - Session 狀態存在記憶體中，重啟後端會清空，`project_id` 需重新 import。
 - **兩種流程**：
   - **Project session**（`import` → `scans`）：建立 `project_id`，掃描結果綁在該 project 上。`detail-scans`、`mapping-proposals`、`mappings` 都必須走這條。
@@ -552,6 +555,8 @@ Response `200`：
 | --- | --- | --- |
 | 200 | 成功（含「map 無效」這類明確的 loaded:false 狀態） | — |
 | 404 | 目標不存在 | `project_not_found`、`map_not_loaded`、`unmapped_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
+| 413 | request body 超過本機 API resource limit | `request_too_large` |
 | 422 | 輸入不合法 / 驗證失敗 | `target_not_found`、validation 陣列 |
+| 500 | 未預期後端錯誤，回應會遮蔽 raw path / secret | `internal_server_error` |
 
 > 後端重啟會清空記憶體 session。出現 404 `project_not_found` / `map_not_loaded` 時，請重新 `import` 並 `scan`。
