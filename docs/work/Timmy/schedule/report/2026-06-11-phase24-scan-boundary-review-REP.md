@@ -36,6 +36,7 @@
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/mypy src tests`
 - `git diff --check`
 - `scripts/trace_scan_boundary_policy_overlay.sh --start-server`
+- `scripts/trace_scan_boundary_multi_decision_gate.sh --start-server`
 
 ## 遇到的問題與解法
 - 原始 Task24 report 採 next-run overlay，但產品語意應是「這次正式掃描前先決定掃不掃」。解法：將 boundary review 移入 `POST /api/scans` same-run gate。
@@ -56,6 +57,7 @@
 - Mypy：Success，140 source files no issues。
 - Diff whitespace check：`git diff --check` passed。
 - Trace：`scripts/trace_scan_boundary_policy_overlay.sh --start-server` passed，確認第一次回 `requires_boundary_decision`、第二次帶 `scan_this_run` 完成、第三次不記憶 decision。
+- Trace：`scripts/trace_scan_boundary_multi_decision_gate.sh --start-server` passed，確認第一次一次回傳 `.env` 與 `vector_store/data.index` 兩個 pending proposals、pending 時不更新 `/api/map`、第二次一次送回所有 `boundary_decisions` 後完成正式掃描。
 - `/review` subagent：Standards axis approve；Spec axis runtime 無 finding，文件殘留 finding 已修正。
 
 ## 最終狀態

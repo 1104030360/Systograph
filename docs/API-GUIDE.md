@@ -150,6 +150,14 @@ POST /api/scans
 - Decision 不會保存成歷史偏好，也不會影響下一次 scan。
 - 已由 deterministic scanner hard-skip 的 large/binary/generated/log、dependency/cache、model weights 等 target 只留在 skipped audit trail，不產生使用者 decision proposal。
 
+前端建議流程：
+
+1. 使用者按「開始掃描」後，前端先送一次 `POST /api/scans`。
+2. 若 response 是 `requires_boundary_decision`，前端一次列出 `boundary_proposals` 內所有項目，不要逐項呼叫 API。
+3. 使用者針對所有項目選完 `scan_this_run` / `skip_this_run` 後，前端用同一個 `POST /api/scans` 一次送回完整 `boundary_decisions`。
+4. 第二次 response 是 `completed` 時才顯示正式掃描結果；若再次回 `requires_boundary_decision`，代表 decision 不足或 fingerprint 已 stale，前端應重新顯示新的確認清單。
+5. UI 文案應使用「確認本次掃描範圍」與「確認並繼續掃描」，不要說「重新上傳」或「下一次才生效」。
+
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |
 | `Project not found` | 404 | `project_id` 未 import 或後端已重啟 |
@@ -608,9 +616,11 @@ Scan boundary review 已整合進 `POST /api/scans`，沒有獨立的 `/api/scan
 
 ```bash
 scripts/trace_scan_boundary_policy_overlay.sh --start-server
+scripts/trace_scan_boundary_multi_decision_gate.sh --start-server
 ```
 
 它會建立含 `.env` 的暫時專案，驗證第一次 scan 回 `requires_boundary_decision`，第二次帶 `scan_this_run` 後完成正式掃描，第三次不帶 decision 會再次要求決策。
+第二支 script 會建立含 `.env` 與 `vector_store/data.index` 的暫時專案，驗證第一次 response 一次回傳所有 pending proposals、pending 時不更新 `/api/map`、第二次可一次送回所有 `boundary_decisions` 後完成正式掃描。
 
 ---
 

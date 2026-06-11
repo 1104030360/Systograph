@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# Trace: scan boundary same-run gate with multiple proposals.
+#
+# This verifies the frontend-facing Phase 24 flow:
+# 1. The first scan returns every unresolved boundary proposal at once.
+# 2. The pending response does not build artifacts or update /api/map.
+# 3. The second scan can submit all boundary decisions in one request.
+# 4. Decisions are same-run only and are not remembered.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/api_trace_common.sh
+source "$SCRIPT_DIR/lib/api_trace_common.sh"
+
+DEMO_PROJECT_DIR=""
+
+usage() {
+  cat <<'USAGE'
+Trace scan boundary multi-decision same-run gate behavior.
+
+Usage:
+  scripts/trace_scan_boundary_multi_decision_gate.sh [common options]
+
+Options:
+  --start-server          Start a local FastAPI server for this run, stop on exit.
+  --api-base-url URL      Backend base URL. Default: http://127.0.0.1:8000
+  --output DIR            Scan output dir. Default: outputs
+  -h, --help              Show this help.
+USAGE
+}
+
+make_demo_project() {
+  DEMO_PROJECT_DIR="$(mktemp -d)"
+  mkdir -p "$DEMO_PROJECT_DIR/src" "$DEMO_PROJECT_DIR/vector_store"
+  printf '%s\n' 'OPENAI_API_KEY=sk-live-secret-value' \
+    >"$DEMO_PROJECT_DIR/.env"
+  printf '%s\n' 'print("hello")' >"$DEMO_PROJECT_DIR/src/app.py"
+  printf '%s\n' 'local vector persistence metadata' \
+    >"$DEMO_PROJECT_DIR/vector_store/data.index"
+  echo "$DEMO_PROJECT_DIR"
+}
+
+jq_get() {
+  local json="$1"
+  local filter="$2"
+  echo "$json" | jq -r "$filter"
+}
+
+normalized_json() {
+  jq -S . <<<"$1"
+}
+
+run_scan_body() {
+  local project_id="$1"
+  local output_dir="$2"
+  local boundary_decisions="${3:-[]}"
+  jq -n \
+    --arg id "$project_id" \
+    --arg out "$output_dir" \
+    --argjson decisions "$boundary_decisions" \
+    '{project_id:$id, scan_depth:"system", output:$out,
+      redact_root_path:true, no_snippets:false,
+      boundary_decisions:$decisions}'
+}
+
+proposal_value() {
+  local proposals_json="$1"
+  local path="$2"
+  local filter="$3"
+  jq -r --arg path "$path" \
+    ".[] | select(.target.path == \$path) | $filter" \
+    <<<"$proposals_json"
+}
+
+require_tools
+kai_parse_common_args "$@"
+if [[ ${#KAI_EXTRA_ARGS[@]} -gt 0 ]]; then
+  kai_die "Unknown option: ${KAI_EXTRA_ARGS[*]}"
+fi
+kai_bootstrap_server
+
+kai_section "Setup: import demo project with two boundary targets"
+DEMO_PROJECT_DIR="$(make_demo_project)"
+PROJECT_ID="$(kai_import_project "$DEMO_PROJECT_DIR")"
+BEFORE_MAP="$(setup_get "/api/map")"
+
+kai_section "First scan: collect all pending boundary proposals at once"
+FIRST_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
+api_call POST "/api/scans" "$FIRST_BODY"
+[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected first scan HTTP: $LAST_STATUS"
+FIRST_SCAN="$LAST_BODY"
+FIRST_STATUS="$(jq_get "$FIRST_SCAN" '.status')"
+[[ "$FIRST_STATUS" == "requires_boundary_decision" ]] \
+  || kai_die "Expected requires_boundary_decision, got $FIRST_STATUS"
+[[ "$(jq_get "$FIRST_SCAN" '.build_result == null')" == "true" ]] \
+  || kai_die "Expected build_result=null for pending boundary decision"
+
+PROPOSALS_JSON="$(jq -c '.boundary_proposals' <<<"$FIRST_SCAN")"
+PROPOSAL_COUNT="$(jq_get "$FIRST_SCAN" '.boundary_proposals | length')"
+PROPOSAL_PATHS="$(jq -r '.boundary_proposals[].target.path' <<<"$FIRST_SCAN" \
+  | sort | paste -sd ',' -)"
+[[ "$PROPOSAL_COUNT" == "2" ]] \
+  || kai_die "Expected 2 boundary proposals, got $PROPOSAL_COUNT"
+[[ "$PROPOSAL_PATHS" == ".env,vector_store/data.index" ]] \
+  || kai_die "Unexpected proposal paths: $PROPOSAL_PATHS"
+if grep -Fq 'sk-live-secret-value' <<<"$FIRST_SCAN"; then
+  kai_die "Raw secret leaked in first scan response"
+fi
+if grep -Fq "$DEMO_PROJECT_DIR" <<<"$FIRST_SCAN"; then
+  kai_die "Local absolute path leaked in first scan response"
+fi
+
+AFTER_PENDING_MAP="$(setup_get "/api/map")"
+if [[ "$(normalized_json "$BEFORE_MAP")" != "$(normalized_json "$AFTER_PENDING_MAP")" ]]; then
+  kai_die "Pending boundary decision unexpectedly updated /api/map"
+fi
+
+kai_section "Second scan: submit every boundary decision in one request"
+ENV_FINGERPRINT="$(proposal_value "$PROPOSALS_JSON" ".env" '.target.fingerprint')"
+VECTOR_FINGERPRINT="$(proposal_value \
+  "$PROPOSALS_JSON" \
+  "vector_store/data.index" \
+  '.target.fingerprint')"
+[[ -n "$ENV_FINGERPRINT" && -n "$VECTOR_FINGERPRINT" ]] \
+  || kai_die "Could not derive proposal fingerprints"
+DECISIONS="$(jq -n \
+  --arg env_fp "$ENV_FINGERPRINT" \
+  --arg vector_fp "$VECTOR_FINGERPRINT" \
+  '[
+    {
+      target_path: ".env",
+      fingerprint: $env_fp,
+      decision: "scan_this_run",
+      reason: "User confirmed this config for the current scan."
+    },
+    {
+      target_path: "vector_store/data.index",
+      fingerprint: $vector_fp,
+      decision: "skip_this_run",
+      reason: "User skipped this local persistence file for the current scan."
+    }
+  ]')"
+SECOND_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR" "$DECISIONS")"
+api_call POST "/api/scans" "$SECOND_BODY"
+[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected second scan HTTP: $LAST_STATUS"
+SECOND_SCAN="$LAST_BODY"
+SECOND_STATUS="$(jq_get "$SECOND_SCAN" '.status')"
+SECOND_PROPOSALS="$(jq_get "$SECOND_SCAN" '.boundary_proposals | length')"
+SECOND_SCANNED="$(jq_get \
+  "$SECOND_SCAN" \
+  '.build_result.ai_system_map.scan_summary.files_scanned')"
+SECOND_SKIPPED="$(jq_get \
+  "$SECOND_SCAN" \
+  '.build_result.ai_system_map.scan_summary.files_skipped')"
+[[ "$SECOND_STATUS" == "completed" ]] \
+  || kai_die "Expected completed second scan, got $SECOND_STATUS"
+[[ "$SECOND_PROPOSALS" == "0" ]] \
+  || kai_die "Expected no boundary proposals after all decisions"
+[[ "$SECOND_SCANNED" == "2" ]] \
+  || kai_die "Expected files_scanned=2 after scanning .env and app.py, got $SECOND_SCANNED"
+[[ "$SECOND_SKIPPED" -ge 1 ]] \
+  || kai_die "Expected at least one skipped file after skip_this_run"
+if grep -Fq 'sk-live-secret-value' <<<"$SECOND_SCAN"; then
+  kai_die "Raw secret leaked in second scan response"
+fi
+
+AFTER_COMPLETED_MAP="$(setup_get "/api/map")"
+[[ "$(jq_get "$AFTER_COMPLETED_MAP" '.viewer_load_result.loaded')" == "true" ]] \
+  || kai_die "Completed scan did not update /api/map"
+
+kai_section "Third scan: same-run decisions are not remembered"
+THIRD_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
+api_call POST "/api/scans" "$THIRD_BODY"
+[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected third scan HTTP: $LAST_STATUS"
+THIRD_STATUS="$(jq_get "$LAST_BODY" '.status')"
+THIRD_COUNT="$(jq_get "$LAST_BODY" '.boundary_proposals | length')"
+[[ "$THIRD_STATUS" == "requires_boundary_decision" ]] \
+  || kai_die "Expected requires_boundary_decision third scan, got $THIRD_STATUS"
+[[ "$THIRD_COUNT" == "2" ]] \
+  || kai_die "Expected both proposals to be requested again, got $THIRD_COUNT"
+
+kai_section "PASS"
+echo "scan boundary multi-decision same-run gate behavior is correct"

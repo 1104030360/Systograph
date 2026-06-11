@@ -69,6 +69,7 @@ SCRIPTS=(
   "GET /api/mapping-proposals|trace_mapping_proposals_list.sh"
   "POST /api/mapping-proposals/{id}/decision|trace_mapping_proposals_decision.sh"
   "Scan boundary same-run gate|trace_scan_boundary_policy_overlay.sh"
+  "Scan boundary multi-decision gate|trace_scan_boundary_multi_decision_gate.sh"
 )
 
 RESULTS=()
