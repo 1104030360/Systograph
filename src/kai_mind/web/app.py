@@ -37,7 +37,6 @@ from kai_mind.web.routes import (
     mapping_proposal_routes,
     mapping_routes,
     project_routes,
-    scan_boundary_routes,
     scan_routes,
     trace_routes,
     viewer_routes,
@@ -108,7 +107,6 @@ def create_app(
     )
     app.state.map_build_service = map_build_service or MapBuildService(
         manual_mapping_service=app.state.manual_mapping_service,
-        scan_boundary_review_service=app.state.scan_boundary_review_service,
     )
     app.state.detail_scan_service = detail_scan_service or DetailScanService()
     app.state.query_trace_service = query_trace_service or QueryTraceService()
@@ -127,7 +125,6 @@ def create_app(
     app.include_router(mapping_proposal_routes.router)
     app.include_router(mapping_routes.router)
     app.include_router(project_routes.router)
-    app.include_router(scan_boundary_routes.router)
     app.include_router(scan_routes.router)
     app.include_router(trace_routes.router)
     app.include_router(viewer_routes.router)

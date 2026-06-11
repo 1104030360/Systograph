@@ -1,4 +1,4 @@
-"""Domain models for scan boundary review proposals and decisions."""
+"""Domain models for same-run scan boundary review."""
 
 from __future__ import annotations
 
@@ -19,17 +19,13 @@ class ScanBoundaryProposalStatus(StrEnum):
     """Lifecycle state for a scan boundary proposal."""
 
     PENDING = "pending_user_confirmation"
-    DECIDED = "decided"
 
 
 class ScanBoundaryDecisionAction(StrEnum):
-    """Supported user decisions for future scan policy overlay."""
+    """Supported one-run user decisions for scan policy overlay."""
 
+    SCAN_THIS_RUN = "scan_this_run"
     SKIP_THIS_RUN = "skip_this_run"
-    ALWAYS_SKIP = "always_skip"
-    METADATA_ONLY = "metadata_only"
-    MASKED_SUMMARY_ONLY = "masked_summary_only"
-    SCAN_NORMALLY = "scan_normally"
 
 
 class ScanBoundaryTarget(ScanModel):
@@ -64,7 +60,7 @@ class ScanBoundaryEvidencePacket(ScanModel):
 
 
 class ScanBoundaryProposal(ScanModel):
-    """Pending user confirmation for future scan boundary handling."""
+    """Pending user confirmation before the current scan can continue."""
 
     proposal_id: str
     project_id: str
@@ -73,11 +69,8 @@ class ScanBoundaryProposal(ScanModel):
     evidence_packet: ScanBoundaryEvidencePacket
     available_actions: list[ScanBoundaryDecisionAction] = Field(
         default_factory=lambda: [
+            ScanBoundaryDecisionAction.SCAN_THIS_RUN,
             ScanBoundaryDecisionAction.SKIP_THIS_RUN,
-            ScanBoundaryDecisionAction.ALWAYS_SKIP,
-            ScanBoundaryDecisionAction.METADATA_ONLY,
-            ScanBoundaryDecisionAction.MASKED_SUMMARY_ONLY,
-            ScanBoundaryDecisionAction.SCAN_NORMALLY,
         ]
     )
     created_at: str
@@ -85,34 +78,12 @@ class ScanBoundaryProposal(ScanModel):
 
 
 class ScanBoundaryDecisionRequest(ScanModel):
-    """User decision payload for a pending boundary proposal."""
+    """One scan-run decision payload for one boundary target."""
 
+    target_path: str
+    fingerprint: str
     decision: ScanBoundaryDecisionAction
     reason: str | None = Field(
         default=None,
         max_length=MAX_BOUNDARY_REASON_CHARS,
     )
-
-
-class ScanBoundaryDecision(ScanModel):
-    """Persisted decision that can be applied to a future scan rerun."""
-
-    decision_id: str
-    proposal_id: str
-    project_id: str
-    target: ScanBoundaryTarget
-    decision: ScanBoundaryDecisionAction
-    reason: str | None = Field(
-        default=None,
-        max_length=MAX_BOUNDARY_REASON_CHARS,
-    )
-    decision_digest: str
-    created_at: str
-    applied_at: str | None = None
-
-
-class ScanBoundaryDecisionResult(ScanModel):
-    """Decision route response."""
-
-    proposal: ScanBoundaryProposal
-    decision: ScanBoundaryDecision | None = None

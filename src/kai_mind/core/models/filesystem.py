@@ -35,10 +35,6 @@ class SkipReason(StrEnum):
     SYMLINK_OUTSIDE_ROOT = "symlink_outside_root"
     UNREADABLE = "unreadable"
     SKIPPED_BY_POLICY_OVERLAY = "skipped_by_policy_overlay"
-    METADATA_ONLY_BY_POLICY_OVERLAY = "metadata_only_by_policy_overlay"
-    MASKED_SUMMARY_ONLY_BY_POLICY_OVERLAY = (
-        "masked_summary_only_by_policy_overlay"
-    )
     PENDING_BOUNDARY_REVIEW = "pending_boundary_review"
 
 

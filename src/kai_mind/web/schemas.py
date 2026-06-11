@@ -21,7 +21,6 @@ from kai_mind.core.models.mapping import (
 from kai_mind.core.models.scan_boundary import (
     ScanBoundaryDecisionAction,
     ScanBoundaryDecisionRequest,
-    ScanBoundaryDecisionResult,
     ScanBoundaryProposal,
 )
 from kai_mind.core.models.system_map import DetailScanResult, RagSystemMap
@@ -71,13 +70,25 @@ class ScanCreateRequest(WebSchema):
     output: str = "outputs"
     redact_root_path: bool = True
     no_snippets: bool = False
+    boundary_decisions: list[ScanBoundaryDecisionRequest] = Field(
+        default_factory=list
+    )
 
 
 class ScanCreateResponse(WebSchema):
     scan_id: str
     project_id: str
-    status: Literal["completed", "error"]
-    build_result: MapBuildResult
+    status: Literal["completed", "error", "requires_boundary_decision"]
+    build_result: MapBuildResult | None = None
+    boundary_proposals: list[ScanBoundaryProposal] = Field(
+        default_factory=list
+    )
+    available_boundary_actions: list[ScanBoundaryDecisionAction] = Field(
+        default_factory=lambda: [
+            ScanBoundaryDecisionAction.SCAN_THIS_RUN,
+            ScanBoundaryDecisionAction.SKIP_THIS_RUN,
+        ]
+    )
 
 
 class ScanProgressEvent(WebSchema):
@@ -153,24 +164,6 @@ class MappingProposalListResponse(WebSchema):
     )
 
 
-class ScanBoundaryProposalCreateRequest(WebSchema):
-    project_id: str
-
-
-class ScanBoundaryProposalListResponse(WebSchema):
-    project_id: str
-    proposals: list[ScanBoundaryProposal]
-    available_actions: list[ScanBoundaryDecisionAction] = Field(
-        default_factory=lambda: [
-            ScanBoundaryDecisionAction.SKIP_THIS_RUN,
-            ScanBoundaryDecisionAction.ALWAYS_SKIP,
-            ScanBoundaryDecisionAction.METADATA_ONLY,
-            ScanBoundaryDecisionAction.MASKED_SUMMARY_ONLY,
-            ScanBoundaryDecisionAction.SCAN_NORMALLY,
-        ]
-    )
-
-
 __all__ = [
     "DetailScanCreateRequest",
     "DetailScanResponse",
@@ -188,10 +181,7 @@ __all__ = [
     "ProjectImportRequest",
     "ProjectImportResponse",
     "ScanBoundaryDecisionRequest",
-    "ScanBoundaryDecisionResult",
     "ScanBoundaryProposal",
-    "ScanBoundaryProposalCreateRequest",
-    "ScanBoundaryProposalListResponse",
     "ScanCreateRequest",
     "ScanCreateResponse",
     "ScanProgressEvent",

@@ -25,7 +25,7 @@ viewer_load_result.graph_view_model
 - 不使用 `allow_origins=["*"]` 作為本地 scanner API 預設。
 - API 只接受 local path project import；不支援 upload / zip / multipart。
 - Scanner 行為沿用 core providers 的 read-only 與 skip policy，不因 API request 放寬大檔、binary、model weights、dependency dirs 的掃描限制。
-- Scan boundary decisions 只保存於 KAI-Mind-managed repository，不能寫回被掃描 repo，也不能修改既有 artifact。
+- Scan boundary decisions 只存在於本次 `POST /api/scans` request，不能寫回被掃描 repo、不能保存成長期偏好，也不能修改既有 artifact。
 
 ## Canonical Truth
 
@@ -349,7 +349,7 @@ Response:
 - `scan_depth` 目前只允許 `system`。
 - `status` 依 `MapBuildResult.status` 對應為 `completed` 或 `error`。
 - 同一個 `project_id` 若已有 confirmed manual mappings，下一次 scan / normalize 會套用這些 decisions；API 不會直接修改既有 `ai_system_map.json`。
-- 同一個 `project_id` 若已有 scan boundary decisions，下一次 scan 會先在 deterministic inventory 套用 policy overlay，再交給 providers；overlay 必須 fingerprint match 才生效，且同時作用於 `inventory.files` 與 `inventory.skipped` boundary target。
+- Scan boundary review 內嵌在 `POST /api/scans`。若本次 scan 有未決 suspicious file，API 先回 `requires_boundary_decision`，不建立 map；使用者帶本次 `boundary_decisions` 重送後才正式掃描。
 
 ## Detail Scan Routes
 
@@ -824,68 +824,48 @@ Response excerpt (abbreviated; do not use this as the full frontend type):
 
 ## Scan Boundary Proposal Routes
 
-用途：針對掃描邊界建立 pending-only review flow，讓使用者決定 `.env`、large/binary/generated/log、dependency/cache、model weights、vector persistence 等目標在下一次 scan 要正常掃、跳過、metadata-only 或 masked-summary-only。Project session scan 會先把未決 suspicious file hold 在 `pending_boundary_review`，避免第一次就交給 provider 深入讀取。這不是 component mapping，也不是 template import。
+用途：scan boundary review 已整合進 `POST /api/scans`，用 same-run gate 讓使用者在正式掃描前決定本次要不要掃 `.env`、secret-like config、vector persistence path 等 suspicious target。這不是 component mapping，也不是 template import，也不是長期 policy store。
 
 資料流：
 
 ```text
 project_id
-  -> POST /api/scans applies unresolved-boundary hold before providers
-  -> latest scanned ai_system_map.evidence[]
-  -> deterministic FileInventory / SkippedFile
+  -> POST /api/scans builds deterministic FileInventory
   -> ScanBoundaryReviewService
-  -> masked ScanBoundaryEvidencePacket
-  -> pending_user_confirmation proposal
-  -> user decision
-  -> next POST /api/scans inventory policy overlay
+  -> if unresolved: ScanCreateResponse.status = requires_boundary_decision
+  -> user sends boundary_decisions in POST /api/scans
+  -> ProjectScanService provider collection
+  -> MapBuildService writes map artifacts
 ```
 
-### GET /api/scan-boundary-proposals
-
-Request:
-
-```http
-GET /api/scan-boundary-proposals?project_id=project:...
-```
-
-Response:
+### POST /api/scans boundary decision request
 
 ```json
 {
   "project_id": "project:...",
-  "available_actions": [
-    "skip_this_run",
-    "always_skip",
-    "metadata_only",
-    "masked_summary_only",
-    "scan_normally"
-  ],
-  "proposals": []
+  "scan_depth": "system",
+  "output": "outputs",
+  "boundary_decisions": [
+    {
+      "target_path": ".env",
+      "fingerprint": "sha256:...",
+      "decision": "scan_this_run",
+      "reason": "Need this config for the current scan."
+    }
+  ]
 }
 ```
 
-規則：
-
-- `project_id` 不存在回傳 HTTP 404 `project_not_found`。
-- Response 只回傳 project-relative path、fingerprint、risk type、masked/bounded evidence packet。
-- Response 不得包含 raw secret、本機絕對路徑或 raw file contents。
-
-### POST /api/scan-boundary-proposals
-
-Request:
+Response excerpt when a decision is required:
 
 ```json
 {
-  "project_id": "project:..."
-}
-```
-
-Response excerpt:
-
-```json
-{
+  "scan_id": "scan:...",
   "project_id": "project:...",
-  "proposals": [
+  "status": "requires_boundary_decision",
+  "build_result": null,
+  "available_boundary_actions": ["scan_this_run", "skip_this_run"],
+  "boundary_proposals": [
     {
       "proposal_id": "scan-boundary-proposal:...",
       "status": "pending_user_confirmation",
@@ -909,63 +889,12 @@ Response excerpt:
 規則：
 
 - 必須走 project session flow：`POST /api/projects/import` -> `POST /api/scans`。
-- `project_id` 不存在回傳 HTTP 404 `project_not_found`。
-- `project_id` 尚未有 loaded map 回傳 HTTP 404 `map_not_loaded`。
-- `POST /api/map/build` 不建立 `project_id`，不能用來建立 scan boundary proposal。
-- 第一次 project scan 會先把 unresolved suspicious file 從 provider input 移到 `pending_boundary_review`；proposal create 只建立 review item，只做 bounded fingerprint，不保存或回傳 raw file contents。
-- Proposal create 不會修改 latest `/api/map` payload，不會回頭修改既有 `FileInventory`，也不會改 `ai_system_map.json`。
-- 同一路徑與 fingerprint 已有 proposal 時，create 會重用既有 proposal，避免重複 pending item。
-- 例外：若既有 proposal 對應的 decision 是 `skip_this_run`，且該 decision 已在下一次 scan 套用並記錄 `applied_at`，則不再重用；會建立新的 `pending_user_confirmation` proposal，讓使用者重新決策。
-
-### POST /api/scan-boundary-proposals/{proposal_id}/decision
-
-Request:
-
-```json
-{
-  "decision": "always_skip",
-  "reason": "Local-only secret config."
-}
-```
-
-Allowed decisions:
-
-- `skip_this_run`
-- `always_skip`
-- `metadata_only`
-- `masked_summary_only`
-- `scan_normally`
-
-Response excerpt:
-
-```json
-{
-  "proposal": {
-    "proposal_id": "scan-boundary-proposal:...",
-    "status": "decided"
-  },
-  "decision": {
-    "decision_id": "scan-boundary-decision:...",
-    "decision": "always_skip",
-    "decision_digest": "sha256:..."
-  }
-}
-```
-
-規則：
-
-- `proposal_id` 不存在回傳 HTTP 404 `proposal_not_found`。
-- 只有 `pending_user_confirmation` proposal 可以 decision；已 `decided` 的 proposal 再次 decision 會回 HTTP 422。
-- Decision 只寫入 KAI-Mind-managed repository，不寫入被掃描 repo。
-- `reason` 會先 mask secret，再 redact 本機絕對路徑；response 中的 `decision.reason` 不會回傳 raw secret 或 workspace 絕對路徑。
-- `skip_this_run` 只在下一次 fingerprint match 時生效一次；套用後 decision 會記錄 `applied_at`，後續若仍是 suspicious file 會回到 `pending_boundary_review`。
-- `scan_normally` 只有在 path + fingerprint 仍相同時才放行，讓該 target 交回一般 scanner/provider 規則。
-- `always_skip` / `metadata_only` / `masked_summary_only` 只有在 path + fingerprint 仍相同時才套用；若同一路徑內容或 metadata 改變，overlay 失效並回到 `pending_boundary_review`，避免新內容被舊決策直接放行或跳過。
-- Overlay 在 `ProjectScanService` provider collection 前套用，保留 skipped summary audit trail；不 retroactively mutate 已產生 artifact。
-- `inventory.files` 與 `inventory.skipped` 內的 boundary target 都會套用 overlay。
-- 對原本就在 `inventory.files` 的 suspicious file：依 decision 移到 `skipped`，reason 可能是 `skipped_by_policy_overlay`、`metadata_only_by_policy_overlay` 或 `masked_summary_only_by_policy_overlay`。
-- 對原本就在 `inventory.skipped` 的 model/log/dependency/cache target：不會被移回 `files`；overlay 會透過 `skipped_files` audit reason 反映 policy，例如 `metadata_only_by_policy_overlay`、`masked_summary_only_by_policy_overlay` 或 `skipped_by_policy_overlay`。
-- `skip_this_run` 在 skipped target 上同樣只生效一次；`applied_at` 記錄後，下一次 scan 會回到原始 skipped reason 或 `pending_boundary_review`。
+- 若有 unresolved boundary proposal，`POST /api/scans` 不會寫 artifact，也不會更新 latest `/api/map` payload。
+- `scan_this_run` 只讓 matching `target_path + fingerprint` 在本次 scan 進入 provider collection。
+- `skip_this_run` 只讓 matching target 在本次 scan 進入 skipped summary，reason 為 `skipped_by_policy_overlay`。
+- Decision 不保存到 repository，不會形成歷史偏好或永久跳過。
+- `POST /api/map/build` 不建立 `project_id`，也不走 scan boundary gate。
+- Response 只回傳 project-relative path、fingerprint、risk type、masked/bounded evidence packet，不得包含 raw secret、本機絕對路徑或 raw file contents。
 
 ### Optional NVIDIA NIM Provider
 

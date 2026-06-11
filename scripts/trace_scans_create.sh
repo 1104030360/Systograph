@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Trace: POST /api/scans
 #
-# Input  : {project_id, scan_depth:"system", output, redact_root_path, no_snippets}
-# Output : ScanCreateResponse {scan_id, project_id, status, build_result}
+# Input  : {project_id, scan_depth:"system", output, redact_root_path,
+#          no_snippets, boundary_decisions?}
+# Output : ScanCreateResponse {scan_id, project_id, status, build_result,
+#          boundary_proposals, available_boundary_actions}
 #          404 "Project not found" when the project_id was never imported.
 #
 # A project_id must be imported first, so this script imports the project then

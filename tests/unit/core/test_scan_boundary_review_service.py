@@ -16,7 +16,6 @@ from kai_mind.core.models.scan_boundary import (
 )
 from kai_mind.core.models.system_map import Evidence
 from kai_mind.core.services.scan_boundary_review_service import (
-    InMemoryScanBoundaryRepository,
     ScanBoundaryReviewService,
 )
 
@@ -79,26 +78,21 @@ def test_create_proposals_uses_masked_bounded_packets_and_fingerprints(
 
     assert [proposal.status for proposal in proposals] == [
         ScanBoundaryProposalStatus.PENDING,
-        ScanBoundaryProposalStatus.PENDING,
-        ScanBoundaryProposalStatus.PENDING,
     ]
-    by_path = {proposal.target.path: proposal for proposal in proposals}
-    env_proposal = by_path[".env"]
-    assert env_proposal.target.risk_type == "secret_like_config"
-    assert env_proposal.target.fingerprint.startswith("sha256:")
-    assert env_proposal.evidence_packet.masked_evidence_values == ["[MASKED]"]
-    assert "sk-live-secret-value" not in env_proposal.model_dump_json()
-    assert str(tmp_path) not in env_proposal.model_dump_json()
-
-    assert by_path["models/llm.gguf"].target.risk_type == (
-        "model_or_vector_persistence"
-    )
-    assert by_path["logs/scan.log"].target.risk_type == (
-        "large_binary_generated_or_log"
-    )
+    proposal = proposals[0]
+    assert proposal.target.path == ".env"
+    assert proposal.target.risk_type == "secret_like_config"
+    assert proposal.target.fingerprint.startswith("sha256:")
+    assert [action.value for action in proposal.available_actions] == [
+        "scan_this_run",
+        "skip_this_run",
+    ]
+    assert proposal.evidence_packet.masked_evidence_values == ["[MASKED]"]
+    assert "sk-live-secret-value" not in proposal.model_dump_json()
+    assert str(tmp_path) not in proposal.model_dump_json()
 
 
-def test_unresolved_secret_like_file_is_held_before_provider_collection(
+def test_missing_decision_holds_secret_like_file_before_provider_collection(
     tmp_path: Path,
 ) -> None:
     project_root = tmp_path / "project"
@@ -117,7 +111,7 @@ def test_unresolved_secret_like_file_is_held_before_provider_collection(
         ],
     )
 
-    overlaid = ScanBoundaryReviewService().apply_policy_overlay(
+    overlaid = ScanBoundaryReviewService().apply_decisions(
         project_id="project:demo",
         project_root=project_root,
         inventory=inventory,
@@ -129,66 +123,7 @@ def test_unresolved_secret_like_file_is_held_before_provider_collection(
     ]
 
 
-def test_decision_applies_policy_overlay_only_when_fingerprint_matches(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    project_root.mkdir()
-    env_path = project_root / ".env"
-    env_path.write_text(
-        "OPENAI_API_KEY=sk-live-secret-value",
-        encoding="utf-8",
-    )
-    inventory = FileInventory(
-        source=FileInventorySource.RECURSIVE,
-        project_root=str(project_root),
-        files=[FileRecord(path=".env", size_bytes=32)],
-    )
-    service = ScanBoundaryReviewService(
-        repository=InMemoryScanBoundaryRepository()
-    )
-    proposal = service.create_proposals(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )[0]
-
-    result = service.decide(
-        proposal.proposal_id,
-        ScanBoundaryDecisionRequest(
-            decision=ScanBoundaryDecisionAction.ALWAYS_SKIP,
-            reason="Known local developer secret file.",
-        ),
-    )
-    assert result.proposal.status == ScanBoundaryProposalStatus.DECIDED
-    assert result.decision is not None
-    assert result.decision.target.fingerprint == proposal.target.fingerprint
-
-    overlaid = service.apply_policy_overlay(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )
-
-    assert overlaid.files == []
-    assert [(item.path, item.reason) for item in overlaid.skipped] == [
-        (".env", SkipReason.SKIPPED_BY_POLICY_OVERLAY)
-    ]
-
-    env_path.write_text("OPENAI_API_KEY=sk-different-value", encoding="utf-8")
-    changed = service.apply_policy_overlay(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )
-
-    assert changed.files == []
-    assert [(item.path, item.reason) for item in changed.skipped] == [
-        (".env", SkipReason.PENDING_BOUNDARY_REVIEW)
-    ]
-
-
-def test_scan_normally_decision_allows_matching_secret_like_file(
+def test_scan_this_run_decision_allows_matching_file_only_for_current_overlay(
     tmp_path: Path,
 ) -> None:
     project_root = tmp_path / "project"
@@ -208,71 +143,35 @@ def test_scan_normally_decision_allows_matching_secret_like_file(
         project_root=project_root,
         inventory=inventory,
     )[0]
-    service.decide(
-        proposal.proposal_id,
+    decisions = [
         ScanBoundaryDecisionRequest(
-            decision=ScanBoundaryDecisionAction.SCAN_NORMALLY,
-            reason="Approved for normal config parsing.",
-        ),
-    )
-
-    overlaid = service.apply_policy_overlay(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )
-
-    assert [item.path for item in overlaid.files] == [".env"]
-    assert overlaid.skipped == []
-
-
-def test_skip_this_run_decision_is_consumed_after_first_overlay(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    project_root.mkdir()
-    (project_root / ".env").write_text("TOKEN=sk-live-secret-value")
-    inventory = FileInventory(
-        source=FileInventorySource.RECURSIVE,
-        project_root=str(project_root),
-        files=[FileRecord(path=".env", size_bytes=26)],
-    )
-    service = ScanBoundaryReviewService()
-    proposal = service.create_proposals(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )[0]
-    service.decide(
-        proposal.proposal_id,
-        ScanBoundaryDecisionRequest(
-            decision=ScanBoundaryDecisionAction.SKIP_THIS_RUN,
-            reason="Skip once for local demo.",
-        ),
-    )
-
-    first = service.apply_policy_overlay(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )
-    second = service.apply_policy_overlay(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )
-
-    assert first.files == []
-    assert [(item.path, item.reason) for item in first.skipped] == [
-        (".env", SkipReason.SKIPPED_BY_POLICY_OVERLAY)
+            target_path=".env",
+            fingerprint=proposal.target.fingerprint,
+            decision=ScanBoundaryDecisionAction.SCAN_THIS_RUN,
+        )
     ]
+
+    first = service.apply_decisions(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+        decisions=decisions,
+    )
+    second = service.apply_decisions(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )
+
+    assert [item.path for item in first.files] == [".env"]
+    assert first.skipped == []
     assert second.files == []
     assert [(item.path, item.reason) for item in second.skipped] == [
         (".env", SkipReason.PENDING_BOUNDARY_REVIEW)
     ]
 
 
-def test_consumed_skip_this_run_allows_new_pending_proposal(
+def test_skip_this_run_decision_skips_matching_file_for_current_overlay(
     tmp_path: Path,
 ) -> None:
     project_root = tmp_path / "project"
@@ -289,31 +188,76 @@ def test_consumed_skip_this_run_allows_new_pending_proposal(
         project_root=project_root,
         inventory=inventory,
     )[0]
-    service.decide(
-        proposal.proposal_id,
-        ScanBoundaryDecisionRequest(
-            decision=ScanBoundaryDecisionAction.SKIP_THIS_RUN,
-            reason="Skip once for local demo.",
-        ),
-    )
-    service.apply_policy_overlay(
+
+    overlaid = service.apply_decisions(
         project_id="project:demo",
         project_root=project_root,
         inventory=inventory,
+        decisions=[
+            ScanBoundaryDecisionRequest(
+                target_path=".env",
+                fingerprint=proposal.target.fingerprint,
+                decision=ScanBoundaryDecisionAction.SKIP_THIS_RUN,
+                reason="Skip this local file.",
+            )
+        ],
     )
+
+    assert overlaid.files == []
+    assert [(item.path, item.reason) for item in overlaid.skipped] == [
+        (".env", SkipReason.SKIPPED_BY_POLICY_OVERLAY)
+    ]
+
+
+def test_stale_decision_returns_pending_proposal_and_holds_file(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    env_path = project_root / ".env"
+    env_path.write_text("TOKEN=sk-live-secret-value")
+    inventory = FileInventory(
+        source=FileInventorySource.RECURSIVE,
+        project_root=str(project_root),
+        files=[FileRecord(path=".env", size_bytes=26)],
+    )
+    service = ScanBoundaryReviewService()
+    proposal = service.create_proposals(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )[0]
+    env_path.write_text("TOKEN=sk-different-value")
+    decisions = [
+        ScanBoundaryDecisionRequest(
+            target_path=".env",
+            fingerprint=proposal.target.fingerprint,
+            decision=ScanBoundaryDecisionAction.SCAN_THIS_RUN,
+        )
+    ]
 
     proposals = service.create_proposals(
         project_id="project:demo",
         project_root=project_root,
         inventory=inventory,
+        decisions=decisions,
+    )
+    overlaid = service.apply_decisions(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+        decisions=decisions,
     )
 
     assert len(proposals) == 1
-    assert proposals[0].proposal_id != proposal.proposal_id
-    assert proposals[0].status == ScanBoundaryProposalStatus.PENDING
+    assert proposals[0].target.fingerprint != proposal.target.fingerprint
+    assert overlaid.files == []
+    assert [(item.path, item.reason) for item in overlaid.skipped] == [
+        (".env", SkipReason.PENDING_BOUNDARY_REVIEW)
+    ]
 
 
-def test_skipped_target_decision_replaces_audit_reason(
+def test_skipped_targets_do_not_create_user_decision_proposals(
     tmp_path: Path,
 ) -> None:
     project_root = tmp_path / "project"
@@ -331,111 +275,61 @@ def test_skipped_target_decision_replaces_audit_reason(
             )
         ],
     )
-    service = ScanBoundaryReviewService()
-    proposal = service.create_proposals(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )[0]
-    service.decide(
-        proposal.proposal_id,
-        ScanBoundaryDecisionRequest(
-            decision=ScanBoundaryDecisionAction.METADATA_ONLY,
-            reason="Use metadata-only audit for model weights.",
-        ),
-    )
-
-    overlaid = service.apply_policy_overlay(
+    proposals = ScanBoundaryReviewService().create_proposals(
         project_id="project:demo",
         project_root=project_root,
         inventory=inventory,
     )
 
-    assert overlaid.files == []
-    assert [(item.path, item.reason) for item in overlaid.skipped] == [
-        ("models/llm.gguf", SkipReason.METADATA_ONLY_BY_POLICY_OVERLAY)
-    ]
+    assert proposals == []
 
 
-def test_skip_this_run_is_consumed_for_skipped_targets(
+def test_vector_source_code_is_not_treated_as_persistence_artifact(
     tmp_path: Path,
 ) -> None:
     project_root = tmp_path / "project"
-    project_root.mkdir()
-    (project_root / "logs").mkdir()
-    (project_root / "logs" / "scan.log").write_text("x" * 100)
+    source_dir = project_root / "src"
+    persistence_dir = project_root / "data" / "vector_store"
+    source_dir.mkdir(parents=True)
+    persistence_dir.mkdir(parents=True)
+    (source_dir / "vector_store.py").write_text(
+        "class VectorStore: pass\n",
+        encoding="utf-8",
+    )
+    (persistence_dir / "index.faiss").write_bytes(b"faiss-index")
     inventory = FileInventory(
         source=FileInventorySource.RECURSIVE,
         project_root=str(project_root),
-        skipped=[
-            SkippedFile(
-                path="logs/scan.log",
-                reason=SkipReason.LARGE_LOG,
-                size_bytes=100,
-            )
+        files=[
+            FileRecord(path="src/vector_store.py", size_bytes=24),
+            FileRecord(path="data/vector_store/index.faiss", size_bytes=11),
         ],
     )
-    service = ScanBoundaryReviewService()
-    proposal = service.create_proposals(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )[0]
-    service.decide(
-        proposal.proposal_id,
-        ScanBoundaryDecisionRequest(
-            decision=ScanBoundaryDecisionAction.SKIP_THIS_RUN,
-            reason="Skip once for local demo.",
-        ),
-    )
 
-    first = service.apply_policy_overlay(
+    proposals = ScanBoundaryReviewService().create_proposals(
         project_id="project:demo",
         project_root=project_root,
         inventory=inventory,
     )
-    second = service.apply_policy_overlay(
+    overlaid = ScanBoundaryReviewService().apply_decisions(
         project_id="project:demo",
         project_root=project_root,
         inventory=inventory,
     )
 
-    assert [(item.path, item.reason) for item in first.skipped] == [
-        ("logs/scan.log", SkipReason.SKIPPED_BY_POLICY_OVERLAY)
+    assert [proposal.target.path for proposal in proposals] == [
+        "data/vector_store/index.faiss"
     ]
-    assert [(item.path, item.reason) for item in second.skipped] == [
-        ("logs/scan.log", SkipReason.LARGE_LOG)
+    assert [item.path for item in overlaid.files] == ["src/vector_store.py"]
+    assert [(item.path, item.reason) for item in overlaid.skipped] == [
+        (
+            "data/vector_store/index.faiss",
+            SkipReason.PENDING_BOUNDARY_REVIEW,
+        )
     ]
 
 
-def test_decision_reason_redacts_local_absolute_paths(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    project_root.mkdir()
-    (project_root / ".env").write_text("TOKEN=sk-live-secret-value")
-    inventory = FileInventory(
-        source=FileInventorySource.RECURSIVE,
-        project_root=str(project_root),
-        files=[FileRecord(path=".env", size_bytes=26)],
-    )
-    service = ScanBoundaryReviewService()
-    proposal = service.create_proposals(
-        project_id="project:demo",
-        project_root=project_root,
-        inventory=inventory,
-    )[0]
+def test_removed_long_term_policy_actions_are_not_valid_decisions() -> None:
+    valid_actions = {action.value for action in ScanBoundaryDecisionAction}
 
-    result = service.decide(
-        proposal.proposal_id,
-        ScanBoundaryDecisionRequest(
-            decision=ScanBoundaryDecisionAction.ALWAYS_SKIP,
-            reason=f"See {project_root / '.env'} before skipping.",
-        ),
-    )
-
-    assert result.decision is not None
-    reason = result.decision.reason
-    assert reason is not None
-    assert str(project_root) not in reason
-    assert "<LOCAL_PATH>" in reason
+    assert valid_actions == {"scan_this_run", "skip_this_run"}

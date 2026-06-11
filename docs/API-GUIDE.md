@@ -22,7 +22,7 @@
 - 只要 request `Origin` 在 allowlist 中，包含 413 / 500 在內的錯誤回應都會保留 CORS header，讓前端可讀取錯誤內容。
 - Session 狀態存在記憶體中，重啟後端會清空，`project_id` 需重新 import。
 - **兩種流程**：
-  - **Project session**（`import` → `scans`）：建立 `project_id`，掃描結果綁在該 project 上。`detail-scans`、`mapping-proposals`、`scan-boundary-proposals`、`mappings` 都必須走這條。
+  - **Project session**（`import` → `scans`）：建立 `project_id`，掃描結果綁在該 project 上。`detail-scans`、`mapping-proposals`、`mappings` 都必須走這條。Scan boundary review 內嵌在 `POST /api/scans` 的正式掃描前 gate。
   - **Viewer demo**（`map/build`）：只掃 path、更新 latest viewer payload，**不建立 `project_id`**。適合快速載圖，不能接後續 project-scoped API。
 - `graph_view_model` 是前端渲染輸入；它是投影，不是 canonical truth，前端不應回寫。
 
@@ -81,7 +81,7 @@ Response `200`：
 
 ### POST /api/scans
 
-用已 import 的 `project_id` 執行 L1 系統掃描（同步），完成後會更新 `/api/map`。
+用已 import 的 `project_id` 執行 L1 系統掃描（同步）。正式掃描前會先做 scan boundary preflight；若有 `.env`、secret-like config、vector persistence path 等需要使用者確認的 target，response 會先回 `requires_boundary_decision`，不產生 map、不寫 artifact、不更新 `/api/map`。使用者在同一個 endpoint 帶本次 `boundary_decisions` 後，才會正式掃描並更新 `/api/map`。
 
 ```http
 POST /api/scans
@@ -93,11 +93,12 @@ POST /api/scans
   "scan_depth": "system",
   "output": "outputs",
   "redact_root_path": true,
-  "no_snippets": false
+  "no_snippets": false,
+  "boundary_decisions": []
 }
 ```
 
-Response `200`：
+若不需要人工決定，或已提供完整本次 decisions，Response `200`：
 
 ```ts
 {
@@ -105,12 +106,62 @@ Response `200`：
   project_id: string;
   status: "completed" | "error";
   build_result: MapBuildResult; // 見 POST /api/map/build
+  boundary_proposals: [];
+  available_boundary_actions: ["scan_this_run", "skip_this_run"];
 }
 ```
+
+若需要使用者先決定本次掃不掃，Response `200`：
+
+```ts
+{
+  scan_id: string;
+  project_id: string;
+  status: "requires_boundary_decision";
+  build_result: null;
+  boundary_proposals: ScanBoundaryProposal[];
+  available_boundary_actions: ["scan_this_run", "skip_this_run"];
+}
+```
+
+把本次 decision 送回同一個 endpoint：
+
+```json
+{
+  "project_id": "project:<uuid>",
+  "scan_depth": "system",
+  "output": "outputs",
+  "redact_root_path": true,
+  "no_snippets": false,
+  "boundary_decisions": [
+    {
+      "target_path": ".env",
+      "fingerprint": "sha256:...",
+      "decision": "scan_this_run",
+      "reason": "Need this config for the current scan."
+    }
+  ]
+}
+```
+
+- `scan_this_run`：只讓該 target 在這一次 scan 進入 provider collection。
+- `skip_this_run`：只在這一次 scan 把該 target 從 provider collection 排除。API-visible 結果是本次 `files_scanned` 下降、`files_skipped` 上升；內部 inventory reason 為 `skipped_by_policy_overlay`，不會作為前端可依賴的 canonical map 欄位輸出。
+- Decision 必須 match `target_path + fingerprint`；檔案內容或 metadata 改變時，舊 decision 不套用，API 會重新回 `requires_boundary_decision`。
+- Decision 不會保存成歷史偏好，也不會影響下一次 scan。
+- 已由 deterministic scanner hard-skip 的 large/binary/generated/log、dependency/cache、model weights 等 target 只留在 skipped audit trail，不產生使用者 decision proposal。
+
+前端建議流程：
+
+1. 使用者按「開始掃描」後，前端先送一次 `POST /api/scans`。
+2. 若 response 是 `requires_boundary_decision`，前端一次列出 `boundary_proposals` 內所有項目，不要逐項呼叫 API。
+3. 使用者針對所有項目選完 `scan_this_run` / `skip_this_run` 後，前端用同一個 `POST /api/scans` 一次送回完整 `boundary_decisions`。
+4. 第二次 response 是 `completed` 時才顯示正式掃描結果；若再次回 `requires_boundary_decision`，代表 decision 不足或 fingerprint 已 stale，前端應重新顯示新的確認清單。
+5. UI 文案應使用「確認本次掃描範圍」與「確認並繼續掃描」，不要說「重新上傳」或「下一次才生效」。
 
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |
 | `Project not found` | 404 | `project_id` 未 import 或後端已重啟 |
+| 驗證失敗 | 422 | `boundary_decisions` action/path/fingerprint payload 不合法 |
 
 ### GET /api/scan/events
 
@@ -549,122 +600,27 @@ Response `200`：
 
 ---
 
-## 7. Scan Boundary Proposals（掃描邊界審查）
+## 7. Scan Boundary Same-Run Gate（掃描邊界審查）
 
-針對 `.env`、large/binary/generated/log、dependency/cache、model weights、vector persistence 等高風險掃描邊界建立 pending proposal。Project session scan 會先把尚未決定的 suspicious file 移到 `pending_boundary_review`，避免第一次就交給 provider 深入讀取；使用者 decision 只保存於 KAI-Mind-managed repository，不修改被掃描 repo，也不 retroactively 修改既有 `ai_system_map.json`。
+Scan boundary review 已整合進 `POST /api/scans`，沒有獨立的 `/api/scan-boundary-proposals` endpoints。這個 gate 的目的，是在正式 provider collection 前先攔住 `.env`、secret-like config、vector persistence path 等需要人工確認的 target，避免第一次 scan 就深入讀取敏感或 local-only 檔案。
 
-**需先完成 project session**：`POST /api/projects/import` → `POST /api/scans`。`POST /api/map/build` demo flow 沒有 `project_id`，不能建立 scan boundary proposal。
+核心規則：
 
-### GET /api/scan-boundary-proposals
+- 使用者只選本次 scan 要不要掃該 target，不保存歷史偏好。
+- 只有 `scan_this_run` / `skip_this_run` 兩個 action。
+- `target_path + fingerprint` 必須 match 才套用 decision。
+- 若 decision 不足或已 stale，`POST /api/scans` 會回 `requires_boundary_decision`，且不更新 `/api/map`。
+- `POST /api/map/build` viewer demo flow 不走這個 gate。
 
-```http
-GET /api/scan-boundary-proposals?project_id=project:<uuid>
-```
-
-Response `200`：
-
-```ts
-{
-  project_id: string;
-  proposals: ScanBoundaryProposal[];
-  available_actions: [
-    "skip_this_run",
-    "always_skip",
-    "metadata_only",
-    "masked_summary_only",
-    "scan_normally"
-  ];
-}
-```
-
-### POST /api/scan-boundary-proposals
-
-從該 project 最新成功 scan 的 map evidence 與目前 deterministic inventory 建立 pending proposal。若第一次 scan 已先把 `.env` 類檔案 hold 在 `pending_boundary_review`，proposal 仍可由 deterministic inventory 建立，但 evidence packet 可能只有 path / risk / fingerprint，沒有 raw content。
-
-```http
-POST /api/scan-boundary-proposals
-```
-
-```json
-{ "project_id": "project:<uuid>" }
-```
-
-Response `200`：
-
-```ts
-{
-  project_id: string;
-  proposals: ScanBoundaryProposal[];
-  available_actions: string[];
-}
-```
-
-`ScanBoundaryProposal` 會包含 project-relative `target.path`、`risk_type`、`fingerprint`、bounded/masked `evidence_packet` 與 action list。Response 不包含 raw secret、本機絕對路徑或 raw file contents。
-
-- 同一路徑與 fingerprint 已有 proposal 時，create 會重用既有 proposal，避免重複 pending item。
-- 例外：若既有 proposal 對應的 decision 是 `skip_this_run`，且該 decision 已在下一次 scan 套用並記錄 `applied_at`，則不再重用；會建立新的 `pending_user_confirmation` proposal，讓使用者重新決策。
-
-| 錯誤 | 狀態 | 說明 |
-| --- | --- | --- |
-| `project_not_found` | 404 | `project_id` 不存在 |
-| `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
-| 驗證失敗 | 422 | proposal packet 包含不安全內容或 path contract 不合法 |
-
-### POST /api/scan-boundary-proposals/{proposal_id}/decision
-
-對 pending proposal 保存使用者決策。
-
-```http
-POST /api/scan-boundary-proposals/{proposal_id}/decision
-```
-
-```json
-{
-  "decision": "always_skip",
-  "reason": "Local-only secret config."
-}
-```
-
-Decision action：
-
-- `reason` 會先 mask secret，再 redact 本機絕對路徑；response 中的 `decision.reason` 不會回傳 raw secret 或 workspace 絕對路徑。
-- `skip_this_run`：下一次 fingerprint match 時跳過一次，套用後即消耗；之後若仍是 suspicious file，會回到 `pending_boundary_review`，不會自動正常掃描。
-- `always_skip`：只要 path + fingerprint 仍相同，未來 scan 都跳過。
-- `metadata_only`：未來 scan 保留 metadata-level audit trail，不交給 provider 做 deep collection。
-- `masked_summary_only`：未來 scan 只保留遮蔽摘要，不交給 provider 做 deep collection。
-- `scan_normally`：只要 path + fingerprint 仍相同，下一次 scan 不套用 pending hold 或 skip overlay，交回一般 scanner/provider 規則處理。
-
-若同一路徑內容或 metadata 改變，舊 decision 失效，該 suspicious file 會回到 `pending_boundary_review`，避免新內容被舊決策直接放行或跳過。
-
-Policy overlay 規則（下一次 `POST /api/scans`）：
-
-- Overlay 在 `ProjectScanService` provider collection 前套用，且必須 path + fingerprint match 才生效。
-- `inventory.files` 與 `inventory.skipped` 內的 boundary target 都會套用 overlay。
-- 對原本就在 `inventory.files` 的 suspicious file：依 decision 移到 `skipped`，reason 可能是 `skipped_by_policy_overlay`、`metadata_only_by_policy_overlay` 或 `masked_summary_only_by_policy_overlay`。
-- 對原本就在 `inventory.skipped` 的 model/log/dependency/cache target：不會被移回 `files`；overlay 會透過 `skipped_files` audit reason 反映 policy，例如 `metadata_only_by_policy_overlay`、`masked_summary_only_by_policy_overlay` 或 `skipped_by_policy_overlay`。
-- `skip_this_run` 在 skipped target 上同樣只生效一次；`applied_at` 記錄後，下一次 scan 會回到原始 skipped reason 或 `pending_boundary_review`。
-
-Response `200`：
-
-```ts
-{
-  proposal: ScanBoundaryProposal;      // status 變為 decided
-  decision: ScanBoundaryDecision | null;
-}
-```
-
-| 錯誤 | 狀態 | 說明 |
-| --- | --- | --- |
-| `proposal_not_found` | 404 | `proposal_id` 不存在 |
-| 驗證失敗 | 422 | decision payload 不合法，或 proposal 已 decision |
-
-可用以下 trace script 端到端驗證 policy overlay 行為：
+可用以下 trace script 端到端驗證 same-run gate 行為：
 
 ```bash
 scripts/trace_scan_boundary_policy_overlay.sh --start-server
+scripts/trace_scan_boundary_multi_decision_gate.sh --start-server
 ```
 
-它會建立含 `.env` 的暫時專案，驗證第一次 scan 先 hold `.env`，`scan_normally` decision 後第二次才交回一般 provider。
+它會建立含 `.env` 的暫時專案，驗證第一次 scan 回 `requires_boundary_decision`，第二次帶 `scan_this_run` 後完成正式掃描，第三次不帶 decision 會再次要求決策，並讀取完成後的 `map_json_path` 確認 `ai_system_map.json` 可被 `jq` 解析且未包含 raw secret。
+第二支 script 會建立含 `.env` 與 `vector_store/data.index` 的暫時專案，驗證第一次 response 一次回傳所有 pending proposals、pending 時不更新 `/api/map`、第二次可一次送回所有 `boundary_decisions` 後完成正式掃描，並確認存下來的 `ai_system_map.json` 與 response 的 `scan_summary.files_scanned/files_skipped` 一致。
 
 ---
 

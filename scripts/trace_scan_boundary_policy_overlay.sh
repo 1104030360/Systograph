@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Trace: scan boundary policy overlay behavior across two scans.
+# Trace: scan boundary same-run gate behavior.
 #
 # This verifies the Phase 24 safety behavior:
-# 1. An unresolved `.env` is held as pending boundary review on the first scan.
-# 2. A `scan_normally` decision allows the matching file on the next scan.
-# 3. Raw secret values are not returned in scan/proposal responses.
+# 1. A scan with unresolved `.env` returns requires_boundary_decision.
+# 2. Supplying `scan_this_run` decisions lets the current scan complete.
+# 3. Decisions are not remembered; the next scan asks again.
+# 4. Raw secret values are not returned in scan/proposal responses.
+# 5. A completed scan writes a readable ai_system_map.json artifact.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,7 +17,7 @@ DEMO_PROJECT_DIR=""
 
 usage() {
   cat <<'USAGE'
-Trace scan boundary policy overlay behavior.
+Trace scan boundary same-run gate behavior.
 
 Usage:
   scripts/trace_scan_boundary_policy_overlay.sh [common options]
@@ -43,6 +45,19 @@ jq_get() {
   echo "$json" | jq -r "$filter"
 }
 
+run_scan_body() {
+  local project_id="$1"
+  local output_dir="$2"
+  local boundary_decisions="${3:-[]}"
+  jq -n \
+    --arg id "$project_id" \
+    --arg out "$output_dir" \
+    --argjson decisions "$boundary_decisions" \
+    '{project_id:$id, scan_depth:"system", output:$out,
+      redact_root_path:true, no_snippets:false,
+      boundary_decisions:$decisions}'
+}
+
 require_tools
 kai_parse_common_args "$@"
 if [[ ${#KAI_EXTRA_ARGS[@]} -gt 0 ]]; then
@@ -53,67 +68,57 @@ kai_bootstrap_server
 kai_section "Setup: import demo project with .env"
 PROJECT_ID="$(kai_import_project "$(make_demo_project)")"
 
-kai_section "First scan: unresolved .env must not enter provider collection"
-FIRST_SCAN="$(kai_run_scan "$PROJECT_ID")"
-FIRST_SCANNED="$(jq_get "$FIRST_SCAN" '.build_result.ai_system_map.scan_summary.files_scanned')"
-FIRST_SKIPPED="$(jq_get "$FIRST_SCAN" '.build_result.ai_system_map.scan_summary.files_skipped')"
-[[ "$FIRST_SCANNED" == "1" ]] \
-  || kai_die "Expected first scan files_scanned=1, got $FIRST_SCANNED"
-[[ "$FIRST_SKIPPED" -ge 1 ]] \
-  || kai_die "Expected first scan files_skipped >= 1, got $FIRST_SKIPPED"
+kai_section "First scan: unresolved .env requires a decision"
+FIRST_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
+api_call POST "/api/scans" "$FIRST_BODY"
+[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected first scan HTTP: $LAST_STATUS"
+FIRST_SCAN="$LAST_BODY"
+FIRST_STATUS="$(jq_get "$FIRST_SCAN" '.status')"
+[[ "$FIRST_STATUS" == "requires_boundary_decision" ]] \
+  || kai_die "Expected requires_boundary_decision, got $FIRST_STATUS"
+PROPOSAL_ID="$(jq_get "$FIRST_SCAN" '.boundary_proposals[0].proposal_id // empty')"
+TARGET_PATH="$(jq_get "$FIRST_SCAN" '.boundary_proposals[0].target.path // empty')"
+FINGERPRINT="$(jq_get "$FIRST_SCAN" '.boundary_proposals[0].target.fingerprint // empty')"
+[[ -n "$PROPOSAL_ID" && "$TARGET_PATH" == ".env" && -n "$FINGERPRINT" ]] \
+  || kai_die "Expected one .env boundary proposal"
 if grep -q 'sk-live-secret-value' <<<"$FIRST_SCAN"; then
   kai_die "Raw secret leaked in first scan response"
 fi
-echo "$FIRST_SCAN" | jq '{
-  scan_id,
-  files_scanned: .build_result.ai_system_map.scan_summary.files_scanned,
-  files_skipped: .build_result.ai_system_map.scan_summary.files_skipped
-}'
 
-kai_section "Create scan boundary proposal"
-REQUEST_BODY="$(jq -n --arg id "$PROJECT_ID" '{project_id:$id}')"
-PROPOSAL_JSON="$(setup_post "/api/scan-boundary-proposals" "$REQUEST_BODY")"
-PROPOSAL_ID="$(jq_get "$PROPOSAL_JSON" '.proposals[0].proposal_id // empty')"
-TARGET_PATH="$(jq_get "$PROPOSAL_JSON" '.proposals[0].target.path // empty')"
-[[ -n "$PROPOSAL_ID" ]] || kai_die "Expected a pending proposal"
-[[ "$TARGET_PATH" == ".env" ]] \
-  || kai_die "Expected proposal target .env, got $TARGET_PATH"
-if grep -q 'sk-live-secret-value' <<<"$PROPOSAL_JSON"; then
-  kai_die "Raw secret leaked in proposal response"
-fi
-echo "$PROPOSAL_JSON" | jq '{
-  proposal_count: (.proposals | length),
-  proposal_id: .proposals[0].proposal_id,
-  status: .proposals[0].status,
-  target_path: .proposals[0].target.path,
-  risk_type: .proposals[0].target.risk_type,
-  raw_file_contents_included: .proposals[0].evidence_packet.context_limits.raw_file_contents_included
-}'
-
-kai_section "Decision: scan_normally"
-DECISION_BODY="$(jq -n \
-  '{decision:"scan_normally", reason:"Approved for trace verification."}')"
-ENCODED_ID="$(kai_urlencode "$PROPOSAL_ID")"
-api_call POST "/api/scan-boundary-proposals/$ENCODED_ID/decision" "$DECISION_BODY"
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected decision status: $LAST_STATUS"
-
-kai_section "Second scan: scan_normally allows matching .env"
-SECOND_SCAN="$(kai_run_scan "$PROJECT_ID")"
+kai_section "Second scan: scan_this_run completes the current scan"
+DECISIONS="$(jq -n \
+  --arg path "$TARGET_PATH" \
+  --arg fingerprint "$FINGERPRINT" \
+  '[{target_path:$path, fingerprint:$fingerprint, decision:"scan_this_run"}]')"
+SECOND_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR" "$DECISIONS")"
+api_call POST "/api/scans" "$SECOND_BODY"
+[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected second scan HTTP: $LAST_STATUS"
+SECOND_SCAN="$LAST_BODY"
+SECOND_STATUS="$(jq_get "$SECOND_SCAN" '.status')"
 SECOND_SCANNED="$(jq_get "$SECOND_SCAN" '.build_result.ai_system_map.scan_summary.files_scanned')"
+SECOND_MAP_JSON_PATH="$(jq_get "$SECOND_SCAN" '.build_result.map_json_path // empty')"
+[[ "$SECOND_STATUS" == "completed" ]] \
+  || kai_die "Expected completed second scan, got $SECOND_STATUS"
 [[ "$SECOND_SCANNED" == "2" ]] \
   || kai_die "Expected second scan files_scanned=2, got $SECOND_SCANNED"
+[[ -f "$SECOND_MAP_JSON_PATH" ]] \
+  || kai_die "Expected map_json_path to exist: $SECOND_MAP_JSON_PATH"
+[[ "$(jq_get "$(cat "$SECOND_MAP_JSON_PATH")" '.scan_summary.files_scanned')" == "2" ]] \
+  || kai_die "Stored ai_system_map.json scan_summary did not match response"
 if grep -q 'sk-live-secret-value' <<<"$SECOND_SCAN"; then
   kai_die "Raw secret leaked in second scan response"
 fi
-if ! grep -q 'OPENAI_API_KEY' <<<"$SECOND_SCAN"; then
-  kai_die "Expected masked config evidence for OPENAI_API_KEY in second scan"
+if grep -q 'sk-live-secret-value' "$SECOND_MAP_JSON_PATH"; then
+  kai_die "Raw secret leaked in stored ai_system_map.json"
 fi
-echo "$SECOND_SCAN" | jq '{
-  scan_id,
-  files_scanned: .build_result.ai_system_map.scan_summary.files_scanned,
-  files_skipped: .build_result.ai_system_map.scan_summary.files_skipped,
-  secret_masking_applied: .build_result.ai_system_map.scan_summary.secret_masking_applied
-}'
+
+kai_section "Third scan: decision was not remembered"
+THIRD_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
+api_call POST "/api/scans" "$THIRD_BODY"
+[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected third scan HTTP: $LAST_STATUS"
+THIRD_STATUS="$(jq_get "$LAST_BODY" '.status')"
+[[ "$THIRD_STATUS" == "requires_boundary_decision" ]] \
+  || kai_die "Expected requires_boundary_decision third scan, got $THIRD_STATUS"
 
 kai_section "PASS"
-echo "scan boundary policy overlay behavior is correct"
+echo "scan boundary same-run gate behavior is correct"
