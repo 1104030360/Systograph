@@ -145,7 +145,7 @@ POST /api/scans
 ```
 
 - `scan_this_run`：只讓該 target 在這一次 scan 進入 provider collection。
-- `skip_this_run`：只在這一次 scan 把該 target 移到 skipped，reason 為 `skipped_by_policy_overlay`。
+- `skip_this_run`：只在這一次 scan 把該 target 從 provider collection 排除。API-visible 結果是本次 `files_scanned` 下降、`files_skipped` 上升；內部 inventory reason 為 `skipped_by_policy_overlay`，不會作為前端可依賴的 canonical map 欄位輸出。
 - Decision 必須 match `target_path + fingerprint`；檔案內容或 metadata 改變時，舊 decision 不套用，API 會重新回 `requires_boundary_decision`。
 - Decision 不會保存成歷史偏好，也不會影響下一次 scan。
 - 已由 deterministic scanner hard-skip 的 large/binary/generated/log、dependency/cache、model weights 等 target 只留在 skipped audit trail，不產生使用者 decision proposal。
@@ -619,8 +619,8 @@ scripts/trace_scan_boundary_policy_overlay.sh --start-server
 scripts/trace_scan_boundary_multi_decision_gate.sh --start-server
 ```
 
-它會建立含 `.env` 的暫時專案，驗證第一次 scan 回 `requires_boundary_decision`，第二次帶 `scan_this_run` 後完成正式掃描，第三次不帶 decision 會再次要求決策。
-第二支 script 會建立含 `.env` 與 `vector_store/data.index` 的暫時專案，驗證第一次 response 一次回傳所有 pending proposals、pending 時不更新 `/api/map`、第二次可一次送回所有 `boundary_decisions` 後完成正式掃描。
+它會建立含 `.env` 的暫時專案，驗證第一次 scan 回 `requires_boundary_decision`，第二次帶 `scan_this_run` 後完成正式掃描，第三次不帶 decision 會再次要求決策，並讀取完成後的 `map_json_path` 確認 `ai_system_map.json` 可被 `jq` 解析且未包含 raw secret。
+第二支 script 會建立含 `.env` 與 `vector_store/data.index` 的暫時專案，驗證第一次 response 一次回傳所有 pending proposals、pending 時不更新 `/api/map`、第二次可一次送回所有 `boundary_decisions` 後完成正式掃描，並確認存下來的 `ai_system_map.json` 與 response 的 `scan_summary.files_scanned/files_skipped` 一致。
 
 ---
 

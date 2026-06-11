@@ -6,6 +6,7 @@
 # 2. The pending response does not build artifacts or update /api/map.
 # 3. The second scan can submit all boundary decisions in one request.
 # 4. Decisions are same-run only and are not remembered.
+# 5. The completed scan writes a readable ai_system_map.json artifact.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -152,6 +153,7 @@ SECOND_SCANNED="$(jq_get \
 SECOND_SKIPPED="$(jq_get \
   "$SECOND_SCAN" \
   '.build_result.ai_system_map.scan_summary.files_skipped')"
+SECOND_MAP_JSON_PATH="$(jq_get "$SECOND_SCAN" '.build_result.map_json_path // empty')"
 [[ "$SECOND_STATUS" == "completed" ]] \
   || kai_die "Expected completed second scan, got $SECOND_STATUS"
 [[ "$SECOND_PROPOSALS" == "0" ]] \
@@ -160,8 +162,20 @@ SECOND_SKIPPED="$(jq_get \
   || kai_die "Expected files_scanned=2 after scanning .env and app.py, got $SECOND_SCANNED"
 [[ "$SECOND_SKIPPED" -ge 1 ]] \
   || kai_die "Expected at least one skipped file after skip_this_run"
+[[ -f "$SECOND_MAP_JSON_PATH" ]] \
+  || kai_die "Expected map_json_path to exist: $SECOND_MAP_JSON_PATH"
+[[ "$(jq_get "$(cat "$SECOND_MAP_JSON_PATH")" '.scan_summary.files_scanned')" == "$SECOND_SCANNED" ]] \
+  || kai_die "Stored ai_system_map.json files_scanned did not match response"
+[[ "$(jq_get "$(cat "$SECOND_MAP_JSON_PATH")" '.scan_summary.files_skipped')" == "$SECOND_SKIPPED" ]] \
+  || kai_die "Stored ai_system_map.json files_skipped did not match response"
 if grep -Fq 'sk-live-secret-value' <<<"$SECOND_SCAN"; then
   kai_die "Raw secret leaked in second scan response"
+fi
+if grep -Fq 'sk-live-secret-value' "$SECOND_MAP_JSON_PATH"; then
+  kai_die "Raw secret leaked in stored ai_system_map.json"
+fi
+if grep -Fq "$DEMO_PROJECT_DIR" "$SECOND_MAP_JSON_PATH"; then
+  kai_die "Local absolute path leaked in stored ai_system_map.json"
 fi
 
 AFTER_COMPLETED_MAP="$(setup_get "/api/map")"
