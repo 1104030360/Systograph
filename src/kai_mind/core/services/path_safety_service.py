@@ -12,7 +12,7 @@ WINDOWS_ABSOLUTE_PATH_RE: Final = re.compile(r"[A-Za-z]:[\\/][^\s\"'<>),]+")
 WINDOWS_UNC_RE: Final = re.compile(r"^(?:\\\\|//)[^\\/]+[\\/][^\\/]+")
 POSIX_LOCAL_PATH_RE: Final = re.compile(
     r"(?<![A-Za-z0-9_:])"
-    r"(?P<path>/(?:Users|home|tmp|private/tmp|var|opt|Volumes)"
+    r"(?P<path>/(?:Users|home|tmp|private/tmp|private/var|var|opt|Volumes)"
     r"/[^\s\"'<>),]+)"
 )
 WINDOWS_LOCAL_PATH_RE: Final = re.compile(

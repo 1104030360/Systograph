@@ -270,3 +270,172 @@ def test_skip_this_run_decision_is_consumed_after_first_overlay(
     assert [(item.path, item.reason) for item in second.skipped] == [
         (".env", SkipReason.PENDING_BOUNDARY_REVIEW)
     ]
+
+
+def test_consumed_skip_this_run_allows_new_pending_proposal(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / ".env").write_text("TOKEN=sk-live-secret-value")
+    inventory = FileInventory(
+        source=FileInventorySource.RECURSIVE,
+        project_root=str(project_root),
+        files=[FileRecord(path=".env", size_bytes=26)],
+    )
+    service = ScanBoundaryReviewService()
+    proposal = service.create_proposals(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )[0]
+    service.decide(
+        proposal.proposal_id,
+        ScanBoundaryDecisionRequest(
+            decision=ScanBoundaryDecisionAction.SKIP_THIS_RUN,
+            reason="Skip once for local demo.",
+        ),
+    )
+    service.apply_policy_overlay(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )
+
+    proposals = service.create_proposals(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )
+
+    assert len(proposals) == 1
+    assert proposals[0].proposal_id != proposal.proposal_id
+    assert proposals[0].status == ScanBoundaryProposalStatus.PENDING
+
+
+def test_skipped_target_decision_replaces_audit_reason(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "models").mkdir()
+    (project_root / "models" / "llm.gguf").write_bytes(b"model")
+    inventory = FileInventory(
+        source=FileInventorySource.RECURSIVE,
+        project_root=str(project_root),
+        skipped=[
+            SkippedFile(
+                path="models/llm.gguf",
+                reason=SkipReason.MODEL_WEIGHT,
+                size_bytes=4,
+            )
+        ],
+    )
+    service = ScanBoundaryReviewService()
+    proposal = service.create_proposals(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )[0]
+    service.decide(
+        proposal.proposal_id,
+        ScanBoundaryDecisionRequest(
+            decision=ScanBoundaryDecisionAction.METADATA_ONLY,
+            reason="Use metadata-only audit for model weights.",
+        ),
+    )
+
+    overlaid = service.apply_policy_overlay(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )
+
+    assert overlaid.files == []
+    assert [(item.path, item.reason) for item in overlaid.skipped] == [
+        ("models/llm.gguf", SkipReason.METADATA_ONLY_BY_POLICY_OVERLAY)
+    ]
+
+
+def test_skip_this_run_is_consumed_for_skipped_targets(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "logs").mkdir()
+    (project_root / "logs" / "scan.log").write_text("x" * 100)
+    inventory = FileInventory(
+        source=FileInventorySource.RECURSIVE,
+        project_root=str(project_root),
+        skipped=[
+            SkippedFile(
+                path="logs/scan.log",
+                reason=SkipReason.LARGE_LOG,
+                size_bytes=100,
+            )
+        ],
+    )
+    service = ScanBoundaryReviewService()
+    proposal = service.create_proposals(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )[0]
+    service.decide(
+        proposal.proposal_id,
+        ScanBoundaryDecisionRequest(
+            decision=ScanBoundaryDecisionAction.SKIP_THIS_RUN,
+            reason="Skip once for local demo.",
+        ),
+    )
+
+    first = service.apply_policy_overlay(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )
+    second = service.apply_policy_overlay(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )
+
+    assert [(item.path, item.reason) for item in first.skipped] == [
+        ("logs/scan.log", SkipReason.SKIPPED_BY_POLICY_OVERLAY)
+    ]
+    assert [(item.path, item.reason) for item in second.skipped] == [
+        ("logs/scan.log", SkipReason.LARGE_LOG)
+    ]
+
+
+def test_decision_reason_redacts_local_absolute_paths(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / ".env").write_text("TOKEN=sk-live-secret-value")
+    inventory = FileInventory(
+        source=FileInventorySource.RECURSIVE,
+        project_root=str(project_root),
+        files=[FileRecord(path=".env", size_bytes=26)],
+    )
+    service = ScanBoundaryReviewService()
+    proposal = service.create_proposals(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )[0]
+
+    result = service.decide(
+        proposal.proposal_id,
+        ScanBoundaryDecisionRequest(
+            decision=ScanBoundaryDecisionAction.ALWAYS_SKIP,
+            reason=f"See {project_root / '.env'} before skipping.",
+        ),
+    )
+
+    assert result.decision is not None
+    reason = result.decision.reason
+    assert reason is not None
+    assert str(project_root) not in reason
+    assert "<LOCAL_PATH>" in reason

@@ -344,6 +344,7 @@ class ScanBoundaryReviewService:
         root = project_root.resolve()
         kept_files: list[FileRecord] = []
         overlay_skipped: list[SkippedFile] = []
+        kept_skipped: list[SkippedFile] = []
 
         for file_record in inventory.files:
             decision = decisions_by_path.get(file_record.path)
@@ -392,17 +393,23 @@ class ScanBoundaryReviewService:
                     decision.model_copy(update={"applied_at": _now()})
                 )
 
-        if not overlay_skipped:
-            return inventory.model_copy(update={"files": kept_files})
+        for skipped in inventory.skipped:
+            kept_skipped.append(
+                self._apply_skipped_decision(
+                    skipped=skipped,
+                    decision=decisions_by_path.get(skipped.path),
+                    project_root=root,
+                )
+            )
 
-        skipped = sorted(
-            [*inventory.skipped, *overlay_skipped],
+        skipped_files = sorted(
+            [*kept_skipped, *overlay_skipped],
             key=lambda item: (item.path, item.reason.value),
         )
         return inventory.model_copy(
             update={
                 "files": kept_files,
-                "skipped": skipped,
+                "skipped": skipped_files,
             }
         )
 
@@ -577,6 +584,16 @@ class ScanBoundaryReviewService:
                 proposal.target.path == target.path
                 and proposal.target.fingerprint == target.fingerprint
             ):
+                decision = self._repository.get_decision_for_proposal(
+                    proposal.proposal_id
+                )
+                if (
+                    decision is not None
+                    and decision.decision
+                    == ScanBoundaryDecisionAction.SKIP_THIS_RUN
+                    and decision.applied_at is not None
+                ):
+                    continue
                 return proposal
         return None
 
@@ -611,13 +628,53 @@ class ScanBoundaryReviewService:
         project_root: Path,
         file_record: FileRecord,
     ) -> bool:
-        if decision.target.path != file_record.path:
+        return self._decision_matches_current_path(
+            decision=decision,
+            project_root=project_root,
+            path=file_record.path,
+        )
+
+    def _decision_matches_current_path(
+        self,
+        *,
+        decision: ScanBoundaryDecision,
+        project_root: Path,
+        path: str,
+    ) -> bool:
+        if decision.target.path != path:
             return False
         try:
-            current = self._fingerprint(project_root, file_record.path)
+            current = self._fingerprint(project_root, path)
         except ValueError:
             return False
         return current == decision.target.fingerprint
+
+    def _apply_skipped_decision(
+        self,
+        *,
+        skipped: SkippedFile,
+        decision: ScanBoundaryDecision | None,
+        project_root: Path,
+    ) -> SkippedFile:
+        if decision is None:
+            return skipped
+        if not self._decision_matches_current_path(
+            decision=decision,
+            project_root=project_root,
+            path=skipped.path,
+        ):
+            return skipped.model_copy(
+                update={"reason": SkipReason.PENDING_BOUNDARY_REVIEW}
+            )
+
+        skip_reason = self._skip_reason_for_decision(decision.decision)
+        if skip_reason is None:
+            return skipped
+        if decision.decision == ScanBoundaryDecisionAction.SKIP_THIS_RUN:
+            self._repository.save_decision(
+                decision.model_copy(update={"applied_at": _now()})
+            )
+        return skipped.model_copy(update={"reason": skip_reason})
 
     def _skip_reason_for_decision(
         self,
@@ -637,7 +694,8 @@ class ScanBoundaryReviewService:
     def _safe_text(self, value: str | None) -> str | None:
         if value is None:
             return None
-        return self._secret_masking_service.mask_text(value)
+        masked = self._secret_masking_service.mask_text(value)
+        return redact_local_paths(masked)
 
     def _decision_digest(
         self,
