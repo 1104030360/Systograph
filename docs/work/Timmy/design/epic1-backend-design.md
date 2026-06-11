@@ -2666,50 +2666,49 @@ Epic 1 later milestone:
 - AI proposal 不可直接把 `unmapped_component` 升級成 detected slot / extension。
 - user confirmation + evidence + validation 後，才可重新 normalize 成 canonical map。
 
-### 19.12 Epic 1 最後階段：AI-assisted scan boundary review
+### 19.12 Epic 1 最後階段：Scan boundary same-run gate
 
-> 白話：最後才做 AI 輔助判斷可疑檔案是否應略過；baseline scanner 仍保持 deterministic。
+> 白話：正式 project scan 前先攔住可疑檔案，讓使用者只決定「這一次要不要掃」；baseline scanner 仍保持 deterministic。
 
-Epic 1 最後階段可以在 Stage 2 file inventory 後加入 `ScanBoundaryReviewService`。這個 service 不取代 `FilesystemProvider`，也不直接決定 canonical inventory；它只產生可解釋、可審核、等待使用者確認的 skip/include proposal。
+Epic 1 最後階段在 `POST /api/scans` 的 provider collection 前加入 `ScanBoundaryReviewService`。這個 service 不取代 `FilesystemProvider`，也不保存長期 policy；它只根據 deterministic inventory 產生本次 scan 的 pending boundary proposal。
 
-建議流程：
+已採用流程：
 
 ```text
 FilesystemProvider
   -> FileInventory
-  -> SuspiciousFileClassifier
+  -> ScanBoundaryReviewService
   -> masked metadata / bounded summary
-  -> LocalLlmProvider optional proposal
-  -> ScanBoundaryDecision pending_user_confirmation
-  -> user accept / edit / reject / skip_for_now
-  -> KAI-Mind-managed scan policy store
-  -> rerun / normalize inventory
+  -> unresolved proposals?
+       yes -> POST /api/scans returns requires_boundary_decision
+       no  -> apply same-run boundary_decisions and run providers
+  -> MapBuildService
 ```
 
 Proposal 需要包含：
 
-- `file_path`: project-relative POSIX path。
-- `file_kind`: config / secret_like / binary / model_weight / vector_db / generated / dependency / log / unknown。
-- `reason`: 為什麼建議略過或只掃 metadata。
-- `risk`: secret exposure、large file、irrelevant dependency、generated output、privacy-sensitive local data。
-- `recommended_action`: skip_this_run / always_skip / metadata_only / masked_summary_only / scan_normally。
-- `source`: deterministic_rule / ai_assisted / user_confirmed。
+- `target.path`: project-relative POSIX path。
+- `target.risk_type`: secret_like_config / model_or_vector_persistence 等 boundary risk。
+- `target.fingerprint`: path + size + mtime + bounded file hash，避免舊 decision 放行新內容。
+- `evidence_packet`: masked / bounded evidence，不包含 raw secret、raw file contents 或本機絕對路徑。
+- `available_actions`: 只允許 `scan_this_run` / `skip_this_run`。
 
 硬性規則：
 
-- AI proposal 不可直接改 canonical `FileInventory`。
+- Boundary proposal 不可直接改 canonical `ai_system_map.json`。
 - AI 不可讀完整 secret，也不可在 logs、reports、snapshots、PR comments 顯示完整 secret。
 - GUI 可顯示 modal / review queue；CLI / CI 模式不可彈窗，只能輸出 pending decision 與 machine-readable result。
-- 使用者確認後才可寫入 KAI-Mind-managed scan policy store，預設不寫入被掃描 repo。
-- scan policy store 的決策必須可重現、可撤銷、可列出 evidence。
+- Decision 只存在本次 `POST /api/scans` request，不寫入被掃描 repo，也不保存成 KAI-Mind 長期偏好。
+- Decision 必須 match `target_path + fingerprint`；內容或 metadata 改變時，舊 decision 不得套用。
+- 若有 unresolved proposal，`POST /api/scans` 不寫 artifact、不更新 `/api/map`。
 
-此功能排在 Epic 1 最後才做，因為它依賴 baseline inventory、skip reason、secret masking、GUI decision flow、policy store 與 rerun/normalize 流程都已完成。
+此功能排在 Epic 1 最後才做，因為它依賴 baseline inventory、skip reason、secret masking、project session API 與 map build pipeline 都已完成。
 
-### 19.13 Epic 1 最後階段：Template store 與 local template import
+### 19.13 後續階段：Template store 與 local template import
 
-> 白話：最後才做 template 商店基礎；Epic 1 先支援 local archive/mock folder，repo URL / GitHub API 留到下一階段。
+> 白話：template 商店與匯入能力已移出 Task 24 / Epic 1 final acceptance；本節只保留後續設計備忘。
 
-Epic 1 baseline 只需要內建 `rag-core-v1`。Epic 1 最後階段可以加入 template store，先讓使用者匯入 local `.zip` / `.tar` archive 或 local mock template folder，匯入 AI agent / RAG reference architecture template，之後用 slot filling 方式套用到掃描與 mapping flow。Remote repo URL / GitHub API 是下一階段能力，不在 Epic 1 實作。
+Epic 1 baseline 只需要內建 `rag-core-v1`。Template store、local archive/mock folder import、AI agent / RAG reference architecture template import 都應拆成後續任務，不能作為 Task 24 或 Epic 1 final milestone 的驗收條件。Remote repo URL / GitHub API 也同樣是後續階段能力。
 
 建議流程：
 
@@ -2747,7 +2746,7 @@ Template manifest 至少需要：
 - 私有 repo token 不可進 logs、report、template metadata 或 cache key。
 - 被匯入的 template 必須顯示 provenance、license、來源、版本與最後驗證狀態。
 
-此功能排在 Epic 1 最後才做，因為它依賴 reference architecture schema、template validation、slot mapping、manual/AI proposal flow 與 supply-chain guardrails 都已穩定。
+此功能應在 reference architecture schema、template validation、slot mapping、manual/AI proposal flow 與 supply-chain guardrails 都穩定後另開任務處理。
 
 ### 19.14 Replay 對 unknown / extension step 的呈現
 
@@ -3140,15 +3139,14 @@ FastAPI 落地規則：
 
 Epic 1 final milestone acceptance：
 
-- [ ] AI-assisted scan boundary review 只產生 pending proposal，不直接改 canonical `FileInventory`。
-- [ ] suspicious file proposal 不顯示 full secret，且支援 metadata_only / masked_summary_only / skip / scan_normally。
+- [ ] Scan boundary review 內嵌在 `POST /api/scans` 的 same-run gate。
+- [ ] unresolved suspicious target 會讓 `POST /api/scans` 回 `requires_boundary_decision`，不寫 artifact、不更新 `/api/map`。
+- [ ] suspicious file proposal 不顯示 full secret、本機絕對路徑或 raw file contents。
+- [ ] scan boundary action 只支援 `scan_this_run` / `skip_this_run`，且只影響本次 request。
+- [ ] boundary decision 必須 match `target_path + fingerprint`；stale decision 不會放行新內容。
 - [ ] GUI 可確認 scan boundary proposal；CLI / CI 只輸出 machine-readable pending decision，不彈窗。
-- [ ] 使用者確認後的 scan policy 存在 KAI-Mind-managed store，預設不寫入被掃描 repo。
-- [ ] Epic 1 template import 先支援 local archive/mock folder；remote repo URL 明確回傳下一階段才支援。
-- [ ] Template import 只把 template source 當 data，不執行外部 script / workflow / postinstall。
-- [ ] Template manifest 通過 schema validation 後才可進 TemplateStore。
-- [ ] Template metadata 記錄 source URL、commit SHA、digest、license、validation status。
-- [ ] 外部 template 不可覆蓋內建 `rag-core-v1` contract。
+- [ ] Boundary decision 不保存成長期 scan policy，也不寫入被掃描 repo。
+- [ ] Template Import / Scan Profile Catalog 已從 Task 24 與 Epic 1 final acceptance 移出；若要做，應另開後續任務。
 
 ## 21. 對後端工程師的實作提醒
 

@@ -25,6 +25,7 @@
 9. 更新 `docs/API-GUIDE.md`、`docs/work/Timmy/design/epic1-local-api-guide.md`、Task24 plan/TODO。
 10. 保留先前安全修正：decision reason / evidence packet 仍會遮蔽 secret 與本機絕對路徑，`path_safety_service` 已支援 macOS `/private/var/...` tmp path redaction。
 11. 依 `/review` subagent feedback 收斂：移除 local API guide 中「decision 保存於 repository」的舊描述，並縮窄 vector persistence 判斷，避免 `src/vector_store.py` 這類原始碼被誤攔。
+12. 依正式 committed diff review 收斂：同步 `docs/work/Timmy/design/epic1-backend-design.md`，移除 old policy-store / 5-action / Template Import final acceptance 描述。
 
 ## 測試方式
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider tests/unit/core/test_scan_boundary_review_service.py tests/web/test_scan_boundary_routes.py`
@@ -44,6 +45,7 @@
 - Canonical `ai_system_map.scan_summary` 不保存 skipped file 明細，只保存 count。Web tests 改以 public API behavior 驗證 files count、status 與 secret 不外洩，不擴張 canonical schema。
 - Review 發現 local API guide 仍殘留「decision 保存於 repository」舊語意。解法：改成 decision 只存在於本次 `POST /api/scans` request。
 - Review 發現 vector path heuristic 若用任意字串包含，會把 `src/vector_store.py` 誤判成 persistence target。解法：加入 regression test，並改成只有非 source/doc 類檔案且 path/suffix 顯示為 vector persistence artifact 時才 gate。
+- Formal committed diff review 發現 `epic1-backend-design.md` 仍殘留 scan policy store、舊 5-action，以及 Template Import 作為 final acceptance 的描述。解法：同步改成 same-run gate，並把 Template Import 標成後續非 Task24 / 非 Epic 1 final acceptance 範圍。
 
 ## 測試結果
 - Targeted scan boundary unit/web tests：12 passed。
@@ -54,7 +56,7 @@
 - Mypy：Success，140 source files no issues。
 - Diff whitespace check：`git diff --check` passed。
 - Trace：`scripts/trace_scan_boundary_policy_overlay.sh --start-server` passed，確認第一次回 `requires_boundary_decision`、第二次帶 `scan_this_run` 完成、第三次不記憶 decision。
-- `/review` subagent：Standards / Spec 實質 findings 已修正；剩餘「origin/main...HEAD diff 為空」是因為當時尚未 commit，後續由本 branch commit 解決。
+- `/review` subagent：Standards axis approve；Spec axis runtime 無 finding，文件殘留 finding 已修正。
 
 ## 最終狀態
 - Task24 scan boundary review 已改為 same-run gate。
