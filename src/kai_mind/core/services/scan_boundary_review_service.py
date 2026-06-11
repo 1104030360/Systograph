@@ -1,4 +1,4 @@
-"""Create and apply scan boundary review proposals."""
+"""Create and apply same-run scan boundary review decisions."""
 
 from __future__ import annotations
 
@@ -8,9 +8,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from threading import RLock
-from typing import Protocol
-from uuid import uuid4
 
 from kai_mind.core.models.filesystem import (
     FileInventory,
@@ -21,10 +18,8 @@ from kai_mind.core.models.filesystem import (
 from kai_mind.core.models.scan_boundary import (
     MAX_BOUNDARY_EVIDENCE_SNIPPET_CHARS,
     MAX_BOUNDARY_EVIDENCE_VALUE_CHARS,
-    ScanBoundaryDecision,
     ScanBoundaryDecisionAction,
     ScanBoundaryDecisionRequest,
-    ScanBoundaryDecisionResult,
     ScanBoundaryEvidencePacket,
     ScanBoundaryProposal,
     ScanBoundaryProposalStatus,
@@ -64,14 +59,56 @@ SECRET_LIKE_MARKERS = (
     "api_key",
     "password",
 )
-VECTOR_OR_MODEL_MARKERS = (
+VECTOR_PERSISTENCE_MARKERS = {
     "chroma",
     "faiss",
     "milvus",
     "qdrant",
     "weaviate",
     "vector",
-)
+    "vectors",
+    "vector_store",
+    "vectorstore",
+}
+VECTOR_PERSISTENCE_SUFFIXES = {
+    ".ann",
+    ".db",
+    ".duckdb",
+    ".faiss",
+    ".hnsw",
+    ".index",
+    ".npy",
+    ".npz",
+    ".sqlite",
+    ".sqlite3",
+}
+SOURCE_OR_DOC_SUFFIXES = {
+    ".c",
+    ".cc",
+    ".cpp",
+    ".cs",
+    ".go",
+    ".h",
+    ".hpp",
+    ".java",
+    ".js",
+    ".jsx",
+    ".json",
+    ".kt",
+    ".md",
+    ".php",
+    ".py",
+    ".rb",
+    ".rs",
+    ".scala",
+    ".swift",
+    ".toml",
+    ".ts",
+    ".tsx",
+    ".txt",
+    ".yaml",
+    ".yml",
+}
 
 
 @dataclass(frozen=True)
@@ -83,115 +120,17 @@ class _BoundaryCandidate:
     target_type: str
 
 
-class ScanBoundaryRepository(Protocol):
-    """Storage boundary for scan boundary proposal lifecycle state."""
-
-    def save_proposal(
-        self,
-        proposal: ScanBoundaryProposal,
-    ) -> ScanBoundaryProposal:
-        """Create or replace one boundary proposal."""
-        ...
-
-    def get_proposal(self, proposal_id: str) -> ScanBoundaryProposal | None:
-        """Return one boundary proposal by id."""
-        ...
-
-    def list_proposals_for_project(
-        self,
-        project_id: str,
-    ) -> list[ScanBoundaryProposal]:
-        """Return proposals for one project."""
-        ...
-
-    def save_decision(
-        self,
-        decision: ScanBoundaryDecision,
-    ) -> ScanBoundaryDecision:
-        """Create or replace one boundary decision."""
-        ...
-
-    def get_decision_for_proposal(
-        self,
-        proposal_id: str,
-    ) -> ScanBoundaryDecision | None:
-        """Return the decision tied to a proposal."""
-        ...
-
-    def list_decisions_for_project(
-        self,
-        project_id: str,
-    ) -> list[ScanBoundaryDecision]:
-        """Return decisions for one project."""
-        ...
-
-
-class InMemoryScanBoundaryRepository:
-    """Process-local scan boundary repository for local API and tests."""
-
-    def __init__(self) -> None:
-        self._proposals: dict[str, ScanBoundaryProposal] = {}
-        self._decisions: dict[str, ScanBoundaryDecision] = {}
-
-    def save_proposal(
-        self,
-        proposal: ScanBoundaryProposal,
-    ) -> ScanBoundaryProposal:
-        self._proposals[proposal.proposal_id] = proposal
-        return proposal
-
-    def get_proposal(self, proposal_id: str) -> ScanBoundaryProposal | None:
-        return self._proposals.get(proposal_id)
-
-    def list_proposals_for_project(
-        self,
-        project_id: str,
-    ) -> list[ScanBoundaryProposal]:
-        return sorted(
-            [
-                proposal
-                for proposal in self._proposals.values()
-                if proposal.project_id == project_id
-            ],
-            key=lambda item: (item.created_at, item.target.path),
-        )
-
-    def save_decision(
-        self,
-        decision: ScanBoundaryDecision,
-    ) -> ScanBoundaryDecision:
-        self._decisions[decision.proposal_id] = decision
-        return decision
-
-    def get_decision_for_proposal(
-        self,
-        proposal_id: str,
-    ) -> ScanBoundaryDecision | None:
-        return self._decisions.get(proposal_id)
-
-    def list_decisions_for_project(
-        self,
-        project_id: str,
-    ) -> list[ScanBoundaryDecision]:
-        return sorted(
-            [
-                decision
-                for decision in self._decisions.values()
-                if decision.project_id == project_id
-            ],
-            key=lambda item: item.created_at,
-        )
-
-
-class _ProjectBoundaryPolicy:
+class _RunBoundaryPolicy:
     def __init__(
         self,
         *,
         service: ScanBoundaryReviewService,
         project_id: str,
+        decisions: tuple[ScanBoundaryDecisionRequest, ...],
     ) -> None:
         self._service = service
         self._project_id = project_id
+        self._decisions = decisions
 
     def apply(
         self,
@@ -199,27 +138,25 @@ class _ProjectBoundaryPolicy:
         project_root: Path,
         inventory: FileInventory,
     ) -> FileInventory:
-        return self._service.apply_policy_overlay(
+        return self._service.apply_decisions(
             project_id=self._project_id,
             project_root=project_root,
             inventory=inventory,
+            decisions=self._decisions,
         )
 
 
 class ScanBoundaryReviewService:
-    """Manage scan boundary proposals and next-run policy overlay."""
+    """Build pending boundary proposals and same-run inventory overlays."""
 
     def __init__(
         self,
         *,
-        repository: ScanBoundaryRepository | None = None,
         secret_masking_service: SecretMaskingService | None = None,
     ) -> None:
-        self._repository = repository or InMemoryScanBoundaryRepository()
         self._secret_masking_service = (
             secret_masking_service or SecretMaskingService()
         )
-        self._decision_lock = RLock()
 
     def create_proposals(
         self,
@@ -228,26 +165,27 @@ class ScanBoundaryReviewService:
         project_root: Path,
         inventory: FileInventory,
         evidence: Iterable[Evidence] = (),
+        decisions: Iterable[ScanBoundaryDecisionRequest] = (),
     ) -> list[ScanBoundaryProposal]:
-        """Create pending proposals from inventory and masked evidence."""
+        """Return boundary proposals still unresolved for the current scan."""
 
         _require_text("project_id", project_id)
         root = project_root.resolve()
         evidence_items = list(evidence)
+        decisions_by_path = self._decisions_by_path(decisions)
         proposals: list[ScanBoundaryProposal] = []
 
         for candidate in self._candidate_targets(inventory):
-            target = ScanBoundaryTarget(
-                path=candidate.path,
-                target_type=candidate.target_type,
-                risk_type=candidate.risk_type,
-                reason=candidate.reason,
-                size_bytes=candidate.size_bytes,
-                fingerprint=self._fingerprint(root, candidate.path),
+            target = self._target_for_candidate(
+                project_id=project_id,
+                project_root=root,
+                candidate=candidate,
             )
-            existing = self._matching_proposal(project_id, target)
-            if existing is not None:
-                proposals.append(existing)
+            decision = decisions_by_path.get(target.path)
+            if decision is not None and self._decision_matches_target(
+                decision=decision,
+                target=target,
+            ):
                 continue
 
             packet = self._evidence_packet(
@@ -259,113 +197,59 @@ class ScanBoundaryReviewService:
             self._reject_unsafe_payload(packet.model_dump(mode="json"), root)
             now = _now()
             proposals.append(
-                self._repository.save_proposal(
-                    ScanBoundaryProposal(
-                        proposal_id=f"scan-boundary-proposal:{uuid4()}",
+                ScanBoundaryProposal(
+                    proposal_id=self._proposal_id(
                         project_id=project_id,
-                        status=ScanBoundaryProposalStatus.PENDING,
                         target=target,
-                        evidence_packet=packet,
-                        created_at=now,
-                        updated_at=now,
-                    )
+                    ),
+                    project_id=project_id,
+                    status=ScanBoundaryProposalStatus.PENDING,
+                    target=target,
+                    evidence_packet=packet,
+                    created_at=now,
+                    updated_at=now,
                 )
             )
 
         return sorted(proposals, key=lambda item: item.target.path)
 
-    def list_for_project(self, project_id: str) -> list[ScanBoundaryProposal]:
-        """Return boundary proposals for a project."""
-
-        _require_text("project_id", project_id)
-        return self._repository.list_proposals_for_project(project_id)
-
-    def decide(
-        self,
-        proposal_id: str,
-        request: ScanBoundaryDecisionRequest,
-    ) -> ScanBoundaryDecisionResult:
-        """Persist one user decision without mutating canonical artifacts."""
-
-        with self._decision_lock:
-            proposal = self._repository.get_proposal(proposal_id)
-            if proposal is None:
-                raise KeyError(proposal_id)
-            if proposal.status != ScanBoundaryProposalStatus.PENDING:
-                raise ValueError(
-                    f"Proposal is not pending: {proposal.status.value}"
-                )
-
-            reason = self._safe_text(request.reason)
-            now = _now()
-            decision = ScanBoundaryDecision(
-                decision_id=f"scan-boundary-decision:{uuid4()}",
-                proposal_id=proposal.proposal_id,
-                project_id=proposal.project_id,
-                target=proposal.target,
-                decision=request.decision,
-                reason=reason,
-                decision_digest=self._decision_digest(
-                    proposal=proposal,
-                    decision=request.decision,
-                    reason=reason,
-                ),
-                created_at=now,
-            )
-            updated = proposal.model_copy(
-                update={
-                    "status": ScanBoundaryProposalStatus.DECIDED,
-                    "updated_at": now,
-                }
-            )
-            self._repository.save_proposal(updated)
-            self._repository.save_decision(decision)
-            return ScanBoundaryDecisionResult(
-                proposal=updated,
-                decision=decision,
-            )
-
-    def for_project(self, project_id: str) -> _ProjectBoundaryPolicy:
-        """Return an inventory policy adapter for ProjectScanService."""
-
-        _require_text("project_id", project_id)
-        return _ProjectBoundaryPolicy(service=self, project_id=project_id)
-
-    def apply_policy_overlay(
+    def apply_decisions(
         self,
         *,
         project_id: str,
         project_root: Path,
         inventory: FileInventory,
+        decisions: Iterable[ScanBoundaryDecisionRequest] = (),
     ) -> FileInventory:
-        """Apply matching decisions to an inventory copy for a future scan."""
+        """Apply same-run decisions before providers collect file evidence."""
 
-        decisions_by_path = self._active_decisions_by_path(project_id)
+        _require_text("project_id", project_id)
         root = project_root.resolve()
+        decisions_by_path = self._decisions_by_path(decisions)
         kept_files: list[FileRecord] = []
         overlay_skipped: list[SkippedFile] = []
-        kept_skipped: list[SkippedFile] = []
 
         for file_record in inventory.files:
-            decision = decisions_by_path.get(file_record.path)
-            if decision is None:
-                pending_reason = self._pending_review_reason(file_record)
-                if pending_reason is None:
-                    kept_files.append(file_record)
-                    continue
-                overlay_skipped.append(
-                    SkippedFile(
-                        path=file_record.path,
-                        reason=pending_reason,
-                        size_bytes=file_record.size_bytes,
-                    )
-                )
+            risk_type = self._risk_type_for_file(file_record.path)
+            if risk_type is None:
+                kept_files.append(file_record)
                 continue
 
-            if not self._decision_matches_current_file(
-                decision=decision,
+            target = self._target_for_candidate(
+                project_id=project_id,
                 project_root=root,
-                file_record=file_record,
+                candidate=_BoundaryCandidate(
+                    path=file_record.path,
+                    risk_type=risk_type,
+                    reason=self._reason_for_risk(risk_type),
+                    size_bytes=file_record.size_bytes,
+                    target_type="file",
+                ),
+            )
+            decision = decisions_by_path.get(target.path)
+            if decision is None or not self._decision_matches_target(
+                decision=decision,
+                target=target,
             ):
                 overlay_skipped.append(
                     SkippedFile(
@@ -376,34 +260,20 @@ class ScanBoundaryReviewService:
                 )
                 continue
 
-            skip_reason = self._skip_reason_for_decision(decision.decision)
-            if skip_reason is None:
+            if decision.decision == ScanBoundaryDecisionAction.SCAN_THIS_RUN:
                 kept_files.append(file_record)
                 continue
 
             overlay_skipped.append(
                 SkippedFile(
                     path=file_record.path,
-                    reason=skip_reason,
+                    reason=SkipReason.SKIPPED_BY_POLICY_OVERLAY,
                     size_bytes=file_record.size_bytes,
-                )
-            )
-            if decision.decision == ScanBoundaryDecisionAction.SKIP_THIS_RUN:
-                self._repository.save_decision(
-                    decision.model_copy(update={"applied_at": _now()})
-                )
-
-        for skipped in inventory.skipped:
-            kept_skipped.append(
-                self._apply_skipped_decision(
-                    skipped=skipped,
-                    decision=decisions_by_path.get(skipped.path),
-                    project_root=root,
                 )
             )
 
         skipped_files = sorted(
-            [*kept_skipped, *overlay_skipped],
+            [*inventory.skipped, *overlay_skipped],
             key=lambda item: (item.path, item.reason.value),
         )
         return inventory.model_copy(
@@ -411,6 +281,21 @@ class ScanBoundaryReviewService:
                 "files": kept_files,
                 "skipped": skipped_files,
             }
+        )
+
+    def for_decisions(
+        self,
+        *,
+        project_id: str,
+        decisions: Iterable[ScanBoundaryDecisionRequest] = (),
+    ) -> _RunBoundaryPolicy:
+        """Return a one-run inventory policy for ProjectScanService."""
+
+        _require_text("project_id", project_id)
+        return _RunBoundaryPolicy(
+            service=self,
+            project_id=project_id,
+            decisions=tuple(decisions),
         )
 
     def _candidate_targets(
@@ -431,84 +316,44 @@ class ScanBoundaryReviewService:
                 target_type="file",
             )
 
-        for skipped in inventory.skipped:
-            risk_type = self._risk_type_for_skipped(skipped)
-            if risk_type is None:
-                continue
-            candidates.setdefault(
-                skipped.path,
-                _BoundaryCandidate(
-                    path=skipped.path,
-                    risk_type=risk_type,
-                    reason=self._reason_for_risk(risk_type),
-                    size_bytes=skipped.size_bytes,
-                    target_type="directory"
-                    if skipped.path.endswith("/")
-                    else "file",
-                ),
-            )
-
         return sorted(candidates.values(), key=lambda item: item.path)
 
     def _risk_type_for_file(self, path: str) -> str | None:
         if _is_secret_like_path(path):
             return "secret_like_config"
-        if _is_vector_or_model_path(path):
+        if _is_vector_persistence_path(path):
             return "model_or_vector_persistence"
-        return None
-
-    def _risk_type_for_skipped(self, skipped: SkippedFile) -> str | None:
-        if _is_secret_like_path(skipped.path):
-            return "secret_like_config"
-        if skipped.reason == SkipReason.MODEL_WEIGHT:
-            return "model_or_vector_persistence"
-        if skipped.reason in {
-            SkipReason.LARGE_FILE,
-            SkipReason.LARGE_LOG,
-            SkipReason.BINARY,
-            SkipReason.GENERATED,
-        }:
-            return "large_binary_generated_or_log"
-        if skipped.reason in {
-            SkipReason.DEPENDENCY_DIRECTORY,
-            SkipReason.VIRTUAL_ENV,
-            SkipReason.BUILD_OUTPUT,
-            SkipReason.CACHE_DIRECTORY,
-            SkipReason.COVERAGE_OUTPUT,
-        }:
-            return "dependency_cache_or_generated"
-        if skipped.reason == SkipReason.SYMLINK_OUTSIDE_ROOT:
-            return "boundary_escape"
-        if skipped.reason == SkipReason.GITIGNORED:
-            return "gitignored_boundary"
         return None
 
     def _reason_for_risk(self, risk_type: str) -> str:
         reasons = {
             "secret_like_config": (
                 "Secret-like config path requires user confirmation before "
-                "future deep scanning."
+                "this scan can inspect it."
             ),
             "model_or_vector_persistence": (
-                "Model or vector persistence files are usually large and may "
-                "only need metadata-level scanning."
-            ),
-            "large_binary_generated_or_log": (
-                "Large, binary, generated, or log files should not be read "
-                "deeply without an explicit policy decision."
-            ),
-            "dependency_cache_or_generated": (
-                "Dependency, cache, or generated output is usually outside "
-                "the project architecture source boundary."
-            ),
-            "boundary_escape": (
-                "Symlink boundary escape requires explicit confirmation."
-            ),
-            "gitignored_boundary": (
-                "Gitignored paths may contain local-only or sensitive data."
+                "Model or vector persistence files may be large or local-only "
+                "and require confirmation before this scan inspects them."
             ),
         }
         return reasons.get(risk_type, "Path requires scan boundary review.")
+
+    def _target_for_candidate(
+        self,
+        *,
+        project_id: str,
+        project_root: Path,
+        candidate: _BoundaryCandidate,
+    ) -> ScanBoundaryTarget:
+        del project_id
+        return ScanBoundaryTarget(
+            path=candidate.path,
+            target_type=candidate.target_type,
+            risk_type=candidate.risk_type,
+            reason=candidate.reason,
+            size_bytes=candidate.size_bytes,
+            fingerprint=self._fingerprint(project_root, candidate.path),
+        )
 
     def _evidence_packet(
         self,
@@ -572,124 +417,31 @@ class ScanBoundaryReviewService:
             return redacted
         return f"{redacted[:limit]}...[truncated]"
 
-    def _matching_proposal(
+    def _decisions_by_path(
         self,
-        project_id: str,
+        decisions: Iterable[ScanBoundaryDecisionRequest],
+    ) -> dict[str, ScanBoundaryDecisionRequest]:
+        by_path: dict[str, ScanBoundaryDecisionRequest] = {}
+        for decision in decisions:
+            safe_path = _safe_relative_path(decision.target_path)
+            by_path[safe_path] = decision.model_copy(
+                update={
+                    "target_path": safe_path,
+                    "reason": self._safe_text(decision.reason),
+                }
+            )
+        return by_path
+
+    def _decision_matches_target(
+        self,
+        *,
+        decision: ScanBoundaryDecisionRequest,
         target: ScanBoundaryTarget,
-    ) -> ScanBoundaryProposal | None:
-        for proposal in self._repository.list_proposals_for_project(
-            project_id
-        ):
-            if (
-                proposal.target.path == target.path
-                and proposal.target.fingerprint == target.fingerprint
-            ):
-                decision = self._repository.get_decision_for_proposal(
-                    proposal.proposal_id
-                )
-                if (
-                    decision is not None
-                    and decision.decision
-                    == ScanBoundaryDecisionAction.SKIP_THIS_RUN
-                    and decision.applied_at is not None
-                ):
-                    continue
-                return proposal
-        return None
-
-    def _active_decisions_by_path(
-        self,
-        project_id: str,
-    ) -> dict[str, ScanBoundaryDecision]:
-        active: dict[str, ScanBoundaryDecision] = {}
-        for decision in self._repository.list_decisions_for_project(
-            project_id
-        ):
-            if (
-                decision.decision == ScanBoundaryDecisionAction.SKIP_THIS_RUN
-                and decision.applied_at is not None
-            ):
-                continue
-            active[decision.target.path] = decision
-        return active
-
-    def _pending_review_reason(
-        self,
-        file_record: FileRecord,
-    ) -> SkipReason | None:
-        if self._risk_type_for_file(file_record.path) is None:
-            return None
-        return SkipReason.PENDING_BOUNDARY_REVIEW
-
-    def _decision_matches_current_file(
-        self,
-        *,
-        decision: ScanBoundaryDecision,
-        project_root: Path,
-        file_record: FileRecord,
     ) -> bool:
-        return self._decision_matches_current_path(
-            decision=decision,
-            project_root=project_root,
-            path=file_record.path,
+        return (
+            decision.target_path == target.path
+            and decision.fingerprint == target.fingerprint
         )
-
-    def _decision_matches_current_path(
-        self,
-        *,
-        decision: ScanBoundaryDecision,
-        project_root: Path,
-        path: str,
-    ) -> bool:
-        if decision.target.path != path:
-            return False
-        try:
-            current = self._fingerprint(project_root, path)
-        except ValueError:
-            return False
-        return current == decision.target.fingerprint
-
-    def _apply_skipped_decision(
-        self,
-        *,
-        skipped: SkippedFile,
-        decision: ScanBoundaryDecision | None,
-        project_root: Path,
-    ) -> SkippedFile:
-        if decision is None:
-            return skipped
-        if not self._decision_matches_current_path(
-            decision=decision,
-            project_root=project_root,
-            path=skipped.path,
-        ):
-            return skipped.model_copy(
-                update={"reason": SkipReason.PENDING_BOUNDARY_REVIEW}
-            )
-
-        skip_reason = self._skip_reason_for_decision(decision.decision)
-        if skip_reason is None:
-            return skipped
-        if decision.decision == ScanBoundaryDecisionAction.SKIP_THIS_RUN:
-            self._repository.save_decision(
-                decision.model_copy(update={"applied_at": _now()})
-            )
-        return skipped.model_copy(update={"reason": skip_reason})
-
-    def _skip_reason_for_decision(
-        self,
-        decision: ScanBoundaryDecisionAction,
-    ) -> SkipReason | None:
-        if decision in {
-            ScanBoundaryDecisionAction.SKIP_THIS_RUN,
-            ScanBoundaryDecisionAction.ALWAYS_SKIP,
-        }:
-            return SkipReason.SKIPPED_BY_POLICY_OVERLAY
-        if decision == ScanBoundaryDecisionAction.METADATA_ONLY:
-            return SkipReason.METADATA_ONLY_BY_POLICY_OVERLAY
-        if decision == ScanBoundaryDecisionAction.MASKED_SUMMARY_ONLY:
-            return SkipReason.MASKED_SUMMARY_ONLY_BY_POLICY_OVERLAY
-        return None
 
     def _safe_text(self, value: str | None) -> str | None:
         if value is None:
@@ -697,23 +449,15 @@ class ScanBoundaryReviewService:
         masked = self._secret_masking_service.mask_text(value)
         return redact_local_paths(masked)
 
-    def _decision_digest(
+    def _proposal_id(
         self,
         *,
-        proposal: ScanBoundaryProposal,
-        decision: ScanBoundaryDecisionAction,
-        reason: str | None,
+        project_id: str,
+        target: ScanBoundaryTarget,
     ) -> str:
-        payload = {
-            "proposal_id": proposal.proposal_id,
-            "project_id": proposal.project_id,
-            "target_path": proposal.target.path,
-            "target_fingerprint": proposal.target.fingerprint,
-            "decision": decision.value,
-            "reason": reason,
-        }
-        encoded = json.dumps(payload, sort_keys=True).encode("utf-8")
-        return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+        payload = f"{project_id}:{target.path}:{target.fingerprint}"
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        return f"scan-boundary-proposal:{digest[:32]}"
 
     def _fingerprint(self, project_root: Path, path: str) -> str:
         safe_path = _safe_relative_path(path)
@@ -791,10 +535,23 @@ def _is_secret_like_path(path: str) -> bool:
     )
 
 
-def _is_vector_or_model_path(path: str) -> bool:
+def _is_vector_persistence_path(path: str) -> bool:
     safe = _safe_relative_path(path)
-    normalized = safe.lower()
-    return any(marker in normalized for marker in VECTOR_OR_MODEL_MARKERS)
+    path_obj = Path(safe)
+    suffix = path_obj.suffix.lower()
+    if suffix in SOURCE_OR_DOC_SUFFIXES:
+        return False
+
+    path_parts = {
+        part.lower().replace("-", "_").lstrip(".") for part in path_obj.parts
+    }
+    stem = path_obj.stem.lower().replace("-", "_")
+    has_marker = bool(
+        VECTOR_PERSISTENCE_MARKERS.intersection(path_parts)
+    ) or any(marker in stem for marker in VECTOR_PERSISTENCE_MARKERS)
+    return has_marker and (
+        suffix in VECTOR_PERSISTENCE_SUFFIXES or suffix == ""
+    )
 
 
 def _require_text(name: str, value: str) -> None:

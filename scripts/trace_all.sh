@@ -68,10 +68,7 @@ SCRIPTS=(
   "POST /api/mapping-proposals|trace_mapping_proposals_create.sh"
   "GET /api/mapping-proposals|trace_mapping_proposals_list.sh"
   "POST /api/mapping-proposals/{id}/decision|trace_mapping_proposals_decision.sh"
-  "POST /api/scan-boundary-proposals|trace_scan_boundary_proposals_create.sh"
-  "GET /api/scan-boundary-proposals|trace_scan_boundary_proposals_list.sh"
-  "POST /api/scan-boundary-proposals/{id}/decision|trace_scan_boundary_proposals_decision.sh"
-  "Scan boundary policy overlay|trace_scan_boundary_policy_overlay.sh"
+  "Scan boundary same-run gate|trace_scan_boundary_policy_overlay.sh"
 )
 
 RESULTS=()

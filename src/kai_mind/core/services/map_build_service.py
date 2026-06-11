@@ -28,12 +28,12 @@ from kai_mind.core.services.manual_mapping_service import (
 from kai_mind.core.services.markdown_summary_service import (
     MarkdownSummaryService,
 )
-from kai_mind.core.services.project_scan_service import ProjectScanService
+from kai_mind.core.services.project_scan_service import (
+    InventoryPolicyOverlay,
+    ProjectScanService,
+)
 from kai_mind.core.services.rag_template_service import RagTemplateService
 from kai_mind.core.services.risk_hint_service import RiskHintService
-from kai_mind.core.services.scan_boundary_review_service import (
-    ScanBoundaryReviewService,
-)
 from kai_mind.core.services.system_map_normalize_service import (
     SystemMapNormalizeService,
 )
@@ -60,7 +60,6 @@ class MapBuildService:
         markdown_summary_service: MarkdownSummaryService | None = None,
         projection_service: ViewerSessionService | None = None,
         validation_service: SystemMapValidationService | None = None,
-        scan_boundary_review_service: ScanBoundaryReviewService | None = None,
     ) -> None:
         self._output_artifact_provider = (
             output_artifact_provider or OutputArtifactProvider()
@@ -89,13 +88,13 @@ class MapBuildService:
         self._validation_service = (
             validation_service or SystemMapValidationService()
         )
-        self._scan_boundary_review_service = scan_boundary_review_service
 
     def build(
         self,
         request: MapBuildRequest,
         *,
         project_id: str | None = None,
+        inventory_policy: InventoryPolicyOverlay | None = None,
     ) -> MapBuildResult:
         """Build map artifacts and a frontend viewer payload."""
 
@@ -123,6 +122,7 @@ class MapBuildService:
             project_name=precondition.project_root.name,
             request=request,
             project_id=project_id,
+            inventory_policy=inventory_policy,
         )
         map_json_path = self._output_artifact_provider.write_json(
             system_map,
@@ -186,10 +186,11 @@ class MapBuildService:
         project_name: str,
         request: MapBuildRequest,
         project_id: str | None,
+        inventory_policy: InventoryPolicyOverlay | None,
     ) -> RagSystemMap:
         raw_scan = self._scan_project(
             project_root=project_root,
-            project_id=project_id,
+            inventory_policy=inventory_policy,
         )
         template = RagTemplateService.load("rag-core-v1")
         components = self._detect_components(
@@ -232,16 +233,14 @@ class MapBuildService:
         self,
         *,
         project_root: Path,
-        project_id: str | None,
+        inventory_policy: InventoryPolicyOverlay | None,
     ) -> ProjectScanResult:
-        if project_id is None or self._scan_boundary_review_service is None:
+        if inventory_policy is None:
             return self._project_scan_service.scan(project_root)
 
         return self._project_scan_service.scan(
             project_root,
-            inventory_policy=self._scan_boundary_review_service.for_project(
-                project_id
-            ),
+            inventory_policy=inventory_policy,
         )
 
     def _detect_components(

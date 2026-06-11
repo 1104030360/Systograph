@@ -5,21 +5,7 @@ from typing import Any, cast
 
 from fastapi.testclient import TestClient
 
-from kai_mind.core.services.scan_boundary_review_service import (
-    InMemoryScanBoundaryRepository,
-    ScanBoundaryReviewService,
-)
 from kai_mind.web.app import create_app
-
-
-def create_test_client() -> TestClient:
-    return TestClient(
-        create_app(
-            scan_boundary_review_service=ScanBoundaryReviewService(
-                repository=InMemoryScanBoundaryRepository()
-            )
-        )
-    )
 
 
 def import_project(client: TestClient, project_root: Path) -> str:
@@ -38,115 +24,21 @@ def scan_project(
     client: TestClient,
     project_id: str,
     output: Path,
+    *,
+    boundary_decisions: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
-    response = client.post(
-        "/api/scans",
-        json={
-            "project_id": project_id,
-            "output": str(output),
-        },
-    )
+    payload: dict[str, object] = {
+        "project_id": project_id,
+        "output": str(output),
+    }
+    if boundary_decisions is not None:
+        payload["boundary_decisions"] = boundary_decisions
+    response = client.post("/api/scans", json=payload)
     assert response.status_code == 200
     return cast(dict[str, Any], response.json())
 
 
-def test_scan_boundary_routes_create_list_decide_and_apply_next_scan(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    project_root.mkdir()
-    (project_root / ".env").write_text(
-        "OPENAI_API_KEY=sk-live-secret-value",
-        encoding="utf-8",
-    )
-    (project_root / "app.py").write_text("print('hello')\n", encoding="utf-8")
-    client = create_test_client()
-    project_id = import_project(client, project_root)
-    first_scan = scan_project(client, project_id, tmp_path / "outputs")
-    before_map = client.get("/api/map").json()
-
-    create_response = client.post(
-        "/api/scan-boundary-proposals",
-        json={"project_id": project_id},
-    )
-    after_map = client.get("/api/map").json()
-
-    assert create_response.status_code == 200
-    payload = create_response.json()
-    assert payload["project_id"] == project_id
-    assert payload["available_actions"] == [
-        "skip_this_run",
-        "always_skip",
-        "metadata_only",
-        "masked_summary_only",
-        "scan_normally",
-    ]
-    assert [
-        proposal["target"]["path"] for proposal in payload["proposals"]
-    ] == [".env"]
-    proposal = payload["proposals"][0]
-    assert proposal["status"] == "pending_user_confirmation"
-    assert proposal["target"]["fingerprint"].startswith("sha256:")
-    assert "sk-live-secret-value" not in str(payload)
-    assert str(tmp_path) not in str(payload)
-    assert after_map == before_map
-
-    list_response = client.get(
-        f"/api/scan-boundary-proposals?project_id={project_id}"
-    )
-    assert list_response.status_code == 200
-    assert (
-        list_response.json()["proposals"][0]["proposal_id"]
-        == (proposal["proposal_id"])
-    )
-
-    decision_response = client.post(
-        f"/api/scan-boundary-proposals/{proposal['proposal_id']}/decision",
-        json={
-            "decision": "always_skip",
-            "reason": "Local-only secret config.",
-        },
-    )
-
-    assert decision_response.status_code == 200
-    decision_payload = decision_response.json()
-    assert decision_payload["proposal"]["status"] == "decided"
-    assert decision_payload["decision"]["decision"] == "always_skip"
-    assert "sk-live-secret-value" not in str(decision_payload)
-    assert (
-        (project_root / ".env")
-        .read_text(encoding="utf-8")
-        .startswith("OPENAI_API_KEY=")
-    )
-
-    second_scan = scan_project(client, project_id, tmp_path / "outputs-2")
-    assert (
-        first_scan["build_result"]["ai_system_map"]["scan_summary"][
-            "files_scanned"
-        ]
-        == 1
-    )
-    assert (
-        first_scan["build_result"]["ai_system_map"]["scan_summary"][
-            "files_skipped"
-        ]
-        >= 1
-    )
-    assert (
-        second_scan["build_result"]["ai_system_map"]["scan_summary"][
-            "files_scanned"
-        ]
-        == 1
-    )
-    assert (
-        second_scan["build_result"]["ai_system_map"]["scan_summary"][
-            "files_skipped"
-        ]
-        >= 1
-    )
-
-
-def test_scan_normally_decision_allows_next_scan_to_parse_secret_like_config(
+def test_scan_requires_boundary_decision_before_building_map(
     tmp_path: Path,
 ) -> None:
     project_root = tmp_path / "project"
@@ -156,75 +48,169 @@ def test_scan_normally_decision_allows_next_scan_to_parse_secret_like_config(
         encoding="utf-8",
     )
     (project_root / "app.py").write_text("print('hello')\n", encoding="utf-8")
-    client = create_test_client()
+    client = TestClient(create_app())
     project_id = import_project(client, project_root)
-    first_scan = scan_project(client, project_id, tmp_path / "outputs")
-    create_response = client.post(
-        "/api/scan-boundary-proposals",
-        json={"project_id": project_id},
-    )
-    proposal = create_response.json()["proposals"][0]
+    before_map = client.get("/api/map").json()
 
-    decision_response = client.post(
-        f"/api/scan-boundary-proposals/{proposal['proposal_id']}/decision",
-        json={
-            "decision": "scan_normally",
-            "reason": "Approved for normal config parsing.",
-        },
-    )
-    second_scan = scan_project(client, project_id, tmp_path / "outputs-2")
+    pending = scan_project(client, project_id, tmp_path / "outputs")
 
-    assert decision_response.status_code == 200
+    assert pending["status"] == "requires_boundary_decision"
+    assert pending["build_result"] is None
+    assert pending["available_boundary_actions"] == [
+        "scan_this_run",
+        "skip_this_run",
+    ]
+    assert [
+        item["target"]["path"] for item in pending["boundary_proposals"]
+    ] == [".env"]
+    proposal = pending["boundary_proposals"][0]
+    assert proposal["status"] == "pending_user_confirmation"
+    assert proposal["target"]["fingerprint"].startswith("sha256:")
+    assert "sk-live-secret-value" not in str(pending)
+    assert str(tmp_path) not in str(pending)
+    assert client.get("/api/map").json() == before_map
+
+
+def test_scan_this_run_decision_builds_map_for_current_scan_only(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / ".env").write_text(
+        "OPENAI_API_KEY=sk-live-secret-value\n",
+        encoding="utf-8",
+    )
+    (project_root / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    client = TestClient(create_app())
+    project_id = import_project(client, project_root)
+    pending = scan_project(client, project_id, tmp_path / "outputs")
+    proposal = pending["boundary_proposals"][0]
+
+    completed = scan_project(
+        client,
+        project_id,
+        tmp_path / "outputs-2",
+        boundary_decisions=[
+            {
+                "target_path": proposal["target"]["path"],
+                "fingerprint": proposal["target"]["fingerprint"],
+                "decision": "scan_this_run",
+            }
+        ],
+    )
+    next_scan = scan_project(client, project_id, tmp_path / "outputs-3")
+
+    assert completed["status"] == "completed"
+    assert completed["boundary_proposals"] == []
     assert (
-        first_scan["build_result"]["ai_system_map"]["scan_summary"][
+        completed["build_result"]["ai_system_map"]["scan_summary"][
+            "files_scanned"
+        ]
+        == 2
+    )
+    assert "sk-live-secret-value" not in str(completed)
+    assert "OPENAI_API_KEY" in str(completed)
+    assert next_scan["status"] == "requires_boundary_decision"
+    assert next_scan["build_result"] is None
+
+
+def test_skip_this_run_decision_builds_map_without_current_file(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / ".env").write_text(
+        "OPENAI_API_KEY=sk-live-secret-value\n",
+        encoding="utf-8",
+    )
+    (project_root / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    client = TestClient(create_app())
+    project_id = import_project(client, project_root)
+    pending = scan_project(client, project_id, tmp_path / "outputs")
+    proposal = pending["boundary_proposals"][0]
+
+    completed = scan_project(
+        client,
+        project_id,
+        tmp_path / "outputs-2",
+        boundary_decisions=[
+            {
+                "target_path": proposal["target"]["path"],
+                "fingerprint": proposal["target"]["fingerprint"],
+                "decision": "skip_this_run",
+                "reason": "Skip this local config for the current scan.",
+            }
+        ],
+    )
+
+    assert completed["status"] == "completed"
+    assert (
+        completed["build_result"]["ai_system_map"]["scan_summary"][
             "files_scanned"
         ]
         == 1
     )
     assert (
-        second_scan["build_result"]["ai_system_map"]["scan_summary"][
-            "files_scanned"
+        completed["build_result"]["ai_system_map"]["scan_summary"][
+            "files_skipped"
         ]
-        == 2
+        >= 1
     )
-    assert "sk-live-secret-value" not in str(second_scan)
-    assert "OPENAI_API_KEY" in str(second_scan)
+    assert "OPENAI_API_KEY" not in str(completed)
+    assert "sk-live-secret-value" not in str(completed)
 
 
-def test_scan_boundary_create_requires_existing_project() -> None:
-    client = create_test_client()
-
-    response = client.post(
-        "/api/scan-boundary-proposals",
-        json={"project_id": "project:missing"},
-    )
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "project_not_found"
-
-
-def test_scan_boundary_create_requires_loaded_map(tmp_path: Path) -> None:
+def test_scan_rejects_stale_or_removed_boundary_decisions(
+    tmp_path: Path,
+) -> None:
     project_root = tmp_path / "project"
     project_root.mkdir()
-    client = create_test_client()
+    env_path = project_root / ".env"
+    env_path.write_text(
+        "OPENAI_API_KEY=sk-live-secret-value\n",
+        encoding="utf-8",
+    )
+    (project_root / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    client = TestClient(create_app())
     project_id = import_project(client, project_root)
-
-    response = client.post(
-        "/api/scan-boundary-proposals",
-        json={"project_id": project_id},
+    pending = scan_project(client, project_id, tmp_path / "outputs")
+    proposal = pending["boundary_proposals"][0]
+    env_path.write_text(
+        "OPENAI_API_KEY=sk-different-value\n",
+        encoding="utf-8",
     )
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "map_not_loaded"
-
-
-def test_scan_boundary_decision_missing_proposal_returns_404() -> None:
-    client = create_test_client()
-
+    stale = scan_project(
+        client,
+        project_id,
+        tmp_path / "outputs-2",
+        boundary_decisions=[
+            {
+                "target_path": proposal["target"]["path"],
+                "fingerprint": proposal["target"]["fingerprint"],
+                "decision": "scan_this_run",
+            }
+        ],
+    )
     response = client.post(
-        "/api/scan-boundary-proposals/proposal:missing/decision",
-        json={"decision": "scan_normally", "reason": "No such proposal."},
+        "/api/scans",
+        json={
+            "project_id": project_id,
+            "output": str(tmp_path / "outputs-3"),
+            "boundary_decisions": [
+                {
+                    "target_path": ".env",
+                    "fingerprint": proposal["target"]["fingerprint"],
+                    "decision": "always_skip",
+                }
+            ],
+        },
     )
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "proposal_not_found"
+    assert stale["status"] == "requires_boundary_decision"
+    assert stale["build_result"] is None
+    assert (
+        stale["boundary_proposals"][0]["target"]["fingerprint"]
+        != (proposal["target"]["fingerprint"])
+    )
+    assert response.status_code == 422
