@@ -18,6 +18,12 @@ from kai_mind.core.models.mapping import (
     MappingProposalDecisionRequest,
     MappingProposalDecisionResult,
 )
+from kai_mind.core.models.scan_boundary import (
+    ScanBoundaryDecisionAction,
+    ScanBoundaryDecisionRequest,
+    ScanBoundaryDecisionResult,
+    ScanBoundaryProposal,
+)
 from kai_mind.core.models.system_map import DetailScanResult, RagSystemMap
 from kai_mind.core.models.viewer import ViewerPayload
 
@@ -147,6 +153,24 @@ class MappingProposalListResponse(WebSchema):
     )
 
 
+class ScanBoundaryProposalCreateRequest(WebSchema):
+    project_id: str
+
+
+class ScanBoundaryProposalListResponse(WebSchema):
+    project_id: str
+    proposals: list[ScanBoundaryProposal]
+    available_actions: list[ScanBoundaryDecisionAction] = Field(
+        default_factory=lambda: [
+            ScanBoundaryDecisionAction.SKIP_THIS_RUN,
+            ScanBoundaryDecisionAction.ALWAYS_SKIP,
+            ScanBoundaryDecisionAction.METADATA_ONLY,
+            ScanBoundaryDecisionAction.MASKED_SUMMARY_ONLY,
+            ScanBoundaryDecisionAction.SCAN_NORMALLY,
+        ]
+    )
+
+
 __all__ = [
     "DetailScanCreateRequest",
     "DetailScanResponse",
@@ -163,6 +187,11 @@ __all__ = [
     "MappingProposalListResponse",
     "ProjectImportRequest",
     "ProjectImportResponse",
+    "ScanBoundaryDecisionRequest",
+    "ScanBoundaryDecisionResult",
+    "ScanBoundaryProposal",
+    "ScanBoundaryProposalCreateRequest",
+    "ScanBoundaryProposalListResponse",
     "ScanCreateRequest",
     "ScanCreateResponse",
     "ScanProgressEvent",

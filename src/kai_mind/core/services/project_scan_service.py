@@ -42,6 +42,7 @@ class FilesystemInventoryProvider(Protocol):
 
     def build_inventory(self, project_root: Path) -> FileInventory:
         """Return deterministic project inventory."""
+        ...
 
 
 class ScanResultProvider(Protocol):
@@ -49,6 +50,20 @@ class ScanResultProvider(Protocol):
 
     def collect(self, inventory: FileInventory) -> ProviderScanResult:
         """Return provider-local facts, evidence and issues."""
+        ...
+
+
+class InventoryPolicyOverlay(Protocol):
+    """Transforms inventory before provider collection for one scan run."""
+
+    def apply(
+        self,
+        *,
+        project_root: Path,
+        inventory: FileInventory,
+    ) -> FileInventory:
+        """Return inventory after applying controlled policy decisions."""
+        ...
 
 
 class ProjectScanService:
@@ -74,10 +89,20 @@ class ProjectScanService:
         )
         self._masking_service = masking_service or SecretMaskingService()
 
-    def scan(self, project_root: Path) -> ProjectScanResult:
+    def scan(
+        self,
+        project_root: Path,
+        *,
+        inventory_policy: InventoryPolicyOverlay | None = None,
+    ) -> ProjectScanResult:
         """Run providers and return raw facts without final mapping."""
 
         inventory = self._filesystem_provider.build_inventory(project_root)
+        if inventory_policy is not None:
+            inventory = inventory_policy.apply(
+                project_root=project_root,
+                inventory=inventory,
+            )
         result = ProjectScanResult(
             skipped_files=self._skipped_file_summaries(inventory.skipped),
             warnings=list(inventory.warnings),

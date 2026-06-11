@@ -19,6 +19,35 @@ from kai_mind.core.services import project_scan_service
 from kai_mind.core.services.project_scan_service import ProjectScanService
 
 
+class FakeInventoryPolicy:
+    def __init__(self) -> None:
+        self.seen_root: Path | None = None
+        self.seen_inventory: FileInventory | None = None
+
+    def apply(
+        self,
+        *,
+        project_root: Path,
+        inventory: FileInventory,
+    ) -> FileInventory:
+        self.seen_root = project_root
+        self.seen_inventory = inventory
+        return inventory.model_copy(
+            update={
+                "files": [
+                    file for file in inventory.files if file.path != ".env"
+                ],
+                "skipped": [
+                    *inventory.skipped,
+                    SkippedFile(
+                        path=".env",
+                        reason=SkipReason.SKIPPED_BY_POLICY_OVERLAY,
+                    ),
+                ],
+            }
+        )
+
+
 class FakeFilesystemProvider:
     def __init__(self, inventory: FileInventory) -> None:
         self.inventory = inventory
@@ -69,6 +98,40 @@ def build_inventory(project_root: Path) -> FileInventory:
         ],
         warnings=["inventory fallback used"],
     )
+
+
+def test_scan_applies_boundary_policy_before_provider_collection(
+    tmp_path: Path,
+) -> None:
+    inventory = FileInventory(
+        source=FileInventorySource.RECURSIVE,
+        project_root=str(tmp_path),
+        files=[
+            FileRecord(path=".env", size_bytes=12),
+            FileRecord(path="config.yaml", size_bytes=10),
+        ],
+    )
+    provider = FakeProvider(provider_result([], []))
+    policy = FakeInventoryPolicy()
+
+    result = ProjectScanService(
+        filesystem_provider=FakeFilesystemProvider(inventory),
+        providers=[provider],
+    ).scan(tmp_path, inventory_policy=policy)
+
+    assert policy.seen_root == tmp_path
+    assert policy.seen_inventory == inventory
+    assert provider.seen_inventory is not None
+    assert [file.path for file in provider.seen_inventory.files] == [
+        "config.yaml"
+    ]
+    assert [
+        (item.path, item.reason) for item in provider.seen_inventory.skipped
+    ] == [(".env", SkipReason.SKIPPED_BY_POLICY_OVERLAY)]
+    assert [
+        (item.path, item.reason, item.size_bytes)
+        for item in result.skipped_files
+    ] == [(".env", "skipped_by_policy_overlay", None)]
 
 
 def fact(
