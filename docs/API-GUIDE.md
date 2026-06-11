@@ -22,7 +22,7 @@
 - 只要 request `Origin` 在 allowlist 中，包含 413 / 500 在內的錯誤回應都會保留 CORS header，讓前端可讀取錯誤內容。
 - Session 狀態存在記憶體中，重啟後端會清空，`project_id` 需重新 import。
 - **兩種流程**：
-  - **Project session**（`import` → `scans`）：建立 `project_id`，掃描結果綁在該 project 上。`detail-scans`、`mapping-proposals`、`mappings` 都必須走這條。
+  - **Project session**（`import` → `scans`）：建立 `project_id`，掃描結果綁在該 project 上。`detail-scans`、`mapping-proposals`、`scan-boundary-proposals`、`mappings` 都必須走這條。
   - **Viewer demo**（`map/build`）：只掃 path、更新 latest viewer payload，**不建立 `project_id`**。適合快速載圖，不能接後續 project-scoped API。
 - `graph_view_model` 是前端渲染輸入；它是投影，不是 canonical truth，前端不應回寫。
 
@@ -549,12 +549,119 @@ Response `200`：
 
 ---
 
+## 7. Scan Boundary Proposals（掃描邊界審查）
+
+針對 `.env`、large/binary/generated/log、dependency/cache、model weights、vector persistence 等高風險掃描邊界建立 pending proposal。Project session scan 會先把尚未決定的 suspicious file 移到 `pending_boundary_review`，避免第一次就交給 provider 深入讀取；使用者 decision 只保存於 KAI-Mind-managed repository，不修改被掃描 repo，也不 retroactively 修改既有 `ai_system_map.json`。
+
+**需先完成 project session**：`POST /api/projects/import` → `POST /api/scans`。`POST /api/map/build` demo flow 沒有 `project_id`，不能建立 scan boundary proposal。
+
+### GET /api/scan-boundary-proposals
+
+```http
+GET /api/scan-boundary-proposals?project_id=project:<uuid>
+```
+
+Response `200`：
+
+```ts
+{
+  project_id: string;
+  proposals: ScanBoundaryProposal[];
+  available_actions: [
+    "skip_this_run",
+    "always_skip",
+    "metadata_only",
+    "masked_summary_only",
+    "scan_normally"
+  ];
+}
+```
+
+### POST /api/scan-boundary-proposals
+
+從該 project 最新成功 scan 的 map evidence 與目前 deterministic inventory 建立 pending proposal。若第一次 scan 已先把 `.env` 類檔案 hold 在 `pending_boundary_review`，proposal 仍可由 deterministic inventory 建立，但 evidence packet 可能只有 path / risk / fingerprint，沒有 raw content。
+
+```http
+POST /api/scan-boundary-proposals
+```
+
+```json
+{ "project_id": "project:<uuid>" }
+```
+
+Response `200`：
+
+```ts
+{
+  project_id: string;
+  proposals: ScanBoundaryProposal[];
+  available_actions: string[];
+}
+```
+
+`ScanBoundaryProposal` 會包含 project-relative `target.path`、`risk_type`、`fingerprint`、bounded/masked `evidence_packet` 與 action list。Response 不包含 raw secret、本機絕對路徑或 raw file contents。
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `project_not_found` | 404 | `project_id` 不存在 |
+| `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
+| 驗證失敗 | 422 | proposal packet 包含不安全內容或 path contract 不合法 |
+
+### POST /api/scan-boundary-proposals/{proposal_id}/decision
+
+對 pending proposal 保存使用者決策。
+
+```http
+POST /api/scan-boundary-proposals/{proposal_id}/decision
+```
+
+```json
+{
+  "decision": "always_skip",
+  "reason": "Local-only secret config."
+}
+```
+
+Decision action：
+
+- `skip_this_run`：下一次 fingerprint match 時跳過一次，套用後即消耗；之後若仍是 suspicious file，會回到 `pending_boundary_review`，不會自動正常掃描。
+- `always_skip`：只要 path + fingerprint 仍相同，未來 scan 都跳過。
+- `metadata_only`：未來 scan 保留 metadata-level audit trail，不交給 provider 做 deep collection。
+- `masked_summary_only`：未來 scan 只保留遮蔽摘要，不交給 provider 做 deep collection。
+- `scan_normally`：只要 path + fingerprint 仍相同，下一次 scan 不套用 pending hold 或 skip overlay，交回一般 scanner/provider 規則處理。
+
+若同一路徑內容或 metadata 改變，舊 decision 失效，該 suspicious file 會回到 `pending_boundary_review`，避免新內容被舊決策直接放行或跳過。
+
+Response `200`：
+
+```ts
+{
+  proposal: ScanBoundaryProposal;      // status 變為 decided
+  decision: ScanBoundaryDecision | null;
+}
+```
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `proposal_not_found` | 404 | `proposal_id` 不存在 |
+| 驗證失敗 | 422 | decision payload 不合法，或 proposal 已 decision |
+
+可用以下 trace script 端到端驗證 policy overlay 行為：
+
+```bash
+scripts/trace_scan_boundary_policy_overlay.sh --start-server
+```
+
+它會建立含 `.env` 的暫時專案，驗證第一次 scan 先 hold `.env`，`scan_normally` decision 後第二次才交回一般 provider。
+
+---
+
 ## 錯誤對照表
 
 | 狀態 | 意義 | 常見 `detail` |
 | --- | --- | --- |
 | 200 | 成功（含「map 無效」這類明確的 loaded:false 狀態） | — |
-| 404 | 目標不存在 | `project_not_found`、`map_not_loaded`、`unmapped_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
+| 404 | 目標不存在 | `project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
 | 413 | request body 超過本機 API resource limit | `request_too_large` |
 | 422 | 輸入不合法 / 驗證失敗 | `target_not_found`、validation 陣列 |
 | 500 | 未預期後端錯誤，回應會遮蔽 raw path / secret | `internal_server_error` |
