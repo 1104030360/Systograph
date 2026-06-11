@@ -22,6 +22,9 @@ from kai_mind.core.services.mapping_proposal_service import (
     MappingProposalService,
 )
 from kai_mind.core.services.query_trace_service import QueryTraceService
+from kai_mind.core.services.scan_boundary_review_service import (
+    ScanBoundaryReviewService,
+)
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
 from kai_mind.web.middleware import (
     DEFAULT_MAX_REQUEST_BODY_BYTES,
@@ -34,6 +37,7 @@ from kai_mind.web.routes import (
     mapping_proposal_routes,
     mapping_routes,
     project_routes,
+    scan_boundary_routes,
     scan_routes,
     trace_routes,
     viewer_routes,
@@ -79,6 +83,7 @@ def create_app(
     mapping_proposal_service: MappingProposalService | None = None,
     detail_scan_service: DetailScanService | None = None,
     query_trace_service: QueryTraceService | None = None,
+    scan_boundary_review_service: ScanBoundaryReviewService | None = None,
     viewer_session_service: ViewerSessionService | None = None,
     session_store: InMemorySessionStore | None = None,
     allowed_origins: Sequence[str] | None = None,
@@ -98,8 +103,12 @@ def create_app(
             manual_mapping_service=app.state.manual_mapping_service,
         )
     )
+    app.state.scan_boundary_review_service = (
+        scan_boundary_review_service or ScanBoundaryReviewService()
+    )
     app.state.map_build_service = map_build_service or MapBuildService(
-        manual_mapping_service=app.state.manual_mapping_service
+        manual_mapping_service=app.state.manual_mapping_service,
+        scan_boundary_review_service=app.state.scan_boundary_review_service,
     )
     app.state.detail_scan_service = detail_scan_service or DetailScanService()
     app.state.query_trace_service = query_trace_service or QueryTraceService()
@@ -118,6 +127,7 @@ def create_app(
     app.include_router(mapping_proposal_routes.router)
     app.include_router(mapping_routes.router)
     app.include_router(project_routes.router)
+    app.include_router(scan_boundary_routes.router)
     app.include_router(scan_routes.router)
     app.include_router(trace_routes.router)
     app.include_router(viewer_routes.router)
