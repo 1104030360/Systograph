@@ -349,7 +349,7 @@ Response:
 - `scan_depth` 目前只允許 `system`。
 - `status` 依 `MapBuildResult.status` 對應為 `completed` 或 `error`。
 - 同一個 `project_id` 若已有 confirmed manual mappings，下一次 scan / normalize 會套用這些 decisions；API 不會直接修改既有 `ai_system_map.json`。
-- 同一個 `project_id` 若已有 scan boundary decisions，下一次 scan 會先在 deterministic inventory 套用 policy overlay，再交給 providers；overlay 必須 fingerprint match 才生效。
+- 同一個 `project_id` 若已有 scan boundary decisions，下一次 scan 會先在 deterministic inventory 套用 policy overlay，再交給 providers；overlay 必須 fingerprint match 才生效，且同時作用於 `inventory.files` 與 `inventory.skipped` boundary target。
 
 ## Detail Scan Routes
 
@@ -915,6 +915,7 @@ Response excerpt:
 - 第一次 project scan 會先把 unresolved suspicious file 從 provider input 移到 `pending_boundary_review`；proposal create 只建立 review item，只做 bounded fingerprint，不保存或回傳 raw file contents。
 - Proposal create 不會修改 latest `/api/map` payload，不會回頭修改既有 `FileInventory`，也不會改 `ai_system_map.json`。
 - 同一路徑與 fingerprint 已有 proposal 時，create 會重用既有 proposal，避免重複 pending item。
+- 例外：若既有 proposal 對應的 decision 是 `skip_this_run`，且該 decision 已在下一次 scan 套用並記錄 `applied_at`，則不再重用；會建立新的 `pending_user_confirmation` proposal，讓使用者重新決策。
 
 ### POST /api/scan-boundary-proposals/{proposal_id}/decision
 
@@ -956,10 +957,15 @@ Response excerpt:
 - `proposal_id` 不存在回傳 HTTP 404 `proposal_not_found`。
 - 只有 `pending_user_confirmation` proposal 可以 decision；已 `decided` 的 proposal 再次 decision 會回 HTTP 422。
 - Decision 只寫入 KAI-Mind-managed repository，不寫入被掃描 repo。
+- `reason` 會先 mask secret，再 redact 本機絕對路徑；response 中的 `decision.reason` 不會回傳 raw secret 或 workspace 絕對路徑。
 - `skip_this_run` 只在下一次 fingerprint match 時生效一次；套用後 decision 會記錄 `applied_at`，後續若仍是 suspicious file 會回到 `pending_boundary_review`。
 - `scan_normally` 只有在 path + fingerprint 仍相同時才放行，讓該 target 交回一般 scanner/provider 規則。
 - `always_skip` / `metadata_only` / `masked_summary_only` 只有在 path + fingerprint 仍相同時才套用；若同一路徑內容或 metadata 改變，overlay 失效並回到 `pending_boundary_review`，避免新內容被舊決策直接放行或跳過。
 - Overlay 在 `ProjectScanService` provider collection 前套用，保留 skipped summary audit trail；不 retroactively mutate 已產生 artifact。
+- `inventory.files` 與 `inventory.skipped` 內的 boundary target 都會套用 overlay。
+- 對原本就在 `inventory.files` 的 suspicious file：依 decision 移到 `skipped`，reason 可能是 `skipped_by_policy_overlay`、`metadata_only_by_policy_overlay` 或 `masked_summary_only_by_policy_overlay`。
+- 對原本就在 `inventory.skipped` 的 model/log/dependency/cache target：不會被移回 `files`；overlay 會透過 `skipped_files` audit reason 反映 policy，例如 `metadata_only_by_policy_overlay`、`masked_summary_only_by_policy_overlay` 或 `skipped_by_policy_overlay`。
+- `skip_this_run` 在 skipped target 上同樣只生效一次；`applied_at` 記錄後，下一次 scan 會回到原始 skipped reason 或 `pending_boundary_review`。
 
 ### Optional NVIDIA NIM Provider
 
