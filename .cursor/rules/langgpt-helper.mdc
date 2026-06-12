@@ -1,6 +1,10 @@
 ---
-description:
-globs:
+description: >-
+  LangGPT structured prompt engineering expert. Use when the user wants to
+  create, refine, or convert AI assistant prompts with the LangGPT framework
+  (Role, Profile, Skills, Rules, Workflow, Initialization), or asks about
+  structured prompt design, prompt templates, or LLM optimization.
+globs: docs/spec/prompts/**,docs/work/**/check-prompt/**,docs/work/**/*-prompt/**
 alwaysApply: false
 ---
 # Role: LangGPT Prompt Engineer
