@@ -6,6 +6,26 @@
 
 本任務只做前端接線與 UI，不實作 backend scanner，不修改 canonical map validation，也不讓前端自行讀 project files。
 
+## 最新狀態校正（2026-06-12）
+
+後端 Task 21 已完成 `POST /api/detail-scans` / `GET /api/detail-scans/{detail_scan_id}` 與 detail scan evidence append；本任務仍未完成，且仍應留在 EPIC1 收尾 scope。
+
+已再次檢查目前前端：
+
+- `frontend/src/services/viewerApi.ts` 目前沒有 `createDetailScan()` 或 `getDetailScan()`。
+- `frontend/src/components/DetailPanel.tsx` 的 L2/L3 tabs 仍只讀 `payload.detail_scan_result_sample`。
+- `DetailPanel` 沒有 `Run component detail scan` / `Run code path scan` button。
+- `frontend/src/types.ts` 對 `ai_system_map` 採寬鬆 record/passthrough，沒有 typed `detail_scans[]` selector。
+- `frontend/package.json` 目前沒有 frontend test runner。
+
+結論：
+
+```text
+後端/API：完成
+前端 UI/API helper/state/tests：未完成
+EPIC1 判斷：仍是 minimum viable frontend scope
+```
+
 ## 為什麼要拆成 21a
 
 Task 21 的核心是 backend progressive detail scan：target validation、bounded AST / call-like extraction、secret masking、evidence append、`detail_scans[]` append、整份 map validation。
