@@ -1,5 +1,25 @@
 # Task 24a: Implement Project Mapping Profile Page
 
+## 最新狀態校正（2026-06-12）
+
+本任務仍未完成，但不應作為 EPIC1 最小收尾阻塞項。
+
+目前實作現況：
+
+- 後端已具備 manual mapping、mapping proposal、scan-boundary review 的 core/API。
+- 前端尚未接 `POST /api/projects/import`、`POST /api/scans`、boundary decision flow、manual mapping/proposal mutation。
+- 本頁是 project-level mapping/profile 管理資訊架構，依賴前述互動流程成熟後才有完整價值。
+
+因此本任務定位調整為：
+
+```text
+EPIC1 收尾前：不阻塞
+EPIC1 後品質/UX 強化：可開始設計 view model
+EPIC2：適合作為 workspace/profile/productization 功能
+```
+
+EPIC1 收尾優先順序應先做 `24b-implement-project-scan-and-boundary-decision-frontend-flow.md`、Task 20a、Task 21a，再回頭做本頁。
+
 ## 目標
 建立 Project Mapping Profile / Template Overlay 管理頁，讓使用者看見目前可用的 scan profile 版本：
 

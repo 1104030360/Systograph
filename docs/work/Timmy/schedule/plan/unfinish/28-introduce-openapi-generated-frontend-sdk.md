@@ -1,5 +1,12 @@
 # Task 28: Introduce OpenAPI Generated Frontend SDK
 
+## 最新狀態校正（2026-06-12）
+
+- 程式碼現況：後端 FastAPI routes / Pydantic schemas 已能支撐 runtime OpenAPI，但 repo 尚未看到 OpenAPI export script、versioned OpenAPI artifact、frontend codegen config、generated TypeScript client、schema drift check。前端目前仍由 `frontend/src/services/viewerApi.ts` 手寫 `/api/map` 與 SSE 相關呼叫。
+- 判斷：本任務尚未完成。它不是 EPIC1 核心功能閉環的第一優先，但在 `24b` project scan/boundary frontend flow、`20a` proposal frontend flow、`21a` detail scan frontend flow 完成後，應作為 EPIC1 收尾品質門檻或 EPIC1 freeze 前最後一個 contract hardening 任務。
+- 近期處置：保留在 `unfinish`。Task 25 upload、Task 26 history、Task 27 DB storage 若明確延後到 EPIC2，本任務可以先以目前 EPIC1 route set 凍結；否則應等這些 API shape 決策後再做，避免 generated SDK churn。
+- EPIC1 邊界：若時間有限，EPIC1 可以先靠手寫 client 收尾，但必須接受前後端 contract drift 風險；正式宣布 API freeze 前建議補上 OpenAPI export/generate/drift check。
+
 ## 目標
 
 在 Epic 1 local API route 基本凍結後，導入 Schema-First API contract pipeline：由 FastAPI 匯出 OpenAPI schema，前端用 OpenAPI 產生 TypeScript 型別與 API client，讓 GUI 不再手寫 endpoint path / request / response 型別。

@@ -1,120 +1,324 @@
-# KAI-Mind 前後端進度同步 (2026-06-12)
+# KAI-Mind 前端交接文件（2026-06-12）
 
-這份是接續 `frontend_sync_2026_06_01.md` 的前端同步版。重點不是列完整後端 phase log，而是讓前端知道：現在可以接哪些 API、畫面要處理哪些狀態、哪些事情不要在前端自己做。
+這份文件是給前端工程師開工用的版本。
 
-## 一、目前一句話
-
-6/1 時後端還在打底掃描引擎；現在已經推進到可對接的 local API flow：
+先不用理解全部後端 phase，只要先抓住一件事：
 
 ```text
-選本機專案
-  -> POST /api/projects/import
-  -> POST /api/scans
-     -> completed：產生 map artifact，更新 /api/map
-     -> requires_boundary_decision：先讓使用者確認本次掃描範圍
-  -> GET /api/map 顯示 graph_view_model
-  -> optional：detail scan / mapping proposal / query trace
+前端現在要把「看 demo map」推進成「真的選專案、掃描、看結果」。
 ```
 
-## 二、6/1 到現在完成了什麼
+## 1. 現在後端已經可以做什麼
 
-| 區塊 | 後端進度 | 前端價值 |
-| --- | --- | --- |
-| 安全掃描輸入 | precondition、timestamped output、filesystem inventory、secret masking | 不會直接把使用者本機 secret 或無關大型目錄丟到 UI |
-| 事實抽取 | config、Docker Compose、dependency manifest、code pattern providers | 後端可從專案推導 endpoint、provider、RAG pattern、evidence |
-| 系統地圖 | component detection、risk hints、flows、normalize/validation | `ai_system_map.json` 成為 canonical artifact |
-| Viewer payload | `ViewerSessionService`、`graph-view-model/v1`、`/api/map`、`/api/viewer/load` | 前端直接 render nodes / edges / details / filters，layout 仍由前端處理 |
-| 互動能力 | manual mappings、mapping proposals、detail scans、query trace | 前端可以做未對應元件確認、懶載入細節、runtime trace replay |
-| API 穩定性 | CORS、request size limit、masked 500、path safety、snapshot safety | 前端能可靠處理 413 / 500 / 404 / 422，不會看到 raw path 或 secret |
-| 最新變更 | scan boundary review 內嵌在 `POST /api/scans` | 掃描前若有敏感 target，先確認本次要不要掃 |
-
-## 三、前端優先接的主流程
-
-正式 API mode 請走 project session，不要用 demo shortcut：
+後端目前已經有一條正式 API flow：
 
 ```text
-1. POST /api/projects/import
-   取得 project_id
-
-2. POST /api/scans
-   status = completed
-     -> 使用 build_result / GET /api/map 更新畫面
-
-   status = requires_boundary_decision
-     -> 顯示「確認本次掃描範圍」
-     -> 使用者對每個 proposal 選 scan_this_run / skip_this_run
-     -> 前端自動再 POST /api/scans，帶 boundary_decisions[]
-
-3. GET /api/map
-   使用 viewer_load_result.graph_view_model render graph
+輸入本機專案路徑
+  -> 建立 project_id
+  -> 開始 scan
+  -> 如果需要安全確認，先讓使用者選這次要不要掃
+  -> scan 完成
+  -> 讀取 /api/map
+  -> 前端顯示 graph
 ```
 
-`POST /api/map/build` 仍可做快速 demo，但它不建立 `project_id`，所以不能接 detail scan、mapping proposal、manual mapping、query trace。
+前端不要再只停在 sample/demo map。接下來要先把這條 flow 接起來。
 
-## 四、掃描安全確認流程
+## 2. 前端第一優先：接正式掃描流程
 
-當後端發現 `.env`、secret-like config、vector persistence path 等 target，第一次 `POST /api/scans` 會先回：
+對應計畫：
+
+`docs/work/Timmy/schedule/plan/unfinish/24b-implement-project-scan-and-boundary-decision-frontend-flow.md`
+
+### UI 要做
+
+前端要新增或補齊：
+
+1. 一個輸入本機專案路徑的地方。
+2. 一個「開始掃描」按鈕。
+3. 掃描中 / 成功 / 失敗狀態。
+4. 如果後端要求安全確認，要跳出 modal 或 drawer。
+5. scan 完成後，自動重新讀 `/api/map` 並更新 graph。
+
+### API 順序
+
+第一步：建立 project。
+
+```http
+POST /api/projects/import
+```
+
+request:
+
+```json
+{
+  "source_type": "local_path",
+  "project_path": "/Users/example/my-rag-project"
+}
+```
+
+response 會拿到：
+
+```json
+{
+  "project_id": "project:..."
+}
+```
+
+第二步：開始掃描。
+
+```http
+POST /api/scans
+```
+
+request:
+
+```json
+{
+  "project_id": "project:..."
+}
+```
+
+後端會回兩種主要狀態。
+
+### 情況 A：掃描完成
+
+```json
+{
+  "status": "completed",
+  "build_result": {}
+}
+```
+
+前端接著呼叫：
+
+```http
+GET /api/map
+```
+
+然後用：
 
 ```text
-status = "requires_boundary_decision"
-build_result = null
-boundary_proposals = [...]
-available_boundary_actions = ["scan_this_run", "skip_this_run"]
+viewer_load_result.graph_view_model
 ```
 
-這代表正式掃描還沒開始，不會寫 artifact，也不會更新 `/api/map`。前端要一次列出所有 proposal，讓使用者完成所有選擇後，再用同一個 endpoint 送回 `boundary_decisions[]`。
+更新畫面上的 nodes / edges / details。
+
+### 情況 B：需要安全確認
+
+```json
+{
+  "status": "requires_boundary_decision",
+  "build_result": null,
+  "boundary_proposals": [],
+  "available_boundary_actions": ["scan_this_run", "skip_this_run"]
+}
+```
+
+這代表掃描還沒有真的完成。
+
+前端要做：
+
+1. 不要更新 graph。
+2. 顯示安全確認 modal / drawer。
+3. 把 `boundary_proposals` 全部列出來。
+4. 每一項讓使用者選：
+   - `scan_this_run`：這次掃。
+   - `skip_this_run`：這次跳過。
+5. 使用者全部選完後，再呼叫一次 `POST /api/scans`，這次帶 `boundary_decisions`。
+
+範例：
+
+```json
+{
+  "project_id": "project:...",
+  "boundary_decisions": [
+    {
+      "proposal_id": "boundary:...",
+      "action": "scan_this_run"
+    }
+  ]
+}
+```
+
+重要文案：
+
+- 可以說：「這次掃描要不要包含這個範圍？」
+- 不要說：「永遠跳過」。
+- 不要說：「下次也套用」。
+- 這個 decision 只影響這一次 scan。
+
+## 3. 第二優先：Mapping Proposal
+
+對應計畫：
+
+`docs/work/Timmy/schedule/plan/unfinish/20a-implement-ai-mapping-proposal-frontend-flow.md`
+
+使用者看到 `unmapped` 元件時，前端要讓他可以請後端產生 mapping proposal。
+
+要做的事：
+
+1. 在 unmapped node / detail panel 放一個「產生 mapping proposal」入口。
+2. 呼叫 `POST /api/mapping-proposals`。
+3. 顯示後端建議它應該對應到哪個 component / slot。
+4. 讓使用者選：
+   - accept
+   - edit
+   - reject
+   - skip_for_now
+
+注意：
 
 ```text
-開始掃描
-  -> 需要確認
-  -> 確認本次掃描範圍
-  -> 繼續掃描
-  -> 完成
+前端不要自己改 ai_system_map。
 ```
 
-UI 文案不要說「重新上傳」、「下次生效」、「永遠跳過」。這次 decision 只對本次 scan request 生效，下一次掃描仍會重新確認。
+使用者的 decision 會變成 manual mapping。正式 map 要等下一次 scan 套用。
 
-## 五、前端要處理的狀態
+## 4. 第三優先：Detail Scan
 
-| 狀態 | 前端行為 |
-| --- | --- |
-| `no_map_loaded` | 顯示尚未載入地圖的 empty state |
-| `completed` | 顯示 `graph_view_model`，並更新結果區 |
-| `requires_boundary_decision` | 顯示安全確認 modal / drawer，不更新 graph |
-| `error` | 顯示掃描失敗狀態，可讓使用者重試 |
-| `project_not_found` / `map_not_loaded` | 後端 session 可能重啟，請重新 import + scan |
-| `request_too_large` | request body 超過 1 MB，顯示可理解的錯誤 |
-| trace `endpoint_not_found` / `partial` | trace timeline 仍要能 replay 到已知步驟 |
+對應計畫：
 
-## 六、功能對接備註
+`docs/work/Timmy/schedule/plan/unfinish/21a-implement-detail-scan-frontend-flow.md`
 
-- **Detail Scan**：`POST /api/detail-scans`，必須先有 project session + map。結果會回更新後的完整 `ai_system_map`。
-- **Mapping Proposal**：`POST /api/mapping-proposals` 只針對 `unmapped`。`accept/edit` 會產生 manual mapping；canonical map 仍等下一次 scan 套用。
-- **Manual Mapping**：`GET/POST/PATCH /api/mappings` 管 project-level 使用者決策，不直接修改目前畫面上的 map artifact。
-- **Query Trace**：`POST /api/trace` 是明確 opt-in runtime call。前端不要直接 call 使用者專案 endpoint。
-- **Viewer Payload**：請 render `viewer_load_result.graph_view_model`。`ai_system_map` 是 canonical truth，不要在前端自行改寫。
+目前 Detail Panel 還偏 sample-only。接下來要改成真的呼叫後端。
 
-## 七、前端不要做的事
+要做的事：
 
-- 不要自己讀本機專案檔案。
-- 不要顯示 raw secret、完整檔案內容或本機絕對路徑。
-- 不要把 `graph_view_model` 當成可以回寫的資料來源。
-- 不要用 `/api/map/build` 來接需要 `project_id` 的互動功能。
-- 不要實作舊版 scan boundary 選項：`always_skip`、`metadata_only`、`masked_summary_only`、下次跳過、永遠跳過。
+1. 使用者點 node / edge。
+2. 使用者切到 L2 Component 或 L3 Code Path。
+3. 前端呼叫：
 
-## 八、這份同步查過的來源
+```http
+POST /api/detail-scans
+```
 
-- `docs/work/Meeting-Sync/frontend_sync_2026_06_01.md`
+4. 顯示 loading。
+5. 顯示後端回來的 detail scan result。
+6. 如果失敗，顯示錯誤，不要讓畫面看起來像已完成。
+
+## 5. Task 24a：Project Mapping Profile Page
+
+對應計畫：
+
+`docs/work/Timmy/schedule/plan/unfinish/24a-implement-project-mapping-profile-page.md`
+
+這個要做，但不是第一個做。
+
+建議放在 EPIC2 / 產品化階段，原因是它需要前面的功能先完成：
+
+1. `24b` project scan flow。
+2. `20a` mapping proposal。
+3. `21a` detail scan。
+
+Profile page 要解決的是：
+
+```text
+這個 project 目前有哪些 manual mappings？
+哪些 proposal 被接受？
+哪些被跳過？
+哪些被拒絕？
+使用者能不能回頭修改？
+```
+
+它比較像「管理頁」，不是第一條 scan flow 的必要條件。
+
+## 6. 前端還要補的品質工作
+
+### API 文件同步
+
+請同步更新：
+
+`frontend/API_CONTRACT.md`
+
+至少要補：
+
+- `POST /api/projects/import`
+- `POST /api/scans`
+- `requires_boundary_decision`
+- `POST /api/detail-scans`
+- `POST /api/mapping-proposals`
+
+### 測試
+
+建議補 frontend tests，至少覆蓋：
+
+1. scan completed 後會重新載入 map。
+2. `requires_boundary_decision` 會顯示 modal，不會更新 graph。
+3. 使用者送出 boundary decisions 後會再次呼叫 scan。
+4. detail scan loading / error / success。
+5. mapping proposal accept / reject / skip flow。
+
+### OpenAPI SDK
+
+對應計畫：
+
+`docs/work/Timmy/schedule/plan/unfinish/28-introduce-openapi-generated-frontend-sdk.md`
+
+這是收尾品質工作。等 API shape 穩定後，再導入 OpenAPI 產生 TypeScript 型別 / client，避免前端一直手寫 endpoint 和 response type。
+
+## 7. 目前頁面上的 AI 面板
+
+目前前端頁面上有 `ChatPanel`，但它只是前端 UI 殼。
+
+後端目前還沒有：
+
+- assistant API。
+- RAG retrieval。
+- page context collector。
+- 產品操作 action flow。
+
+所以這個不是本輪前端交接要做的主線。
+
+未來如果要把它做成 page-aware RAG assistant，計畫先放在：
+
+`docs/work/Timmy/schedule/plan/future/page-aware-rag-product-assistant.md`
+
+現在前端可以先保留這個入口，但不要為了它阻塞 `24b`、`20a`、`21a`。
+
+## 8. 前端不要做的事
+
+這些事情請不要在前端做：
+
+1. 不要自己讀本機專案檔案。
+2. 不要顯示 raw secret。
+3. 不要顯示完整本機絕對路徑。
+4. 不要把 `graph_view_model` 當成可以回寫的資料。
+5. 不要用 `/api/map/build` 來做正式互動流程。
+6. 不要自己發明 scan boundary action。
+
+正式互動流程都要走 project session：
+
+```text
+POST /api/projects/import
+POST /api/scans
+GET /api/map
+```
+
+## 9. 一句話排程建議
+
+建議前端照這個順序做：
+
+```text
+1. 24b：project import + scan + boundary decision
+2. 20a：mapping proposal UI
+3. 21a：detail scan UI
+4. 更新 frontend/API_CONTRACT.md
+5. 補 frontend tests
+6. 28：OpenAPI generated client
+7. 24a：Project Mapping Profile Page
+```
+
+## 10. 參考來源
+
+- `frontend/API_CONTRACT.md`
 - `docs/API-GUIDE.md`
 - `src/kai_mind/web/routes/project_routes.py`
 - `src/kai_mind/web/routes/scan_routes.py`
 - `src/kai_mind/web/routes/map_routes.py`
 - `src/kai_mind/web/routes/detail_scan_routes.py`
-- `src/kai_mind/web/routes/mapping_routes.py`
 - `src/kai_mind/web/routes/mapping_proposal_routes.py`
+- `src/kai_mind/web/routes/mapping_routes.py`
 - `src/kai_mind/web/routes/trace_routes.py`
 - `src/kai_mind/web/schemas.py`
-- `src/kai_mind/core/services/scan_boundary_review_service.py`
-- `src/kai_mind/core/services/map_build_service.py`
-- `docs/work/Timmy/schedule/report/2026-06-01-*` 到 `2026-06-11-phase24-*`
-- `docs/work/Bo-han/schedule/report/*` 與 `docs/work/Bo-han/schedule/plan/unfinish/*`
+- `frontend/src/components/ChatPanel.tsx`

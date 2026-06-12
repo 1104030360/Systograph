@@ -1,4 +1,32 @@
-# Database-Backed Storage Layer Implementation Plan
+# Task 27: Introduce Database-Backed Storage Layer
+
+## 最新狀態校正（2026-06-12）
+
+本文件原本被放在 `plan/finish/`，但依照目前程式碼實際狀態，Task 27 尚未完成，因此移回 `plan/unfinish/`。
+
+已實際檢查：
+
+- `pyproject.toml` 目前沒有 `SQLAlchemy`、`alembic`、`psycopg[binary]`、`pgvector` runtime dependency。
+- repo 目前沒有 `src/kai_mind/config/storage.py`。
+- repo 目前沒有 `src/kai_mind/storage/database.py`、`src/kai_mind/storage/orm.py`。
+- repo 目前沒有 `alembic.ini` 或 `migrations/`。
+- `src/kai_mind/storage/repositories.py` 目前只提供 manual mapping repository protocol / in-memory implementation re-export，尚未有 PostgreSQL repository。
+- `create_app()` 目前仍使用 `InMemorySessionStore`；project import、scan result、latest build result 仍是 process-local state。
+
+因此本任務的真實狀態是：
+
+```text
+文件層級：已有完整 implementation plan
+程式碼層級：尚未落地 PostgreSQL-backed storage
+EPIC1 判斷：不應作為 EPIC1 收尾阻塞；應作為 EPIC2 基礎建設或明確另排的 storage phase
+```
+
+本任務完成前，不應在其他計畫文件中宣稱：
+
+- persistent session store 已完成。
+- manual mapping default persistence 已切到 PostgreSQL。
+- scan history 可跨 process restart 保留。
+- pgvector / vector_records 已可供 AI semantic search 使用。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

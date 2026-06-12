@@ -1,5 +1,11 @@
 # Future: Remote Template Import
 
+## 最新狀態校正（2026-06-12）
+
+- 程式碼與計畫現況：Task 24 已完成的是 scan boundary review 與安全決策邊界；目前不應把 remote template import、template marketplace、template execution 或 external Git/URL import 拉回 EPIC1。現有 code path 仍以固定 `rag-core-v1` / local reference template 為主。
+- 判斷：本項仍是 future，不應移到 `unfinish`。它需要 template provenance、schema versioning、digest/signature、migration policy、trust model 與 UI 管理流程，不是 EPIC1 收尾必備。
+- 邊界提醒：未來若要做，也必須保持 template data-only，不執行任何 code，不下載 dependencies，不繞過 scanner read-only 與 local-only 安全限制。
+
 ## 來源
 Task 3 (Create rag-core-v1 Reference Template) 在多處提到 remote template import 是最後才做的功能：
 

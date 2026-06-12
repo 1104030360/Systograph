@@ -1,5 +1,12 @@
 # Task 26: Implement Persistent Session Store and Scan History
 
+## 最新狀態校正（2026-06-12）
+
+- 程式碼現況：`create_app()` 仍以 `InMemorySessionStore` 組裝 local API；未看到 persistent session/history routes、restart reload、retention cleanup、storage config、SQLite/DB repository 或 scan history service。artifact 仍以目前 map build/output artifact 為主要 truth。
+- 判斷：本任務尚未完成，但不是 EPIC1 核心閉環的必要條件。EPIC1 若以單機、單次 scan、即時 viewer / report 為完成標準，in-memory session 可以接受。
+- 近期處置：保留在 `unfinish`，建議從 EPIC1 minimum viable scope 延後到 EPIC2 或 post-EPIC1 品質/產品化階段。若採用 DB-backed storage，應先完成 Task 27 再回頭接 scan history。
+- EPIC1 邊界：EPIC1 收尾前只需要確保 scan 結果 artifact 可讀、API response 不洩漏 secret、前端能載入最新 scan map；不需要 process restart 後的完整 history。
+
 ## 目標
 實作 persistent session store 與 scan history，讓 local web API 在 process restart 後仍能查詢 project import、scan result、artifact path、status history。若未來需要 multi-user，必須在本任務定義隔離、retention、masking 與 migration 規則。
 

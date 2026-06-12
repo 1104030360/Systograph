@@ -9,6 +9,26 @@
 
 本任務只做前端接線與 UI，不改 Task 20 backend service 行為，也不改 canonical `ai_system_map.json` contract。
 
+## 最新狀態校正（2026-06-12）
+
+後端 Task 20 已完成 core/API lifecycle；本任務仍未完成，且仍應留在 EPIC1 收尾 scope。
+
+已再次檢查目前前端：
+
+- `frontend/src/services/viewerApi.ts` 目前沒有 `listMappingProposals()`、`createMappingProposal()`、`decideMappingProposal()`。
+- `frontend/src/App.tsx` 沒有 proposal query / mutation wiring，也沒有把 proposal handlers 傳給 `DetailPanel`。
+- `frontend/src/components/DetailPanel.tsx` 仍只讀 `payload.mapping_proposal_result_sample`，proposal buttons 沒有 `onClick`。
+- `frontend/src/store/viewerStore.ts` 沒有 proposal lifecycle state。
+- `frontend/package.json` 目前沒有 frontend test runner。
+
+結論：
+
+```text
+後端/API：完成
+前端 UI/API helper/state/tests：未完成
+EPIC1 判斷：仍是 minimum viable frontend scope
+```
+
 ## 為什麼要拆成 20a
 
 Task 20 的核心是 backend pending-only proposal lifecycle。Frontend UI / API helper / candidate cards / mutation flow 是另一個獨立交付面，若混在 Task 20 會讓 scope 變大，也會讓後端驗收與前端 UX 驗收互相干擾。

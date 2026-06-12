@@ -1,5 +1,12 @@
 # Task 25: Implement Project Upload Ingestion
 
+## 最新狀態校正（2026-06-12）
+
+- 程式碼現況：目前 web schema 的 project import 仍只支援 `source_type="local_path"`；未看到 `ProjectUploadIngestionService`、upload route、multipart archive ingestion、temporary scan workspace、archive limits / cleanup 的實作。前端也尚未有 project archive upload UI。
+- 判斷：本任務尚未完成，但不應成為 EPIC1 收尾阻擋項。EPIC1 可以先以本機 `local_path` 輸入、scan boundary review、map build/viewer 閉環作為完成標準。
+- 近期處置：保留在 `unfinish`，但標記為 EPIC2 / post-EPIC1 的安全性敏感功能。除非產品明確要求「瀏覽器上傳壓縮檔」作為 EPIC1 demo 必備，否則不應塞回 EPIC1 minimum viable scope。
+- 前置依賴：若未來要做 upload，應先固定 archive 安全規格、limits、cleanup、secret masking 與 artifact retention；不應直接把 Task 24 的 template import 邏輯套用在被掃描專案。
+
 ## 目標
 實作 project archive upload / multipart upload ingestion，讓 local web API 可以接受使用者上傳的 project archive 作為 scan input。這不是 Task 24 的 template import；本任務處理「要被掃描的專案」輸入來源。
 
