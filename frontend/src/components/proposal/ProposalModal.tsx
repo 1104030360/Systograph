@@ -19,14 +19,12 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Cpu,
   FileCode2,
   GitBranch,
   Inbox,
   PlugZap,
   RefreshCw,
   SkipForward,
-  Sparkles,
   X,
 } from "lucide-react";
 import { CandidateCard } from "./CandidateCard";
@@ -262,17 +260,13 @@ export function ProposalModal({
     if (phase === "loading")
       return (
         <div className="mp-status">
-          <span className="spinner" /> Looking for matches…
-          <span className="mp-prov">
-            <Cpu size={11} /> nvidia-nim
-          </span>
+          <span className="spinner" /> Looking for suggestions...
         </div>
       );
     if (phase === "error")
       return (
         <div className="mp-status is-error">
           <PlugZap size={14} className="mp-status-ico" /> Couldn't get suggestions right now.
-          <span className="mp-prov">provider unavailable</span>
         </div>
       );
     if (provider && provider.fallback)
@@ -280,22 +274,21 @@ export function ProposalModal({
         <div className="mp-status is-fallback">
           <AlertTriangle size={14} className="mp-status-ico" /> The AI timed out — showing rule-based suggestions
           instead.
-          <span className="mp-prov">
-            <GitBranch size={11} /> rule-based
-          </span>
         </div>
       );
-    if (phase === "loaded" || phase === "empty")
+    if (phase === "empty")
       return (
         <div className="mp-status is-ok">
-          <Sparkles size={14} className="mp-status-ico" />{" "}
-          {phase === "empty"
-            ? "No suggestions found."
-            : `${candidates.length} ${w.candidateWord.toLowerCase()}s — the best match is open below.`}
+          No suggestions found.
         </div>
       );
     return null;
   }
+
+  const suggestionSummary =
+    phase === "empty"
+      ? "Kai-Mind does not have a suggestion for this file yet."
+      : `Kai-Mind found ${candidates.length} ${w.candidateWord.toLowerCase()}${candidates.length === 1 ? "" : "s"} for this file. Review the first suggestion, then use it, edit it, reject it, or decide later.`;
 
   return (
     <div className="mp-scrim" onClick={onClose}>
@@ -311,12 +304,15 @@ export function ProposalModal({
               <X size={15} />
             </button>
           </div>
-          <div className="mp-target">
-            <span className="mp-target-k">{w.unmappedNodeLabel}</span>
-            <span className="mp-target-v">
-              <FileCode2 size={14} style={{ color: "var(--text-3)", flex: "none" }} />
-              <span className="path">{node.node_path}</span>
-            </span>
+          <div className="mp-summary">
+            <div className="mp-summary-file">
+              <span className="mp-summary-k">{w.unmappedNodeLabel}</span>
+              <span className="mp-summary-v">
+                <FileCode2 size={14} style={{ color: "var(--text-3)", flex: "none" }} />
+                <span className="path">{node.node_path}</span>
+              </span>
+            </div>
+            <p>{suggestionSummary}</p>
           </div>
         </div>
 

@@ -1,6 +1,5 @@
-import { Check, Info, Pencil, Sparkles, X } from "lucide-react";
+import { Check, Info, Pencil, X } from "lucide-react";
 import { EvidenceList } from "../ui/EvidenceList";
-import { SourceTag } from "../ui/SourceTag";
 import { useWording } from "../../wording";
 import type { EvidenceRef, MappingCandidate } from "../../types";
 
@@ -38,26 +37,17 @@ export function CandidateCard({
     >
       <div className="mp-cand-head">
         {isRecommended ? (
-          <span className="mp-cand-rec">
-            <Sparkles size={12} /> {w.recommendedLabel}
-          </span>
+          <span className="mp-cand-rec">{w.recommendedLabel}</span>
         ) : (
           <span className="mp-cand-idx">
             {w.candidateWord} {index + 1}
           </span>
         )}
-        {cand.source ? (
-          <span className="mp-cand-src">
-            <SourceTag source={cand.source} />
-          </span>
-        ) : null}
       </div>
       <div className="mp-cand-body">
-        {/* one-sentence verdict; the slot code is demoted to a faint tag */}
         <p className="mp-verdict">
           {w.verdictPre} <b>{cand.component_name}</b>
           {w.verdictPost}
-          <span className="mp-verdict-slot">{cand.target_slot}</span>
         </p>
         <p className="mp-why">
           <span className="mp-why-label">{w.whyLabel}: </span>

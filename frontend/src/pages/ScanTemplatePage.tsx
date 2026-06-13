@@ -34,7 +34,6 @@ export function ScanTemplatePage({
 
   const state = stateQuery.data;
   const profiles = useMemo<ScanProfile[]>(() => state?.profiles ?? [], [state]);
-  const systemDefault = profiles.find((p) => p.kind === "system_default");
   const custom = profiles.find((p) => p.kind === "project_custom");
   const customExists = Boolean(custom);
 
@@ -166,6 +165,16 @@ export function ScanTemplatePage({
                   </button>
                 </div>
               </div>
+
+              <section className="st-explainer" aria-label={w.localAiTitle}>
+                <div className="st-explainer-icon">
+                  <FileCode2 size={15} />
+                </div>
+                <div>
+                  <h2>{w.localAiTitle}</h2>
+                  <p>{w.localAiBody}</p>
+                </div>
+              </section>
 
               <TemplateGallery
                 profiles={profiles}

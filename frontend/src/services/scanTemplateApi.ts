@@ -37,7 +37,8 @@ export interface MappingStatusLists {
 
 export const scanTemplateApi = {
   /** Full template state for a project: profiles + which one the next scan uses. */
-  async getState(_projectId: string = PROJECT.project_id): Promise<ScanTemplateState> {
+  async getState(projectId: string = PROJECT.project_id): Promise<ScanTemplateState> {
+    void projectId;
     const profiles: ScanProfile[] = [SYSTEM_DEFAULT];
     // PROJECT_CUSTOM is non-null in the mock; set to skip it to exercise the
     // empty-state branch in ProjectCustomCard.
@@ -51,12 +52,14 @@ export const scanTemplateApi = {
   },
 
   /** The three mapping-status lists shown under the overview cards. */
-  async listMappingStatus(_projectId: string = PROJECT.project_id): Promise<MappingStatusLists> {
+  async listMappingStatus(projectId: string = PROJECT.project_id): Promise<MappingStatusLists> {
+    void projectId;
     return delay({ confirmed: CONFIRMED, pending: PENDING, skipped: SKIPPED });
   },
 
   /** Select which profile the next scan should use. Real impl: PUT. */
-  async select(profileId: string, _projectId: string = PROJECT.project_id): Promise<{ selected_profile_id: string }> {
+  async select(profileId: string, projectId: string = PROJECT.project_id): Promise<{ selected_profile_id: string }> {
+    void projectId;
     return delay({ selected_profile_id: profileId }, 200);
   },
 };
