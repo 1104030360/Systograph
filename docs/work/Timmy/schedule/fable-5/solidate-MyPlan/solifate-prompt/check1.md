@@ -678,10 +678,38 @@ dev server port 是 `5173`。Build 已經設定 manual chunks：
 
 # 任務
 
-使用 Linus Torvalds `/Users/linjunting/Local_AI_Health_Doctor/.cursor/rules/linus_torvalds.mdc` 的思考方式，
-在專案的前端、後端、AI backend、AI infra、AI application 部分，根據目前系統架構與 `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/plan/unfinish/phase1-check.md`，檢查目前系統可能存在的漏洞、資安風險、過去實作上的缺陷，以及過去實作上不容易使用或不吸引使用者的地方。
+使用 Linus Torvalds `/Users/linjunting/Local_AI_Health_Doctor/.cursor/rules/linus_torvalds.mdc` 的思考方式，針對目前 GitHub 上 Epic 2 到 Epic 7 的 issue 內容做一次 evidence-based roadmap alignment review。
 
-本次任務只做檢查與紀錄，不直接修改功能程式碼、不直接修補問題。
+這次檢查的核心目標不是找理由擴大 scope，而是確認每個 Epic 的目標是否真的對齊目前 repo 現實、產品定位、現有架構、使用者可理解的價值，以及後續能否吸引更多人願意試用、理解、貢獻或採用 KAI-Mind / Local AI Health Doctor。
+
+你必須根據以下資料來源判斷，不可以只看 issue 標題或自己的印象：
+
+1. 目前 repo 實際 code / docs / tests / scripts。
+2. `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/check-list/principles.md`
+3. `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/plan/unfinish/phase1-solidate.md`
+   - 這份文件是本輪 Epic 2 到 Epic 7 目標整併與修訂的主要計畫輸入。
+   - 如果檔案已有內容，必須先完整閱讀後再判斷。
+   - 如果檔案尚未補內容或暫時不可用，請在 Report 中明確記錄「phase1-solidate.md 尚未提供可用內容」，並先根據其他已存在資料完成檢查；不要捏造該文件內容。
+4. GitHub repo `1104030360/Local-AI-Health-Doctor` 目前實際存在的 Epic 2 到 Epic 7 issues。
+5. 如涉及 AI backend、AI infra、AI application、RAG、Agent、LLM security、model serving、local inference、tool calling、retrieval quality、evals、observability、prompt injection 或資料外洩風險，必須參考最新官方文件、最新 AI 論文、最新 AI engineering / security 研究，以及相關開源專案的 source / docs / issues / PR / release notes。
+
+請逐一檢查 Epic 2 到 Epic 7：
+
+1. Epic 目標是否符合目前產品定位：AI Agent / RAG Release Readiness Gate。
+2. Epic 是否誤把專案寫成 chatbot、RAG builder、完整 observability 平台、企業級資安掃描器或模型 serving 平台。
+3. Epic 是否和目前已完成 / 未完成的 code、docs、tests、scripts 狀態一致。
+4. Epic 是否有過度設計、抽象過早、資料模型不清楚、source of truth 混亂、或會破壞既有 contract 的風險。
+5. Epic 是否有遺漏能讓使用者更容易理解、試用、驗證、demo、debug、contribute 的關鍵 user flow。
+6. Epic 是否清楚區分 frontend、backend、AI backend、AI infra、AI application、shared contract、security / privacy、testing / evaluation 的責任邊界。
+7. Epic 是否有把尚未完成的功能寫成已完成，或把 sample / placeholder / in-memory behavior 寫成 production-ready。
+8. Epic 之間是否重複、衝突、順序錯誤，或把同一個問題拆到不容易驗收的地方。
+9. Epic 是否能產生清楚的驗收標準，而不是只有模糊願景、單一分數或大而空的描述。
+
+如果 GitHub issue 內容和 repo 現實不一致，你必須直接修改該 GitHub issue 的 title / body / checklist / acceptance criteria，使它更準確、更可驗收、更符合專案定位。修改 issue 前必須先讀取實際 issue 內容，不可以憑 issue 編號猜測。
+
+如果 GitHub 權限、網路或 MCP / `gh` 認證阻擋你直接修改 issue，請不要假裝已修改。你必須在 TODO / Report 中記錄阻擋原因，並附上每個 issue 的建議替換內容，讓後續可以直接貼上。
+
+本次任務只做 roadmap / issue / docs 層級的檢查、研究、紀錄與 GitHub issue 內容修訂，不直接修改功能程式碼、不直接修補實作問題。
 
 如果檢查過程中發現需要修補的地方，請把問題、影響範圍、證據、重現方式、風險等級、建議修補方向、建議測試方式記錄下來，整理成 TODO:`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/todo` / Report:`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report`，讓後續可以拆成獨立 issue 或下一階段修補任務。
 
@@ -691,31 +719,43 @@ dev server port 是 `5173`。Build 已經設定 manual chunks：
 
 # 測試相關注意事項
 
-如果需要驗證問題是否真的存在，你可以執行現有測試、lint、build、trace script，或撰寫臨時驗證腳本 / 測試案例。
+如果需要驗證 Epic 描述是否符合目前系統，你可以執行現有測試、lint、build、trace script，或撰寫臨時驗證腳本 / 測試案例。
 
 但是要記得：
 
 0. 可以使用 shell 腳本或測試程式輔助驗證問題
-1. 本次任務只做檢查與紀錄，不直接修補功能程式碼
+1. 本次任務只做檢查、研究、紀錄與 GitHub issue 內容修訂，不直接修補功能程式碼
 2. 如果錯誤跟本次檢查範圍相關，請記錄錯誤原因、影響範圍、重現方式、建議修補方式與建議測試方式
 3. 如果錯誤不是本次檢查範圍造成的，也必須記錄下來並清楚標示為「非本次檢查主要問題」
 4. 若新增臨時測試或驗證腳本，只用來輔助確認問題，不代表本次要完成正式修補
 5. 遇到不會或不確定的問題，你必須使用 "context7" MCP 或直接上網查找相關軟體工程 / security / UX / AI engineering 最佳實踐資料
+6. 沒有找到問題的區塊，也要明確記錄「已檢查，未發現明顯問題」
+7. 涉及 AI backend / AI infra / AI application 的判斷，必須參考最新 AI 論文與最新 AI 相關開源 source，不可以只靠舊知識或主觀推測
+8. 所有外部來源都要記錄來源、查詢日期，並清楚區分「repo 實際觀察」與「外部最佳實踐建議」
 
 # 約束
 
 1. 你必須先檢查實際 code / docs / tests / scripts，再判斷問題是否存在
-2. 本次任務只做檢查與紀錄，不直接修改功能程式碼
+2. 本次任務可以修改 GitHub issue 內容與新增 TODO / Report，但不直接修改功能程式碼
 3. 如果發現需要修補的問題，只能記錄問題與建議修補方向，不要直接修補
-4. 你必須依照 `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/plan/unfinish/phase1-check.md` 的安全邊界與架構原則進行檢查
-5. 全部做完後，你必須逐一整理本次發現的漏洞、資安風險、實作缺陷、UX / usability 問題、AI backend 問題、AI infra 問題、AI application 問題
-6. 每個問題都必須包含：問題描述、影響範圍、證據、重現方式、風險等級、建議修補方向、建議測試方式
-7. 沒有找到問題的區塊，也要明確記錄「已檢查，未發現明顯問題」
-8. 涉及 AI backend / AI infra / AI application 的判斷，必須參考最新 AI 論文與最新 AI 相關開源 source，不可以只靠舊知識或主觀推測
-9. 遇到不會的或不確定的問題，你必須使用 "context7" MCP（如果適合）或直接上網查找最新資訊
+4. 你必須依照 `principles.md` 與 `phase1-solidate.md` 的安全邊界與架構原則進行檢查；如果 `phase1-solidate.md` 尚未提供可用內容，必須記錄該限制
+5. 你必須先查 GitHub issue 清單與每個 Epic issue 的實際內容，再決定要如何修改，不可以假設 Epic 編號、標題或 scope
+6. 不要把後續 backlog 任意塞進既有 Epic 2；必須先確認目前 GitHub 上 Epic 2 的實際命名與 scope
+7. 不要把 `ai_system_map.json`、viewer projection、mapping proposal、query trace、scan boundary decision、manual mapping decision 混成同一個 source of truth
+8. 不要把 frontend sample、placeholder、mock progress、in-memory session、手寫 API helper、尚未完成的 storage / database / scan history 寫成已完成
+9. 全部做完後，你必須逐一整理本次發現的 roadmap 問題、產品定位問題、資安風險、實作缺陷、UX / usability 問題、AI backend 問題、AI infra 問題、AI application 問題、testing / eval 缺口
+10. 每個問題都必須包含：問題描述、影響範圍、repo 證據、外部來源（若有）、重現方式或查證方式、風險等級、建議 issue 修改、建議後續修補方向、建議測試方式
+11. 每個已修改的 GitHub issue 都要在 Report 中記錄：issue number、原本主要問題、修改摘要、修改後仍保留的風險、後續建議
+12. 遇到不會的或不確定的問題，你必須使用 "context7" MCP（如果適合）或直接上網查找最新資訊
 
 ## 注意事項
-請注意，你必須獨立完成此檢查工作。過程中不需要徵求我的同意，可以自行決定要檢查哪些 code path、docs、tests、scripts，也可以自行執行必要的驗證指令。
+請注意，你必須獨立完成此檢查工作。過程中不需要徵求我的同意，可以自行決定要檢查哪些 code path、docs、tests、scripts、GitHub issues，也可以自行執行必要的驗證指令。
 
-但是本次任務只做檢查與紀錄，不直接修改功能程式碼、不直接修補問題。
-如果發現需要修補的地方，請完整記錄成 TODO / Report，讓後續可以拆成獨立 issue 或下一階段修補任務。
+但是本次任務只做 roadmap / issue / docs 層級的檢查、研究、紀錄與 GitHub issue 內容修訂，不直接修改功能程式碼、不直接修補實作問題。
+
+最後請輸出：
+
+1. TODO：放在 `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/todo`
+2. Report：放在 `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report`
+3. GitHub issue 修改清單：包含 Epic 2 到 Epic 7 每個 issue 是否修改、修改內容摘要、若未修改則說明原因
+4. 未修補的後續風險清單：只記錄，不直接修程式碼
