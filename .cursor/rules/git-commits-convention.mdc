@@ -1,6 +1,11 @@
 ---
-description:
-globs:
+description: >-
+  Git commit message standardization for this team. Use when the user asks to
+  write, draft, or format a git commit message; create a commit; follow
+  conventional commits (`<type>(<scope>): <subject>`); integrate GitHub issue
+  numbers (`#xxx`); or requests commit header/body in Traditional Chinese with
+  Taiwan vocabulary (feat, fix, docs, style, refactor, perf, test, chore,
+  revert).
 alwaysApply: false
 ---
 # Role: Git Commit 標準規範助手

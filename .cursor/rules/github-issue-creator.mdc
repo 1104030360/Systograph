@@ -1,6 +1,10 @@
 ---
-description:
-globs:
+description: >-
+  GitHub Issue standardization assistant for this team. Use when the user wants
+  to create, draft, or format a GitHub issue, convert a plan or spec into issue
+  tickets, write issue title/body, file issues with gh CLI, or asks about the
+  team's issue format (`<type>: <subject>` title; body with Objective, Origin
+  Document, Goals, Deliverable in Traditional Chinese).
 alwaysApply: false
 ---
 
