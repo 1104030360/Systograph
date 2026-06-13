@@ -6,7 +6,9 @@
 
 - Base branch: `feat/scan-template-mapping-ui`
 - Head branch: `codex/scan-template-ui-polish-fixes`
-- PR 狀態：待開啟
+- PR: #137 `Polish scan template mapping UI copy and layout`
+- URL: https://github.com/1104030360/Local-AI-Health-Doctor/pull/137
+- PR 狀態：open
 - 主要範圍：Scan Template / Mapping Proposal 前端介面、排版、文字與 lint/build hygiene
 
 本次刻意不處理 Timmy backend / scanner correctness 類 issue，避免把前端 UI polish PR 變成跨層修正。
