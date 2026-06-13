@@ -1,14 +1,13 @@
 import {
   ArrowRight,
   CheckCircle2,
+  Eye,
   Inbox,
   RotateCcw,
   SkipForward,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { EvidenceList } from "../ui/EvidenceList";
-import { SourceTag } from "../ui/SourceTag";
 import { relTime } from "../../utils/time";
 import { useWording } from "../../wording";
 import type { ConfirmedMappingRow, PendingProposalRow, SkippedDecisionRow } from "../../types";
@@ -37,11 +36,17 @@ export function ConfirmedTable({ rows }: { rows: ConfirmedMappingRow[] }) {
     );
   return (
     <table className="st-table">
+      <colgroup>
+        <col className="col-node" />
+        <col className="col-target" />
+        <col className="col-evidence" />
+        <col className="col-date" />
+        <col className="col-action" />
+      </colgroup>
       <thead>
         <tr>
           <th>{w.colDetectedNode}</th>
           <th>{w.colMappedTo}</th>
-          <th>{w.colSource}</th>
           <th>{w.colEvidence}</th>
           <th>Last updated</th>
           <th className="col-shrink"></th>
@@ -61,9 +66,6 @@ export function ConfirmedTable({ rows }: { rows: ConfirmedMappingRow[] }) {
                 <ArrowRight size={13} className="arrow" />
                 <span className="target">{r.target_label}</span>
               </span>
-            </td>
-            <td>
-              <SourceTag source={r.source} />
             </td>
             <td>
               <EvidenceList items={r.evidence} compact />
@@ -104,6 +106,13 @@ export function PendingTable({
     );
   return (
     <table className="st-table">
+      <colgroup>
+        <col className="col-node" />
+        <col className="col-count" />
+        <col className="col-target" />
+        <col className="col-evidence" />
+        <col className="col-action" />
+      </colgroup>
       <thead>
         <tr>
           <th>{w.unmappedNodeLabel}</th>
@@ -138,7 +147,7 @@ export function PendingTable({
             </td>
             <td className="cell-actions">
               <button className="btn primary" type="button" onClick={() => onReview(r)}>
-                <Sparkles size={13} /> {w.reviewProposal}
+                <Eye size={13} /> {w.reviewProposal}
               </button>
             </td>
           </tr>
@@ -159,6 +168,12 @@ export function SkippedTable({ rows }: { rows: SkippedDecisionRow[] }) {
     );
   return (
     <table className="st-table">
+      <colgroup>
+        <col className="col-node" />
+        <col className="col-reason" />
+        <col className="col-date" />
+        <col className="col-action" />
+      </colgroup>
       <thead>
         <tr>
           <th>Node</th>

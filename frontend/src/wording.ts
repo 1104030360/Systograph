@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, createElement, useContext, type ReactNode } from "react";
 
 /* ============================================================================
    Wording layer for the Scan Template + Mapping Proposal surfaces.
@@ -28,6 +28,8 @@ export interface Wording {
   derivedShort: string;
   // summary bar
   nextScanWillUse: string;
+  localAiTitle: string;
+  localAiBody: string;
   // system detail
   baselineHead: string;
   baselineNote: string;
@@ -89,6 +91,9 @@ export const COPY_EXPLAINED: Wording = {
   derivedBadge: "Derived from rag-core-v1",
   derivedShort: "from rag-core-v1",
   nextScanWillUse: "Next scan will use",
+  localAiTitle: "Local AI setup",
+  localAiBody:
+    "Kai-Mind scans your project on this machine and uses this template to name what it finds. A project setup is the saved set of matches you have confirmed.",
   baselineHead: "Baseline components",
   baselineNote: "The core RAG slots every scan starts from.",
   useForNextScan: "Use for next scan",
@@ -100,21 +105,21 @@ export const COPY_EXPLAINED: Wording = {
   tabSkipped: "Skipped decisions",
   colDetectedNode: "Detected node",
   colMappedTo: "Mapped to",
-  colSource: "Source",
+  colSource: "How we matched it",
   colEvidence: "Based on evidence",
   colCandidates: "Candidates",
-  colBestCandidate: "Best candidate",
+  colBestCandidate: "Suggested match",
   reviewProposal: "Review proposal",
   noCustomTitle: "No project custom version yet",
   noCustomBody:
     "Confirm the unmapped nodes in this project and Kai-Mind will derive a custom version from rag-core-v1. The baseline stays read-only.",
   reviewUnmapped: "Review unmapped nodes",
   buildDesc: "Confirm the unmapped nodes below and Kai-Mind will derive a custom version from rag-core-v1.",
-  modalTitle: "Mapping Proposals",
-  unmappedTag: "Unmapped",
-  unmappedNodeLabel: "Unmapped node",
-  candidateWord: "Candidate",
-  recommendedLabel: "Recommended",
+  modalTitle: "Review suggestions",
+  unmappedTag: "Needs review",
+  unmappedNodeLabel: "File to review",
+  candidateWord: "Suggestion",
+  recommendedLabel: "Suggested first",
   basedOnEvidence: "Based on evidence",
   otherSuggestions: (n) => `Other candidates (${n})`,
   skipThisNode: "Skip this node",
@@ -132,18 +137,21 @@ export const COPY_EXPLAINED: Wording = {
 
 export const COPY_CASUAL: Wording = {
   pageSubtitle: "Pick which setup Kai-Mind uses the next time it scans your project.",
-  tabSystem: "Standard setup",
+  tabSystem: "Built-in setup",
   tabCustom: "Your project's setup",
   galleryOpen: "Open",
-  systemName: "Standard setup",
+  systemName: "Built-in setup",
   systemDesc: "The ready-made starting point Kai-Mind uses out of the box.",
   customName: "Your project's setup",
   customDesc:
-    "A setup just for this project — the standard one, plus the matches you've confirmed. The standard setup stays untouched.",
+    "A setup just for this project: the built-in one, plus the matches you've confirmed. The built-in setup stays untouched.",
   readOnlyBadge: "Can't edit",
-  derivedBadge: "Based on the standard setup",
-  derivedShort: "based on standard",
+  derivedBadge: "Based on the built-in setup",
+  derivedShort: "based on built-in",
   nextScanWillUse: "Next scan will use",
+  localAiTitle: "Local AI setup",
+  localAiBody:
+    "Kai-Mind scans this project locally. This setup tells it how to name files it finds, and your confirmed matches become this project's setup.",
   baselineHead: "What every scan looks for",
   baselineNote: "The main parts Kai-Mind tries to find in your code.",
   useForNextScan: "Use this next time",
@@ -158,18 +166,18 @@ export const COPY_CASUAL: Wording = {
   colSource: "How we matched it",
   colEvidence: "What we found",
   colCandidates: "Suggestions",
-  colBestCandidate: "Best match",
+  colBestCandidate: "Suggested match",
   reviewProposal: "Review",
   noCustomTitle: "You don't have a setup for this project yet",
   noCustomBody:
-    "Review the files Kai-Mind couldn't place, and it'll build a setup just for this project from the standard one. The standard setup stays untouched.",
+    "Review the files Kai-Mind couldn't place, and it'll build a setup just for this project from the built-in one. The built-in setup stays untouched.",
   reviewUnmapped: "Review unplaced files",
-  buildDesc: "Sort out the files below, and Kai-Mind will build a setup just for this project from the standard one.",
-  modalTitle: "Suggested matches",
+  buildDesc: "Sort out the files below, and Kai-Mind will build a setup just for this project from the built-in one.",
+  modalTitle: "Review suggestions",
   unmappedTag: "Not sure yet",
   unmappedNodeLabel: "File we're not sure about",
   candidateWord: "Suggestion",
-  recommendedLabel: "Best match",
+  recommendedLabel: "Suggested first",
   basedOnEvidence: "Why we think so",
   otherSuggestions: (n) => `Other suggestions (${n})`,
   skipThisNode: "Decide later",
@@ -179,10 +187,10 @@ export const COPY_CASUAL: Wording = {
   acceptBtn: "Use this",
   editBtn: "Edit",
   rejectBtn: "Not this",
-  sourceAi: "AI found it",
-  sourceRule: "Matched by a rule",
+  sourceAi: "Suggested",
+  sourceRule: "Rule suggestion",
   sourceUser: "You confirmed it",
-  sourceDeterministic: "Matched by a rule",
+  sourceDeterministic: "Rule suggestion",
 };
 
 /* C · mix — plain display names (from B), but each key concept is followed by a
@@ -190,18 +198,21 @@ export const COPY_CASUAL: Wording = {
    vocabulary while they work. Best of both: friendly first, precise second. */
 export const COPY_HYBRID: Wording = {
   pageSubtitle: "Pick which setup Kai-Mind uses the next time it scans your project.",
-  tabSystem: "Standard setup",
+  tabSystem: "Built-in setup",
   tabCustom: "Your project's setup",
   galleryOpen: "Open",
-  systemName: "Standard setup",
+  systemName: "Built-in setup",
   systemDesc: "The ready-made starting point Kai-Mind uses out of the box — the built-in template (rag-core-v1).",
   customName: "Your project's setup",
   customDesc:
-    "A setup just for this project: the standard one, plus the matches you've confirmed. It's a separate version (project-custom-v1) — the standard setup never changes.",
+    "A setup just for this project: the built-in one, plus the matches you've confirmed. It's a separate version (project-custom-v1), so the built-in setup never changes.",
   readOnlyBadge: "Read-only",
-  derivedBadge: "Based on the standard setup",
-  derivedShort: "based on standard",
+  derivedBadge: "Based on the built-in setup",
+  derivedShort: "based on built-in",
   nextScanWillUse: "Next scan will use",
+  localAiTitle: "Local AI setup",
+  localAiBody:
+    "Kai-Mind scans this project locally. This setup is the template that turns detected files into named parts of your AI system.",
   baselineHead: "What every scan looks for",
   baselineNote: "The main parts Kai-Mind tries to find — the core RAG slots.",
   useForNextScan: "Use this next time",
@@ -216,19 +227,19 @@ export const COPY_HYBRID: Wording = {
   colSource: "How we matched it",
   colEvidence: "What we found",
   colCandidates: "Suggestions",
-  colBestCandidate: "Best match",
+  colBestCandidate: "Suggested match",
   reviewProposal: "Review",
   noCustomTitle: "You don't have a setup for this project yet",
   noCustomBody:
-    "Review the files Kai-Mind couldn't place, and it'll build a setup just for this project from the standard one (a new version derived from rag-core-v1). The standard setup stays untouched.",
+    "Review the files Kai-Mind couldn't place, and it'll build a setup just for this project from the built-in one (a new version derived from rag-core-v1). The built-in setup stays untouched.",
   reviewUnmapped: "Review unplaced files",
   buildDesc:
-    "Sort out the files below, and Kai-Mind will build a setup just for this project — a new version derived from the standard one.",
-  modalTitle: "Suggested matches",
+    "Sort out the files below, and Kai-Mind will build a setup just for this project: a new version derived from the built-in one.",
+  modalTitle: "Review suggestions",
   unmappedTag: "Not sure yet",
   unmappedNodeLabel: "File we're not sure about",
   candidateWord: "Suggestion",
-  recommendedLabel: "Best match",
+  recommendedLabel: "Suggested first",
   basedOnEvidence: "Why we think so",
   otherSuggestions: (n) => `Other suggestions (${n})`,
   skipThisNode: "Decide later",
@@ -238,17 +249,17 @@ export const COPY_HYBRID: Wording = {
   acceptBtn: "Use this",
   editBtn: "Edit",
   rejectBtn: "Not this",
-  sourceAi: "AI found it",
-  sourceRule: "Matched by a rule",
+  sourceAi: "Suggested",
+  sourceRule: "Rule suggestion",
   sourceUser: "You confirmed it",
-  sourceDeterministic: "Matched by a rule",
+  sourceDeterministic: "Rule suggestion",
 };
 
 const WordingContext = createContext<Wording>(COPY_EXPLAINED);
 
 export function WordingProvider({ mode, children }: { mode: WordingMode; children: ReactNode }) {
   const copy = mode === "casual" ? COPY_CASUAL : mode === "hybrid" ? COPY_HYBRID : COPY_EXPLAINED;
-  return <WordingContext.Provider value={copy}>{children}</WordingContext.Provider>;
+  return createElement(WordingContext.Provider, { value: copy }, children);
 }
 
 export function useWording(): Wording {
