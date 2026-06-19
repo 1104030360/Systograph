@@ -19,8 +19,8 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  CircleDashed,
   FileCode2,
-  GitBranch,
   Inbox,
   PlugZap,
   RefreshCw,
@@ -296,7 +296,7 @@ export function ProposalModal({
         <div className="mp-head">
           <div className="mp-head-top">
             <span className="kind-tag unmapped">
-              <GitBranch size={12} /> {w.unmappedTag}
+              <CircleDashed size={12} /> {w.unmappedTag}
             </span>
             <h2>{w.modalTitle}</h2>
             <button className="icon-btn mp-x" type="button" onClick={onClose} title="Close" aria-label="Close">

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, ChevronRight, FileCode2, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, Folder, Layers3, RefreshCw, Search } from "lucide-react";
 import { scanTemplateApi } from "../services/scanTemplateApi";
 import { TemplateGallery } from "../components/scan-template/TemplateGallery";
 import { TemplateDetail } from "../components/scan-template/TemplateDetail";
@@ -8,6 +8,7 @@ import { useWording, type WordingMode } from "../wording";
 import type { PendingProposalRow, ScanProfile } from "../types";
 
 type GalleryTab = "system_default" | "project_custom";
+type HeaderVariant = "compact" | "context" | "steps";
 type Nav = { view: "gallery" } | { view: "detail"; profileId: string } | { view: "build" };
 
 const SYSTEM_ID = "profile:rag-core-v1";
@@ -31,6 +32,7 @@ export function ScanTemplatePage({
   const [nav, setNav] = useState<Nav>({ view: "gallery" });
   const [galleryTab, setGalleryTab] = useState<GalleryTab>("system_default");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [headerVariant, setHeaderVariant] = useState<HeaderVariant>("context");
 
   const state = stateQuery.data;
   const profiles = useMemo<ScanProfile[]>(() => state?.profiles ?? [], [state]);
@@ -50,6 +52,7 @@ export function ScanTemplatePage({
       : "loaded";
 
   const selectedName = isCustomSelected ? w.customName : w.systemName;
+  const projectName = state?.project_name ?? "—";
 
   const refreshAll = () => {
     void stateQuery.refetch();
@@ -79,24 +82,80 @@ export function ScanTemplatePage({
 
   return (
     <div className="st-route" role="dialog" aria-label="Scan Template">
-      <header className="st-head">
-        <button
-          className="icon-btn st-back"
-          type="button"
-          onClick={headerBack}
-          title={nav.view === "gallery" ? "Back to viewer" : "Back to templates"}
-          aria-label={nav.view === "gallery" ? "Back to viewer" : "Back to templates"}
-        >
-          <ArrowLeft size={16} />
-        </button>
-        <div className="st-titles">
-          <h1>Scan Template</h1>
-          <span className="st-sub">{subtitle}</span>
-          <span className="st-project">
-            <FileCode2 size={12} /> project <b>{state?.project_name ?? "—"}</b>
+      <header className={`st-head st-head-${headerVariant}`}>
+        <div className="st-head-main">
+          <button
+            className="icon-btn st-back"
+            type="button"
+            onClick={headerBack}
+            title={nav.view === "gallery" ? "Back to viewer" : "Back to templates"}
+            aria-label={nav.view === "gallery" ? "Back to viewer" : "Back to templates"}
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div className="st-title-mark" aria-hidden="true">
+            <Layers3 size={18} />
+          </div>
+          <div className="st-titles">
+            <span className="st-eyebrow">Scan setup</span>
+            <h1>Scan Template</h1>
+            <span className="st-sub">{subtitle}</span>
+            <span className="st-project">
+              <Folder size={12} /> project <b>{projectName}</b>
+            </span>
+          </div>
+        </div>
+
+        <div className="st-head-meta" aria-label="Current scan context">
+          <span>
+            <Folder size={13} /> {projectName}
+          </span>
+          <span>
+            <Layers3 size={13} /> {selectedName}
           </span>
         </div>
+
+        <div className="st-workflow" aria-label="Scan template workflow">
+          <span>
+            <Folder size={13} /> Project
+          </span>
+          <ChevronRight size={12} />
+          <span className="is-active">
+            <Layers3 size={13} /> Setup
+          </span>
+          <ChevronRight size={12} />
+          <span>
+            <CheckCircle2 size={13} /> Review
+          </span>
+        </div>
+
         <div className="st-actions">
+          <div className="st-header-toggle" title="Header layout draft">
+            <span className="seg-label">Header</span>
+            <div className="segment">
+              <button
+                className={headerVariant === "compact" ? "is-active" : ""}
+                type="button"
+                onClick={() => setHeaderVariant("compact")}
+              >
+                A
+              </button>
+              <button
+                className={headerVariant === "context" ? "is-active" : ""}
+                type="button"
+                onClick={() => setHeaderVariant("context")}
+              >
+                B
+              </button>
+              <button
+                className={headerVariant === "steps" ? "is-active" : ""}
+                type="button"
+                onClick={() => setHeaderVariant("steps")}
+              >
+                C
+              </button>
+            </div>
+          </div>
           {/* TEMP: wording draft compare — remove once a direction is chosen. */}
           <div className="st-wording-toggle" title="Wording style (for comparison)">
             <span className="seg-label">Wording</span>
@@ -168,7 +227,7 @@ export function ScanTemplatePage({
 
               <section className="st-explainer" aria-label={w.localAiTitle}>
                 <div className="st-explainer-icon">
-                  <FileCode2 size={15} />
+                  <Layers3 size={15} />
                 </div>
                 <div>
                   <h2>{w.localAiTitle}</h2>
