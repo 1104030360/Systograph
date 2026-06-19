@@ -97,30 +97,30 @@ export function ScanTemplatePage({
           </span>
         </div>
         <div className="st-actions">
-          {/* TEMP: wording A/B compare — remove once a direction is chosen. */}
+          {/* TEMP: wording draft compare — remove once a direction is chosen. */}
           <div className="st-wording-toggle" title="Wording style (for comparison)">
             <span className="seg-label">Wording</span>
             <div className="segment">
               <button
-                className={wordingMode === "explained" ? "is-active" : ""}
+                className={wordingMode === "direct" ? "is-active" : ""}
                 type="button"
-                onClick={() => onWordingModeChange("explained")}
+                onClick={() => onWordingModeChange("direct")}
               >
-                A · explained
+                A · direct
               </button>
               <button
-                className={wordingMode === "casual" ? "is-active" : ""}
+                className={wordingMode === "guided" ? "is-active" : ""}
                 type="button"
-                onClick={() => onWordingModeChange("casual")}
+                onClick={() => onWordingModeChange("guided")}
               >
-                B · plain
+                B · guided
               </button>
               <button
-                className={wordingMode === "hybrid" ? "is-active" : ""}
+                className={wordingMode === "precise" ? "is-active" : ""}
                 type="button"
-                onClick={() => onWordingModeChange("hybrid")}
+                onClick={() => onWordingModeChange("precise")}
               >
-                C · mix
+                C · precise
               </button>
             </div>
           </div>

@@ -172,7 +172,7 @@ export function ProposalModal({
         setPhase("loaded");
         setProvider({ name: "deterministic", fallback: true });
         setSelectedId(candidates[0].candidate_id);
-        setFoot({ kind: "ok", msg: `${candidates.length} ${w.candidateWord.toLowerCase()}s (fallback)` });
+        setFoot({ kind: "ok", msg: w.fallbackSuggestions });
       } else {
         setPhase("loaded");
         setProvider({ name: "nvidia-nim", fallback: false });
@@ -260,26 +260,25 @@ export function ProposalModal({
     if (phase === "loading")
       return (
         <div className="mp-status">
-          <span className="spinner" /> Looking for suggestions...
+          <span className="spinner" /> {w.lookingForSuggestions}
         </div>
       );
     if (phase === "error")
       return (
         <div className="mp-status is-error">
-          <PlugZap size={14} className="mp-status-ico" /> Couldn't get suggestions right now.
+          <PlugZap size={14} className="mp-status-ico" /> {w.suggestionsUnavailable}
         </div>
       );
     if (provider && provider.fallback)
       return (
         <div className="mp-status is-fallback">
-          <AlertTriangle size={14} className="mp-status-ico" /> The AI timed out — showing rule-based suggestions
-          instead.
+          <AlertTriangle size={14} className="mp-status-ico" /> {w.fallbackSuggestions}
         </div>
       );
     if (phase === "empty")
       return (
         <div className="mp-status is-ok">
-          No suggestions found.
+          {w.noSuggestionsFound}
         </div>
       );
     return null;
@@ -287,8 +286,8 @@ export function ProposalModal({
 
   const suggestionSummary =
     phase === "empty"
-      ? "Kai-Mind does not have a suggestion for this file yet."
-      : `Kai-Mind found ${candidates.length} ${w.candidateWord.toLowerCase()}${candidates.length === 1 ? "" : "s"} for this file. Review the first suggestion, then use it, edit it, reject it, or decide later.`;
+      ? w.noSuggestionSummary
+      : w.suggestionsFoundSummary(candidates.length);
 
   return (
     <div className="mp-scrim" onClick={onClose}>

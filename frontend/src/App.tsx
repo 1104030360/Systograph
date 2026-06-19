@@ -87,8 +87,8 @@ export default function App() {
   // the page runs on the scanTemplateApi mock seam.
   const [view, setView] = useState<"viewer" | "scan-template">("viewer");
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
-  // TEMP: lets the team compare the two wording sets in-product (see wording.tsx).
-  const [wordingMode, setWordingMode] = useState<WordingMode>("explained");
+  // TEMP: lets the team compare wording drafts in-product (see wording.ts).
+  const [wordingMode, setWordingMode] = useState<WordingMode>("direct");
 
   const activeTraceEvent = traceEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
