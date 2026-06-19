@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Crosshair, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, Share2, Sun } from "lucide-react";
+import { Crosshair, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
@@ -181,13 +181,32 @@ export default function App() {
           <button className="icon-btn menu-btn" type="button" onClick={() => setMenuOpen(true)} title="Menu" aria-label="Open menu">
             <Menu size={16} />
           </button>
-          <div className="tb-title">
-            <div className="tb-title-project" aria-label={`Project ${projectName}`} title={`${projectName} - projection`}>
+          <div className="toolbar-menu project-menu">
+            <button className="tb-title-project" type="button" aria-label={`Project ${projectName}`}>
               <Folder size={13} />
               <span>{projectName}</span>
+            </button>
+            <div className="toolbar-popover">
+              <div className="popover-title">Project</div>
+              <div className="popover-main">{projectName}</div>
+              <div className="meta-list">
+                <span>
+                  <Layers3 size={13} />
+                  <b>{graph.nodes.length}</b> nodes
+                </span>
+                <span>
+                  <Share2 size={13} />
+                  <b>{graph.edges.length}</b> edges
+                </span>
+                <span>
+                  <span className="pulse" />
+                  status <b>{dataAvailable ? (scanSummary?.status ?? "unknown") : "unknown"}</b>
+                </span>
+                <span>projection</span>
+              </div>
             </div>
           </div>
-          <div className="tb-metrics">
+          <div className="tb-metrics is-hidden">
             <span className="metric">
               <Layers3 size={14} />
               <b>{graph.nodes.length}</b>
@@ -235,21 +254,25 @@ export default function App() {
             <Crosshair size={14} />
             Follow
           </button>
-          <button className="icon-btn" type="button" onClick={handleReset} title="Reset view" aria-label="Reset view">
-            <Maximize size={15} />
-          </button>
-          <button
-            className="icon-btn"
-            type="button"
-            onClick={toggleTheme}
-            title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-          <button className="icon-btn" type="button" onClick={() => setChatOpen(true)} title="Local model chat" aria-label="Open chat">
-            <MessageCircle size={15} />
-          </button>
+          <details className="toolbar-menu more-menu">
+            <summary className="icon-btn" aria-label="More tools" title="More tools">
+              <MoreHorizontal size={16} />
+            </summary>
+            <div className="toolbar-popover align-right">
+              <button className="menu-action" type="button" onClick={handleReset}>
+                <Maximize size={15} />
+                Reset view
+              </button>
+              <button className="menu-action" type="button" onClick={toggleTheme}>
+                {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                {theme === "dark" ? "Light theme" : "Dark theme"}
+              </button>
+              <button className="menu-action" type="button" onClick={() => setChatOpen(true)}>
+                <MessageCircle size={15} />
+                Local chat
+              </button>
+            </div>
+          </details>
         </header>
 
         <div className="graph-frame">
