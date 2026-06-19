@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Crosshair, Layers3, Maximize, Menu, MessageCircle, Moon, Share2, Sun } from "lucide-react";
+import { Crosshair, FileCode2, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, Share2, Sun } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
@@ -25,6 +25,8 @@ const EMPTY_GRAPH: GraphViewModel = {
   details: { evidence_by_id: {}, risk_hints_by_id: {} },
   filters: { available: [] },
 };
+
+type MapHeaderVariant = "compact" | "pills" | "breadcrumb";
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -89,6 +91,7 @@ export default function App() {
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
   // TEMP: lets the team compare wording drafts in-product (see wording.ts).
   const [wordingMode, setWordingMode] = useState<WordingMode>("direct");
+  const [mapHeaderVariant, setMapHeaderVariant] = useState<MapHeaderVariant>("pills");
 
   const activeTraceEvent = traceEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
@@ -159,6 +162,7 @@ export default function App() {
   }, [resetFocus]);
 
   const projectName = graph.summary?.project_name ? String(graph.summary.project_name) : "Local AI Health Doctor";
+  const schemaLabel = "ai-system-map/v1";
 
   return (
     <div className="app">
@@ -181,9 +185,54 @@ export default function App() {
           <button className="icon-btn menu-btn" type="button" onClick={() => setMenuOpen(true)} title="Menu" aria-label="Open menu">
             <Menu size={16} />
           </button>
-          <div className="tb-title">
-            <strong>{projectName}</strong>
-            <span className="mono">ai-system-map/v1 · projection</span>
+          <div className={`tb-title tb-title-mode-${mapHeaderVariant}`}>
+            <div className="tb-title-main">
+              <strong>{projectName}</strong>
+              <span className="mono">{schemaLabel} · projection</span>
+            </div>
+            <div className="tb-title-chips" aria-label="Map context">
+              <span>
+                <Folder size={12} /> {projectName}
+              </span>
+              <span>
+                <FileCode2 size={12} /> {schemaLabel}
+              </span>
+            </div>
+            <div className="tb-title-crumb" aria-label="Map breadcrumb">
+              <span>
+                <Folder size={12} /> {projectName}
+              </span>
+              <span className="slash">/</span>
+              <span>
+                <FileCode2 size={12} /> projection
+              </span>
+            </div>
+          </div>
+          <div className="tb-title-toggle" title="Map title layout draft">
+            <span className="seg-label">Title</span>
+            <div className="segment">
+              <button
+                className={mapHeaderVariant === "compact" ? "is-active" : ""}
+                type="button"
+                onClick={() => setMapHeaderVariant("compact")}
+              >
+                A
+              </button>
+              <button
+                className={mapHeaderVariant === "pills" ? "is-active" : ""}
+                type="button"
+                onClick={() => setMapHeaderVariant("pills")}
+              >
+                B
+              </button>
+              <button
+                className={mapHeaderVariant === "breadcrumb" ? "is-active" : ""}
+                type="button"
+                onClick={() => setMapHeaderVariant("breadcrumb")}
+              >
+                C
+              </button>
+            </div>
           </div>
           <div className="tb-metrics">
             <span className="metric">
