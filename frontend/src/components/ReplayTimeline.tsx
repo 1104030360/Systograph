@@ -82,7 +82,7 @@ export function ReplayTimeline({ events, activeIndex, isRunning, onIndexChange, 
               <span className="tl-idx">{index + 1}</span>
               <span className="tl-body">
                 <span className="tl-slot">{titleCase(event.slot ?? event.step_type ?? "step")}</span>
-                <span className="tl-sub">{event.step_type ?? compactId(event.component_id ?? "")}</span>
+                <span className="tl-sub">{compactId(event.component_id ?? event.step_type ?? "")}</span>
               </span>
             </button>
           ))}

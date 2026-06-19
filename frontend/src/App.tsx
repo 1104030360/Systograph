@@ -91,7 +91,7 @@ export default function App() {
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
   // TEMP: lets the team compare wording drafts in-product (see wording.ts).
   const [wordingMode, setWordingMode] = useState<WordingMode>("direct");
-  const [mapHeaderVariant, setMapHeaderVariant] = useState<MapHeaderVariant>("pills");
+  const [mapHeaderVariant, setMapHeaderVariant] = useState<MapHeaderVariant>("breadcrumb");
 
   const activeTraceEvent = traceEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
