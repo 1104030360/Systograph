@@ -19,7 +19,6 @@ export function ReplayTimeline({ events, activeIndex, isRunning, onIndexChange, 
       <div className="replay-head">
         <div className="r-title">
           <strong>Query replay</strong>
-          <span className="mono">{active?.replay_depth ?? "no trace"}</span>
         </div>
         <div className="r-ctrls">
           <button

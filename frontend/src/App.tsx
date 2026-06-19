@@ -10,7 +10,7 @@ import { StateOverlay, type ViewerState } from "./components/StateOverlay";
 import { SystemGraph } from "./components/SystemGraph";
 import { ScanTemplatePage } from "./pages/ScanTemplatePage";
 import { ProposalModal, type ProposalTarget } from "./components/proposal/ProposalModal";
-import { WordingProvider, type WordingMode } from "./wording";
+import { WordingProvider } from "./wording";
 import { getTraceEvents, viewerPayload as sampleViewerPayload } from "./data/sampleMap";
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
@@ -25,6 +25,14 @@ const EMPTY_GRAPH: GraphViewModel = {
   details: { evidence_by_id: {}, risk_hints_by_id: {} },
   filters: { available: [] },
 };
+
+const MAP_KEY: Array<[string, string]> = [
+  ["var(--line-strong)", "Detected"],
+  ["var(--accent)", "Confirmed"],
+  ["var(--risk)", "Risk"],
+  ["var(--unmapped)", "Review"],
+  ["var(--text-faint)", "Missing"],
+];
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -82,13 +90,12 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [fitSignal, setFitSignal] = useState(0);
+  const [graphInteracting, setGraphInteracting] = useState(false);
   // Scan Template route (full-bleed overlay) + Mapping Proposal modal (z 60, can
   // sit over the route or the graph). The selection API does not exist yet, so
   // the page runs on the scanTemplateApi mock seam.
   const [view, setView] = useState<"viewer" | "scan-template">("viewer");
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
-  // TEMP: lets the team compare wording drafts in-product (see wording.ts).
-  const [wordingMode, setWordingMode] = useState<WordingMode>("direct");
 
   const activeTraceEvent = traceEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
@@ -166,7 +173,6 @@ export default function App() {
 
       <Sidebar
         scanSummary={scanSummary}
-        systemType={aiSystemMap?.system_type}
         scanDepth={aiSystemMap?.scan_depth}
         dataAvailable={dataAvailable}
         filters={graph.filters.available}
@@ -192,11 +198,11 @@ export default function App() {
               <div className="meta-list">
                 <span>
                   <Layers3 size={13} />
-                  <b>{graph.nodes.length}</b> nodes
+                  <b>{graph.nodes.length}</b> Nodes
                 </span>
                 <span>
                   <Share2 size={13} />
-                  <b>{graph.edges.length}</b> edges
+                  <b>{graph.edges.length}</b> Edges
                 </span>
                 <span>
                   <span className="pulse" />
@@ -210,12 +216,12 @@ export default function App() {
             <span className="metric">
               <Layers3 size={14} />
               <b>{graph.nodes.length}</b>
-              nodes
+              Nodes
             </span>
             <span className="metric">
               <Share2 size={14} />
               <b>{graph.edges.length}</b>
-              edges
+              Edges
             </span>
             <span className="metric is-status" title="Backend scan status">
               <span className="pulse" />
@@ -275,7 +281,7 @@ export default function App() {
           </details>
         </header>
 
-        <div className="graph-frame">
+        <div className={graphInteracting ? "graph-frame is-interacting" : "graph-frame"}>
           {!showOverlay ? (
             <ProgressStrip
               isRunning={isProgressRunning}
@@ -306,7 +312,17 @@ export default function App() {
             followFocus={followFocus}
             fitSignal={fitSignal}
             onSelect={setSelected}
+            onInteractingChange={setGraphInteracting}
           />
+
+          <div className="map-key-float" aria-label="Map color key">
+            {MAP_KEY.map(([color, label]) => (
+              <span className="legend-chip" key={label}>
+                <span className="swatch" style={{ background: color }} />
+                {label}
+              </span>
+            ))}
+          </div>
 
           {selected && !showOverlay && payload ? (
             <div className="inspector">
@@ -333,12 +349,10 @@ export default function App() {
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
 
-      <WordingProvider mode={wordingMode}>
+      <WordingProvider>
         {view === "scan-template" ? (
           <ScanTemplatePage
             onClose={() => setView("viewer")}
-            wordingMode={wordingMode}
-            onWordingModeChange={setWordingMode}
             onOpenProposal={(row) =>
               setProposalTarget({
                 unmapped_id: row.unmapped_id,

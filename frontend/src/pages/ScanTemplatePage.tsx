@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, ChevronRight, Folder, Layers3, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, Folder, Info, Layers3, RefreshCw, Search } from "lucide-react";
 import { scanTemplateApi } from "../services/scanTemplateApi";
 import { TemplateGallery } from "../components/scan-template/TemplateGallery";
 import { TemplateDetail } from "../components/scan-template/TemplateDetail";
-import { useWording, type WordingMode } from "../wording";
+import { useWording } from "../wording";
 import type { PendingProposalRow, ScanProfile } from "../types";
 
 type GalleryTab = "system_default" | "project_custom";
-type HeaderVariant = "compact" | "context" | "steps";
 type Nav = { view: "gallery" } | { view: "detail"; profileId: string } | { view: "build" };
 
 const SYSTEM_ID = "profile:rag-core-v1";
@@ -17,13 +16,9 @@ const CUSTOM_ID = "profile:project-custom-v1";
 export function ScanTemplatePage({
   onClose,
   onOpenProposal,
-  wordingMode,
-  onWordingModeChange,
 }: {
   onClose: () => void;
   onOpenProposal: (row: PendingProposalRow) => void;
-  wordingMode: WordingMode;
-  onWordingModeChange: (mode: WordingMode) => void;
 }) {
   const w = useWording();
   const stateQuery = useQuery({ queryKey: ["scan-template-state"], queryFn: () => scanTemplateApi.getState() });
@@ -32,7 +27,6 @@ export function ScanTemplatePage({
   const [nav, setNav] = useState<Nav>({ view: "gallery" });
   const [galleryTab, setGalleryTab] = useState<GalleryTab>("system_default");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [headerVariant, setHeaderVariant] = useState<HeaderVariant>("context");
 
   const state = stateQuery.data;
   const profiles = useMemo<ScanProfile[]>(() => state?.profiles ?? [], [state]);
@@ -52,7 +46,8 @@ export function ScanTemplatePage({
       : "loaded";
 
   const selectedName = isCustomSelected ? w.customName : w.systemName;
-  const projectName = state?.project_name ?? "—";
+  const projectName = state?.project_name ?? "unknown";
+  const workflowStep = nav.view === "build" ? "review" : "setup";
 
   const refreshAll = () => {
     void stateQuery.refetch();
@@ -61,8 +56,15 @@ export function ScanTemplatePage({
 
   const headerBack = () => (nav.view === "gallery" ? onClose() : setNav({ view: "gallery" }));
   const detailProfile = nav.view === "detail" ? profiles.find((p) => p.profile_id === nav.profileId) ?? null : null;
+  const pageHint =
+    nav.view === "build"
+      ? w.buildDesc
+      : detailProfile?.kind === "system_default"
+        ? w.systemDesc
+        : detailProfile?.kind === "project_custom"
+          ? w.customDesc
+          : w.localAiBody;
 
-  // Context-aware subtitle so the user can tell they've drilled into a template.
   const crumbName =
     nav.view === "build"
       ? w.customName
@@ -82,7 +84,7 @@ export function ScanTemplatePage({
 
   return (
     <div className="st-route" role="dialog" aria-label="Scan Template">
-      <header className={`st-head st-head-${headerVariant}`}>
+      <header className="st-head st-head-steps">
         <div className="st-head-main">
           <button
             className="icon-btn st-back"
@@ -106,83 +108,26 @@ export function ScanTemplatePage({
           </div>
         </div>
 
-        <div className="st-head-meta" aria-label="Current scan context">
-          <span>
-            <Folder size={13} /> {projectName}
-          </span>
-          <span>
-            <Layers3 size={13} /> {selectedName}
-          </span>
-        </div>
-
         <div className="st-workflow" aria-label="Scan template workflow">
-          <span>
+          <button type="button" onClick={onClose}>
             <Folder size={13} /> Project
-          </span>
+          </button>
           <ChevronRight size={12} />
-          <span className="is-active">
+          <button
+            className={workflowStep === "setup" ? "is-active" : ""}
+            type="button"
+            disabled={workflowStep === "setup"}
+            onClick={() => setNav({ view: "gallery" })}
+          >
             <Layers3 size={13} /> Setup
-          </span>
+          </button>
           <ChevronRight size={12} />
-          <span>
+          <button className={workflowStep === "review" ? "is-active" : ""} type="button" disabled>
             <CheckCircle2 size={13} /> Review
-          </span>
+          </button>
         </div>
 
         <div className="st-actions">
-          <div className="st-header-toggle" title="Header layout draft">
-            <span className="seg-label">Header</span>
-            <div className="segment">
-              <button
-                className={headerVariant === "compact" ? "is-active" : ""}
-                type="button"
-                onClick={() => setHeaderVariant("compact")}
-              >
-                A
-              </button>
-              <button
-                className={headerVariant === "context" ? "is-active" : ""}
-                type="button"
-                onClick={() => setHeaderVariant("context")}
-              >
-                B
-              </button>
-              <button
-                className={headerVariant === "steps" ? "is-active" : ""}
-                type="button"
-                onClick={() => setHeaderVariant("steps")}
-              >
-                C
-              </button>
-            </div>
-          </div>
-          {/* TEMP: wording draft compare — remove once a direction is chosen. */}
-          <div className="st-wording-toggle" title="Wording style (for comparison)">
-            <span className="seg-label">Wording</span>
-            <div className="segment">
-              <button
-                className={wordingMode === "direct" ? "is-active" : ""}
-                type="button"
-                onClick={() => onWordingModeChange("direct")}
-              >
-                A · direct
-              </button>
-              <button
-                className={wordingMode === "guided" ? "is-active" : ""}
-                type="button"
-                onClick={() => onWordingModeChange("guided")}
-              >
-                B · guided
-              </button>
-              <button
-                className={wordingMode === "precise" ? "is-active" : ""}
-                type="button"
-                onClick={() => onWordingModeChange("precise")}
-              >
-                C · precise
-              </button>
-            </div>
-          </div>
           <button className="btn" type="button" onClick={refreshAll}>
             <RefreshCw size={14} /> Refresh
           </button>
@@ -204,36 +149,19 @@ export function ScanTemplatePage({
                   <span className="st-sm-k">{w.nextScanWillUse}</span>
                   <span className="st-sm-v">
                     <b>{selectedName}</b>
-                    {isCustomSelected ? (
-                      <>
-                        {" · "}
-                        {w.derivedBadge.toLowerCase()}
-                      </>
-                    ) : null}
+                    {isCustomSelected ? <> - {w.derivedBadge.toLowerCase()}</> : null}
                   </span>
                 </div>
                 <div className="st-sm-actions">
                   <button
                     className="btn"
                     type="button"
-                    onClick={() =>
-                      setSelectedId(isCustomSelected ? SYSTEM_ID : customExists ? CUSTOM_ID : SYSTEM_ID)
-                    }
+                    onClick={() => setSelectedId(isCustomSelected ? SYSTEM_ID : customExists ? CUSTOM_ID : SYSTEM_ID)}
                   >
                     Change
                   </button>
                 </div>
               </div>
-
-              <section className="st-explainer" aria-label={w.localAiTitle}>
-                <div className="st-explainer-icon">
-                  <Layers3 size={15} />
-                </div>
-                <div>
-                  <h2>{w.localAiTitle}</h2>
-                  <p>{w.localAiBody}</p>
-                </div>
-              </section>
 
               <TemplateGallery
                 profiles={profiles}
@@ -278,6 +206,13 @@ export function ScanTemplatePage({
           ) : null}
         </div>
       </div>
+
+      <p className="st-page-hint">
+        <Info size={13} />
+        <span>
+          <b>{w.localAiTitle}</b> {pageHint}
+        </span>
+      </p>
     </div>
   );
 }

@@ -53,8 +53,6 @@ export function TemplateDetail({
       ];
 
   const name = buildMode ? w.customName : isSystem ? w.systemName : w.customName;
-  const desc = buildMode ? w.buildDesc : isSystem ? w.systemDesc : w.customDesc;
-
   return (
     <div className="st-detail">
       <button className="btn ghost st-crumb" type="button" onClick={onBack}>
@@ -86,7 +84,6 @@ export function TemplateDetail({
               </>
             )}
           </div>
-          <p className="st-detail-desc">{desc}</p>
         </div>
         {!buildMode ? (
           <div className="st-detail-actions">
@@ -125,10 +122,6 @@ export function TemplateDetail({
       {/* Project custom → mapping status (no duplicate stat grid; counts live on the tabs) */}
       {isCustom ? (
         <section>
-          <div className="st-sec-head">
-            <h3>{w.statusHead}</h3>
-            <span className="st-sec-note">{w.statusNote}</span>
-          </div>
           <div className="st-status">
             <div className="st-status-tabs">
               {visibleTabs.map(([key, label, n]) => (

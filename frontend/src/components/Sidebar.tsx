@@ -3,7 +3,6 @@ import type { GraphFilterModel, ScanSummary } from "../types";
 
 type Props = {
   scanSummary?: ScanSummary;
-  systemType?: string;
   scanDepth?: string;
   dataAvailable: boolean;
   filters: GraphFilterModel[];
@@ -20,14 +19,6 @@ const DEPTH_ROWS = [
 ];
 const DEPTH_ORDER = ["system", "component", "code_path"];
 
-const LEGEND: Array<[string, string]> = [
-  ["var(--line-strong)", "Detected"],
-  ["var(--accent)", "Confirmed extension"],
-  ["var(--risk)", "Risk hint attached"],
-  ["var(--unmapped)", "Needs confirmation"],
-  ["var(--text-faint)", "Missing / not configured"],
-];
-
 function fdotKind(kind: string): string {
   if (kind === "flow" || kind === "risk" || kind === "mapping") return kind;
   return "";
@@ -35,7 +26,6 @@ function fdotKind(kind: string): string {
 
 export function Sidebar({
   scanSummary,
-  systemType,
   scanDepth,
   dataAvailable,
   filters,
@@ -44,11 +34,11 @@ export function Sidebar({
   onToggleFilter,
   onClearFilters,
 }: Props) {
-  const cell = (value: number | undefined) => (dataAvailable && value != null ? String(value) : "—");
+  const cell = (value: number | undefined) => (dataAvailable && value != null ? String(value) : "unknown");
   const missingAndNotConfigured =
     dataAvailable && (scanSummary?.missing_slots != null || scanSummary?.not_configured_slots != null)
       ? String((scanSummary?.missing_slots ?? 0) + (scanSummary?.not_configured_slots ?? 0))
-      : "—";
+      : "unknown";
   const reached = dataAvailable && scanDepth ? DEPTH_ORDER.indexOf(scanDepth) : -1;
   const scanStatus = dataAvailable ? (scanSummary?.status ?? "unknown") : "unknown";
 
@@ -67,7 +57,6 @@ export function Sidebar({
       <section className="side-section">
         <div className="side-head">
           <span className="eyebrow">Scan summary</span>
-          <span className="count mono">{dataAvailable ? (systemType ?? "rag") : "—"}</span>
         </div>
         <div className="summary-compact">
           <div className="summary-status">
@@ -135,21 +124,6 @@ export function Sidebar({
               </div>
             );
           })}
-        </div>
-      </details>
-
-      <details className="side-section grow collapse-section">
-        <summary className="collapse-head">
-          <span className="eyebrow">Legend</span>
-          <ChevronDown size={14} />
-        </summary>
-        <div className="legend">
-          {LEGEND.map(([color, label]) => (
-            <div className="legend-row" key={label}>
-              <span className="swatch" style={{ background: color }} />
-              {label}
-            </div>
-          ))}
         </div>
       </details>
     </aside>

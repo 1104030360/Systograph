@@ -287,7 +287,7 @@ export function ProposalModal({
   const suggestionSummary =
     phase === "empty"
       ? w.noSuggestionSummary
-      : w.suggestionsFoundSummary(candidates.length);
+      : "";
 
   return (
     <div className="mp-scrim" onClick={onClose}>
@@ -311,7 +311,7 @@ export function ProposalModal({
                 <span className="path">{node.node_path}</span>
               </span>
             </div>
-            <p>{suggestionSummary}</p>
+            {suggestionSummary ? <p>{suggestionSummary}</p> : null}
           </div>
         </div>
 
