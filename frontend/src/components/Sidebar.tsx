@@ -1,4 +1,4 @@
-import { Eye, Info, RotateCcw, Sparkles } from "lucide-react";
+import { Info, RotateCcw, Sparkles } from "lucide-react";
 import type { GraphFilterModel, ScanSummary } from "../types";
 
 type Props = {
@@ -86,23 +86,12 @@ export function Sidebar({
             <div className="k">unmapped</div>
           </div>
         </div>
-        {dataAvailable ? (
-          <div className="scan-banner">
-            <Info className="ico" size={14} />
-            <span>
-              Scan status: <b>{scanSummary?.status ?? "unknown"}</b>
-              {scanSummary?.files_scanned != null
-                ? ` — ${scanSummary.files_scanned} scanned, ${scanSummary.files_skipped ?? 0} skipped.`
-                : "."}{" "}
-              Not a complete audit.
-            </span>
-          </div>
-        ) : (
+        {!dataAvailable ? (
           <div className="scan-banner is-neutral">
             <Info className="ico" size={14} />
             <span>No map loaded. Summary unavailable until the backend returns a system map.</span>
           </div>
-        )}
+        ) : null}
       </section>
 
       <section className="side-section">
@@ -129,10 +118,6 @@ export function Sidebar({
               </button>
             );
           })}
-        </div>
-        <div className="scan-banner is-accent">
-          <Eye className="ico" size={14} />
-          <span>Highlight only — unmatched elements stay visible, never hidden.</span>
         </div>
       </section>
 
