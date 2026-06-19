@@ -12,14 +12,17 @@
 - **Auth**：無。Local-only，server 只綁 `127.0.0.1`。
 - **CORS allowlist**：`http://127.0.0.1:5173`、`http://localhost:5173`
 - **Content-Type**：request/response 皆為 `application/json`（SSE 為 `text/event-stream`，report 為 `text/markdown`）
+- **Request size limit**：寫入類 request body 預設上限 1 MB；超過時回 `413` 與 `{ "detail": "request_too_large" }`。
 
 ## 約定
 
 - 所有寫入類 endpoint 拒絕未知欄位（`extra="forbid"`）。
 - 錯誤回傳統一為 `{ "detail": string }`；request 結構錯誤（422）的 `detail` 為陣列。
+- 413 / 500 類安全錯誤回傳 stable error code，不包含 raw secret、Python exception string 或本機絕對路徑。
+- 只要 request `Origin` 在 allowlist 中，包含 413 / 500 在內的錯誤回應都會保留 CORS header，讓前端可讀取錯誤內容。
 - Session 狀態存在記憶體中，重啟後端會清空，`project_id` 需重新 import。
 - **兩種流程**：
-  - **Project session**（`import` → `scans`）：建立 `project_id`，掃描結果綁在該 project 上。`detail-scans`、`mapping-proposals`、`mappings` 都必須走這條。
+  - **Project session**（`import` → `scans`）：建立 `project_id`，掃描結果綁在該 project 上。`detail-scans`、`mapping-proposals`、`mappings` 都必須走這條。Scan boundary review 內嵌在 `POST /api/scans` 的正式掃描前 gate。
   - **Viewer demo**（`map/build`）：只掃 path、更新 latest viewer payload，**不建立 `project_id`**。適合快速載圖，不能接後續 project-scoped API。
 - `graph_view_model` 是前端渲染輸入；它是投影，不是 canonical truth，前端不應回寫。
 
@@ -78,7 +81,7 @@ Response `200`：
 
 ### POST /api/scans
 
-用已 import 的 `project_id` 執行 L1 系統掃描（同步），完成後會更新 `/api/map`。
+用已 import 的 `project_id` 執行 L1 系統掃描（同步）。正式掃描前會先做 scan boundary preflight；若有 `.env`、secret-like config、vector persistence path 等需要使用者確認的 target，response 會先回 `requires_boundary_decision`，不產生 map、不寫 artifact、不更新 `/api/map`。使用者在同一個 endpoint 帶本次 `boundary_decisions` 後，才會正式掃描並更新 `/api/map`。
 
 ```http
 POST /api/scans
@@ -90,11 +93,12 @@ POST /api/scans
   "scan_depth": "system",
   "output": "outputs",
   "redact_root_path": true,
-  "no_snippets": false
+  "no_snippets": false,
+  "boundary_decisions": []
 }
 ```
 
-Response `200`：
+若不需要人工決定，或已提供完整本次 decisions，Response `200`：
 
 ```ts
 {
@@ -102,12 +106,62 @@ Response `200`：
   project_id: string;
   status: "completed" | "error";
   build_result: MapBuildResult; // 見 POST /api/map/build
+  boundary_proposals: [];
+  available_boundary_actions: ["scan_this_run", "skip_this_run"];
 }
 ```
+
+若需要使用者先決定本次掃不掃，Response `200`：
+
+```ts
+{
+  scan_id: string;
+  project_id: string;
+  status: "requires_boundary_decision";
+  build_result: null;
+  boundary_proposals: ScanBoundaryProposal[];
+  available_boundary_actions: ["scan_this_run", "skip_this_run"];
+}
+```
+
+把本次 decision 送回同一個 endpoint：
+
+```json
+{
+  "project_id": "project:<uuid>",
+  "scan_depth": "system",
+  "output": "outputs",
+  "redact_root_path": true,
+  "no_snippets": false,
+  "boundary_decisions": [
+    {
+      "target_path": ".env",
+      "fingerprint": "sha256:...",
+      "decision": "scan_this_run",
+      "reason": "Need this config for the current scan."
+    }
+  ]
+}
+```
+
+- `scan_this_run`：只讓該 target 在這一次 scan 進入 provider collection。
+- `skip_this_run`：只在這一次 scan 把該 target 從 provider collection 排除。API-visible 結果是本次 `files_scanned` 下降、`files_skipped` 上升；內部 inventory reason 為 `skipped_by_policy_overlay`，不會作為前端可依賴的 canonical map 欄位輸出。
+- Decision 必須 match `target_path + fingerprint`；檔案內容或 metadata 改變時，舊 decision 不套用，API 會重新回 `requires_boundary_decision`。
+- Decision 不會保存成歷史偏好，也不會影響下一次 scan。
+- 已由 deterministic scanner hard-skip 的 large/binary/generated/log、dependency/cache、model weights 等 target 只留在 skipped audit trail，不產生使用者 decision proposal。
+
+前端建議流程：
+
+1. 使用者按「開始掃描」後，前端先送一次 `POST /api/scans`。
+2. 若 response 是 `requires_boundary_decision`，前端一次列出 `boundary_proposals` 內所有項目，不要逐項呼叫 API。
+3. 使用者針對所有項目選完 `scan_this_run` / `skip_this_run` 後，前端用同一個 `POST /api/scans` 一次送回完整 `boundary_decisions`。
+4. 第二次 response 是 `completed` 時才顯示正式掃描結果；若再次回 `requires_boundary_decision`，代表 decision 不足或 fingerprint 已 stale，前端應重新顯示新的確認清單。
+5. UI 文案應使用「確認本次掃描範圍」與「確認並繼續掃描」，不要說「重新上傳」或「下一次才生效」。
 
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |
 | `Project not found` | 404 | `project_id` 未 import 或後端已重啟 |
+| 驗證失敗 | 422 | `boundary_decisions` action/path/fingerprint payload 不合法 |
 
 ### GET /api/scan/events
 
@@ -295,7 +349,82 @@ Response `200`：與 `POST /api/detail-scans` 相同。
 
 ---
 
-## 4. Manual Mappings
+## 4. Query Trace（Runtime opt-in）
+
+對已載入 project map 的某個 endpoint id 執行一次黑箱 query trace。這是明確 opt-in 的 runtime 路徑；`POST /api/scans`、`POST /api/map/build`、`GET /api/map` 不會自動呼叫任何 endpoint。
+
+Trace 只回傳 transient `TraceRunResult`，不寫回 `ai_system_map.query_trace_events`，也不會把 observed unmapped component 自動升級成 confirmed mapping 或 baseline edge。
+
+Query Trace 會從該 project session 的 `project_path/pyproject.toml` 讀取 optional tool config。沒有設定時使用預設 retrieved chunk keys：`retrieved_chunks`、`chunks`、`documents`。
+
+```toml
+# 被掃描專案的 pyproject.toml
+[tool.kai-mind.trace]
+retrieved_chunks_keys = [
+  "retrieved_chunks",
+  "chunks",
+  "documents",
+  "docs",
+  "retrieved_docs",
+  "context",
+]
+```
+
+CLI 使用同一套設定 loader，但需要顯式傳入 project root，避免從 map artifact 猜測來源：
+
+```bash
+kai-mind trace outputs/run/ai_system_map.json \
+  --endpoint-id endpoint:chat \
+  --query "hello" \
+  --project-root /abs/path/to/scanned-project
+```
+
+### POST /api/trace
+
+```http
+POST /api/trace
+```
+
+```json
+{
+  "project_id": "project:<uuid>",
+  "endpoint_id": "endpoint:<id>",
+  "query": "raw query sent once to the endpoint",
+  "timeout_seconds": 30
+}
+```
+
+Response `200`：
+
+```ts
+{
+  trace_id: string;
+  status: "completed" | "partial" | "endpoint_not_found" | "error";
+  query_sent: boolean;
+  endpoint_id: string;
+  events: QueryTraceEvent[]; // request_sent / response_received / error / endpoint_not_found
+  warnings: string[];
+  error_reason: string | null;
+}
+```
+
+資料安全約定：
+
+- `query`、response output、`retrieved_chunks` 進入 event 前會被遮蔽/摘要化；response 不回傳 raw query 或 raw answer。
+- `endpoint_id` 必須存在於該 project 的 `ai_system_map.endpoints[]`；找不到時回 `status:"endpoint_not_found"`、`query_sent:false`，不送任何 HTTP request。
+- `retrieved_chunks_keys` 必須是非空字串陣列；設定錯誤會讓 route 回 `invalid_trace_config`，不會 fallback 成看似成功但漏資料的 trace。
+- timeout / transport error 回 `status:"partial"`，保留 `request_sent` 與 `error` events，讓前端可以 replay 到失敗點。
+- 若 response metadata 暗示已知 `unmapped_component_id`，event 只標示 `step_type:"unknown"` 與 `needs_mapping_confirmation`，確認與持久化仍交給 mapping / proposal 流程。
+
+| 錯誤 | 狀態 | 說明 |
+| --- | --- | --- |
+| `project_not_found` | 404 | `project_id` 不存在 |
+| `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
+| `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.kai-mind.trace]` 格式錯誤 |
+
+---
+
+## 5. Manual Mappings
 
 保存使用者對 `unmapped / needs_confirmation` 元件做出的 project-level 決定。只寫入 mapping store，不直接 mutate map artifact。
 
@@ -369,7 +498,7 @@ PATCH /api/mappings/{mapping_id}
 
 ---
 
-## 5. Mapping Proposals（AI 建議）
+## 6. Mapping Proposals（AI 建議）
 
 針對 unmapped 元件向 LLM 取得 mapping 候選，使用者再做決定。**需先完成 project session**（`import` → `scans`）。
 
@@ -471,12 +600,38 @@ Response `200`：
 
 ---
 
+## 7. Scan Boundary Same-Run Gate（掃描邊界審查）
+
+Scan boundary review 已整合進 `POST /api/scans`，沒有獨立的 `/api/scan-boundary-proposals` endpoints。這個 gate 的目的，是在正式 provider collection 前先攔住 `.env`、secret-like config、vector persistence path 等需要人工確認的 target，避免第一次 scan 就深入讀取敏感或 local-only 檔案。
+
+核心規則：
+
+- 使用者只選本次 scan 要不要掃該 target，不保存歷史偏好。
+- 只有 `scan_this_run` / `skip_this_run` 兩個 action。
+- `target_path + fingerprint` 必須 match 才套用 decision。
+- 若 decision 不足或已 stale，`POST /api/scans` 會回 `requires_boundary_decision`，且不更新 `/api/map`。
+- `POST /api/map/build` viewer demo flow 不走這個 gate。
+
+可用以下 trace script 端到端驗證 same-run gate 行為：
+
+```bash
+scripts/trace_scan_boundary_policy_overlay.sh --start-server
+scripts/trace_scan_boundary_multi_decision_gate.sh --start-server
+```
+
+它會建立含 `.env` 的暫時專案，驗證第一次 scan 回 `requires_boundary_decision`，第二次帶 `scan_this_run` 後完成正式掃描，第三次不帶 decision 會再次要求決策，並讀取完成後的 `map_json_path` 確認 `ai_system_map.json` 可被 `jq` 解析且未包含 raw secret。
+第二支 script 會建立含 `.env` 與 `vector_store/data.index` 的暫時專案，驗證第一次 response 一次回傳所有 pending proposals、pending 時不更新 `/api/map`、第二次可一次送回所有 `boundary_decisions` 後完成正式掃描，並確認存下來的 `ai_system_map.json` 與 response 的 `scan_summary.files_scanned/files_skipped` 一致。
+
+---
+
 ## 錯誤對照表
 
 | 狀態 | 意義 | 常見 `detail` |
 | --- | --- | --- |
 | 200 | 成功（含「map 無效」這類明確的 loaded:false 狀態） | — |
-| 404 | 目標不存在 | `project_not_found`、`map_not_loaded`、`unmapped_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
+| 404 | 目標不存在 | `project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
+| 413 | request body 超過本機 API resource limit | `request_too_large` |
 | 422 | 輸入不合法 / 驗證失敗 | `target_not_found`、validation 陣列 |
+| 500 | 未預期後端錯誤，回應會遮蔽 raw path / secret | `internal_server_error` |
 
 > 後端重啟會清空記憶體 session。出現 404 `project_not_found` / `map_not_loaded` 時，請重新 `import` 並 `scan`。

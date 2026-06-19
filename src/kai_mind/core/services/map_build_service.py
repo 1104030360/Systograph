@@ -28,7 +28,10 @@ from kai_mind.core.services.manual_mapping_service import (
 from kai_mind.core.services.markdown_summary_service import (
     MarkdownSummaryService,
 )
-from kai_mind.core.services.project_scan_service import ProjectScanService
+from kai_mind.core.services.project_scan_service import (
+    InventoryPolicyOverlay,
+    ProjectScanService,
+)
 from kai_mind.core.services.rag_template_service import RagTemplateService
 from kai_mind.core.services.risk_hint_service import RiskHintService
 from kai_mind.core.services.system_map_normalize_service import (
@@ -91,6 +94,7 @@ class MapBuildService:
         request: MapBuildRequest,
         *,
         project_id: str | None = None,
+        inventory_policy: InventoryPolicyOverlay | None = None,
     ) -> MapBuildResult:
         """Build map artifacts and a frontend viewer payload."""
 
@@ -118,6 +122,7 @@ class MapBuildService:
             project_name=precondition.project_root.name,
             request=request,
             project_id=project_id,
+            inventory_policy=inventory_policy,
         )
         map_json_path = self._output_artifact_provider.write_json(
             system_map,
@@ -181,8 +186,12 @@ class MapBuildService:
         project_name: str,
         request: MapBuildRequest,
         project_id: str | None,
+        inventory_policy: InventoryPolicyOverlay | None,
     ) -> RagSystemMap:
-        raw_scan = self._project_scan_service.scan(project_root)
+        raw_scan = self._scan_project(
+            project_root=project_root,
+            inventory_policy=inventory_policy,
+        )
         template = RagTemplateService.load("rag-core-v1")
         components = self._detect_components(
             raw_scan=raw_scan,
@@ -218,6 +227,20 @@ class MapBuildService:
             system_map=system_map,
             project_root=project_root,
             request=request,
+        )
+
+    def _scan_project(
+        self,
+        *,
+        project_root: Path,
+        inventory_policy: InventoryPolicyOverlay | None,
+    ) -> ProjectScanResult:
+        if inventory_policy is None:
+            return self._project_scan_service.scan(project_root)
+
+        return self._project_scan_service.scan(
+            project_root,
+            inventory_policy=inventory_policy,
         )
 
     def _detect_components(

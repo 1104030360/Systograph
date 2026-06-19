@@ -1,6 +1,9 @@
 ---
-description:
-globs:
+description: >-
+  Apply when the user asks to explain concepts, architecture, design trade-offs,
+  workflows, or root causes — especially with 視覺化/架構圖/流程圖, or when they
+  want explanations without code. Respond using WHAT/WHY/HOW with ASCII diagrams,
+  tables, flowcharts, and before/after comparisons.
 alwaysApply: false
 ---
 

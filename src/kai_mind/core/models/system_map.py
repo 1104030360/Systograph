@@ -68,7 +68,13 @@ class ComponentSlot(ContractModel):
 class Evidence(ContractModel):
     id: str
     kind: str
-    file: str | None = None
+    file: str | None = Field(
+        default=None,
+        description=(
+            "Project-relative POSIX path. Must not contain a drive, UNC root, "
+            "absolute path, backslash separator, or parent traversal."
+        ),
+    )
     path: str | None = None
     value: str | None = None
     rule_id: str | None = None
@@ -125,7 +131,12 @@ class DetailScanFinding(ContractModel):
 
 
 class CodePathStep(ContractModel):
-    file: str
+    file: str = Field(
+        description=(
+            "Project-relative POSIX path. Must not contain a drive, UNC root, "
+            "absolute path, backslash separator, or parent traversal."
+        )
+    )
     symbol: str | None = None
     line_start: int | None = None
     line_end: int | None = None
@@ -152,10 +163,17 @@ class QueryTraceEvent(ContractModel):
     trace_id: str | None = None
     sequence_index: int
     timestamp: str
+    event_type: str | None = None
+    step_type: str | None = None
+    status: str | None = None
+    query_sent: bool | None = None
+    endpoint_id: str | None = None
     replay_depth: str | None = None
     slot: str | None = None
     component_id: str | None = None
+    unmapped_component_id: str | None = None
     edge_id: str | None = None
+    warnings: list[str] = Field(default_factory=list)
     input: Any | None = None
     output: Any | None = None
     latency_ms: int | float | None = None

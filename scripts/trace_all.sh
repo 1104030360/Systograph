@@ -59,6 +59,7 @@ SCRIPTS=(
   "POST /api/viewer/load|trace_viewer_load.sh"
   "POST /api/scans|trace_scans_create.sh"
   "GET /api/scan/events|trace_scan_events.sh"
+  "POST /api/trace|trace_query_trace.sh"
   "POST /api/detail-scans|trace_detail_scans_create.sh"
   "GET /api/detail-scans/{id}|trace_detail_scans_get.sh"
   "POST /api/mappings|trace_mappings_create.sh"
@@ -67,6 +68,8 @@ SCRIPTS=(
   "POST /api/mapping-proposals|trace_mapping_proposals_create.sh"
   "GET /api/mapping-proposals|trace_mapping_proposals_list.sh"
   "POST /api/mapping-proposals/{id}/decision|trace_mapping_proposals_decision.sh"
+  "Scan boundary same-run gate|trace_scan_boundary_policy_overlay.sh"
+  "Scan boundary multi-decision gate|trace_scan_boundary_multi_decision_gate.sh"
 )
 
 RESULTS=()

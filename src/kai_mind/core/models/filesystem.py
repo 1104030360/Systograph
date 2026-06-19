@@ -34,6 +34,8 @@ class SkipReason(StrEnum):
     MODEL_WEIGHT = "model_weight"
     SYMLINK_OUTSIDE_ROOT = "symlink_outside_root"
     UNREADABLE = "unreadable"
+    SKIPPED_BY_POLICY_OVERLAY = "skipped_by_policy_overlay"
+    PENDING_BOUNDARY_REVIEW = "pending_boundary_review"
 
 
 class FileRecord(ScanModel):

@@ -1,99 +1,123 @@
-# Task 25: Implement Project Upload Ingestion
+# Project Upload Ingestion Implementation Plan
 
-## 目標
-實作 project archive upload / multipart upload ingestion，讓 local web API 可以接受使用者上傳的 project archive 作為 scan input。這不是 Task 24 的 template import；本任務處理「要被掃描的專案」輸入來源。
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-## 為什麼要獨立做這個
-Task 16 的 MVP 只支援 `local_path`，因為 project upload 會引入 archive extraction、path traversal、zip bomb、large binary、model weights、dependency dirs、temporary workspace cleanup 等安全與資源風險。這些不應該混進第一個 end-to-end map build milestone。
+**Goal:** 安全接受 `.zip` / `.tar` 專案上傳，解壓到 KAI-Mind 管理的暫存 workspace，再沿用既有 project/scan pipeline。
 
-## 承接 Task 16 延後功能
-- 承接 Task 16 「不做 project zip upload / multipart upload」的延後範圍。
-- 本任務處理的是 scan input ingestion，不是 Task 24 的 template import。
-- 完成後應把 `POST /api/projects/import` 的 source type 從只支援 `local_path` 擴充到 `uploaded_archive`，但 scan 仍必須走 `MapBuildService`。
-- 若需要保存 upload history，只能交給 Task 26；本任務只處理安全 ingestion 與 temporary scan workspace。
+**Architecture:** Upload ingestion 只負責接收、驗證、解壓與生命週期管理；不得直接呼叫 scanner provider。合法 archive 轉成受控 project record 後，仍經 `POST /api/scans`、scan boundary review 與 `MapBuildService`。
 
-## 前置需求
-- Task 16 已完成 local path import、map build API、local-only policy。
-- Task 23 已完成 cross-platform path、snapshot safety、structured logging hardening。
-- Task 24 已有 local archive/mock template import 的 archive safety pattern 可參考，但不可直接把 template import 當 project upload。
+**Tech Stack:** FastAPI multipart upload, Python `zipfile` / `tarfile`, Pydantic v2, pytest.
 
-## 實作範圍
-- 建立 `ProjectUploadIngestionService`。
-- 支援 multipart upload project archive，例如 `.zip` / `.tar`。
-- 將 archive 解到 KAI-Mind-managed temporary scan workspace。
-- 驗證 archive entry path，拒絕 path traversal、absolute path、symlink escape。
-- 設定 upload size、extracted size、file count、depth limit。
-- 解壓後仍必須走 `FilesystemProvider` skip policy，不得掃 binary/model/dependency/generated/log 大檔。
-- 建立 FastAPI upload route，例如 `POST /api/projects/upload`。
-- 回傳 `project_id`、resolved temporary scan root、upload digest、limits result。
-- 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`，記錄 upload request/response、limits、error codes、cleanup policy。
+---
 
-## 不包含範圍
-- 不做 remote URL / GitHub repo download。
-- 不執行 archive 內任何 script、workflow、postinstall、notebook。
-- 不把 uploaded project 永久保存成 history；長期保存交給 Task 26。
-- 不做 frontend upload UI；本任務只提供 backend API。
-- 不讓 upload route 繞過 Task 16 的 `MapBuildService`。
+## 最新狀態（2026-06-18）
 
-## 建議實作步驟
-1. 建立 `src/kai_mind/core/models/project_upload.py`。
-2. 建立 `src/kai_mind/core/services/project_upload_ingestion_service.py`。
-3. 建立 safe archive extractor，所有 entry 先 normalize/validate 再寫入 temp workspace。
-4. 加入 limits：max upload bytes、max extracted bytes、max file count、max depth。
-5. 解壓後建立 project import record，輸出 `source_type="uploaded_archive"`。
-6. 建立 `src/kai_mind/web/routes/upload_routes.py`。
-7. 將 upload result 接到既有 `POST /api/scans` flow；scan 仍呼叫 `MapBuildService`。
-8. 更新 API guide。
-9. 寫測試：path traversal rejected、oversized archive rejected、binary/model/dependency skipped、temp cleanup、upload route 不直接呼叫 scanner internals。
+- `ProjectImportRequest.source_type` 仍固定為 `local_path`。
+- 尚無 upload route、archive extractor、temporary workspace manager 或 cleanup。
+- 本計畫不是 Epic 1 blocker；GitHub issue：[#125](https://github.com/1104030360/Local-AI-Health-Doctor/issues/125)。
+- 啟動前必須完成 #140、#142、#146、#147、#152 與 Task 26，否則 upload 會放大既有 path、decode、output、resource 與 retention 風險。
+- 官方文件查證（2026-06-18）：Python 3.14 的 `tarfile` 預設 extraction filter 已改為 `data`，但文件仍提醒 extraction 發生 exception 後可能已部分寫入，需自行 cleanup；本 repo 支援 Python 3.11，因此此計畫不可依賴 3.14 預設防線，必須逐 entry 驗證並手動寫入。
 
-## 預期輸出
-- `src/kai_mind/core/models/project_upload.py`
-- `src/kai_mind/core/services/project_upload_ingestion_service.py`
-- `src/kai_mind/web/routes/upload_routes.py`
-- 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
-- `tests/unit/core/test_project_upload_ingestion_service.py`
-- `tests/web/test_project_upload_routes.py`
+## Scope
 
-## 驗收標準
-- `POST /api/projects/upload` 接受合法 archive 並回傳可 scan 的 `project_id`。
-- path traversal、absolute path、symlink escape 一律 rejected。
-- oversized upload / extracted archive / file count 超限時回傳清楚 error。
-- uploaded project scan 仍走 `MapBuildService`，不新增第二條 scanner pipeline。
-- upload workspace cleanup 行為有測試。
-- API guide 已同步記錄 limits、accepted formats、error format、local-only policy。
+- 支援 `.zip` 與一般 `.tar`；不支援 remote URL、Git clone、encrypted archive。
+- 逐 entry 驗證後手動寫入，不直接呼叫 `extractall()`。
+- 拒絕 absolute path、`..`、drive/UNC path、symlink、hardlink、device file。
+- 限制 upload bytes、展開後總 bytes、檔案數、單檔 bytes、目錄深度。
+- workspace 由 service 管理，project record 只保存 safe metadata 與 workspace id。
+- cleanup 不得刪除非 KAI-Mind 管理的目錄。
 
-## 可能風險與注意事項
-- Archive extraction 是高風險邊界，不可為了 demo 放寬限制。
-- Uploaded archive 可能包含 secrets；logs、errors、snapshots 不得印出 raw secret。
-- 不可讓 temporary workspace 留下未清理的大量檔案。
-- 不要把 Task 24 template import 的 trust/provenance metadata 直接套到 project upload；被掃描專案不是 template。
+### Task 1: Define upload models and limits
 
-## 新手提示
-Local path import 是「我已經在這台機器上有資料夾」。Project upload 是「使用者丟一包壓縮檔給後端」。後者多了一整層解壓縮安全問題，所以要獨立計劃。
+**Files:**
+- Create: `src/kai_mind/core/models/project_upload.py`
+- Test: `tests/unit/core/test_project_upload_models.py`
 
-## 視覺化說明
-```text
-┌──────────────────────┐
-│ multipart upload      │
-│ project archive       │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ ProjectUpload         │
-│ IngestionService      │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ safe archive validate │
-│ limits / traversal    │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ temp scan workspace   │
-└──────────┬───────────┘
-           ↓
-┌──────────────────────┐
-│ POST /api/scans       │
-│ MapBuildService       │
-└──────────────────────┘
+- [ ] **Step 1: Write failing model tests**
+
+```python
+def test_upload_limits_reject_non_positive_values() -> None:
+    with pytest.raises(ValidationError):
+        ProjectUploadLimits(max_files=0)
 ```
+
+- [ ] **Step 2: Add `ProjectUploadLimits`, `ProjectUploadResult`, and stable error codes**
+
+Error codes:
+
+```text
+unsupported_archive
+archive_path_unsafe
+archive_entry_type_unsafe
+upload_too_large
+archive_expanded_too_large
+archive_file_count_exceeded
+archive_depth_exceeded
+archive_cleanup_failed
+```
+
+- [ ] **Step 3: Run model tests**
+
+```bash
+.venv/bin/pytest tests/unit/core/test_project_upload_models.py -v
+```
+
+### Task 2: Implement safe archive extraction
+
+**Files:**
+- Create: `src/kai_mind/core/services/project_upload_ingestion_service.py`
+- Modify: `src/kai_mind/core/services/path_safety_service.py`
+- Test: `tests/unit/core/test_project_upload_ingestion_service.py`
+
+- [ ] **Step 1: Write red tests for traversal, links, device entries, zip bomb limits, and cleanup**
+- [ ] **Step 2: Normalize every entry to project-relative POSIX form before creating directories**
+- [ ] **Step 3: Stream entry data while counting actual extracted bytes**
+- [ ] **Step 4: Return a managed workspace handle; do not expose arbitrary local paths**
+- [ ] **Step 5: Run focused tests**
+
+```bash
+.venv/bin/pytest tests/unit/core/test_project_upload_ingestion_service.py -v
+```
+
+### Task 3: Add upload route without creating a second scan pipeline
+
+**Files:**
+- Create: `src/kai_mind/web/routes/upload_routes.py`
+- Modify: `src/kai_mind/web/app.py`
+- Modify: `src/kai_mind/web/schemas.py`
+- Modify: `src/kai_mind/web/session_store.py`
+- Test: `tests/web/test_project_upload_routes.py`
+
+- [ ] **Step 1: Write route tests for valid upload and every stable error code**
+- [ ] **Step 2: Implement `POST /api/projects/upload`**
+- [ ] **Step 3: Save `source_type="uploaded_archive"` through the same project repository port introduced by Task 26**
+- [ ] **Step 4: Assert route source does not instantiate scanner providers**
+- [ ] **Step 5: Run route tests**
+
+```bash
+.venv/bin/pytest tests/web/test_project_upload_routes.py -v
+```
+
+### Task 4: Add retention and documentation
+
+**Files:**
+- Modify: `src/kai_mind/core/services/session_history_service.py`
+- Modify: `docs/API-GUIDE.md`
+- Test: `tests/unit/core/test_session_history_service.py`
+
+- [ ] **Step 1: Define cleanup on failed upload, explicit delete, and retention expiry**
+- [ ] **Step 2: Document accepted formats, limits, local-only policy, and scan handoff**
+- [ ] **Step 3: Verify no response/log contains archive content, secret, or unmanaged absolute path**
+
+## Acceptance Criteria
+
+- Unsafe archive entry is rejected before any write outside the managed workspace.
+- Resource limits are enforced from streamed bytes, not archive header trust alone.
+- Uploaded projects still pass boundary review and `MapBuildService`.
+- Cleanup is idempotent and cannot delete user-owned directories.
+- Full backend gates pass.
+
+## Sources
+
+- Python archive handling must follow the current standard-library security notes for `zipfile` and `tarfile`: https://docs.python.org/3/library/tarfile.html
+- `docs/work/Timmy/schedule/fable-5/find-error/report/2026-06-12-backend-security-ai-findings.md`

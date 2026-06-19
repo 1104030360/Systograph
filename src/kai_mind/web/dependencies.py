@@ -14,6 +14,10 @@ from kai_mind.core.services.map_build_service import MapBuildService
 from kai_mind.core.services.mapping_proposal_service import (
     MappingProposalService,
 )
+from kai_mind.core.services.query_trace_service import QueryTraceService
+from kai_mind.core.services.scan_boundary_review_service import (
+    ScanBoundaryReviewService,
+)
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
 from kai_mind.web.session_store import InMemorySessionStore
 
@@ -35,6 +39,19 @@ def mapping_proposal_service(request: Request) -> MappingProposalService:
 
 def detail_scan_service(request: Request) -> DetailScanService:
     return cast(DetailScanService, request.app.state.detail_scan_service)
+
+
+def query_trace_service(request: Request) -> QueryTraceService:
+    return cast(QueryTraceService, request.app.state.query_trace_service)
+
+
+def scan_boundary_review_service(
+    request: Request,
+) -> ScanBoundaryReviewService:
+    return cast(
+        ScanBoundaryReviewService,
+        request.app.state.scan_boundary_review_service,
+    )
 
 
 def viewer_session_service(request: Request) -> ViewerSessionService:

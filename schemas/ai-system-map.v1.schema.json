@@ -37,6 +37,7 @@
       "additionalProperties": false,
       "properties": {
         "file": {
+          "description": "Project-relative POSIX path. Must not contain a drive, UNC root, absolute path, backslash separator, or parent traversal.",
           "title": "File",
           "type": "string"
         },
@@ -486,6 +487,7 @@
             }
           ],
           "default": null,
+          "description": "Project-relative POSIX path. Must not contain a drive, UNC root, absolute path, backslash separator, or parent traversal.",
           "title": "File"
         },
         "path": {
@@ -763,6 +765,66 @@
           "title": "Timestamp",
           "type": "string"
         },
+        "event_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Event Type"
+        },
+        "step_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step Type"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "query_sent": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Query Sent"
+        },
+        "endpoint_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint Id"
+        },
         "replay_depth": {
           "anyOf": [
             {
@@ -799,6 +861,18 @@
           "default": null,
           "title": "Component Id"
         },
+        "unmapped_component_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unmapped Component Id"
+        },
         "edge_id": {
           "anyOf": [
             {
@@ -810,6 +884,13 @@
           ],
           "default": null,
           "title": "Edge Id"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
         },
         "input": {
           "anyOf": [

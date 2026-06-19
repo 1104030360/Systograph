@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -16,6 +17,35 @@ from kai_mind.core.models.scan import ProviderScanResult, ScanFact
 from kai_mind.core.models.system_map import Evidence
 from kai_mind.core.services import project_scan_service
 from kai_mind.core.services.project_scan_service import ProjectScanService
+
+
+class FakeInventoryPolicy:
+    def __init__(self) -> None:
+        self.seen_root: Path | None = None
+        self.seen_inventory: FileInventory | None = None
+
+    def apply(
+        self,
+        *,
+        project_root: Path,
+        inventory: FileInventory,
+    ) -> FileInventory:
+        self.seen_root = project_root
+        self.seen_inventory = inventory
+        return inventory.model_copy(
+            update={
+                "files": [
+                    file for file in inventory.files if file.path != ".env"
+                ],
+                "skipped": [
+                    *inventory.skipped,
+                    SkippedFile(
+                        path=".env",
+                        reason=SkipReason.SKIPPED_BY_POLICY_OVERLAY,
+                    ),
+                ],
+            }
+        )
 
 
 class FakeFilesystemProvider:
@@ -48,7 +78,11 @@ class FailingProvider:
     name = "failing_provider"
 
     def collect(self, inventory: FileInventory) -> ProviderScanResult:
-        raise RuntimeError("provider exploded with sk-live-secret-value")
+        raise RuntimeError(
+            "provider exploded at "
+            "/Users/linjunting/Local_AI_Health_Doctor/.env "
+            "with sk-live-secret-value"
+        )
 
 
 def build_inventory(project_root: Path) -> FileInventory:
@@ -64,6 +98,40 @@ def build_inventory(project_root: Path) -> FileInventory:
         ],
         warnings=["inventory fallback used"],
     )
+
+
+def test_scan_applies_boundary_policy_before_provider_collection(
+    tmp_path: Path,
+) -> None:
+    inventory = FileInventory(
+        source=FileInventorySource.RECURSIVE,
+        project_root=str(tmp_path),
+        files=[
+            FileRecord(path=".env", size_bytes=12),
+            FileRecord(path="config.yaml", size_bytes=10),
+        ],
+    )
+    provider = FakeProvider(provider_result([], []))
+    policy = FakeInventoryPolicy()
+
+    result = ProjectScanService(
+        filesystem_provider=FakeFilesystemProvider(inventory),
+        providers=[provider],
+    ).scan(tmp_path, inventory_policy=policy)
+
+    assert policy.seen_root == tmp_path
+    assert policy.seen_inventory == inventory
+    assert provider.seen_inventory is not None
+    assert [file.path for file in provider.seen_inventory.files] == [
+        "config.yaml"
+    ]
+    assert [
+        (item.path, item.reason) for item in provider.seen_inventory.skipped
+    ] == [(".env", SkipReason.SKIPPED_BY_POLICY_OVERLAY)]
+    assert [
+        (item.path, item.reason, item.size_bytes)
+        for item in result.skipped_files
+    ] == [(".env", "skipped_by_policy_overlay", None)]
 
 
 def fact(
@@ -215,21 +283,32 @@ def test_scan_logs_provider_crash_traceback_for_developers(
 
     assert len(result.issues) == 1
     assert "sk-live-secret-value" not in result.issues[0].message
+    assert "/Users/linjunting/Local_AI_Health_Doctor" not in (
+        result.issues[0].message
+    )
     matching_records = [
         record
         for record in caplog.records
         if (
             record.name == project_scan_service.__name__
             and record.levelno == logging.ERROR
-            and "failing_provider" in record.getMessage()
+            and getattr(record, "event_data", {}).get("provider")
+            == "failing_provider"
         )
     ]
     assert len(matching_records) == 1
     assert matching_records[0].exc_info is None
-    assert "Traceback frames:" in caplog.text
-    assert "project_scan_service.py" in caplog.text
-    assert "test_project_scan_service.py" in caplog.text
+    record = cast(Any, matching_records[0])
+    event_data = cast(dict[str, Any], record.event_data)
+    assert event_data == {
+        "event": "provider_scan_failed",
+        "stage": "project_scan",
+        "provider": "failing_provider",
+        "exception_type": "RuntimeError",
+        "frame_count": 2,
+    }
     assert "sk-live-secret-value" not in caplog.text
+    assert "/Users/linjunting/Local_AI_Health_Doctor" not in caplog.text
 
 
 def test_scan_merges_duplicate_facts_and_keeps_all_evidence(

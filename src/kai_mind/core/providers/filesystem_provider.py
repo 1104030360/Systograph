@@ -17,6 +17,10 @@ from kai_mind.core.models.filesystem import (
     SkippedFile,
     SkipReason,
 )
+from kai_mind.core.services.path_safety_service import (
+    PathSafetyError,
+    normalize_project_relative_path,
+)
 
 DEFAULT_MAX_FILE_SIZE_BYTES: Final = 1_000_000
 BINARY_CHECK_BYTES: Final = 4096
@@ -89,15 +93,10 @@ class FilesystemProvider:
         *,
         project_root: Path,
     ) -> str:
-        if path.is_absolute():
-            root = project_root.resolve()
-            try:
-                relative = path.relative_to(root)
-            except ValueError:
-                relative = path.resolve().relative_to(root)
-        else:
-            relative = path
-        return relative.as_posix().replace("\\", "/")
+        return normalize_project_relative_path(
+            path,
+            project_root=project_root,
+        )
 
     def _build_git_inventory(self, root: Path) -> FileInventory:
         output = self._run_git(
@@ -404,7 +403,15 @@ class FilesystemProvider:
         return False
 
     def _parse_nul_paths(self, output: str) -> list[str]:
-        return [path.replace("\\", "/") for path in output.split("\0") if path]
+        paths: list[str] = []
+        for path in output.split("\0"):
+            if not path:
+                continue
+            try:
+                paths.append(normalize_project_relative_path(path))
+            except PathSafetyError:
+                continue
+        return paths
 
     def _sort_skipped(self, skipped: list[SkippedFile]) -> list[SkippedFile]:
         return sorted(skipped, key=lambda item: (item.path, item.reason.value))

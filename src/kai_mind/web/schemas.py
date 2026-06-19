@@ -18,6 +18,11 @@ from kai_mind.core.models.mapping import (
     MappingProposalDecisionRequest,
     MappingProposalDecisionResult,
 )
+from kai_mind.core.models.scan_boundary import (
+    ScanBoundaryDecisionAction,
+    ScanBoundaryDecisionRequest,
+    ScanBoundaryProposal,
+)
 from kai_mind.core.models.system_map import DetailScanResult, RagSystemMap
 from kai_mind.core.models.viewer import ViewerPayload
 
@@ -65,13 +70,25 @@ class ScanCreateRequest(WebSchema):
     output: str = "outputs"
     redact_root_path: bool = True
     no_snippets: bool = False
+    boundary_decisions: list[ScanBoundaryDecisionRequest] = Field(
+        default_factory=list
+    )
 
 
 class ScanCreateResponse(WebSchema):
     scan_id: str
     project_id: str
-    status: Literal["completed", "error"]
-    build_result: MapBuildResult
+    status: Literal["completed", "error", "requires_boundary_decision"]
+    build_result: MapBuildResult | None = None
+    boundary_proposals: list[ScanBoundaryProposal] = Field(
+        default_factory=list
+    )
+    available_boundary_actions: list[ScanBoundaryDecisionAction] = Field(
+        default_factory=lambda: [
+            ScanBoundaryDecisionAction.SCAN_THIS_RUN,
+            ScanBoundaryDecisionAction.SKIP_THIS_RUN,
+        ]
+    )
 
 
 class ScanProgressEvent(WebSchema):
@@ -105,6 +122,13 @@ class DetailScanResponse(WebSchema):
     project_id: str
     detail_scan: DetailScanResult
     ai_system_map: RagSystemMap
+
+
+class TraceCreateRequest(WebSchema):
+    project_id: str
+    endpoint_id: str
+    query: str
+    timeout_seconds: float = Field(default=30.0, gt=0, le=120)
 
 
 class ManualMappingListResponse(WebSchema):
@@ -156,9 +180,12 @@ __all__ = [
     "MappingProposalListResponse",
     "ProjectImportRequest",
     "ProjectImportResponse",
+    "ScanBoundaryDecisionRequest",
+    "ScanBoundaryProposal",
     "ScanCreateRequest",
     "ScanCreateResponse",
     "ScanProgressEvent",
+    "TraceCreateRequest",
     "ViewerLoadMapRequest",
     "ViewerPayload",
 ]

@@ -25,6 +25,7 @@ viewer_load_result.graph_view_model
 - 不使用 `allow_origins=["*"]` 作為本地 scanner API 預設。
 - API 只接受 local path project import；不支援 upload / zip / multipart。
 - Scanner 行為沿用 core providers 的 read-only 與 skip policy，不因 API request 放寬大檔、binary、model weights、dependency dirs 的掃描限制。
+- Scan boundary decisions 只存在於本次 `POST /api/scans` request，不能寫回被掃描 repo、不能保存成長期偏好，也不能修改既有 artifact。
 
 ## Canonical Truth
 
@@ -348,6 +349,7 @@ Response:
 - `scan_depth` 目前只允許 `system`。
 - `status` 依 `MapBuildResult.status` 對應為 `completed` 或 `error`。
 - 同一個 `project_id` 若已有 confirmed manual mappings，下一次 scan / normalize 會套用這些 decisions；API 不會直接修改既有 `ai_system_map.json`。
+- Scan boundary review 內嵌在 `POST /api/scans`。若本次 scan 有未決 suspicious file，API 先回 `requires_boundary_decision`，不建立 map；使用者帶本次 `boundary_decisions` 重送後才正式掃描。
 
 ## Detail Scan Routes
 
@@ -454,6 +456,93 @@ Response:
 
 - 找不到 detail scan 時回傳 HTTP 404 `detail_scan_not_found`。
 - Response shape 與 `POST /api/detail-scans` 相同。
+
+## Query Trace Route
+
+用途：使用者明確指定 project、endpoint 與 query 後，對 `ai_system_map.endpoints[]` 中的 endpoint id 做一次 bounded black-box runtime trace。這是 Task 22 的 opt-in replay evidence，不是 L1/L2/L3 static scan。
+
+資料流：
+
+```text
+project_id + endpoint_id + query
+  -> latest scanned ai_system_map
+  -> project_path/pyproject.toml [tool.kai-mind.trace] config
+  -> QueryTraceService
+  -> EndpointCallProvider
+  -> transient TraceRunResult
+```
+
+### POST /api/trace
+
+Request:
+
+```json
+{
+  "project_id": "project:...",
+  "endpoint_id": "endpoint:local:rag-chat",
+  "query": "raw query sent once to the endpoint",
+  "timeout_seconds": 30
+}
+```
+
+Response:
+
+```json
+{
+  "trace_id": "trace:...",
+  "status": "completed",
+  "query_sent": true,
+  "endpoint_id": "endpoint:local:rag-chat",
+  "events": [
+    {
+      "event_type": "request_sent",
+      "query_sent": true,
+      "input": {
+        "query": {
+          "type": "string",
+          "length": 32,
+          "masked": "[MASKED]"
+        }
+      }
+    },
+    {
+      "event_type": "response_received",
+      "status": "completed",
+      "output": {}
+    }
+  ],
+  "warnings": [],
+  "error_reason": null
+}
+```
+
+規則：
+
+- `project_id` 不存在回傳 HTTP 404 `project_not_found`。
+- `project_id` 尚未有 loaded map 回傳 HTTP 404 `map_not_loaded`。
+- `endpoint_id` 找不到時仍回 HTTP 200，但 body 為 `status="endpoint_not_found"`、`query_sent=false`，且不得送任何 HTTP request。
+- timeout、transport error 或 HTTP error 回 `status="partial"`，保留 `request_sent` 與 `error` event，讓 replay 可以停在失敗點。
+- `query`、response output、`retrieved_chunks` 進入 event 前必須遮蔽/摘要化；API response、CLI output、report 不保存 raw query 或 raw answer。
+- retrieved chunks 欄位預設依序讀 `retrieved_chunks`、`chunks`、`documents`。若被掃描專案的 `pyproject.toml` 提供 `[tool.kai-mind.trace] retrieved_chunks_keys`，web route 會從 project session 的 `project_path` 讀取並注入 `QueryTraceService`。
+- CLI 不從 map artifact 猜測專案位置；需要使用專案設定時必須顯式傳入 `--project-root /abs/path/to/scanned-project`。
+- `retrieved_chunks_keys` 必須是非空字串陣列；設定存在但格式錯時 fail fast，避免 trace 看似成功但漏掉 retrieved chunks。
+- Trace result 是 transient `TraceRunResult`；不得寫回 canonical `ai_system_map.query_trace_events[]`，也不得修改 `flows`、`extensions`、manual mappings 或 proposal state。
+- 如果 runtime response metadata 指向已知 `unmapped_component_id`，只在 event 標示 `step_type="unknown"` 與 `needs_mapping_confirmation`，真正確認與持久化交給 manual mapping / mapping proposal。
+- `POST /api/scans`、`POST /api/map/build`、`GET /api/map` 與 `POST /api/viewer/load` 不會自動觸發 query trace。
+
+Project config example:
+
+```toml
+[tool.kai-mind.trace]
+retrieved_chunks_keys = [
+  "retrieved_chunks",
+  "chunks",
+  "documents",
+  "docs",
+  "retrieved_docs",
+  "context",
+]
+```
 
 ## Manual Mapping Routes
 
@@ -732,6 +821,80 @@ Response excerpt (abbreviated; do not use this as the full frontend type):
 - 上方 response 是節錄；實際 FastAPI response 會包含完整 serialized `MappingProposal`，若有建立 manual mapping 則包含完整 serialized `ManualMapping`。前端型別應以 backend OpenAPI / `frontend/src/types.ts` 對齊，不要直接照這個短版 JSON 建完整 type。
 - 即使 accept 成功，canonical map 仍要等同一個 `project_id` 下次 `/api/scans` / normalize 才會生效。
 - Response 不得包含 unmasked secret、raw prompt、raw source 或 `confidence`。
+
+## Scan Boundary Proposal Routes
+
+用途：scan boundary review 已整合進 `POST /api/scans`，用 same-run gate 讓使用者在正式掃描前決定本次要不要掃 `.env`、secret-like config、vector persistence path 等 suspicious target。這不是 component mapping，也不是 template import，也不是長期 policy store。
+
+資料流：
+
+```text
+project_id
+  -> POST /api/scans builds deterministic FileInventory
+  -> ScanBoundaryReviewService
+  -> if unresolved: ScanCreateResponse.status = requires_boundary_decision
+  -> user sends boundary_decisions in POST /api/scans
+  -> ProjectScanService provider collection
+  -> MapBuildService writes map artifacts
+```
+
+### POST /api/scans boundary decision request
+
+```json
+{
+  "project_id": "project:...",
+  "scan_depth": "system",
+  "output": "outputs",
+  "boundary_decisions": [
+    {
+      "target_path": ".env",
+      "fingerprint": "sha256:...",
+      "decision": "scan_this_run",
+      "reason": "Need this config for the current scan."
+    }
+  ]
+}
+```
+
+Response excerpt when a decision is required:
+
+```json
+{
+  "scan_id": "scan:...",
+  "project_id": "project:...",
+  "status": "requires_boundary_decision",
+  "build_result": null,
+  "available_boundary_actions": ["scan_this_run", "skip_this_run"],
+  "boundary_proposals": [
+    {
+      "proposal_id": "scan-boundary-proposal:...",
+      "status": "pending_user_confirmation",
+      "target": {
+        "path": ".env",
+        "risk_type": "secret_like_config",
+        "fingerprint": "sha256:..."
+      },
+      "evidence_packet": {
+        "masked_evidence_values": ["[MASKED]"],
+        "context_limits": {
+          "raw_file_contents_included": false,
+          "project_root_included": false
+        }
+      }
+    }
+  ]
+}
+```
+
+規則：
+
+- 必須走 project session flow：`POST /api/projects/import` -> `POST /api/scans`。
+- 若有 unresolved boundary proposal，`POST /api/scans` 不會寫 artifact，也不會更新 latest `/api/map` payload。
+- `scan_this_run` 只讓 matching `target_path + fingerprint` 在本次 scan 進入 provider collection。
+- `skip_this_run` 只讓 matching target 在本次 scan 進入 skipped summary，reason 為 `skipped_by_policy_overlay`。
+- Decision 不保存到 repository，不會形成歷史偏好或永久跳過。
+- `POST /api/map/build` 不建立 `project_id`，也不走 scan boundary gate。
+- Response 只回傳 project-relative path、fingerprint、risk type、masked/bounded evidence packet，不得包含 raw secret、本機絕對路徑或 raw file contents。
 
 ### Optional NVIDIA NIM Provider
 

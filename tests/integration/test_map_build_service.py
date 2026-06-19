@@ -28,7 +28,10 @@ from kai_mind.core.services.manual_mapping_service import (
     ManualMappingService,
 )
 from kai_mind.core.services.map_build_service import MapBuildService
-from kai_mind.core.services.project_scan_service import ProjectScanService
+from kai_mind.core.services.project_scan_service import (
+    InventoryPolicyOverlay,
+    ProjectScanService,
+)
 from kai_mind.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
@@ -39,7 +42,12 @@ def fixed_clock() -> datetime:
 
 
 class EmptyProjectScanService(ProjectScanService):
-    def scan(self, project_root: Path) -> ProjectScanResult:
+    def scan(
+        self,
+        project_root: Path,
+        *,
+        inventory_policy: InventoryPolicyOverlay | None = None,
+    ) -> ProjectScanResult:
         return ProjectScanResult(
             evidence=[
                 Evidence(
