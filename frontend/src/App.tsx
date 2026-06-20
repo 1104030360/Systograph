@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Crosshair, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
+import { BoundaryDecisionModal, decisionsForBoundary } from "./components/BoundaryDecisionModal";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
 import { ProgressStrip } from "./components/ProgressStrip";
@@ -15,8 +17,10 @@ import { getTraceEvents, viewerPayload as sampleViewerPayload } from "./data/sam
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
 import { useViewerPayload } from "./hooks/useViewerPayload";
+import { importProject, startProjectScan } from "./services/projectScanApi";
+import { loadApiViewerPayload } from "./services/viewerApi";
 import { useViewerStore } from "./store/viewerStore";
-import type { GraphViewModel } from "./types";
+import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal } from "./types";
 import { createProgressTargets, resolveProgressTargetId } from "./utils/graph";
 
 const EMPTY_GRAPH: GraphViewModel = {
@@ -35,6 +39,7 @@ const MAP_KEY: Array<[string, string]> = [
 ];
 
 export default function App() {
+  const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
 
   const dataSourceMode = useViewerStore((state) => state.dataSourceMode);
@@ -91,6 +96,12 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [fitSignal, setFitSignal] = useState(0);
   const [graphInteracting, setGraphInteracting] = useState(false);
+  const [projectPath, setProjectPath] = useState("");
+  const [projectSession, setProjectSession] = useState<ProjectImportResponse | null>(null);
+  const [pendingBoundary, setPendingBoundary] = useState<ScanBoundaryProposal[]>([]);
+  const [boundaryDecisions, setBoundaryDecisions] = useState<Record<string, ScanBoundaryAction>>({});
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanFlowError, setScanFlowError] = useState<string | undefined>();
   // Scan Template route (full-bleed overlay) + Mapping Proposal modal (z 60, can
   // sit over the route or the graph). The selection API does not exist yet, so
   // the page runs on the scanTemplateApi mock seam.
@@ -164,6 +175,122 @@ export default function App() {
     resetFocus();
     setFitSignal((value) => value + 1);
   }, [resetFocus]);
+
+  const completeScanFlow = useCallback(async () => {
+    const freshPayload = await loadApiViewerPayload(apiBaseUrl);
+    queryClient.setQueryData(["viewer-load-result", "api", apiBaseUrl], freshPayload);
+    setDataSourceMode("api");
+    setProgressRunning(false);
+    setLiveProgressEvent({
+      event: "scan_progress",
+      status: "completed",
+      stage: "map",
+      message: "Scan completed. Loading map.",
+      percent: 100,
+    });
+  }, [apiBaseUrl, queryClient, setDataSourceMode, setLiveProgressEvent, setProgressRunning]);
+
+  const runScan = useCallback(
+    async (session: ProjectImportResponse, decisions: ReturnType<typeof decisionsForBoundary> = []) => {
+      setScanBusy(true);
+      setScanFlowError(undefined);
+      setLiveProgressEvent({
+        event: "scan_progress",
+        status: "running",
+        stage: "scan",
+        message: "Scanning project.",
+        percent: 30,
+      });
+
+      try {
+        const response = await startProjectScan(apiBaseUrl, {
+          projectId: session.project_id,
+          boundaryDecisions: decisions,
+        });
+
+        if (response.status === "requires_boundary_decision") {
+          setPendingBoundary(response.boundary_proposals);
+          setBoundaryDecisions({});
+          setLiveProgressEvent({
+            event: "scan_progress",
+            status: "running",
+            stage: "boundary",
+            message: "Waiting for scan boundary review.",
+            percent: 10,
+          });
+          return;
+        }
+
+        if (response.status === "error") {
+          setScanFlowError("Scan finished with an error. Check the backend report or logs for details.");
+          setLiveProgressEvent({
+            event: "scan_progress",
+            status: "error",
+            stage: "scan",
+            message: "Scan finished with an error.",
+            percent: 100,
+          });
+          return;
+        }
+
+        setPendingBoundary([]);
+        setBoundaryDecisions({});
+        await completeScanFlow();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setScanFlowError(message);
+        setLiveProgressEvent({
+          event: "scan_progress",
+          status: "error",
+          stage: "scan",
+          message,
+          percent: 100,
+        });
+      } finally {
+        setScanBusy(false);
+      }
+    },
+    [apiBaseUrl, completeScanFlow, setLiveProgressEvent],
+  );
+
+  const handleStartScan = useCallback(async () => {
+    const path = projectPath.trim();
+    if (!path) return;
+
+    setScanBusy(true);
+    setScanFlowError(undefined);
+    setDataSourceMode("api");
+    setProgressRunning(true);
+    setLiveProgressEvent({
+      event: "scan_progress",
+      status: "running",
+      stage: "project",
+      message: "Importing project.",
+      percent: 5,
+    });
+
+    try {
+      const session = await importProject(apiBaseUrl, path);
+      setProjectSession(session);
+      await runScan(session);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setScanFlowError(message);
+      setLiveProgressEvent({
+        event: "scan_progress",
+        status: "error",
+        stage: "project",
+        message,
+        percent: 100,
+      });
+      setScanBusy(false);
+    }
+  }, [apiBaseUrl, projectPath, runScan, setDataSourceMode, setLiveProgressEvent, setProgressRunning]);
+
+  const handleBoundarySubmit = useCallback(async () => {
+    if (!projectSession) return;
+    await runScan(projectSession, decisionsForBoundary(pendingBoundary, boundaryDecisions));
+  }, [boundaryDecisions, pendingBoundary, projectSession, runScan]);
 
   const projectName = graph.summary?.project_name ? String(graph.summary.project_name) : "Local AI Health Doctor";
 
@@ -243,11 +370,16 @@ export default function App() {
           <DataSourceControl
             mode={dataSourceMode}
             apiBaseUrl={apiBaseUrl}
+            projectPath={projectPath}
             isLoading={payloadQuery.isFetching}
+            isScanning={scanBusy}
             error={sourceError}
+            scanError={scanFlowError}
             onModeChange={setDataSourceMode}
             onApiBaseUrlChange={setApiBaseUrl}
+            onProjectPathChange={setProjectPath}
             onRefresh={() => void payloadQuery.refetch()}
+            onStartScan={() => void handleStartScan()}
           />
 
           <button
@@ -348,6 +480,24 @@ export default function App() {
       </section>
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+
+      {pendingBoundary.length > 0 ? (
+        <BoundaryDecisionModal
+          proposals={pendingBoundary}
+          decisions={boundaryDecisions}
+          isSubmitting={scanBusy}
+          error={scanFlowError}
+          onDecisionChange={(proposalId, decision) =>
+            setBoundaryDecisions((current) => ({ ...current, [proposalId]: decision }))
+          }
+          onSubmit={() => void handleBoundarySubmit()}
+          onCancel={() => {
+            setPendingBoundary([]);
+            setBoundaryDecisions({});
+            setScanBusy(false);
+          }}
+        />
+      ) : null}
 
       <WordingProvider>
         {view === "scan-template" ? (

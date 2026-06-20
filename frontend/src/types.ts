@@ -139,6 +139,92 @@ export type ScanProgressEvent = z.infer<typeof scanProgressEventSchema>;
 
 export type DataSourceMode = "sample" | "api";
 
+export const apiErrorSchema = z
+  .object({
+    detail: z.union([z.string(), z.record(z.unknown()), z.array(z.unknown())]).optional(),
+  })
+  .passthrough();
+
+export const projectImportRequestSchema = z.object({
+  source_type: z.literal("local_path"),
+  project_path: z.string().min(1),
+});
+
+export const projectImportResponseSchema = z.object({
+  project_id: z.string(),
+  source_type: z.literal("local_path"),
+  project_name: z.string(),
+  project_path: z.string(),
+});
+
+export const scanBoundaryTargetSchema = z.object({
+  path: z.string(),
+  target_type: z.string(),
+  risk_type: z.string(),
+  reason: z.string(),
+  size_bytes: z.number().nullable().optional(),
+  fingerprint: z.string(),
+});
+
+export const scanBoundaryEvidencePacketSchema = z.object({
+  project_id: z.string(),
+  target_path: z.string(),
+  risk_type: z.string(),
+  reason: z.string(),
+  evidence_ids: z.array(z.string()).default([]),
+  rule_ids: z.array(z.string()).default([]),
+  masked_evidence_values: z.array(z.string()).default([]),
+  masked_snippets: z.array(z.string()).default([]),
+  context_limits: z.record(z.union([z.string(), z.number(), z.boolean()])).default({}),
+});
+
+export const scanBoundaryActionSchema = z.enum(["scan_this_run", "skip_this_run"]);
+
+export const scanBoundaryProposalSchema = z.object({
+  proposal_id: z.string(),
+  project_id: z.string(),
+  status: z.literal("pending_user_confirmation"),
+  target: scanBoundaryTargetSchema,
+  evidence_packet: scanBoundaryEvidencePacketSchema,
+  available_actions: z.array(scanBoundaryActionSchema).default(["scan_this_run", "skip_this_run"]),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const scanBoundaryDecisionSchema = z.object({
+  target_path: z.string(),
+  fingerprint: z.string(),
+  decision: scanBoundaryActionSchema,
+  reason: z.string().optional(),
+});
+
+export const scanCreateRequestSchema = z.object({
+  project_id: z.string(),
+  scan_depth: z.literal("system").default("system"),
+  output: z.string().default("outputs"),
+  redact_root_path: z.boolean().default(true),
+  no_snippets: z.boolean().default(false),
+  boundary_decisions: z.array(scanBoundaryDecisionSchema).default([]),
+});
+
+export const scanCreateResponseSchema = z.object({
+  scan_id: z.string(),
+  project_id: z.string(),
+  status: z.enum(["completed", "error", "requires_boundary_decision"]),
+  build_result: z.record(z.unknown()).nullable().optional(),
+  boundary_proposals: z.array(scanBoundaryProposalSchema).default([]),
+  available_boundary_actions: z.array(scanBoundaryActionSchema).default(["scan_this_run", "skip_this_run"]),
+});
+
+export type ApiErrorPayload = z.infer<typeof apiErrorSchema>;
+export type ProjectImportRequest = z.infer<typeof projectImportRequestSchema>;
+export type ProjectImportResponse = z.infer<typeof projectImportResponseSchema>;
+export type ScanBoundaryAction = z.infer<typeof scanBoundaryActionSchema>;
+export type ScanBoundaryProposal = z.infer<typeof scanBoundaryProposalSchema>;
+export type ScanBoundaryDecision = z.infer<typeof scanBoundaryDecisionSchema>;
+export type ScanCreateRequest = z.infer<typeof scanCreateRequestSchema>;
+export type ScanCreateResponse = z.infer<typeof scanCreateResponseSchema>;
+
 export type Selection =
   | { kind: "node"; id: string }
   | { kind: "edge"; id: string }

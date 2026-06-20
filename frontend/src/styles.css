@@ -428,6 +428,7 @@ h1, h2, h3 { margin: 0; }
 .api-field.is-on { border-color: var(--accent-line); color: var(--text-2); }
 .api-field input { border: 0; outline: 0; background: transparent; color: inherit; font-family: var(--mono); font-size: 11px; width: 168px; min-width: 0; }
 .api-field input:disabled { color: var(--text-faint); }
+.api-field .mono { color: var(--text-3); font-size: 10px; }
 
 .source-control { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .source-summary {
@@ -439,7 +440,7 @@ h1, h2, h3 { margin: 0; }
 }
 .source-summary b { color: var(--text); font-weight: 650; }
 .source-popover { display: grid; gap: var(--space-3); }
-.source-error { font-size: 11px; color: var(--error); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-error { font-size: 11px; color: var(--error); max-width: 236px; line-height: 1.35; }
 
 .btn, .icon-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -467,7 +468,68 @@ h1, h2, h3 { margin: 0; }
 }
 .menu-action:hover { background: var(--surface-2); color: var(--text); }
 .menu-action:disabled { opacity: 0.45; cursor: default; }
+.menu-action.is-primary { border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--text); justify-content: center; }
+.menu-action.is-primary:hover { background: var(--accent); color: var(--accent-contrast); }
 .menu-btn { display: none; }
+
+.modal-scrim {
+  position: fixed; inset: 0; z-index: 80;
+  display: grid; place-items: center; padding: 24px;
+  background: color-mix(in oklab, var(--bg) 62%, transparent);
+  backdrop-filter: blur(6px);
+}
+.boundary-modal {
+  width: min(720px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  gap: var(--space-3); padding: var(--space-4);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel); box-shadow: var(--shadow-pop);
+}
+.boundary-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+}
+.boundary-header h2 {
+  margin: 2px 0 0; font-size: 21px; line-height: 1.15; letter-spacing: 0; color: var(--text);
+}
+.boundary-copy {
+  margin: 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5;
+}
+.boundary-list { display: grid; gap: var(--space-3); overflow: auto; padding-right: 2px; }
+.boundary-item {
+  display: grid; gap: var(--space-3); padding: var(--space-3);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface);
+}
+.boundary-item-main { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: var(--space-2); }
+.boundary-item-main svg { color: var(--risk); margin-top: 2px; }
+.boundary-item h3 {
+  margin: 0; font-family: var(--mono); font-size: var(--fs-sm); line-height: 1.35;
+  overflow-wrap: anywhere; color: var(--text);
+}
+.boundary-item p { margin: 4px 0 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; }
+.boundary-meta, .boundary-evidence {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--space-2);
+}
+.boundary-meta span, .boundary-evidence span {
+  display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--surface-2); color: var(--text-2); font-size: 11px;
+}
+.boundary-evidence span { font-family: var(--mono); overflow-wrap: anywhere; }
+.boundary-choice { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.boundary-choice button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 30px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface-2); color: var(--text-2); font-size: var(--fs-sm); font-weight: 550;
+}
+.boundary-choice button.is-active { border-color: var(--accent-line); background: var(--accent-soft); color: var(--text); }
+.boundary-error {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in oklab, var(--error) 42%, var(--line));
+  border-radius: var(--radius-sm); color: var(--error); font-size: var(--fs-sm);
+}
+.boundary-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
 /* ============================================================================
    Graph canvas (React Flow host)

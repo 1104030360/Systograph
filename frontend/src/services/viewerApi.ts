@@ -1,25 +1,8 @@
 import { scanProgressEventSchema, viewerPayloadSchema, type ScanProgressEvent, type ViewerPayload } from "../types";
 import { viewerPayload as sampleViewerPayload } from "../data/sampleMap";
+import { fetchJson, normalizeBaseUrl } from "./http";
 
 const mapEndpoints = ["/api/map", "/map"];
-
-function normalizeBaseUrl(baseUrl: string) {
-  return baseUrl.replace(/\/+$/, "");
-}
-
-async function fetchJson(url: string) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
-  }
-
-  return response.json();
-}
 
 export async function loadSampleViewerPayload(): Promise<ViewerPayload> {
   return sampleViewerPayload;
