@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Crosshair, Layers3, Maximize, Menu, MessageCircle, Moon, Share2, Sun } from "lucide-react";
+import { Crosshair, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
@@ -8,6 +8,9 @@ import { ReplayTimeline } from "./components/ReplayTimeline";
 import { Sidebar } from "./components/Sidebar";
 import { StateOverlay, type ViewerState } from "./components/StateOverlay";
 import { SystemGraph } from "./components/SystemGraph";
+import { ScanTemplatePage } from "./pages/ScanTemplatePage";
+import { ProposalModal, type ProposalTarget } from "./components/proposal/ProposalModal";
+import { WordingProvider } from "./wording";
 import { getTraceEvents, viewerPayload as sampleViewerPayload } from "./data/sampleMap";
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
@@ -22,6 +25,14 @@ const EMPTY_GRAPH: GraphViewModel = {
   details: { evidence_by_id: {}, risk_hints_by_id: {} },
   filters: { available: [] },
 };
+
+const MAP_KEY: Array<[string, string]> = [
+  ["var(--line-strong)", "Detected"],
+  ["var(--accent)", "Confirmed"],
+  ["var(--risk)", "Risk"],
+  ["var(--unmapped)", "Review"],
+  ["var(--text-faint)", "Missing"],
+];
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -79,6 +90,12 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [fitSignal, setFitSignal] = useState(0);
+  const [graphInteracting, setGraphInteracting] = useState(false);
+  // Scan Template route (full-bleed overlay) + Mapping Proposal modal (z 60, can
+  // sit over the route or the graph). The selection API does not exist yet, so
+  // the page runs on the scanTemplateApi mock seam.
+  const [view, setView] = useState<"viewer" | "scan-template">("viewer");
+  const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
 
   const activeTraceEvent = traceEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
@@ -156,7 +173,6 @@ export default function App() {
 
       <Sidebar
         scanSummary={scanSummary}
-        systemType={aiSystemMap?.system_type}
         scanDepth={aiSystemMap?.scan_depth}
         dataAvailable={dataAvailable}
         filters={graph.filters.available}
@@ -171,20 +187,41 @@ export default function App() {
           <button className="icon-btn menu-btn" type="button" onClick={() => setMenuOpen(true)} title="Menu" aria-label="Open menu">
             <Menu size={16} />
           </button>
-          <div className="tb-title">
-            <strong>{projectName}</strong>
-            <span className="mono">ai-system-map/v1 · projection</span>
+          <div className="toolbar-menu project-menu">
+            <button className="tb-title-project" type="button" aria-label={`Project ${projectName}`}>
+              <Folder size={13} />
+              <span>{projectName}</span>
+            </button>
+            <div className="toolbar-popover">
+              <div className="popover-title">Project</div>
+              <div className="popover-main">{projectName}</div>
+              <div className="meta-list">
+                <span>
+                  <Layers3 size={13} />
+                  <b>{graph.nodes.length}</b> Nodes
+                </span>
+                <span>
+                  <Share2 size={13} />
+                  <b>{graph.edges.length}</b> Edges
+                </span>
+                <span>
+                  <span className="pulse" />
+                  status <b>{dataAvailable ? (scanSummary?.status ?? "unknown") : "unknown"}</b>
+                </span>
+                <span>projection</span>
+              </div>
+            </div>
           </div>
-          <div className="tb-metrics">
+          <div className="tb-metrics is-hidden">
             <span className="metric">
               <Layers3 size={14} />
               <b>{graph.nodes.length}</b>
-              nodes
+              Nodes
             </span>
             <span className="metric">
               <Share2 size={14} />
               <b>{graph.edges.length}</b>
-              edges
+              Edges
             </span>
             <span className="metric is-status" title="Backend scan status">
               <span className="pulse" />
@@ -192,6 +229,16 @@ export default function App() {
             </span>
           </div>
           <div className="tb-spacer" />
+
+          <button
+            className="btn"
+            type="button"
+            onClick={() => setView("scan-template")}
+            title="Scan template & mapping profile"
+          >
+            <Layers3 size={14} />
+            Scan Template
+          </button>
 
           <DataSourceControl
             mode={dataSourceMode}
@@ -213,24 +260,28 @@ export default function App() {
             <Crosshair size={14} />
             Follow
           </button>
-          <button className="icon-btn" type="button" onClick={handleReset} title="Reset view" aria-label="Reset view">
-            <Maximize size={15} />
-          </button>
-          <button
-            className="icon-btn"
-            type="button"
-            onClick={toggleTheme}
-            title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-          <button className="icon-btn" type="button" onClick={() => setChatOpen(true)} title="Local model chat" aria-label="Open chat">
-            <MessageCircle size={15} />
-          </button>
+          <details className="toolbar-menu more-menu">
+            <summary className="icon-btn" aria-label="More tools" title="More tools">
+              <MoreHorizontal size={16} />
+            </summary>
+            <div className="toolbar-popover align-right">
+              <button className="menu-action" type="button" onClick={handleReset}>
+                <Maximize size={15} />
+                Reset view
+              </button>
+              <button className="menu-action" type="button" onClick={toggleTheme}>
+                {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                {theme === "dark" ? "Light theme" : "Dark theme"}
+              </button>
+              <button className="menu-action" type="button" onClick={() => setChatOpen(true)}>
+                <MessageCircle size={15} />
+                Local chat
+              </button>
+            </div>
+          </details>
         </header>
 
-        <div className="graph-frame">
+        <div className={graphInteracting ? "graph-frame is-interacting" : "graph-frame"}>
           {!showOverlay ? (
             <ProgressStrip
               isRunning={isProgressRunning}
@@ -261,7 +312,17 @@ export default function App() {
             followFocus={followFocus}
             fitSignal={fitSignal}
             onSelect={setSelected}
+            onInteractingChange={setGraphInteracting}
           />
+
+          <div className="map-key-float" aria-label="Map color key">
+            {MAP_KEY.map(([color, label]) => (
+              <span className="legend-chip" key={label}>
+                <span className="swatch" style={{ background: color }} />
+                {label}
+              </span>
+            ))}
+          </div>
 
           {selected && !showOverlay && payload ? (
             <div className="inspector">
@@ -287,6 +348,25 @@ export default function App() {
       </section>
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+
+      <WordingProvider>
+        {view === "scan-template" ? (
+          <ScanTemplatePage
+            onClose={() => setView("viewer")}
+            onOpenProposal={(row) =>
+              setProposalTarget({
+                unmapped_id: row.unmapped_id,
+                node_path: row.node_path,
+                node_kind: row.node_kind,
+              })
+            }
+          />
+        ) : null}
+
+        {proposalTarget ? (
+          <ProposalModal node={proposalTarget} scenario="ok" onClose={() => setProposalTarget(null)} />
+        ) : null}
+      </WordingProvider>
     </div>
   );
 }

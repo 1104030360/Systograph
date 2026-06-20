@@ -1,9 +1,8 @@
-import { Eye, Info, RotateCcw, Sparkles } from "lucide-react";
+import { ChevronDown, Info, RotateCcw, Sparkles } from "lucide-react";
 import type { GraphFilterModel, ScanSummary } from "../types";
 
 type Props = {
   scanSummary?: ScanSummary;
-  systemType?: string;
   scanDepth?: string;
   dataAvailable: boolean;
   filters: GraphFilterModel[];
@@ -20,14 +19,6 @@ const DEPTH_ROWS = [
 ];
 const DEPTH_ORDER = ["system", "component", "code_path"];
 
-const LEGEND: Array<[string, string]> = [
-  ["var(--line-strong)", "Detected"],
-  ["var(--accent)", "Confirmed extension"],
-  ["var(--risk)", "Risk hint attached"],
-  ["var(--unmapped)", "Needs confirmation"],
-  ["var(--text-faint)", "Missing / not configured"],
-];
-
 function fdotKind(kind: string): string {
   if (kind === "flow" || kind === "risk" || kind === "mapping") return kind;
   return "";
@@ -35,7 +26,6 @@ function fdotKind(kind: string): string {
 
 export function Sidebar({
   scanSummary,
-  systemType,
   scanDepth,
   dataAvailable,
   filters,
@@ -44,12 +34,13 @@ export function Sidebar({
   onToggleFilter,
   onClearFilters,
 }: Props) {
-  const cell = (value: number | undefined) => (dataAvailable && value != null ? String(value) : "—");
+  const cell = (value: number | undefined) => (dataAvailable && value != null ? String(value) : "unknown");
   const missingAndNotConfigured =
     dataAvailable && (scanSummary?.missing_slots != null || scanSummary?.not_configured_slots != null)
       ? String((scanSummary?.missing_slots ?? 0) + (scanSummary?.not_configured_slots ?? 0))
-      : "—";
+      : "unknown";
   const reached = dataAvailable && scanDepth ? DEPTH_ORDER.indexOf(scanDepth) : -1;
+  const scanStatus = dataAvailable ? (scanSummary?.status ?? "unknown") : "unknown";
 
   return (
     <aside className={isOpen ? "sidebar is-open" : "sidebar"}>
@@ -66,48 +57,32 @@ export function Sidebar({
       <section className="side-section">
         <div className="side-head">
           <span className="eyebrow">Scan summary</span>
-          <span className="count mono">{dataAvailable ? (systemType ?? "rag") : "—"}</span>
         </div>
-        <div className="summary-grid">
-          <div className="summary-cell">
-            <div className="v">{cell(scanSummary?.detected_slots)}</div>
-            <div className="k">detected</div>
+        <div className="summary-compact">
+          <div className="summary-status">
+            <span className="pulse" />
+            <strong>{scanStatus}</strong>
           </div>
-          <div className="summary-cell is-warn">
-            <div className="v">{missingAndNotConfigured}</div>
-            <div className="k">missing / n.c.</div>
+          <div className="summary-line">
+            <span>{cell(scanSummary?.detected_slots)} detected</span>
+            <span>{missingAndNotConfigured} missing</span>
           </div>
-          <div className="summary-cell is-risk">
-            <div className="v">{cell(scanSummary?.risk_hints)}</div>
-            <div className="k">risk hints</div>
-          </div>
-          <div className="summary-cell">
-            <div className="v">{cell(scanSummary?.unmapped_components)}</div>
-            <div className="k">unmapped</div>
+          <div className="summary-line">
+            <span>{cell(scanSummary?.risk_hints)} risk hints</span>
+            <span>{cell(scanSummary?.unmapped_components)} unmapped</span>
           </div>
         </div>
-        {dataAvailable ? (
-          <div className="scan-banner">
-            <Info className="ico" size={14} />
-            <span>
-              Scan status: <b>{scanSummary?.status ?? "unknown"}</b>
-              {scanSummary?.files_scanned != null
-                ? ` — ${scanSummary.files_scanned} scanned, ${scanSummary.files_skipped ?? 0} skipped.`
-                : "."}{" "}
-              Not a complete audit.
-            </span>
-          </div>
-        ) : (
+        {!dataAvailable ? (
           <div className="scan-banner is-neutral">
             <Info className="ico" size={14} />
             <span>No map loaded. Summary unavailable until the backend returns a system map.</span>
           </div>
-        )}
+        ) : null}
       </section>
 
       <section className="side-section">
         <div className="side-head">
-          <span className="eyebrow">Highlight</span>
+          <span className="eyebrow">View filters</span>
           <button className="icon-btn" type="button" onClick={onClearFilters} title="Clear highlights" aria-label="Clear highlights">
             <RotateCcw size={14} />
           </button>
@@ -130,16 +105,13 @@ export function Sidebar({
             );
           })}
         </div>
-        <div className="scan-banner is-accent">
-          <Eye className="ico" size={14} />
-          <span>Highlight only — unmatched elements stay visible, never hidden.</span>
-        </div>
       </section>
 
-      <section className="side-section">
-        <div className="side-head">
+      <details className="side-section collapse-section">
+        <summary className="collapse-head">
           <span className="eyebrow">Scan depth</span>
-        </div>
+          <ChevronDown size={14} />
+        </summary>
         <div className="depth-list">
           {DEPTH_ROWS.map((row) => {
             const ready = reached >= row.index;
@@ -153,21 +125,7 @@ export function Sidebar({
             );
           })}
         </div>
-      </section>
-
-      <section className="side-section grow">
-        <div className="side-head">
-          <span className="eyebrow">Legend</span>
-        </div>
-        <div className="legend">
-          {LEGEND.map(([color, label]) => (
-            <div className="legend-row" key={label}>
-              <span className="swatch" style={{ background: color }} />
-              {label}
-            </div>
-          ))}
-        </div>
-      </section>
+      </details>
     </aside>
   );
 }

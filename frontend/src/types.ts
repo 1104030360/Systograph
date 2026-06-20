@@ -171,3 +171,143 @@ export type ScanTarget = {
   label: string;
   kind: "node" | "edge";
 };
+
+/* ============================================================================
+   Scan Template / Mapping Profile  (NEW API — not yet implemented)
+   The selection API does not exist yet, so these are served from a mock seam
+   (services/scanTemplateApi.ts). Shapes are designed to accept real responses
+   unchanged once the backend lands.
+   ========================================================================== */
+export const scanProfileKind = z.enum(["system_default", "project_custom"]);
+
+export const scanProfileSchema = z.object({
+  profile_id: z.string(),
+  kind: scanProfileKind,
+  name: z.string(),
+  version_label: z.string(), // "rag-core-v1" | "project-custom-v1"
+  read_only: z.boolean().default(false),
+  derived_from: z.string().nullable().optional(),
+  description: z.string().optional(),
+  core_components: z.array(z.object({ slot: z.string(), label: z.string() })).default([]),
+  stats: z.object({ confirmed: z.number(), pending: z.number(), skipped: z.number() }).optional(),
+});
+
+export const scanTemplateStateSchema = z.object({
+  project_id: z.string(),
+  project_name: z.string(),
+  selected_profile_id: z.string(),
+  profiles: z.array(scanProfileSchema),
+});
+
+export const mappingSource = z.enum(["ai_suggested", "user_confirmed", "fallback_rule"]);
+
+/* A concrete piece of code evidence a mapping is based on. The backend extracts
+   these from function-interaction analysis, so a mapping cites *what it saw*
+   rather than a guessed confidence score. */
+export const evidenceRefSchema = z.object({
+  evidence_id: z.string(),
+  file: z.string(),
+  symbol: z.string().optional(), // function / class / export the evidence points at
+  line: z.number().optional(),
+  label: z.string().optional(), // short human-readable summary (AI-rewritten)
+});
+
+export const confirmedMappingRowSchema = z.object({
+  mapping_id: z.string(),
+  node_path: z.string(),
+  node_kind: z.string().optional(),
+  target_slot: z.string(),
+  target_label: z.string(),
+  source: mappingSource,
+  evidence: z.array(evidenceRefSchema).default([]),
+  updated_at: z.string(),
+});
+
+export const pendingProposalRowSchema = z.object({
+  unmapped_id: z.string(),
+  node_path: z.string(),
+  node_kind: z.string().optional(),
+  candidate_count: z.number(),
+  best_candidate: z.string(),
+  evidence_count: z.number().optional(),
+});
+
+export const skippedDecisionRowSchema = z.object({
+  decision_id: z.string(),
+  node_path: z.string(),
+  node_kind: z.string().optional(),
+  reason: z.string(),
+  skipped_at: z.string(),
+});
+
+/* ============================================================================
+   Mapping Proposal  (matches the real /api/mapping-proposals contract)
+   ========================================================================== */
+export const mappingCandidateSchema = z.object({
+  candidate_id: z.string(),
+  candidate_type: z.enum(["existing_slot_mapping", "new_extension_component"]),
+  recommendation_level: z.enum(["recommended", "alternative", "fallback"]).optional(),
+  source: z.enum(["ai_suggested", "fallback_rule", "deterministic"]).optional(),
+  target_slot: z.string(),
+  component_name: z.string(),
+  component_kind: z.string(),
+  provider: z.string(),
+  // The backend may still send a confidence score, but the UI does not surface
+  // it for already-detected components — it lists the cited evidence instead.
+  confidence: z.number().min(0).max(1).optional(),
+  rationale: z.string(),
+  evidence_ids: z.array(z.string()).default([]),
+  evidence_refs: z.array(evidenceRefSchema).default([]),
+  uncertainty_reason: z.string().nullable().optional(),
+  suggested_edges: z.array(z.record(z.unknown())).optional(),
+  flow_hint: z.string().nullable().optional(),
+});
+
+export const mappingProposalSchema = z.object({
+  proposal_id: z.string(),
+  project_id: z.string(),
+  source_unmapped_id: z.string(),
+  source_path: z.string().optional(),
+  status: z.enum(["pending_user_confirmation", "accepted", "edited", "rejected", "skipped"]),
+  candidates: z.array(mappingCandidateSchema).default([]),
+  evidence_packet: z.record(z.unknown()).optional(),
+  provider_name: z.string(), // "deterministic" | "nvidia-nim"
+  provider_error_reason: z.string().nullable().optional(),
+  user_description: z.string().nullable().optional(),
+  available_actions: z.array(z.string()).default([]),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+// edited_mapping body from API-GUIDE §4/§5 (ManualMappingCreate, confirmed)
+export const manualMappingCreateSchema = z.object({
+  project_id: z.string(),
+  mapping_type: z.enum(["existing_slot_mapping", "new_extension_component"]),
+  decision: z.literal("confirmed"),
+  source_unmapped_id: z.string(),
+  evidence_ids: z.array(z.string()).default([]),
+  target_slot: z.string(),
+  component_name: z.string(),
+  component_kind: z.string(),
+  reason: z.string().optional(),
+});
+
+// decision request (POST .../{proposal_id}/decision)
+export const proposalDecisionSchema = z.discriminatedUnion("decision", [
+  z.object({ decision: z.literal("accept"), candidate_id: z.string() }),
+  z.object({ decision: z.literal("edit"), edited_mapping: manualMappingCreateSchema }),
+  z.object({ decision: z.literal("reject"), reason: z.string().optional() }),
+  z.object({ decision: z.literal("skip_for_now"), reason: z.string().optional() }),
+]);
+
+export type EvidenceRef = z.infer<typeof evidenceRefSchema>;
+export type ScanProfile = z.infer<typeof scanProfileSchema>;
+export type ScanTemplateState = z.infer<typeof scanTemplateStateSchema>;
+export type ConfirmedMappingRow = z.infer<typeof confirmedMappingRowSchema>;
+export type PendingProposalRow = z.infer<typeof pendingProposalRowSchema>;
+export type SkippedDecisionRow = z.infer<typeof skippedDecisionRowSchema>;
+export type MappingProposal = z.infer<typeof mappingProposalSchema>;
+export type MappingCandidate = z.infer<typeof mappingCandidateSchema>;
+export type ManualMappingCreate = z.infer<typeof manualMappingCreateSchema>;
+export type ProposalDecision = z.infer<typeof proposalDecisionSchema>;
+export type MappingSource = z.infer<typeof mappingSource>;

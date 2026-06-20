@@ -123,7 +123,7 @@ function CanvasControls() {
 
 function ZoomHint() {
   const { zoom } = useViewport();
-  return <div className="canvas-hint">{Math.round(zoom * 100)}% · drag to pan</div>;
+  return <div className="canvas-hint">{Math.round(zoom * 100)}%</div>;
 }
 
 function resolveEdgeTargetNodeId(graph: GraphViewModel, edgeId: string | undefined) {
@@ -188,9 +188,20 @@ type Props = {
   followFocus: boolean;
   fitSignal: number;
   onSelect: (selection: Selection) => void;
+  onInteractingChange?: (interacting: boolean) => void;
 };
 
-function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTargetId, followFocus, fitSignal, onSelect }: Props) {
+function GraphCanvas({
+  graph,
+  activeFilterIds,
+  selected,
+  traceEvent,
+  progressTargetId,
+  followFocus,
+  fitSignal,
+  onSelect,
+  onInteractingChange,
+}: Props) {
   const selectedKind = selected?.kind === "node" || selected?.kind === "edge" ? selected.kind : undefined;
   const selectedId = selected?.kind === "node" || selected?.kind === "edge" ? selected.id : undefined;
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
@@ -276,6 +287,7 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
       ...currentPositions,
       [node.id]: node.position,
     }));
+    onInteractingChange?.(false);
   }
 
   // Toolbar "Reset" requests a fit; fitSignal starts at 0 (no fit on mount).
@@ -332,7 +344,10 @@ function GraphCanvas({ graph, activeFilterIds, selected, traceEvent, progressTar
       translateExtent={translateExtent}
       nodesDraggable
       onNodesChange={handleNodesChange}
+      onNodeDragStart={() => onInteractingChange?.(true)}
       onNodeDragStop={handleNodeDragStop}
+      onMoveStart={() => onInteractingChange?.(true)}
+      onMoveEnd={() => onInteractingChange?.(false)}
       panOnScroll
       selectionOnDrag
       onNodeClick={(_, node) => onSelect({ kind: "node", id: node.id })}
