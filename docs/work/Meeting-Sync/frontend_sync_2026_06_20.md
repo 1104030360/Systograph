@@ -14,7 +14,9 @@
 
 - Base branch: `main`
 - Head branch: `codex/toolbar-sidebar-density-draft`
-- PR: 尚未建立
+- PR: #186 `Polish viewer density and scan template UI`
+- URL: https://github.com/1104030360/Local-AI-Health-Doctor/pull/186
+- PR 狀態：open，等待 review / merge 確認
 - 主要範圍：主 Viewer toolbar/sidebar density、Scan Template header/workflow/copy、Map key、scan status、proposal wording
 
 目前分支已 push 到遠端：
@@ -25,9 +27,9 @@ origin/codex/toolbar-sidebar-density-draft
 
 注意：
 
-- 這支 branch 的 fork point 是 `fc1d099`。
-- 遠端 `main` 後來多了 #183、#184 兩個 docs cleanup commit。
-- 開 PR 或 merge 前，建議先同步最新 `origin/main`，再跑完整驗證。
+- 這支 branch 已 rebase 到最新 `origin/main`。
+- rebase 後的 base commit 是 `f826f0b`，已包含 #183、#184 的 docs cleanup。
+- merge 前請先完成 PR review，不建議未看畫面就直接 merge。
 
 ## 2. 這次 PR 想解決什麼
 
@@ -251,19 +253,23 @@ corepack pnpm run build
 
 ## 8. 開 PR 前建議步驟
 
-建議照這個順序：
+目前已完成：
 
 ```text
-1. 同步最新 origin/main
-2. 確認 #183 / #184 docs cleanup 不會造成衝突
-3. 跑 lint
-4. 跑 build
-5. 開 PR 到 main
-6. 讓 reviewer 先看 UI / wording / scope
-7. 確認後再 merge
+1. 已同步最新 origin/main
+2. 已確認 #183 / #184 docs cleanup 不會造成衝突
+3. 已跑 lint
+4. 已跑 build
+5. 已開 PR 到 main：#186
 ```
 
-如果要避免 merge commit，也可以在開 PR 前 rebase 到最新 `origin/main`。
+接下來建議：
+
+```text
+1. 先看 PR diff 與實際畫面
+2. 確認 UI / wording / scope 沒有要再改
+3. 確認後再 merge
+```
 
 ## 9. Review 時建議看的地方
 
