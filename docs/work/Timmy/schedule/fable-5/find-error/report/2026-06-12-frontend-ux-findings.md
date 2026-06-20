@@ -2,7 +2,7 @@
 
 - 日期：2026-06-12 ／ 性質：只檢查與記錄，未修改功能程式碼
 - 範圍：`frontend/src/` 全部元件、hooks、services、store、utils、types、build 設定
-- 說明：前端部分由主審查者逐檔閱讀並 grep 全 `frontend/src` 確認注入面，再由前端 subagent 複核 `frontend/src`、`frontend/package.json`、build/lint 設定、Bo-han 設計/plan 與後端 schema。每項標注「repo 實際觀察」。
+- 說明：前端部分由主審查者逐檔閱讀並 grep 全 `frontend/src` 確認注入面，再由前端 subagent 複核 `frontend/src`、`frontend/package.json`、build/lint 設定、Hardy 設計/plan 與後端 schema。每項標注「repo 實際觀察」。
 - 編號延續總覽報告（M-16/M-17 已在後端檔列出 fetch timeout 與 bundle，這裡聚焦 UI/UX 與前端工程其餘項）。
 
 ---
@@ -52,7 +52,7 @@
 - 嚴重程度：Low
 - 來源：`frontend/src/components/DetailPanel.tsx` 有 Escape close，但未設定 `role="dialog"`、`aria-modal`、focus trap；`frontend/src/components/ProgressStrip.tsx` 的 progress meter 只有 `aria-label="scan progress"`，未使用 `role="progressbar"` / `aria-valuenow`。
 - 問題說明：目前已有基本 aria-label 與 Escape close，但 inspector 作為 floating panel 時，鍵盤焦點管理與螢幕閱讀器語意還不完整；progress 狀態也缺標準 progressbar semantics。
-- 具體改善建議：Bo-han Task 8 中補 focus trap / return focus、dialog semantics 或改為非 modal region 的明確語意、progressbar ARIA value；保留現有 Escape close。
+- 具體改善建議：Hardy Task 8 中補 focus trap / return focus、dialog semantics 或改為非 modal region 的明確語意、progressbar ARIA value；保留現有 Escape close。
 - 重現方式：鍵盤打開 DetailPanel 後，用 Tab 導覽可離開 panel；螢幕閱讀器無法把它視為 dialog/progressbar。
 - 建議測試方式：RTL + `@testing-library/jest-dom` 檢查 role/name/aria value；必要時用 Playwright 做鍵盤焦點 smoke。
 - 影響範圍：`DetailPanel.tsx`、`ProgressStrip.tsx`、responsive inspector。
@@ -92,7 +92,7 @@
 - 嚴重程度：Medium
 - 來源：`frontend/package.json` scripts 只有 `dev`/`build`/`lint`，無 `test`
 - 問題說明：與 `AGENTS.md`/check1 第 109、110 點一致——前端互動 issue 缺 regression 防線。任何 graph render、filter highlight、API error、boundary decision、proposal/detail scan 互動都無自動測試。
-- 建議：導入 Vitest + React Testing Library，最小測試：graph render smoke、detail modal open/close、filter highlight 不隱藏 graph、API error 不 crash、`viewerApi` schema parse。對應 Bo-han Task 7 與 Timmy 20a/21a/24b。
+- 建議：導入 Vitest + React Testing Library，最小測試：graph render smoke、detail modal open/close、filter highlight 不隱藏 graph、API error 不 crash、`viewerApi` schema parse。對應 Hardy Task 7 與 Timmy 20a/21a/24b。
 - 重現方式：`frontend/package.json` scripts 只有 `dev` / `build` / `preview` / `lint`，執行 `pnpm test` 會找不到 script。
 - 建議測試方式：新增 `pnpm test`，至少跑上述 smoke/schema tests，CI（H-6）落地後納入。
 - 影響範圍：整個 frontend；CI（H-6）落地後納入。
@@ -134,6 +134,6 @@
 - `unfinish/24b-implement-project-scan-and-boundary-decision-frontend-flow.md`
 - `unfinish/21a-implement-detail-scan-frontend-flow.md`
 - `unfinish/20a-implement-ai-mapping-proposal-frontend-flow.md`
-- Bo-han `unfinish/07-add-viewer-regression-tests.md`、`08-hardening-responsive-accessibility-performance.md`
+- Hardy `unfinish/07-add-viewer-regression-tests.md`、`08-hardening-responsive-accessibility-performance.md`
 
 本次前端發現中，B-2（typed schema）、B-3（test runner）、A-1/A-2（錯誤狀態文案）、A-4（project scan / boundary flow）、A-5（accessibility hardening）、A-6（no-secret display regression）、M-16（fetch timeout）建議在執行上述 issue 時一併處理，而非另開獨立修補。

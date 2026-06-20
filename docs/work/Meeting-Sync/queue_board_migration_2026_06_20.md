@@ -1,6 +1,6 @@
 # Queue Board 轉換提案（2026-06-20）
 
-這份文件是給 Timmy / Bo-han 討論用的 Queue Board 整理提案。
+這份文件是給 Timmy / Hardy 討論用的 Queue Board 整理提案。
 
 目前尚未修改 GitHub Project #6 的任何欄位或 issue 狀態。這份文件只整理現況、問題、建議的新時間線欄位，以及初步遷移規則。
 
@@ -40,7 +40,7 @@ Project：
 | Owner Lane | Item 數 |
 |---|---:|
 | Timmy | 33 |
-| Bo-han | 31 |
+| Hardy | 31 |
 | Shared | 30 |
 | 未填 | 2 |
 
@@ -242,22 +242,22 @@ Now 最多 3-5 件。
 例外：
 
 - 如果 Timmy 已經明確本週要做其中幾件，可以保留在 Now。
-- 如果 Bo-han 下一步要做 frontend API integration，可把相關 frontend item 留在 Now 或排 Planned 前段。
+- 如果 Hardy 下一步要做 frontend API integration，可把相關 frontend item 留在 Now 或排 Planned 前段。
 
 ### C. 建議 Review / Resolved decision
 
 | Issue / PR | 目前狀態 | 建議 |
 |---|---|---|
 | #137 | Merged / Done，但仍在 Now | 移到 Resolved |
-| #131-#136 | Open / In progress / Review | 由 Bo-han 檢查是否已由 #137 / #186 覆蓋；能 close 的 close，剩下移 Planned 或 Review |
+| #131-#136 | Open / In progress / Review | 由 Hardy 檢查是否已由 #137 / #186 覆蓋；能 close 的 close，剩下移 Planned 或 Review |
 | #186 | Merged | 若在 Project 中出現，放 Resolved |
 
 ### D. 建議補欄位的新 issue
 
 | Issue | 建議 Queue | Owner | Priority | Work Area | Work Type | 備註 |
 |---|---|---|---|---|---|---|
-| #185 Evidence code preview drawer | Planned | Shared 或 Bo-han | P2 | Frontend 或 Contract | Feature | 需要前後端串接 branch，可能牽涉 API contract |
-| #187 Vite build warnings | Resolved 或 Planned | Bo-han | P2 | Frontend | Performance | 可能與 #181 重複，建議併入 #181 |
+| #185 Evidence code preview drawer | Planned | Shared 或 Hardy | P2 | Frontend 或 Contract | Feature | 需要前後端串接 branch，可能牽涉 API contract |
+| #187 Vite build warnings | Resolved 或 Planned | Hardy | P2 | Frontend | Performance | 可能與 #181 重複，建議併入 #181 |
 
 ### E. 建議 Tracking
 
@@ -343,7 +343,7 @@ Current Iteration view：
 3. `Next` / `Later` 批次移到 Planned。
 4. `Roadmap` 批次移到 Tracking。
 5. `Now` 中只保留 #138 和 Timmy 指定的少數本輪工作。
-6. #131-#136 由 Bo-han / Timmy 確認是否 close 或移 Resolved。
+6. #131-#136 由 Hardy / Timmy 確認是否 close 或移 Resolved。
 7. Current Iteration 從 38 件縮到真正本輪承諾項目。
 
 ## 9. 需要 Timmy 決定的問題

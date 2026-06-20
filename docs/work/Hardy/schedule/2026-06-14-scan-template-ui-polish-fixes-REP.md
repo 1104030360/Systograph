@@ -106,7 +106,7 @@
 - `frontend/src/services/scanTemplateApi.ts`
 - `frontend/src/styles/template-ui.css`
 - `frontend/src/wording.ts`
-- `docs/work/Bo-han/schedule/report/2026-06-14-scan-template-ui-polish-fixes-REP.md`
+- `docs/work/Hardy/schedule/report/2026-06-14-scan-template-ui-polish-fixes-REP.md`
 
 注意：
 

@@ -287,7 +287,7 @@ corepack pnpm run build
 ## 10. 參考來源
 
 - `docs/work/Meeting-Sync/frontend_sync_2026_06_12.md`
-- `docs/work/Bo-han/schedule/2026-06-14-scan-template-ui-polish-fixes-REP.md`
+- `docs/work/Hardy/schedule/2026-06-14-scan-template-ui-polish-fixes-REP.md`
 - `frontend/src/App.tsx`
 - `frontend/src/components/ProgressStrip.tsx`
 - `frontend/src/components/Sidebar.tsx`

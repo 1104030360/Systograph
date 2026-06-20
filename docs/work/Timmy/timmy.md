@@ -13,7 +13,7 @@ Timmy 負責建立 Epic 1 的「事實層」。也就是讓 KAI-Mind 能 read-on
 - scanner 不會修改被掃描專案。
 - 每個 detected component 都有 evidence。
 - 沒有 evidence 的 slot 不得假裝 detected。
-- JSON contract 穩定且可被 Bo-Han 的 viewer 使用。
+- JSON contract 穩定且可被 Hardy 的 viewer 使用。
 - full secret 不會出現在 JSON、Markdown、logs、test snapshots。
 
 ## 2. 責任邊界
@@ -82,7 +82,7 @@ Timmy 負責建立 Epic 1 的「事實層」。也就是讓 KAI-Mind 能 read-on
 驗收條件：
 
 - `rag-core-v1` 可被 scanner 載入。
-- Bo-Han 可以用 template 產生 graph node / edge 初始 view model。
+- Hardy 可以用 template 產生 graph node / edge 初始 view model。
 - template 不含任何 project-specific 假設。
 
 ### A2. 定義 `ai-system-map/v1` schema 與 domain model
@@ -111,7 +111,7 @@ Timmy 負責建立 Epic 1 的「事實層」。也就是讓 KAI-Mind 能 read-on
 
 - invalid status 會被 schema / validation 擋下。
 - detected slot 沒有 evidence 時會 validation fail。
-- schema 能支援 Bo-Han 的 viewer detail panel 與 query trace replay。
+- schema 能支援 Hardy 的 viewer detail panel 與 query trace replay。
 
 ### A3. 建立 sample RAG fixtures
 
@@ -119,13 +119,13 @@ Timmy 負責建立 Epic 1 的「事實層」。也就是讓 KAI-Mind 能 read-on
 - [ ] `openai_external_provider_rag`：包含 OpenAI embeddings / API key name / external endpoint signal。
 - [ ] `malformed_config_rag`：包含 invalid YAML 或 docker-compose。
 - [ ] `missing_slots_rag`：只有 README 或 data folder，測試 missing slot。
-- [ ] `viewer_invalid_map`：給 Bo-Han 測 viewer invalid map error state。
+- [ ] `viewer_invalid_map`：給 Hardy 測 viewer invalid map error state。
 
 驗收條件：
 
 - 每個 fixture 都能說明它要測什麼。
 - fixture 不包含真實 secret。
-- Bo-Han 可以直接使用 fixture map 開發 viewer。
+- Hardy 可以直接使用 fixture map 開發 viewer。
 
 ### A4. 實作 read-only project scanner providers
 
@@ -194,7 +194,7 @@ Timmy 負責建立 Epic 1 的「事實層」。也就是讓 KAI-Mind 能 read-on
 - output directory 既有檔案不會被覆寫。
 - missing project 不會產生正常 map。
 
-### A8. 交付給 Bo-Han 的 viewer contract
+### A8. 交付給 Hardy 的 viewer contract
 
 - [ ] 提供至少 3 份可用的 sample `ai_system_map.json`：
   - 正常 RAG map。
@@ -208,12 +208,12 @@ Timmy 負責建立 Epic 1 的「事實層」。也就是讓 KAI-Mind 能 read-on
   - evidence refs
   - risk hint refs
   - edge relationship
-- [ ] 與 Bo-Han 對齊 `QueryTraceEvent` 欄位。
+- [ ] 與 Hardy 對齊 `QueryTraceEvent` 欄位。
 
 驗收條件：
 
-- Bo-Han 不需要重新掃描 repo，也能完成 viewer。
-- Bo-Han 不需要猜測 component 是否存在。
+- Hardy 不需要重新掃描 repo，也能完成 viewer。
+- Hardy 不需要猜測 component 是否存在。
 
 ## 5. 測試責任
 
@@ -233,9 +233,9 @@ Timmy 主要負責：
 - [ ] malformed compose 仍輸出 partial map。
 - [ ] output directory 已存在時建立 timestamped directory。
 
-## 6. 與 Bo-Han 的協作節點
+## 6. 與 Hardy 的協作節點
 
-| 時點 | Timmy 交付 | Bo-Han 依賴 |
+| 時點 | Timmy 交付 | Hardy 依賴 |
 |---|---|---|
 | 第 1 次同步 | `rag-core-v1` slots / flows 草案 | 開始 graph layout 與 node type 設計 |
 | 第 2 次同步 | `ai-system-map/v1` schema 草案 | 建立 graph view model |
@@ -245,7 +245,7 @@ Timmy 主要負責：
 
 ## 7. Code Review 重點
 
-Timmy 需要特別檢查 Bo-Han 的 PR：
+Timmy 需要特別檢查 Hardy 的 PR：
 
 - viewer 是否重新掃描檔案。
 - viewer 是否自行推論 JSON 中沒有的 component。
@@ -253,7 +253,7 @@ Timmy 需要特別檢查 Bo-Han 的 PR：
 - query trace UI 是否在 endpoint missing 時仍送出 query。
 - graph detail panel 是否能追溯回 evidence。
 
-Bo-Han 需要特別檢查 Timmy 的 PR：
+Hardy 需要特別檢查 Timmy 的 PR：
 
 - JSON 是否有足夠 label / relationship / evidence 支援使用者理解。
 - missing / not_configured / not_applicable 是否能在 UI 上清楚呈現。
@@ -269,4 +269,4 @@ Timmy 的 Epic 1 工作完成標準：
 - [ ] scanner 對 malformed config 能產生 partial map。
 - [ ] 所有 detected components 都有 evidence。
 - [ ] no full secret 出現在 JSON、Markdown、logs、snapshots。
-- [ ] Bo-Han 可直接用 Timmy 的 sample maps 完成 viewer，不需要自行掃描 repo。
+- [ ] Hardy 可直接用 Timmy 的 sample maps 完成 viewer，不需要自行掃描 repo。

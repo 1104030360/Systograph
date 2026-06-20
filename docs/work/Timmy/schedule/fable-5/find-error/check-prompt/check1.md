@@ -399,9 +399,9 @@ fixtures/tests：`/Users/linjunting/Local_AI_Health_Doctor/tests/fixtures/ai_sys
 
 75.目前前端專案的主要來源在：
 `/Users/linjunting/Local_AI_Health_Doctor/frontend`
-Bo-han 的前端設計、plan、todo、report 在：
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han`
-讀前端狀態時要同時看實作與 Bo-han 文件，不能只看其中一邊。Bo-han 文件記錄了 viewer 的 UX 邊界與 phase 進度，frontend code 則代表目前真正能跑的狀態。
+Hardy 的前端設計、plan、todo、report 在：
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy`
+讀前端狀態時要同時看實作與 Hardy 文件，不能只看其中一邊。Hardy 文件記錄了 viewer 的 UX 邊界與 phase 進度，frontend code 則代表目前真正能跑的狀態。
 
 76.目前前端 package 定義在：
 `/Users/linjunting/Local_AI_Health_Doctor/frontend/package.json`
@@ -427,30 +427,30 @@ Bo-han 的前端設計、plan、todo、report 在：
 `/Users/linjunting/Local_AI_Health_Doctor/frontend/src/App.tsx`
 `App.tsx` 負責把 data source、viewer payload、graph、sidebar、detail panel、progress strip、replay timeline、chat drawer 串在一起。真正 API 呼叫在 `services/viewerApi.ts`，UI state 在 `store/viewerStore.ts`，graph 轉換與 layout helper 在 `utils/graph.ts`。
 
-79.目前 Bo-han 前端設計文件是：
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/design/epic1-frontend-viewer-design.md`
+79.目前 Hardy 前端設計文件是：
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/design/epic1-frontend-viewer-design.md`
 它的核心原則是：前端把後端產生的 `viewer_load_result.graph_view_model` 渲染成可理解、可互動、可追溯的 RAG System Map。前端只做呈現與互動，不重新掃描 repo、不自行推論 JSON 裡不存在的 component、不顯示未遮罩 secret。
 
-80.目前 Bo-han 總覽文件是：
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/bo-han.md`
-它把 Bo-han 的責任定義為 Viewer、graph UX、detail panel、filters、query trace replay。Bo-han 不負責 filesystem scanner、config parser、Docker compose parser、dependency parser、scanner evidence，也不負責產生 `ai_system_map.json` 的 source facts。
+80.目前 Hardy 總覽文件是：
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/Hardy.md`
+它把 Hardy 的責任定義為 Viewer、graph UX、detail panel、filters、query trace replay。Hardy 不負責 filesystem scanner、config parser、Docker compose parser、dependency parser、scanner evidence，也不負責產生 `ai_system_map.json` 的 source facts。
 
-81.目前 Bo-han 已完成的前端 plan 在：
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/schedule/plan/finish/01-setup-viewer-frontend-foundation.md`
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/schedule/plan/finish/02-implement-system-map-graph-viewer.md`
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/schedule/plan/finish/03-wire-viewer-api-source-and-progress.md`
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/schedule/plan/finish/04-refine-graph-interaction-and-detail-modal.md`
+81.目前 Hardy 已完成的前端 plan 在：
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/schedule/plan/finish/01-setup-viewer-frontend-foundation.md`
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/schedule/plan/finish/02-implement-system-map-graph-viewer.md`
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/schedule/plan/finish/03-wire-viewer-api-source-and-progress.md`
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/schedule/plan/finish/04-refine-graph-interaction-and-detail-modal.md`
 這代表前端 viewer shell、graph rendering、Sample/API 模式、SSE progress 預留、detail modal、follow focus、edge readability 已有第一版。
 
-82.目前 Bo-han 尚未完成的前端 plan 在：
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/schedule/plan/unfinish/05-integrate-backend-viewer-session-api.md`
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/schedule/plan/unfinish/06-implement-query-trace-and-local-chat-ui.md`
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/schedule/plan/unfinish/07-add-viewer-regression-tests.md`
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/schedule/plan/unfinish/08-hardening-responsive-accessibility-performance.md`
+82.目前 Hardy 尚未完成的前端 plan 在：
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/schedule/plan/unfinish/05-integrate-backend-viewer-session-api.md`
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/schedule/plan/unfinish/06-implement-query-trace-and-local-chat-ui.md`
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/schedule/plan/unfinish/07-add-viewer-regression-tests.md`
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/schedule/plan/unfinish/08-hardening-responsive-accessibility-performance.md`
 這些要看成後續 frontend issue 候選，不要跟後端已完成的 Task 24 混在一起。
 
-83.目前 Bo-han 最新前端 TODO 是：
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han/schedule/todo/2026-06-02-phase3-backend-integration-and-tests-TODO.md`
+83.目前 Hardy 最新前端 TODO 是：
+`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy/schedule/todo/2026-06-02-phase3-backend-integration-and-tests-TODO.md`
 它的核心是：等 Timmy 完成 viewer local API 後，前端從 sample-first checkpoint 推進到正式 API integration，補 invalid map error state 與 regression tests。這份 TODO 仍沒有全部落地，因為目前 frontend package 還沒有 test runner。
 
 84.目前前端的資料來源模式有兩種：
@@ -580,7 +580,7 @@ API mode 且 progress running 時會開 `EventSource` 連到 `/api/scan/events`�
 `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/plan/unfinish/27-introduce-database-backed-storage-layer.md`
 這兩個不應在 `check1.md` 裡被寫成已完成，也不應直接歸到既有 Epic 2。比較安全的說法是：目前保留在 `unfinish`，作為後續 storage/session issue 或 post-Epic1 品質/產品化議題，是否進入哪個 Epic 要看 roadmap 另行定義。
 
-109.目前前端測試缺口很明確：`frontend/package.json` 沒有 `test` script，Bo-han Task 7 與 Timmy 20a / 21a / 24b 都要求補 frontend regression tests。若開始做任一前端互動 issue，建議先用 TDD/BDD 補測試框架與最小測試，例如：
+109.目前前端測試缺口很明確：`frontend/package.json` 沒有 `test` script，Hardy Task 7 與 Timmy 20a / 21a / 24b 都要求補 frontend regression tests。若開始做任一前端互動 issue，建議先用 TDD/BDD 補測試框架與最小測試，例如：
 graph render smoke
 detail modal open/close
 filter highlight 不隱藏 graph
@@ -593,7 +593,7 @@ detail scan L2/L3 state
 110.目前前端 build/lint 驗證指令是：
 `cd /Users/linjunting/Local_AI_Health_Doctor/frontend && pnpm run lint`
 `cd /Users/linjunting/Local_AI_Health_Doctor/frontend && pnpm run build`
-如果新增 frontend tests，應同步新增 `pnpm test` 或 `pnpm run test`，並把驗證方式寫進 Bo-han 或 Timmy 對應 TODO/Report。
+如果新增 frontend tests，應同步新增 `pnpm test` 或 `pnpm run test`，並把驗證方式寫進 Hardy 或 Timmy 對應 TODO/Report。
 
 111.目前前後端 contract 邊界要用這句話記住：
 Backend owns truth and safety.
@@ -604,7 +604,7 @@ Frontend owns rendering and interaction.
 先做 `24b` project import + scan boundary decision flow，讓使用者能從 project path 走完整 scan。
 再做 `21a` detail scan frontend flow，讓 L2/L3 tab 從 sample 變成真實 API。
 再做 `20a` mapping proposal frontend flow，讓 needs_confirmation 可以產生/決策 proposal。
-最後再做 `24a` profile page、Task 28 OpenAPI SDK、Bo-han Task 7/8 測試與 UX hardening。
+最後再做 `24a` profile page、Task 28 OpenAPI SDK、Hardy Task 7/8 測試與 UX hardening。
 如果後端 API shape 還會大改，Task 28 不要太早做，避免 generated SDK churn。
 
 113.目前寫 TODO / Report 時要避免這些錯誤：
@@ -661,7 +661,7 @@ dev server port 是 `5173`。Build 已經設定 manual chunks：
 `/Users/linjunting/Local_AI_Health_Doctor/frontend/src/styles.css`
 它不是隨機 CSS，而是 token-driven viewer design system：`[data-theme="light"]` / `[data-theme="dark"]`、`[data-density="comfortable"]` / `[data-density="compact"]`、sidebar、toolbar、graph canvas、progress strip、state overlay、replay timeline、floating inspector、chat drawer、responsive layout 都在同一份 stylesheet。
 
-122.目前 frontend UX 已有 responsive 與 accessibility 基礎，但還不是完整 hardening。CSS 在 `max-width: 1180px` 會縮 sidebar / inspector / API input，在 `max-width: 880px` 會把 sidebar 改成 off-canvas、graph frame 給固定高度、inspector 改成底部 sheet、toolbar wrap、timeline 改成橫向 cards。Bo-han Task 8 仍要求補鍵盤、可讀性、performance 與 responsive hardening，所以不要把目前狀態寫成已完成產品化 UI。
+122.目前 frontend UX 已有 responsive 與 accessibility 基礎，但還不是完整 hardening。CSS 在 `max-width: 1180px` 會縮 sidebar / inspector / API input，在 `max-width: 880px` 會把 sidebar 改成 off-canvas、graph frame 給固定高度、inspector 改成底部 sheet、toolbar wrap、timeline 改成橫向 cards。Hardy Task 8 仍要求補鍵盤、可讀性、performance 與 responsive hardening，所以不要把目前狀態寫成已完成產品化 UI。
 
 123.目前 theme state 在：
 `/Users/linjunting/Local_AI_Health_Doctor/frontend/src/hooks/useTheme.ts`

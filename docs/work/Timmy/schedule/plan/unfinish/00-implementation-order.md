@@ -78,7 +78,7 @@ Low issues 不再視為旁支 backlog。它們仍低於 Critical/High/Medium，�
 
 ## 不納入後端主線的工作
 
-- Frontend #176-#181 由 Bo Han 執行，不作為本後端主線文件的直接實作項目。
+- Frontend #176-#181 由 Hardy 執行，不作為本後端主線文件的直接實作項目。
 - GitHub #1-#12、#124-#128、#130 屬 Epic、Post Epic、future 或 research 類型；本輪不混入 bugfix queue。若後端 contract 有變動，要先同步 `docs/API-GUIDE.md` 與 `frontend/API_CONTRACT.md`。
 
 ## 執行規則

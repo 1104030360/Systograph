@@ -45,7 +45,7 @@
 - `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/design`
 - `/Users/linjunting/Local_AI_Health_Doctor/docs/API-GUIDE.md`
 - `/Users/linjunting/Local_AI_Health_Doctor/frontend/API_CONTRACT.md`
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han`
+- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy`
 - `/Users/linjunting/Local_AI_Health_Doctor/src/kai_mind`
 - `/Users/linjunting/Local_AI_Health_Doctor/frontend/src`
 - `/Users/linjunting/Local_AI_Health_Doctor/tests`
@@ -157,7 +157,7 @@ Acceptance:
 - Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/design`
 - Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/API-GUIDE.md`
 - Read: `/Users/linjunting/Local_AI_Health_Doctor/frontend/API_CONTRACT.md`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Bo-han`
+- Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy`
 - Read: `/Users/linjunting/Local_AI_Health_Doctor/src/kai_mind`
 - Read: `/Users/linjunting/Local_AI_Health_Doctor/frontend/src`
 - Read: `/Users/linjunting/Local_AI_Health_Doctor/tests`
@@ -171,13 +171,13 @@ Run:
 ```bash
 find docs/work/Timmy/schedule/plan/finish -maxdepth 1 -type f | sort
 find docs/work/Timmy/schedule/plan/unfinish -maxdepth 1 -type f | sort
-find docs/work/Bo-han/schedule/plan -maxdepth 3 -type f | sort
+find docs/work/Hardy/schedule/plan -maxdepth 3 -type f | sort
 ```
 
 Expected:
 
 - Finished backend tasks and unfinished frontend/backend follow-ups are visible.
-- Bo-han frontend finished/unfinish state is visible.
+- Hardy frontend finished/unfinish state is visible.
 
 - [x] **Step 2: Inspect current backend surface**
 
@@ -199,7 +199,7 @@ Record:
 Run:
 
 ```bash
-rg -n "loadApiViewerPayload|loadSampleViewerPayload|EventSource|detail_scan_result_sample|mapping_proposal_result_sample|project_id|scan_id|boundary|proposal|createDetailScan|createMappingProposal" frontend/src frontend/API_CONTRACT.md docs/work/Bo-han
+rg -n "loadApiViewerPayload|loadSampleViewerPayload|EventSource|detail_scan_result_sample|mapping_proposal_result_sample|project_id|scan_id|boundary|proposal|createDetailScan|createMappingProposal" frontend/src frontend/API_CONTRACT.md docs/work/Hardy
 ```
 
 Record:

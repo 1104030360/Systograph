@@ -144,7 +144,7 @@ Task 16 是 L1 map build + local API shell。凡是會引入第二層產品語�
 | AI-assisted scan boundary review / local template import | Task 24: `24-final-ai-scan-boundary-review-and-template-import.md` | 已有 | 這是 Epic 1 final milestone；依賴 baseline scanner、policy store、masking、validation 穩定後再做。 |
 | project zip upload / multipart upload | Task 25: `25-implement-project-upload-ingestion.md` | 新增 | 這不是 Task 24 的 template import。它是把使用者專案 archive 當 scan input，必須獨立處理 size limit、archive extraction safety、path traversal、binary/model/dependency skip policy。 |
 | persistent multi-user session store / scan history | Task 26: `26-implement-persistent-session-store-and-scan-history.md` | 新增 | Task 16 只允許 in-memory session shell。若要 scan history、多使用者、重啟後保留 session，需獨立設計 storage、retention、masking、migration。 |
-| frontend GUI 畫面 | frontend / Bo-Han plan，不放 Timmy backend plan | 需由 frontend 排程承接 | Timmy backend 只提供 API contract、schemas、SSE event shape 與 guide；React 畫面、layout、interaction state 不在本資料夾的 backend plan 執行。 |
+| frontend GUI 畫面 | frontend / Hardy plan，不放 Timmy backend plan | 需由 frontend 排程承接 | Timmy backend 只提供 API contract、schemas、SSE event shape 與 guide；React 畫面、layout、interaction state 不在本資料夾的 backend plan 執行。 |
 | CLI 專屬 scanner logic | 永久不開獨立實作計劃 | 不需要 | CLI 可以有 command UX，但不得擁有獨立 scanner pipeline；所有 scanner 行為都要呼叫 core service。 |
 
 ## API contract 決策

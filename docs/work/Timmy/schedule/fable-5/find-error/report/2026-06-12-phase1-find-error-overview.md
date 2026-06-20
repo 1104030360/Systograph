@@ -38,7 +38,7 @@
 
 | 分類 | 已檢查來源 | 結論 / 對應 finding |
 |---|---|---|
-| UI/UX | `frontend/src/components/*`、`App.tsx`、Bo-han design/plan | A-1/A-2/A-3；另補 A-4/A-5/A-6（`error_reason`、scan/boundary flow、accessibility） |
+| UI/UX | `frontend/src/components/*`、`App.tsx`、Hardy design/plan | A-1/A-2/A-3；另補 A-4/A-5/A-6（`error_reason`、scan/boundary flow、accessibility） |
 | 前端工程 | `frontend/src/services`、`hooks`、`store`、`types.ts`、`vite.config.ts`、`package.json` | B-1/B-2/B-3/B-4；B-5/B-6 為正面確認 |
 | 後端工程 | `src/kai_mind/web`、`core/services`、`core/providers`、CLI/tests/scripts | H-2/H-3/H-4/H-6、M-1～M-14、L 系列 |
 | 後端 AI / AI application | `mapping_proposal_service.py`、`llm_proposal_provider.py`、`query_trace_service.py`、`endpoint_call_provider.py` | C-1、H-1、H-7、M-10/M-15；proposal output validation 是強防線 |
@@ -164,7 +164,7 @@
 | 任意路徑：import/build/CLI 無驗證 + 繞過 boundary + 預設帶 snippet | 後端/資安/UX | `project_routes.py:26-30`、`map_routes.py:19-28`、`project_scan_service.py:100` | Medium | 路徑存在性/目錄/scope 驗證；map/build 套 gate 或預設 no_snippets |
 | Contract drift：`error` 型別、404 風格 → 前端解析錯誤 | 後端/前端/文件 | `map_build.py:28-38` vs `API-GUIDE.md:206-217`；`scan_routes.py:53` | Medium | 更新文件 + route 測試鎖 contract |
 | 測試依賴本機 `.env` + 無 CI → 安全/品質 gate 失效 | 資安/後端/DX | `app.py:96-104`、`.github/workflows/`(空) | High | conftest 隔離 env_file；補最小 CI（含 Windows job） |
-| 前端把 `ai_system_map` 當 `record/passthrough` + 無 test runner | 前端/UI | `types.ts:98-107`、`package.json`(無 test) | Medium | 為互動 lifecycle 補 typed schema 與 Vitest（對應 unfinish 20a/21a/24b/Bo-han 07） |
+| 前端把 `ai_system_map` 當 `record/passthrough` + 無 test runner | 前端/UI | `types.ts:98-107`、`package.json`(無 test) | Medium | 為互動 lifecycle 補 typed schema 與 Vitest（對應 unfinish 20a/21a/24b/Hardy 07） |
 
 ---
 
@@ -182,7 +182,7 @@
 - M-1 掃描入口路徑驗證與 scope；M-2 `output` 封閉在受控根；M-3 trace config 錯誤碼穩定化；M-4 補容器路徑前綴；M-5 session store 上限/eviction；M-6 檔案總數上限；M-9 scan_routes 編排下沉 service；M-10 AI 呼叫 logging；M-11 trace response size/遞迴防護；M-12/M-13 文件與錯誤碼一致化；M-14 補 error path 與 `safe_log_event` 測試；M-15 evidence packet 欄位遮罩 + prompt 結構化隔離；M-16 前端 fetch timeout；M-17 bundle 拆分檢視。
 
 ### 中期處理（架構/可觀測性/測試覆蓋）
-- M-8 validation gate 異源 secret 偵測（治本）；前端互動 lifecycle 的 typed schema + Vitest（對應 unfinish 20a/21a/24b 與 Bo-han Task 7）；AI 子系統的 trace/cost 觀測（對齊 OpenTelemetry GenAI 慣例，注意該規範仍 Development 狀態）；L 系列收斂。
+- M-8 validation gate 異源 secret 偵測（治本）；前端互動 lifecycle 的 typed schema + Vitest（對應 unfinish 20a/21a/24b 與 Hardy Task 7）；AI 子系統的 trace/cost 觀測（對齊 OpenTelemetry GenAI 慣例，注意該規範仍 Development 狀態）；L 系列收斂。
 
 ---
 

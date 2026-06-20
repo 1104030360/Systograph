@@ -2,7 +2,7 @@
 
 ## 實作摘要
 
-本階段建立 Epic 1 Viewer 前端基礎，讓 Bo-Han 可以在後端 API 尚未完成前，
+本階段建立 Epic 1 Viewer 前端基礎，讓 Hardy 可以在後端 API 尚未完成前，
 使用 Timmy 提供的 sample JSON 開發與驗證 graph viewer。
 
 本次新增：

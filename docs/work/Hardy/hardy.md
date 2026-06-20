@@ -1,4 +1,4 @@
-# Bo-Han 工作事項 - Epic 1 Viewer / Graph UX / Query Trace
+# Hardy 工作事項 - Epic 1 Viewer / Graph UX / Query Trace
 
 > 對應角色：工程師 B  
 > 主要範圍：Viewer、graph UX、detail panel、filters、query trace replay  
@@ -6,11 +6,11 @@
 
 ## 1. 工作目標
 
-Bo-Han 負責建立 Epic 1 的「呈現與互動層」。也就是讓使用者可以透過 `kai-mind viewer <map_json>` 載入 Timmy 產出的 `ai_system_map.json`，用互動式 graph 看懂 RAG System Map，並能查看 node / edge evidence、risk hints、filter highlight 與 query trace replay。
+Hardy 負責建立 Epic 1 的「呈現與互動層」。也就是讓使用者可以透過 `kai-mind viewer <map_json>` 載入 Timmy 產出的 `ai_system_map.json`，用互動式 graph 看懂 RAG System Map，並能查看 node / edge evidence、risk hints、filter highlight 與 query trace replay。
 
 這一側的重點不是重新掃描 repo，而是把 Timmy 產出的事實層清楚呈現出來。
 
-Bo-Han 的核心原則：
+Hardy 的核心原則：
 
 - viewer 只讀 `ai_system_map.json`。
 - viewer 不得自行推論新 component。
@@ -20,7 +20,7 @@ Bo-Han 的核心原則：
 
 ## 2. 責任邊界
 
-### Bo-Han 負責
+### Hardy 負責
 
 - `kai-mind viewer <map_json>`。
 - Local RAG System Map Viewer。
@@ -36,7 +36,7 @@ Bo-Han 的核心原則：
 - trace step highlight。
 - UI / view-model / trace replay tests。
 
-### Bo-Han 不負責
+### Hardy 不負責
 
 - 不負責 filesystem scanner。
 - 不負責 config / Docker compose / dependency parser。
@@ -239,7 +239,7 @@ Bo-Han 的核心原則：
 
 ## 5. 測試責任
 
-Bo-Han 主要負責：
+Hardy 主要負責：
 
 - viewer load tests。
 - invalid map error state tests。
@@ -262,7 +262,7 @@ Bo-Han 主要負責：
 
 ## 6. 與 Timmy 的協作節點
 
-| 時點 | Bo-Han 需要 | Timmy 交付 |
+| 時點 | Hardy 需要 | Timmy 交付 |
 |---|---|---|
 | 第 1 次同步 | slot / flow 清單 | `rag-core-v1` slots / flows |
 | 第 2 次同步 | view model 欄位 | `ai-system-map/v1` schema 草案 |
@@ -272,7 +272,7 @@ Bo-Han 主要負責：
 
 ## 7. Code Review 重點
 
-Bo-Han 需要特別檢查 Timmy 的 PR：
+Hardy 需要特別檢查 Timmy 的 PR：
 
 - JSON 是否有足夠 human-readable label。
 - evidence 是否能支援 detail panel。
@@ -280,7 +280,7 @@ Bo-Han 需要特別檢查 Timmy 的 PR：
 - risk hint 是否包含足夠的 `rationale` 與 `uncertainty`。
 - `QueryTraceEvent` 是否足夠支援 replay controls。
 
-Timmy 需要特別檢查 Bo-Han 的 PR：
+Timmy 需要特別檢查 Hardy 的 PR：
 
 - viewer 是否有重新掃描檔案。
 - viewer 是否自行推論 JSON 中不存在的 component。
@@ -290,7 +290,7 @@ Timmy 需要特別檢查 Bo-Han 的 PR：
 
 ## 8. 完成定義
 
-Bo-Han 的 Epic 1 工作完成標準：
+Hardy 的 Epic 1 工作完成標準：
 
 - [ ] `kai-mind viewer <map_json>` 可載入 valid `ai_system_map.json`。
 - [ ] invalid map JSON 顯示 error state，不顯示 graph。
