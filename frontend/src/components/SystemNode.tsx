@@ -5,15 +5,29 @@ import type { FlowNodeData } from "../utils/graph";
 type NodeStatusKey =
   | "risk"
   | "needs_confirmation"
+  | "not_applicable"
   | "not_configured"
   | "missing"
   | "confirmed"
   | "detected";
 
-/** Visual status key — risk always wins so attention is never hidden. */
+const MISSING_REQUIRED_SLOT_RISK_PREFIX = "risk:missing_required_slot:";
+
+function hasNodeLevelRisk(data: Pick<FlowNodeData, "risk_hint_ids">) {
+  return data.risk_hint_ids.some((riskId) => !riskId.startsWith(MISSING_REQUIRED_SLOT_RISK_PREFIX));
+}
+
+/**
+ * Visual status key.
+ *
+ * Missing-slot hints describe the map's overall completeness, not a detected
+ * node defect. Keep them available in details, but do not let them override the
+ * node's own status color.
+ */
 function statusKey(data: Pick<FlowNodeData, "risk_hint_ids" | "status">): NodeStatusKey {
-  if (data.risk_hint_ids.length > 0) return "risk";
+  if (hasNodeLevelRisk(data)) return "risk";
   if (data.status === "needs_confirmation") return "needs_confirmation";
+  if (data.status === "not_applicable") return "not_applicable";
   if (data.status === "not_configured") return "not_configured";
   if (data.status === "missing") return "missing";
   if (data.status === "confirmed") return "confirmed";
@@ -22,6 +36,7 @@ function statusKey(data: Pick<FlowNodeData, "risk_hint_ids" | "status">): NodeSt
 
 function StatusIcon({ statusKey: key }: { statusKey: NodeStatusKey }) {
   if (key === "risk") return <AlertTriangle size={15} style={{ color: "var(--risk)" }} />;
+  if (key === "missing") return <AlertTriangle size={15} style={{ color: "var(--risk)" }} />;
   if (key === "needs_confirmation") return <CircleDashed size={15} style={{ color: "var(--unmapped)" }} />;
   if (key === "confirmed") return <CheckCircle2 size={15} style={{ color: "var(--accent-strong)" }} />;
   return null;

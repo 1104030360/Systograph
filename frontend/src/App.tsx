@@ -31,8 +31,8 @@ const EMPTY_GRAPH: GraphViewModel = {
 };
 
 const MAP_KEY: Array<[string, string]> = [
-  ["var(--line-strong)", "Detected"],
-  ["var(--accent)", "Confirmed"],
+  ["var(--accent)", "Detected"],
+  ["var(--accent-strong)", "Confirmed"],
   ["var(--risk)", "Risk"],
   ["var(--unmapped)", "Review"],
   ["var(--text-faint)", "Missing"],

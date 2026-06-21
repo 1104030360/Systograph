@@ -99,11 +99,21 @@ VS Code interpreter 請選：
 
 ### 第一次設定
 
-如果電腦還沒有 UV，先安裝 UV。macOS / Linux 可使用：
+如果電腦還沒有 UV，先安裝 UV。
+
+Windows PowerShell 可使用：
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+macOS / Linux 可使用：
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
+
+安裝後重新開啟 terminal，確認 `uv --version` 可以執行。
 
 進入專案根目錄後，同步環境：
 
@@ -122,6 +132,27 @@ uv run python -m kai_mind.cli.main --help
 ```
 
 `uv run` 會在專案環境裡執行命令，不需要先手動啟用 `.venv`。
+
+### 一鍵啟動前後端
+
+開發 Viewer / Mapping UI 時，可以在專案根目錄同時啟動後端 API 與前端 Vite dev server：
+
+```bash
+uv run python scripts/dev.py
+```
+
+預設啟動：
+
+- 後端 API：`http://127.0.0.1:8000`
+- 前端：`http://127.0.0.1:5173`
+
+如果前端依賴還沒安裝，先執行：
+
+```bash
+corepack pnpm --dir frontend install
+```
+
+`scripts/dev.py` 只負責啟動本機 dev server，不會自動安裝套件；按 `Ctrl+C` 會一起停止前後端。
 
 ### 修改依賴
 

@@ -74,9 +74,9 @@ export type ScanSummary = z.infer<typeof scanSummarySchema>;
 
 export const graphViewModelSchema = z.object({
   schema_version: z.string().optional(),
-  source_schema_version: z.string().optional(),
-  map_json: z.string().optional(),
-  summary: z.record(z.unknown()).optional(),
+  source_schema_version: z.string().nullable().optional(),
+  map_json: z.string().nullable().optional(),
+  summary: z.record(z.unknown()).nullable().optional(),
   nodes: z.array(graphNodeSchema),
   edges: z.array(graphEdgeSchema),
   details: z.object({
@@ -94,7 +94,7 @@ export const viewerPayloadSchema = z.object({
   viewer_load_result: z.object({
     loaded: z.boolean(),
     error_reason: z.string().nullable().optional(),
-    map_json: z.string().optional(),
+    map_json: z.string().nullable().optional(),
     ai_system_map: z.record(z.unknown()).and(
       z.object({
         schema_version: z.string().optional(),
