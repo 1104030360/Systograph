@@ -1,0 +1,5 @@
+providers:
+  llm:
+    provider: openai
+    base_url: https://fixture-user:synthetic-openai-pass-138@api.openai.example/v1
+    model: gpt-4o-mini

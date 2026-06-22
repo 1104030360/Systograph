@@ -13,6 +13,20 @@ from kai_mind.core.services.system_map_validation_service import (
 FIXTURE_DIR = Path(__file__).parents[2] / "fixtures" / "ai_system_map"
 
 
+class BlindSecretMaskingService:
+    def is_secret_key_name(self, key: str | None) -> bool:
+        return False
+
+    def contains_unmasked_secret(
+        self,
+        value: str,
+        key: str | None = None,
+        *,
+        scan_key_value_pairs: bool = True,
+    ) -> bool:
+        return False
+
+
 @pytest.fixture
 def minimal_map() -> dict[str, Any]:
     fixture = FIXTURE_DIR / "valid_minimal.v1.json"
@@ -76,6 +90,50 @@ def test_rejects_unmasked_structured_secret_value(
 
     with pytest.raises(SystemMapValidationError, match="Unmasked secret"):
         SystemMapValidationService().validate(data)
+
+
+@pytest.mark.parametrize("field", ["value", "snippet"])
+def test_rejects_url_credentials_without_echoing_them(
+    minimal_map: dict[str, Any],
+    field: str,
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    raw_url = "postgresql://demo:synthetic-pass-138@db.example:5432/app"
+    data["evidence"][0][field] = raw_url
+
+    with pytest.raises(SystemMapValidationError) as exc_info:
+        SystemMapValidationService().validate(data)
+
+    message = str(exc_info.value)
+    assert "Unmasked secret" in message
+    assert f"$.evidence[0].{field}" in message
+    assert raw_url not in message
+    assert "synthetic-pass-138" not in message
+
+
+def test_independent_validator_rejects_url_credentials_when_masker_is_blind(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["evidence"][0]["value"] = (
+        "redis://:synthetic-pass-138@cache.example:6379/0"
+    )
+
+    with pytest.raises(SystemMapValidationError, match="Unmasked secret"):
+        SystemMapValidationService(
+            secret_masking_service=BlindSecretMaskingService(),  # type: ignore[arg-type]
+        ).validate(data)
+
+
+def test_accepts_masked_url_credentials(
+    minimal_map: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_map)
+    data["evidence"][0]["value"] = (
+        "postgresql://demo:[MASKED]@db.example:5432/app"
+    )
+
+    SystemMapValidationService().validate(data)
 
 
 def test_rejects_unmasked_secret_keyed_list_value(

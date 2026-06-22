@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
 
@@ -223,3 +225,88 @@ def test_contains_unmasked_secret_can_skip_key_value_pair_detection() -> None:
         embedded_token,
         scan_key_value_pairs=False,
     )
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "DB_PASSWD",
+        "DB_PWD",
+        "MYAPIKEY",
+        "ACCESSKEY",
+        "PRIVATE-KEY",
+        "SERVICE.CREDENTIAL",
+    ],
+)
+def test_secret_key_variants_are_normalized_before_matching(key: str) -> None:
+    service = SecretMaskingService()
+    raw_value = "synthetic-credential-value-138"
+
+    assert service.is_secret_key_name(key)
+    assert raw_value not in service.mask_value(raw_value, key=key)
+
+    masked_text = service.mask_text(f"{key}={raw_value}")
+    assert f"{key}=" in masked_text
+    assert raw_value not in masked_text
+
+
+@pytest.mark.parametrize(
+    ("raw_url", "expected_url"),
+    [
+        (
+            "postgresql://demo:fake-pass@db.example:5432/app",
+            "postgresql://demo:[MASKED]@db.example:5432/app",
+        ),
+        (
+            "redis://:fake-pass@cache.example:6379/0",
+            "redis://:[MASKED]@cache.example:6379/0",
+        ),
+        (
+            "mongodb+srv://demo:fake-pass@cluster.example/app?retry=true",
+            "mongodb+srv://demo:[MASKED]@cluster.example/app?retry=true",
+        ),
+        (
+            "https://demo:fake-pass@service.example/v1#health",
+            "https://demo:[MASKED]@service.example/v1#health",
+        ),
+        (
+            "https://synthetic-token@service.example/v1",
+            "https://[MASKED]@service.example/v1",
+        ),
+        (
+            "postgresql://demo:fake%40pass@db.example/app",
+            "postgresql://demo:[MASKED]@db.example/app",
+        ),
+        (
+            "postgresql://demo:fake-pass@[2001:db8::1]:5432/app",
+            "postgresql://demo:[MASKED]@[2001:db8::1]:5432/app",
+        ),
+    ],
+)
+def test_url_userinfo_is_fully_masked(
+    raw_url: str,
+    expected_url: str,
+) -> None:
+    service = SecretMaskingService()
+
+    assert service.mask_value(raw_url, key="DATABASE_URL") == expected_url
+    assert service.mask_text(f"connection failed for {raw_url}") == (
+        f"connection failed for {expected_url}"
+    )
+    assert service.contains_unmasked_secret(raw_url)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://localhost:6333",
+        "https://service.example/v1?health=true",
+        "route=health_docs",
+        "model=text-embedding-3-small",
+        "component=vector_store",
+    ],
+)
+def test_non_secret_urls_and_identifiers_remain_visible(value: str) -> None:
+    service = SecretMaskingService()
+
+    assert service.mask_text(value) == value

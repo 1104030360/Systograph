@@ -266,6 +266,45 @@ def test_map_build_service_keeps_secret_values_masked(tmp_path: Path) -> None:
     assert "[MASKED]" in artifact_text or "..." in artifact_text
 
 
+def test_map_build_masks_credentials_across_all_output_models(
+    tmp_path: Path,
+) -> None:
+    project_root = rag_project_fixture_path("secret_masking_regression_rag")
+    raw_values = {
+        "synthetic-db-pass-138",
+        "synthetic-short-pass-138",
+        "synthetic-api-key-138",
+        "synthetic-url-pass-138",
+        "synthetic-openai-pass-138",
+    }
+
+    result = MapBuildService().build(
+        MapBuildRequest(
+            project_path=project_root,
+            output=tmp_path / "outputs",
+        )
+    )
+
+    assert result.status == "ok"
+    assert result.map_json_path is not None
+    assert result.map_markdown_path is not None
+    assert result.ai_system_map is not None
+    assert result.viewer_load_result is not None
+
+    serialized_outputs = [
+        result.map_json_path.read_text(encoding="utf-8"),
+        result.map_markdown_path.read_text(encoding="utf-8"),
+        json.dumps(result.model_dump(mode="json"), default=str),
+        json.dumps(result.ai_system_map.model_dump(mode="json")),
+        json.dumps(result.viewer_load_result.model_dump(mode="json")),
+    ]
+    combined = "\n".join(serialized_outputs)
+
+    for raw_value in raw_values:
+        assert raw_value not in combined
+    assert "[MASKED]" in combined
+
+
 def test_project_mapping_preserves_injected_component_detector(
     tmp_path: Path,
 ) -> None:
