@@ -208,3 +208,44 @@ allowed test / fixture / plan files and not in generated artifacts or diagnostic
   都有測試覆蓋。
 - 原始 checkout 的既有 user change 未被覆寫；本次變更位於 isolated worktree
   `fix/138-secret-masking`。
+
+## PR review follow-up（2026-06-22）
+
+- Addressed reviewer P2 finding for Windows double-slash drive paths.
+- Root cause: `WINDOWS_LOCAL_PATH_RE` used `(?!/)` to avoid treating
+  URL schemes as Windows drive paths, but that also skipped valid Windows
+  absolute paths such as `D://work/project/src/api.py`.
+- Fix: keep the existing negative lookbehind that prevents matching inside
+  multi-letter URL schemes, and remove the broad double-slash exclusion so
+  single-letter Windows drive paths remain redacted.
+- Added regression coverage proving `D://work/project/src/api.py` is redacted
+  while `postgresql://demo:[MASKED]@db.example:5432/app` stays intact.
+
+Validation:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -p no:cacheprovider \
+  tests/unit/core/test_cross_platform_paths.py::test_path_redaction_keeps_windows_double_slash_drive_paths_masked -q
+1 failed before fix
+```
+
+```text
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -p no:cacheprovider \
+  tests/unit/core/test_cross_platform_paths.py -q
+15 passed in 0.02s
+
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -p no:cacheprovider
+469 passed in 4.81s
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/ruff format --check src tests
+156 files already formatted
+
+.venv/bin/mypy src tests
+Success: no issues found in 142 source files
+
+git diff --check
+passed
+```

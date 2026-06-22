@@ -9,7 +9,7 @@ from typing import Final
 
 WINDOWS_DRIVE_RE: Final = re.compile(r"^[A-Za-z]:")
 WINDOWS_ABSOLUTE_PATH_RE: Final = re.compile(
-    r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/](?!/)[^\s\"'<>),]+"
+    r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/][^\s\"'<>),]+"
 )
 WINDOWS_UNC_RE: Final = re.compile(r"^(?:\\\\|//)[^\\/]+[\\/][^\\/]+")
 POSIX_LOCAL_PATH_RE: Final = re.compile(
@@ -19,7 +19,7 @@ POSIX_LOCAL_PATH_RE: Final = re.compile(
 )
 WINDOWS_LOCAL_PATH_RE: Final = re.compile(
     r"(?<![A-Za-z0-9+.-])"
-    r"(?P<path>[A-Za-z]:[\\/](?!/)[^\s\"'<>),]+)"
+    r"(?P<path>[A-Za-z]:[\\/][^\s\"'<>),]+)"
 )
 DISPLAY_MARKERS: Final = (
     "src",
