@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from tests.helpers.fixtures import rag_project_fixture_path
 
@@ -14,6 +15,7 @@ from kai_mind.core.models.system_map import (
     ComponentInstance,
     ComponentSlot,
     Evidence,
+    RagSystemMap,
 )
 from kai_mind.core.models.template import RagTemplate
 from kai_mind.core.providers.output_artifact_provider import (
@@ -107,6 +109,16 @@ class InjectedVectorStoreDetector(ComponentDetectionService):
         )
 
 
+class RecordingValidationService(SystemMapValidationService):
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls: list[Mapping[str, Any]] = []
+
+    def validate(self, data: Mapping[str, Any]) -> RagSystemMap:
+        self.calls.append(data)
+        return super().validate(data)
+
+
 def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     tmp_path: Path,
 ) -> None:
@@ -142,6 +154,48 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     assert markdown.startswith("# KAI-Mind System Map\n")
     assert "## Slot Coverage" in markdown
     assert "## Recommended Next Checks" in markdown
+
+
+def test_map_build_service_validates_after_request_options_by_default(
+    tmp_path: Path,
+) -> None:
+    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
+    validation_service = RecordingValidationService()
+
+    result = MapBuildService(validation_service=validation_service).build(
+        MapBuildRequest(
+            project_path=project_root,
+            output=tmp_path / "outputs",
+        )
+    )
+
+    assert result.status == "ok"
+    assert len(validation_service.calls) == 1
+    assert validation_service.calls[0]["project"]["path_mode"] == "redacted"
+
+
+def test_map_build_service_validates_after_request_options_when_modified(
+    tmp_path: Path,
+) -> None:
+    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
+    validation_service = RecordingValidationService()
+
+    result = MapBuildService(validation_service=validation_service).build(
+        MapBuildRequest(
+            project_path=project_root,
+            output=tmp_path / "outputs",
+            redact_root_path=False,
+            no_snippets=True,
+        )
+    )
+
+    assert result.status == "ok"
+    assert len(validation_service.calls) == 1
+    validated_data = validation_service.calls[0]
+    assert validated_data["project"]["path_mode"] == "absolute"
+    assert all(
+        item.get("snippet") is None for item in validated_data["evidence"]
+    )
 
 
 def test_map_build_service_missing_project_writes_map_error_only(

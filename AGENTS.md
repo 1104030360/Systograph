@@ -25,6 +25,7 @@ KAI-Mind / Local AI Health Doctor 是一個 AI Agent / RAG Release Readiness Gat
 - 跨平台假設必須寫清楚。
 - Network exposure checks 要說明不確定性。
 - Scanner tests 應使用 sample projects 與 fixtures。
+- **Two-Phase Analysis (Understand-Anything Pattern)**: 架構解析必須先使用確定性腳本 (AST/Regex/Config Parsers) 抓取結構性 Facts，再交由 LLM 進行語意分析 (Semantic Analysis)。嚴禁將原始碼直接整包丟給 LLM 進行黑箱推論。
 
 ## Codex 全域 MCP / Agent 使用規則
 

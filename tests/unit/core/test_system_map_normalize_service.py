@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
+import pytest
 from tests.helpers.fixtures import rag_project_fixture_path
 
 from kai_mind.core.models.scan import ProjectScanResult
@@ -82,8 +83,8 @@ def derive_pipeline(fixture_name: str) -> PipelineResult:
     )
 
 
-def normalize_pipeline(result: PipelineResult) -> RagSystemMap:
-    return SystemMapNormalizeService().normalize(
+def assemble_pipeline(result: PipelineResult) -> RagSystemMap:
+    return SystemMapNormalizeService().assemble(
         project_name=result.project_name,
         raw_scan=result.raw_scan,
         template=result.template,
@@ -94,10 +95,39 @@ def normalize_pipeline(result: PipelineResult) -> RagSystemMap:
     )
 
 
+def test_assemble_returns_unvalidated_draft() -> None:
+    result = derive_pipeline("basic_qdrant_ollama_rag")
+    dangling_risk = RiskHint(
+        id="risk:dangling-evidence",
+        type="external_provider",
+        target="evidence:missing",
+        target_type="evidence",
+        evidence_id="evidence:missing",
+        rule_id="external_provider_detected",
+        rationale="Deliberately references missing evidence.",
+    )
+
+    system_map = SystemMapNormalizeService().assemble(
+        project_name=result.project_name,
+        raw_scan=result.raw_scan,
+        template=result.template,
+        components=result.components,
+        endpoints=result.endpoints,
+        flows=result.flows,
+        risk_hints=[dangling_risk],
+    )
+
+    assert system_map.risk_hints[0].evidence_id == "evidence:missing"
+    with pytest.raises(ValueError):
+        SystemMapValidationService().validate(
+            system_map.model_dump(mode="json")
+        )
+
+
 def test_normalize_basic_fixture_outputs_valid_canonical_map() -> None:
     result = derive_pipeline("basic_qdrant_ollama_rag")
 
-    system_map = normalize_pipeline(result)
+    system_map = assemble_pipeline(result)
     serialized = system_map.model_dump(mode="json")
     validated = SystemMapValidationService().validate(serialized)
 
@@ -146,7 +176,7 @@ def test_normalize_basic_fixture_outputs_valid_canonical_map() -> None:
 def test_normalize_openai_fixture_keeps_secrets_masked() -> None:
     result = derive_pipeline("openai_external_provider_rag")
 
-    system_map = normalize_pipeline(result)
+    system_map = assemble_pipeline(result)
     serialized_text = json.dumps(system_map.model_dump(mode="json"))
     validated = SystemMapValidationService().validate(
         system_map.model_dump(mode="json")
@@ -175,7 +205,7 @@ def test_normalize_uses_deterministic_ordering() -> None:
         ),
     )
 
-    system_map = SystemMapNormalizeService().normalize(
+    system_map = SystemMapNormalizeService().assemble(
         project_name=result.project_name,
         raw_scan=ProjectScanResult(
             facts=list(reversed(result.raw_scan.facts)),

@@ -52,7 +52,7 @@ def derive_phase14_map(fixture_name: str) -> dict[str, Any]:
 
     return (
         SystemMapNormalizeService()
-        .normalize(
+        .assemble(
             project_name=fixture_name,
             raw_scan=raw_scan,
             template=template,

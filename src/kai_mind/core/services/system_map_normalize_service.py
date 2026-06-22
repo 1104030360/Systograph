@@ -1,4 +1,4 @@
-"""Assemble validated ai-system-map/v1 documents from scanner outputs."""
+"""Assemble ai-system-map/v1 draft documents from scanner outputs."""
 
 from __future__ import annotations
 
@@ -32,9 +32,6 @@ from kai_mind.core.services.component_detection_service import (
 from kai_mind.core.services.rule_catalog_loader import (
     RecommendedNextCheckRuleMetadata,
     RuleCatalogLoader,
-)
-from kai_mind.core.services.system_map_validation_service import (
-    SystemMapValidationService,
 )
 
 RUNTIME_CRITICAL_SLOTS = {
@@ -257,24 +254,20 @@ class RecommendedNextCheckService:
 
 
 class SystemMapNormalizeService:
-    """Normalize upstream scanner outputs into a validated RagSystemMap."""
+    """Assemble upstream scanner outputs into a RagSystemMap draft."""
 
     def __init__(
         self,
         *,
-        validation_service: SystemMapValidationService | None = None,
         recommended_next_check_service: (
             RecommendedNextCheckService | None
         ) = None,
     ) -> None:
-        self._validation_service = (
-            validation_service or SystemMapValidationService()
-        )
         self._recommended_next_check_service = (
             recommended_next_check_service or RecommendedNextCheckService()
         )
 
-    def normalize(
+    def assemble(
         self,
         *,
         project_name: str,
@@ -343,9 +336,7 @@ class SystemMapNormalizeService:
             ),
         )
 
-        return self._validation_service.validate(
-            system_map.model_dump(mode="json")
-        )
+        return system_map
 
     def _ordered_components_by_slot(
         self,
