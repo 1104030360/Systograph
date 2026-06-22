@@ -8,7 +8,9 @@ from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import Final
 
 WINDOWS_DRIVE_RE: Final = re.compile(r"^[A-Za-z]:")
-WINDOWS_ABSOLUTE_PATH_RE: Final = re.compile(r"[A-Za-z]:[\\/][^\s\"'<>),]+")
+WINDOWS_ABSOLUTE_PATH_RE: Final = re.compile(
+    r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/][^\s\"'<>),]+"
+)
 WINDOWS_UNC_RE: Final = re.compile(r"^(?:\\\\|//)[^\\/]+[\\/][^\\/]+")
 POSIX_LOCAL_PATH_RE: Final = re.compile(
     r"(?<![A-Za-z0-9_:])"
@@ -16,6 +18,7 @@ POSIX_LOCAL_PATH_RE: Final = re.compile(
     r"/[^\s\"'<>),]+)"
 )
 WINDOWS_LOCAL_PATH_RE: Final = re.compile(
+    r"(?<![A-Za-z0-9+.-])"
     r"(?P<path>[A-Za-z]:[\\/][^\s\"'<>),]+)"
 )
 DISPLAY_MARKERS: Final = (

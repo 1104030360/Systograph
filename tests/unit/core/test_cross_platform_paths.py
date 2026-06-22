@@ -80,3 +80,22 @@ def test_redacts_local_paths_without_removing_file_names() -> None:
     assert "C:\\Users\\alice" not in redacted
     assert "<LOCAL_PATH>/src/app.py" in redacted
     assert "<LOCAL_PATH>/src/api.py" in redacted
+
+
+def test_path_redaction_does_not_treat_url_scheme_as_windows_drive() -> None:
+    value = "postgresql://demo:[MASKED]@db.example:5432/app"
+
+    assert redact_local_paths(value) == value
+
+
+def test_redacts_windows_double_slash_drive_path() -> None:
+    value = (
+        "Failed at D://work/project/src/api.py while "
+        "connecting to postgresql://demo:[MASKED]@db.example:5432/app"
+    )
+
+    redacted = redact_local_paths(value)
+
+    assert "D://work/project" not in redacted
+    assert "<LOCAL_PATH>/src/api.py" in redacted
+    assert "postgresql://demo:[MASKED]@db.example:5432/app" in redacted

@@ -23,6 +23,7 @@ REQUIRED_FIXTURES = {
     "reranker_extension_rag",
     "graph_rag_extension_rag",
     "healthcare_rag_minimal",
+    "secret_masking_regression_rag",
 }
 
 SECRET_LIKE_VALUES = {

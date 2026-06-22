@@ -111,8 +111,10 @@ class QueryTraceService:
         )
 
         if call_result.status != "ok":
-            error_type = call_result.error_type or call_result.status
-            error_message = (
+            error_type = self._masking_service.mask_text(
+                call_result.error_type or call_result.status
+            )
+            error_message = self._masking_service.mask_text(
                 call_result.error_message or "Endpoint request failed"
             )
             events = [request_event] if call_result.query_sent else []

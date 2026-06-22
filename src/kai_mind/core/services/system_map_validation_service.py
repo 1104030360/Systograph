@@ -12,6 +12,9 @@ from kai_mind.core.services.path_safety_service import (
     is_project_relative_posix_path,
 )
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
+from kai_mind.core.services.secret_validation_service import (
+    SecretValidationService,
+)
 
 STRUCTURAL_SECRET_SCAN_KEYS = frozenset(
     {
@@ -55,9 +58,13 @@ class SystemMapValidationService:
     def __init__(
         self,
         secret_masking_service: SecretMaskingService | None = None,
+        secret_validation_service: SecretValidationService | None = None,
     ) -> None:
         self._secret_masking_service = (
             secret_masking_service or SecretMaskingService()
+        )
+        self._secret_validation_service = (
+            secret_validation_service or SecretValidationService()
         )
 
     def validate(self, data: Mapping[str, Any]) -> RagSystemMap:
@@ -104,7 +111,12 @@ class SystemMapValidationService:
         key_context: str | None = None,
     ) -> None:
         if isinstance(value, str):
-            if self._contains_unmasked_secret(value, key=key_context):
+            if (
+                self._secret_validation_service.contains_unmasked_url_credentials(
+                    value
+                )
+                or self._contains_unmasked_secret(value, key=key_context)
+            ):
                 raise SystemMapValidationError(
                     f"Unmasked secret-like value is not allowed at {path}"
                 )

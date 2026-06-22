@@ -6,14 +6,20 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Final
+from urllib.parse import urlsplit, urlunsplit
 
 SECRET_KEY_MARKERS: Final = (
-    "API_KEY",
+    "APIKEY",
     "TOKEN",
     "SECRET",
     "PASSWORD",
+    "PASSWD",
+    "PWD",
     "BEARER",
     "AUTH",
+    "CREDENTIAL",
+    "PRIVATEKEY",
+    "ACCESSKEY",
 )
 MASK: Final = "[MASKED]"
 SHORT_SECRET_MAX_LENGTH: Final = 8
@@ -21,14 +27,15 @@ VISIBLE_EDGE_LENGTH: Final = 4
 
 KEY_VALUE_RE: Final = re.compile(
     r"(?P<key_quote>['\"]?)"
-    r"(?P<key>\b(?=[A-Za-z_][A-Za-z0-9_]*)"
-    r"(?=[A-Za-z0-9_]*(?:API_KEY|TOKEN|SECRET|PASSWORD|BEARER|AUTH))"
-    r"[A-Za-z_][A-Za-z0-9_]*)"
+    r"(?P<key>\b[A-Za-z_][A-Za-z0-9_.-]*)"
     r"(?P=key_quote)"
     r"(?P<separator>\s*[:=]\s*)"
     r"(?:(?P<quote>['\"])(?P<quoted_value>.*?)(?P=quote)|"
     r"(?P<value>[^'\"\s]+))",
     re.IGNORECASE,
+)
+URL_CANDIDATE_RE: Final = re.compile(
+    r"(?P<url>[A-Za-z][A-Za-z0-9+.-]*://[^\s'\"<>]+)"
 )
 
 
@@ -110,10 +117,11 @@ class SecretMaskingService:
         return any(pattern.regex.search(value) for pattern in SECRET_PATTERNS)
 
     def mask_value(self, value: str, key: str | None = None) -> str:
-        if not self._should_mask_value(value, key):
-            return value
+        masked = self._mask_url_credentials(value)
+        if not self._should_mask_value(masked, key):
+            return masked
 
-        return self._mask_secret_value(value)
+        return self._mask_secret_value(masked)
 
     def _mask_secret_value(self, value: str) -> str:
         if len(value) <= SHORT_SECRET_MAX_LENGTH:
@@ -124,7 +132,8 @@ class SecretMaskingService:
         )
 
     def mask_text(self, text: str) -> str:
-        masked = KEY_VALUE_RE.sub(self._mask_key_value_match, text)
+        masked = self._mask_url_credentials(text)
+        masked = KEY_VALUE_RE.sub(self._mask_key_value_match, masked)
         for pattern in SECRET_PATTERNS:
             masked = self._mask_text_pattern(masked, pattern)
         return masked
@@ -169,7 +178,15 @@ class SecretMaskingService:
 
     def _mask_key_value_match(self, match: re.Match[str]) -> str:
         key = match.group("key")
-        value = match.group("quoted_value") or match.group("value")
+        if not self._is_secret_key(key):
+            return match.group(0)
+
+        quoted_value = match.group("quoted_value")
+        value = (
+            quoted_value
+            if quoted_value is not None
+            else match.group("value") or ""
+        )
         key_quote = match.group("key_quote") or ""
         quote = match.group("quote") or ""
         if key.upper().startswith("AUTHORIZATION") and not quote:
@@ -187,7 +204,7 @@ class SecretMaskingService:
         if key is None:
             return False
 
-        normalized = key.upper()
+        normalized = re.sub(r"[^A-Z0-9]+", "", key.upper())
         return any(marker in normalized for marker in SECRET_KEY_MARKERS)
 
     def _is_token_like(self, value: str) -> bool:
@@ -217,3 +234,40 @@ class SecretMaskingService:
             return self._mask_pattern_match(match, pattern)
 
         return pattern.regex.sub(replace, text)
+
+    def _mask_url_credentials(self, text: str) -> str:
+        return URL_CANDIDATE_RE.sub(self._mask_url_match, text)
+
+    def _mask_url_match(self, match: re.Match[str]) -> str:
+        raw_url = match.group("url")
+        try:
+            parsed = urlsplit(raw_url)
+        except ValueError:
+            return raw_url
+
+        if not parsed.scheme or not parsed.netloc or "@" not in parsed.netloc:
+            return raw_url
+
+        userinfo, host = parsed.netloc.rsplit("@", 1)
+        if not host:
+            return raw_url
+
+        if ":" in userinfo:
+            username, _, password = userinfo.partition(":")
+            if password == MASK:
+                return raw_url
+            masked_userinfo = f"{username}:{MASK}"
+        else:
+            if userinfo == MASK:
+                return raw_url
+            masked_userinfo = MASK
+
+        return urlunsplit(
+            (
+                parsed.scheme,
+                f"{masked_userinfo}@{host}",
+                parsed.path,
+                parsed.query,
+                parsed.fragment,
+            )
+        )

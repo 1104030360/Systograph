@@ -137,6 +137,31 @@ def test_query_trace_timeout_keeps_partial_replay_events() -> None:
     assert result.error_reason == "timeout"
 
 
+def test_query_trace_masks_url_credentials_in_error_fields() -> None:
+    raw_url = "postgresql://demo:synthetic-pass-138@db.example:5432/app"
+    provider = RecordingEndpointProvider(
+        EndpointCallResult(
+            status="connection_error",
+            query_sent=True,
+            error_type=f"connection_error:{raw_url}",
+            error_message=f"Could not connect to {raw_url}",
+        )
+    )
+
+    result = QueryTraceService(endpoint_call_provider=provider).trace(
+        system_map=_map_with_endpoint(),
+        endpoint_id="endpoint:chat",
+        query="hello",
+    )
+
+    serialized = str(result.model_dump(mode="json"))
+    assert raw_url not in serialized
+    assert "synthetic-pass-138" not in serialized
+    assert "[MASKED]" in serialized
+    assert result.error_reason is not None
+    assert raw_url not in result.error_reason
+
+
 def test_query_trace_unsupported_endpoint_does_not_emit_request_sent() -> None:
     provider = RecordingEndpointProvider(
         EndpointCallResult(

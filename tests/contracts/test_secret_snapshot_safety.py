@@ -20,6 +20,19 @@ def test_snapshot_scanner_rejects_fake_full_secret() -> None:
         )
 
 
+def test_snapshot_scanner_rejects_url_credentials() -> None:
+    scanner = SnapshotSafetyService()
+
+    with pytest.raises(SnapshotSafetyError, match="unmasked_secret"):
+        scanner.assert_safe_text(
+            (
+                '{"database_url": '
+                '"postgresql://demo:synthetic-pass-138@db.example/app"}'
+            ),
+            source="snapshot.json",
+        )
+
+
 def test_snapshot_scanner_rejects_workspace_absolute_path() -> None:
     scanner = SnapshotSafetyService(
         workspace_root=Path("/Users/linjunting/Local_AI_Health_Doctor")

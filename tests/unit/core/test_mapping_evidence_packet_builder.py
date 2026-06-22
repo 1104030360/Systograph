@@ -174,3 +174,35 @@ def test_builder_consumes_detail_scan_evidence_from_existing_index() -> None:
     ]
     assert packet.call_like_signals == ["Router.build_chain"]
     assert packet.line_ranges == ["src/router.py:11-11"]
+
+
+def test_builder_masks_url_credentials_in_evidence_packet() -> None:
+    raw_url = "postgresql://demo:synthetic-pass-138@db.example:5432/app"
+    packet = MappingEvidencePacketBuilder().build(
+        project_id="project:demo",
+        unmapped_component=UnmappedComponent(
+            id="unmapped:database",
+            source_file="config.yaml",
+            observed_kind="database",
+            status="needs_confirmation",
+            reason="Database candidate.",
+            evidence_ids=["evidence:database"],
+        ),
+        evidence=[
+            Evidence(
+                id="evidence:database",
+                kind="config_value",
+                file="config.yaml",
+                path="database.url",
+                value=raw_url,
+                snippet=f"DATABASE_URL={raw_url}",
+                rule_id="config_yaml_value_detected",
+            )
+        ],
+        available_slots=["vector_store"],
+    )
+
+    serialized = str(packet.model_dump(mode="json"))
+    assert raw_url not in serialized
+    assert "synthetic-pass-138" not in serialized
+    assert "[MASKED]" in serialized
