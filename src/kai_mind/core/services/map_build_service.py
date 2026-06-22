@@ -214,7 +214,7 @@ class MapBuildService:
             template=template,
             components=components,
         )
-        system_map = self._normalize_service.normalize(
+        system_map = self._normalize_service.assemble(
             project_name=project_name,
             raw_scan=raw_scan,
             template=template,
@@ -223,10 +223,13 @@ class MapBuildService:
             flows=flows,
             risk_hints=risk_hints,
         )
-        return self._apply_request_options(
+        adjusted = self._apply_request_options(
             system_map=system_map,
             project_root=project_root,
             request=request,
+        )
+        return self._validation_service.validate(
+            adjusted.model_dump(mode="json")
         )
 
     def _scan_project(
@@ -288,11 +291,9 @@ class MapBuildService:
         if project is system_map.project and evidence is system_map.evidence:
             return system_map
 
-        return self._validation_service.validate(
-            system_map.model_copy(
-                update={
-                    "project": project,
-                    "evidence": evidence,
-                }
-            ).model_dump(mode="json")
+        return system_map.model_copy(
+            update={
+                "project": project,
+                "evidence": evidence,
+            }
         )
