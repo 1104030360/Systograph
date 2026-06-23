@@ -169,6 +169,19 @@ function resolveFollowNodeId({
     if (edgeTargetNodeId) return edgeTargetNodeId;
   }
 
+  if (traceEvent?.endpoint_id) {
+    const nodeId = nodeIdBySource.get(traceEvent.endpoint_id);
+    if (nodeId) return nodeId;
+    const edgeId = edgeIdBySource.get(traceEvent.endpoint_id);
+    const edgeTargetNodeId = resolveEdgeTargetNodeId(graph, edgeId);
+    if (edgeTargetNodeId) return edgeTargetNodeId;
+  }
+
+  if (traceEvent?.slot) {
+    const slotNode = graph.nodes.find((node) => node.slot === traceEvent.slot);
+    if (slotNode) return slotNode.id;
+  }
+
   if (selected?.kind === "node") return selected.id;
 
   if (selected?.kind === "edge") {

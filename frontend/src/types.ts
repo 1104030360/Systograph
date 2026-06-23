@@ -225,6 +225,17 @@ export type ScanBoundaryDecision = z.infer<typeof scanBoundaryDecisionSchema>;
 export type ScanCreateRequest = z.infer<typeof scanCreateRequestSchema>;
 export type ScanCreateResponse = z.infer<typeof scanCreateResponseSchema>;
 
+export const systemEndpointSchema = z
+  .object({
+    id: z.string(),
+    value: z.string(),
+    endpoint_type: z.string().optional(),
+    method: z.string().nullable().optional(),
+    slot: z.string().nullable().optional(),
+    component_instance_id: z.string().nullable().optional(),
+    evidence_id: z.string().optional(),
+  })
+  .passthrough();
 export type Selection =
   | { kind: "node"; id: string }
   | { kind: "edge"; id: string }
@@ -235,22 +246,46 @@ export const traceEventSchema = z.object({
   id: z.string().optional(),
   trace_id: z.string().optional(),
   sequence_index: z.number().optional(),
+  timestamp: z.string().optional(),
+  event_type: z.string().optional(),
   replay_depth: z.string().optional(),
+  status: z.string().optional(),
+  query_sent: z.boolean().optional(),
+  endpoint_id: z.string().optional(),
   slot: z.string().nullable().optional(),
   component_id: z.string().nullable().optional(),
   unmapped_component_id: z.string().nullable().optional(),
   edge_id: z.string().nullable().optional(),
+  warnings: z.array(z.string()).default([]),
   step_type: z.string().optional(),
   latency_ms: z.number().optional(),
+  latency: z.string().optional(),
   error: z
-    .object({ code: z.string().optional(), message: z.string().optional() })
+    .union([
+      z.object({ code: z.string().optional(), message: z.string().optional() }).passthrough(),
+      z.string(),
+      z.record(z.unknown()),
+    ])
     .nullable()
     .optional(),
   input: z.record(z.unknown()).optional(),
   output: z.record(z.unknown()).optional(),
+  retrieved_chunks: z.unknown().optional(),
 });
 
+export const traceRunResultSchema = z.object({
+  trace_id: z.string(),
+  status: z.enum(["completed", "partial", "endpoint_not_found", "error"]),
+  query_sent: z.boolean(),
+  endpoint_id: z.string(),
+  events: z.array(traceEventSchema).default([]),
+  warnings: z.array(z.string()).default([]),
+  error_reason: z.string().nullable().optional(),
+});
+
+export type SystemEndpoint = z.infer<typeof systemEndpointSchema>;
 export type TraceEvent = z.infer<typeof traceEventSchema>;
+export type TraceRunResult = z.infer<typeof traceRunResultSchema>;
 
 export type ScanTarget = {
   id: string;

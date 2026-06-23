@@ -1,6 +1,7 @@
 import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import type { TraceEvent } from "../types";
 import { compactId, titleCase } from "../utils/format";
+import { traceErrorLabel } from "../utils/trace";
 
 type Props = {
   events: TraceEvent[];
@@ -57,7 +58,7 @@ export function ReplayTimeline({ events, activeIndex, isRunning, onIndexChange, 
             </span>
           ) : null}
           {active?.latency_ms != null ? <span className="chip">{active.latency_ms} ms</span> : null}
-          <span className={active?.error ? "" : "ok"}>{active?.error ? (active.error.code ?? "error") : "ok"}</span>
+          <span className={active?.error ? "" : "ok"}>{active?.error ? traceErrorLabel(active.error) : "ok"}</span>
         </div>
       </div>
 

@@ -6,7 +6,7 @@ import { BoundaryDecisionModal, decisionsForBoundary } from "./components/Bounda
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
 import { ProgressStrip } from "./components/ProgressStrip";
-import { ReplayTimeline } from "./components/ReplayTimeline";
+import { QueryReplayPanel } from "./components/QueryReplayPanel";
 import { SampleDataIndicator } from "./components/SampleDataIndicator";
 import { Sidebar } from "./components/Sidebar";
 import { StateOverlay, type ViewerState } from "./components/StateOverlay";
@@ -21,8 +21,15 @@ import { useViewerPayload } from "./hooks/useViewerPayload";
 import { importProject, startProjectScan } from "./services/projectScanApi";
 import { loadApiViewerPayload } from "./services/viewerApi";
 import { useViewerStore } from "./store/viewerStore";
-import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal } from "./types";
+import type {
+  GraphViewModel,
+  ProjectImportResponse,
+  ScanBoundaryAction,
+  ScanBoundaryProposal,
+  TraceEvent,
+} from "./types";
 import { createProgressTargets, resolveProgressTargetId } from "./utils/graph";
+import { parseSystemEndpoints, resolveProjectId, sortTraceEvents } from "./utils/trace";
 
 const EMPTY_GRAPH: GraphViewModel = {
   nodes: [],
@@ -103,13 +110,23 @@ export default function App() {
   const [boundaryDecisions, setBoundaryDecisions] = useState<Record<string, ScanBoundaryAction>>({});
   const [scanBusy, setScanBusy] = useState(false);
   const [scanFlowError, setScanFlowError] = useState<string | undefined>();
+  const [runtimeTraceEvents, setRuntimeTraceEvents] = useState<TraceEvent[]>([]);
   // Scan Template route (full-bleed overlay) + Mapping Proposal modal (z 60, can
   // sit over the route or the graph). The selection API does not exist yet, so
   // the page runs on the scanTemplateApi mock seam.
   const [view, setView] = useState<"viewer" | "scan-template">("viewer");
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
 
-  const activeTraceEvent = traceEvents[activeTraceIndex];
+  const replayEvents = useMemo(
+    () => (runtimeTraceEvents.length > 0 ? sortTraceEvents(runtimeTraceEvents) : traceEvents),
+    [runtimeTraceEvents, traceEvents],
+  );
+  const endpoints = useMemo(
+    () => parseSystemEndpoints(aiSystemMap && typeof aiSystemMap === "object" ? (aiSystemMap as { endpoints?: unknown }).endpoints : undefined),
+    [aiSystemMap],
+  );
+  const projectId = useMemo(() => resolveProjectId(aiSystemMap), [aiSystemMap]);
+  const activeTraceEvent = replayEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
   const liveProgressTargetId = resolveProgressTargetId(liveProgressEvent, graph);
   const progressTargetId = liveProgressTargetId ?? (isProgressRunning ? progressTarget?.id : undefined);
@@ -150,13 +167,13 @@ export default function App() {
 
   // replay loop — interval created once per run (latest index read from store)
   useEffect(() => {
-    if (!isReplayRunning || traceEvents.length === 0) return;
+    if (!isReplayRunning || replayEvents.length === 0) return;
     const timer = window.setInterval(() => {
       const current = useViewerStore.getState().activeTraceIndex;
-      setActiveTraceIndex((current + 1) % traceEvents.length);
+      setActiveTraceIndex((current + 1) % replayEvents.length);
     }, 1100);
     return () => window.clearInterval(timer);
-  }, [isReplayRunning, setActiveTraceIndex, traceEvents.length]);
+  }, [isReplayRunning, replayEvents.length, setActiveTraceIndex]);
 
   // scan progress loop
   useEffect(() => {
@@ -169,8 +186,12 @@ export default function App() {
   }, [dataSourceMode, isProgressRunning, liveProgressEvent?.event, progressTargets.length, setProgressIndex]);
 
   useEffect(() => {
-    if (activeTraceIndex >= traceEvents.length) setActiveTraceIndex(0);
-  }, [activeTraceIndex, setActiveTraceIndex, traceEvents.length]);
+    if (activeTraceIndex >= replayEvents.length) setActiveTraceIndex(0);
+  }, [activeTraceIndex, replayEvents.length, setActiveTraceIndex]);
+
+  useEffect(() => {
+    setRuntimeTraceEvents([]);
+  }, [apiBaseUrl, dataSourceMode, payload?.viewer_load_result.map_json]);
 
   const handleReset = useCallback(() => {
     resetFocus();
@@ -476,12 +497,17 @@ export default function App() {
           ) : null}
         </div>
 
-        <ReplayTimeline
-          events={dataAvailable ? traceEvents : []}
+        <QueryReplayPanel
+          mode={dataSourceMode}
+          apiBaseUrl={apiBaseUrl}
+          projectId={projectId}
+          endpoints={dataAvailable ? endpoints : []}
+          events={dataAvailable ? replayEvents : []}
           activeIndex={activeTraceIndex}
           isRunning={isReplayRunning}
           onIndexChange={setActiveTraceIndex}
           onRunningChange={setReplayRunning}
+          onTraceEvents={setRuntimeTraceEvents}
         />
       </section>
 

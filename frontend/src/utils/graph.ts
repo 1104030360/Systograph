@@ -142,6 +142,17 @@ export function getTraceFocus(event: TraceEvent | undefined, graph: GraphViewMod
     if (edgeId) focusedEdgeIds.add(edgeId);
   }
 
+  if (event.endpoint_id) {
+    const nodeId = nodeIdBySource.get(event.endpoint_id);
+    const edgeId = edgeIdBySource.get(event.endpoint_id);
+    if (nodeId) focusedNodeIds.add(nodeId);
+    if (edgeId) focusedEdgeIds.add(edgeId);
+  }
+
+  if (event.slot) {
+    graph.nodes.filter((node) => node.slot === event.slot).forEach((node) => focusedNodeIds.add(node.id));
+  }
+
   return { focusedNodeIds, focusedEdgeIds };
 }
 
