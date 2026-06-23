@@ -244,3 +244,6 @@ CLAUDE.md
 docs/work/Timmy/meeting
 docs/work/Timmy/problem/
 docs/work/Timmy/learn/
+
+# Playwright MCP logs
+.playwright-mcp/
