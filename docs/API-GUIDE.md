@@ -412,15 +412,23 @@ Response `200`：
 
 - `query`、response output、`retrieved_chunks` 進入 event 前會被遮蔽/摘要化；response 不回傳 raw query 或 raw answer。
 - `endpoint_id` 必須存在於該 project 的 `ai_system_map.endpoints[]`；找不到時回 `status:"endpoint_not_found"`、`query_sent:false`，不送任何 HTTP request。
+- endpoint URL 視為不可信輸入。預設 safe mode 會在 request 前解析 hostname/DNS，並阻擋 metadata、loopback、private、link-local、unspecified、multicast、reserved 與其他 non-global 位址。
+- egress policy 阻擋時回 `status:"partial"`、`query_sent:false`、`error_reason:"egress_policy_blocked"`，events 只包含一個 `status:"blocked"` 的 `error` event，不會先產生 `request_sent`。
+- Query Trace 不跟隨 HTTP redirect，預設 HTTP client 也不讀取 `HTTP_PROXY`、`HTTPS_PROXY` 或 `ALL_PROXY` 等環境 proxy 設定。
 - `retrieved_chunks_keys` 必須是非空字串陣列；設定錯誤會讓 route 回 `invalid_trace_config`，不會 fallback 成看似成功但漏資料的 trace。
+- 被掃描專案的 `[tool.kai-mind.trace]` 只控制 retrieved chunk keys，不能自行開啟 localhost/private egress。Local-dev 例外必須由 KAI-Mind operator 在 app startup 注入明確 host + port allowlist；CLI 目前固定使用 safe mode。
 - timeout / transport error 回 `status:"partial"`，保留 `request_sent` 與 `error` events，讓前端可以 replay 到失敗點。
 - 若 response metadata 暗示已知 `unmapped_component_id`，event 只標示 `step_type:"unknown"` 與 `needs_mapping_confirmation`，確認與持久化仍交給 mapping / proposal 流程。
+
+完整安全邊界、local-dev 注入範例與 DNS rebinding 剩餘限制，請見
+[`docs/security/query-trace-egress-policy.md`](security/query-trace-egress-policy.md)。
 
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |
 | `project_not_found` | 404 | `project_id` 不存在 |
 | `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
 | `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.kai-mind.trace]` 格式錯誤 |
+| `egress_policy_blocked` | 200 / `partial` | endpoint 在送出 request 前被 SSRF egress policy 阻擋 |
 
 ---
 
