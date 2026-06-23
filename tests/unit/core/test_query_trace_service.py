@@ -191,6 +191,41 @@ def test_query_trace_unsupported_endpoint_does_not_emit_request_sent() -> None:
     assert result.error_reason == "unsupported_endpoint"
 
 
+def test_query_trace_blocked_endpoint_emits_one_blocked_error_event() -> None:
+    provider = RecordingEndpointProvider(
+        EndpointCallResult(
+            status="blocked_endpoint",
+            query_sent=False,
+            error_type="egress_policy_blocked",
+            error_message=(
+                "Endpoint blocked by query trace egress policy: "
+                "metadata_blocked"
+            ),
+        )
+    )
+
+    result = QueryTraceService(endpoint_call_provider=provider).trace(
+        system_map=_map_with_endpoint(
+            value="http://169.254.169.254/latest/meta-data/"
+        ),
+        endpoint_id="endpoint:chat",
+        query="hello",
+    )
+
+    assert result.status == "partial"
+    assert result.query_sent is False
+    assert result.error_reason == "egress_policy_blocked"
+    assert [event.event_type for event in result.events] == ["error"]
+    assert result.events[0].query_sent is False
+    assert result.events[0].status == "blocked"
+    assert result.events[0].error == {
+        "type": "egress_policy_blocked",
+        "message": (
+            "Endpoint blocked by query trace egress policy: metadata_blocked"
+        ),
+    }
+
+
 def test_query_trace_marks_unmapped_evidence_without_mutating_map() -> None:
     system_map = _map_with_endpoint()
     original = system_map.model_dump(mode="json")

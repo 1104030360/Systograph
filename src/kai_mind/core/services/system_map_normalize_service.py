@@ -34,13 +34,18 @@ from kai_mind.core.services.rule_catalog_loader import (
     RuleCatalogLoader,
 )
 
-RUNTIME_CRITICAL_SLOTS = {
+# RecommendedNextCheck triggers; reason/action text
+# is in recommended_next_check_rules.toml.
+# Privacy: add risk_hint_rules.toml first, then rule_id/type here.
+
+RUNTIME_CRITICAL_SLOTS = {  # -> runtime_readiness when missing
     "app_api_or_orchestrator",
     "retriever",
     "vector_store",
     "llm",
 }
-RAG_TRUST_CRITICAL_SLOTS = {
+
+RAG_TRUST_CRITICAL_SLOTS = {  # -> rag_knowledge_trust when missing
     "data_sources",
     "document_loader",
     "chunking",
@@ -51,7 +56,8 @@ RAG_TRUST_CRITICAL_SLOTS = {
     "citation_or_response_composer",
     "guardrails",
 }
-PRIVACY_RISK_RULE_IDS = {
+
+PRIVACY_RISK_RULE_IDS = {  # risk_hint rule_id -> privacy_exposure
     "docker_published_port_exposure",
     "external_provider_detected",
     "secret_like_config_key_detected",
@@ -59,7 +65,8 @@ PRIVACY_RISK_RULE_IDS = {
     "chroma_local_persistence_detected",
     "chroma_server_published_port",
 }
-PRIVACY_RISK_TYPES = {
+
+PRIVACY_RISK_TYPES = {  # risk_hint type -> privacy_exposure
     "network_exposure",
     "external_provider",
     "secret_config",

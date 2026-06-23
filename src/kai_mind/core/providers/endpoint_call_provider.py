@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from time import perf_counter
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 from urllib.parse import urlsplit
 
 import httpx
 from pydantic import BaseModel, ConfigDict
 
 from kai_mind.core.models.system_map import Endpoint
+from kai_mind.core.security.egress_policy import (
+    EgressDecision,
+    EgressPolicy,
+)
 
 EndpointCallStatus = Literal[
     "ok",
@@ -19,6 +23,7 @@ EndpointCallStatus = Literal[
     "http_error",
     "invalid_response",
     "unsupported_endpoint",
+    "blocked_endpoint",
 ]
 
 
@@ -34,11 +39,37 @@ class EndpointCallResult(BaseModel):
     error_message: str | None = None
 
 
+class EgressPolicyEvaluator(Protocol):
+    def evaluate(self, url: str) -> EgressDecision: ...
+
+
+class HttpClient(Protocol):
+    def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, str] | None = None,
+        json: Any | None = None,
+        timeout: float,
+        follow_redirects: bool,
+    ) -> httpx.Response: ...
+
+
 class EndpointCallProvider:
     """Call one validated endpoint without instrumenting the target process."""
 
-    def __init__(self, *, client: httpx.Client | None = None) -> None:
-        self._client = client or httpx.Client()
+    def __init__(
+        self,
+        *,
+        client: HttpClient | None = None,
+        egress_policy: EgressPolicyEvaluator | None = None,
+    ) -> None:
+        self._client = client or httpx.Client(
+            follow_redirects=False,
+            trust_env=False,
+        )
+        self._egress_policy = egress_policy or EgressPolicy()
 
     def call(
         self,
@@ -51,6 +82,17 @@ class EndpointCallProvider:
         unsupported_result = self._endpoint_preflight_result(endpoint.value)
         if unsupported_result is not None:
             return unsupported_result
+        egress_decision = self._egress_policy.evaluate(endpoint.value)
+        if not egress_decision.allowed:
+            return EndpointCallResult(
+                status="blocked_endpoint",
+                query_sent=False,
+                error_type="egress_policy_blocked",
+                error_message=(
+                    "Endpoint blocked by query trace egress policy: "
+                    f"{egress_decision.reason or 'policy_denied'}"
+                ),
+            )
 
         started_at = perf_counter()
         try:
@@ -124,12 +166,14 @@ class EndpointCallProvider:
                 url,
                 params={"query": query},
                 timeout=timeout_seconds,
+                follow_redirects=False,
             )
         return self._client.request(
             method,
             url,
             json={"query": query},
             timeout=timeout_seconds,
+            follow_redirects=False,
         )
 
     def _response_body(self, response: httpx.Response) -> Any:
