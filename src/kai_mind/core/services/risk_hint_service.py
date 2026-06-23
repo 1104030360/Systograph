@@ -77,6 +77,9 @@ class RiskHintService:
                     hints,
                     self._published_port_hint(endpoint, source_evidence),
                 )
+                # Chroma-only named rule; Qdrant/Ollama/etc.
+                # still get the generic docker_published_port_exposure above.
+                # More DB-specific rules TBD.
                 if _is_chroma_component(component):
                     self._add_hint(
                         hints,
@@ -90,6 +93,8 @@ class RiskHintService:
                     hints,
                     self._external_provider_hint(endpoint),
                 )
+            # Chroma HTTP client only;
+            # named vector-store hints for other providers TBD.
             if endpoint.slot == "vector_store" and _is_chroma_http_component(
                 component
             ):
@@ -125,6 +130,8 @@ class RiskHintService:
                     )
 
         for component in component_lookup.instances:
+            # Chroma PersistentClient only;
+            # local-persistence hints for other stores TBD.
             if component.provider == "chroma_persistent":
                 evidence_id = _first(component.evidence_ids)
                 if evidence_id is None:

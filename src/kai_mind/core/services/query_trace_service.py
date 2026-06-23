@@ -125,7 +125,11 @@ class QueryTraceService:
                     event_type="error",
                     endpoint_id=endpoint.id,
                     query_sent=call_result.query_sent,
-                    status="partial",
+                    status=(
+                        "blocked"
+                        if call_result.status == "blocked_endpoint"
+                        else "partial"
+                    ),
                     slot=endpoint.slot,
                     component_id=endpoint.component_instance_id,
                     latency_ms=call_result.latency_ms,

@@ -92,6 +92,40 @@ def test_trace_route_masks_success_response(tmp_path: Path) -> None:
     assert "[MASKED]" in payload_text
 
 
+def test_trace_route_returns_unsent_blocked_endpoint_result(
+    tmp_path: Path,
+) -> None:
+    client, project_id, _store, _provider = create_trace_test_client(
+        tmp_path,
+        provider_result=EndpointCallResult(
+            status="blocked_endpoint",
+            query_sent=False,
+            error_type="egress_policy_blocked",
+            error_message=(
+                "Endpoint blocked by query trace egress policy: "
+                "private_network_blocked"
+            ),
+        ),
+    )
+
+    response = client.post(
+        "/api/trace",
+        json={
+            "project_id": project_id,
+            "endpoint_id": "endpoint:chat",
+            "query": "private query",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "partial"
+    assert payload["query_sent"] is False
+    assert payload["error_reason"] == "egress_policy_blocked"
+    assert [event["event_type"] for event in payload["events"]] == ["error"]
+    assert payload["events"][0]["status"] == "blocked"
+
+
 def test_trace_route_uses_project_pyproject_chunk_keys(
     tmp_path: Path,
 ) -> None:

@@ -55,3 +55,26 @@ retrieved_chunks_keys = ["docs", ""]
         match="retrieved_chunks_keys\\[1\\] must be a non-empty string",
     ):
         QueryTraceConfigLoader().load_project_config(tmp_path)
+
+
+def test_scanned_project_cannot_enable_local_dev_egress_policy(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[tool.kai-mind.trace]
+retrieved_chunks_keys = ["docs"]
+
+[tool.kai-mind.trace.security]
+mode = "local-dev"
+allow_loopback = true
+allowed_hosts = ["localhost"]
+allowed_ports = [11434]
+""",
+        encoding="utf-8",
+    )
+
+    config = QueryTraceConfigLoader().load_project_config(tmp_path)
+
+    assert config.retrieved_chunks_keys == ("docs",)
+    assert not hasattr(config, "egress_policy")
