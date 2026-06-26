@@ -56,6 +56,109 @@ Response shape must match the sample file:
 
 The frontend treats `graph_view_model` as the rendering input. It does not rescan files and does not infer canonical facts.
 
+## Project-Scoped Scan Flow
+
+The API mode can start a scan from a local project path. The frontend first imports the project path, then starts a scan with the returned project id. It does not call `/api/map/build` for this interactive flow.
+
+```http
+POST /api/projects/import
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "source_type": "local_path",
+  "project_path": "C:\\path\\to\\project"
+}
+```
+
+Response:
+
+```ts
+{
+  project_id: string;
+  source_type: "local_path";
+  project_name: string;
+  project_path: string;
+}
+```
+
+The frontend then starts the scan:
+
+```http
+POST /api/scans
+Content-Type: application/json
+```
+
+Request:
+
+```ts
+{
+  project_id: string;
+  boundary_decisions?: Array<{
+    target_path: string;
+    fingerprint: string;
+    decision: "scan_this_run" | "skip_this_run";
+    reason?: string;
+  }>;
+}
+```
+
+Completed response:
+
+```ts
+{
+  scan_id: string;
+  project_id: string;
+  status: "completed" | "error";
+  build_result?: unknown;
+}
+```
+
+Boundary review response:
+
+```ts
+{
+  scan_id: string;
+  project_id: string;
+  status: "requires_boundary_decision";
+  available_boundary_actions: Array<"scan_this_run" | "skip_this_run">;
+  boundary_proposals: Array<{
+    proposal_id: string;
+    project_id: string;
+    status: "pending_user_confirmation";
+    target: {
+      path: string;
+      target_type: string;
+      risk_type: string;
+      reason: string;
+      size_bytes?: number | null;
+      fingerprint: string;
+    };
+    evidence_packet: {
+      project_id: string;
+      target_path: string;
+      risk_type: string;
+      reason: string;
+      evidence_ids: string[];
+      rule_ids: string[];
+      masked_evidence_values: string[];
+      masked_snippets: string[];
+      context_limits: Record<string, string | number | boolean>;
+    };
+    available_actions: Array<"scan_this_run" | "skip_this_run">;
+    created_at: string;
+    updated_at: string;
+  }>;
+}
+```
+
+When `requires_boundary_decision` is returned, the frontend must not refresh the graph or imply the scan completed. The user's boundary decision only applies to the current scan request and must not be presented as a saved preference.
+
+After a completed scan, the frontend reloads `GET /api/map` and renders the latest `viewer_load_result.graph_view_model`.
+
 ## Scan Progress SSE
 
 Preferred endpoint:
