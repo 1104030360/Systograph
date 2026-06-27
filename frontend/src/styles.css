@@ -598,11 +598,20 @@ h1, h2, h3 { margin: 0; }
   background: var(--surface-3); color: var(--text-2);
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.node-status-ico { flex: none; display: grid; place-items: center; }
+.node-status-ico {
+  position: relative; flex: none; width: 22px; height: 22px;
+  display: grid; place-items: center; border-radius: 999px;
+}
+.node-status-ico svg { position: relative; z-index: 1; }
+.node-status-ico.has-risk { background: var(--risk-soft); }
+.node-status-ico.has-risk::before {
+  content: ""; position: absolute; inset: 3px; border-radius: inherit;
+  border: 1px solid color-mix(in oklab, var(--risk) 72%, transparent);
+  animation: riskAttentionRing 2.4s ease-out infinite;
+}
 
 .node.s-detected { border-left-color: var(--accent); }
 .node.s-confirmed { border-left-color: var(--accent-strong); }
-.node.s-risk { border-left-color: var(--risk); }
 .node.s-not_applicable { border-left-color: var(--text-faint); border-style: dashed; }
 .node.s-not_configured { border-left-color: var(--text-faint); border-style: dashed; }
 .node.s-missing { border-left-color: var(--text-faint); background: var(--surface-2); border-style: dashed; opacity: 0.92; }
@@ -611,7 +620,6 @@ h1, h2, h3 { margin: 0; }
 .node.is-selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow-pop); }
 .node.is-selected.s-detected { border-left-color: var(--accent); }
 .node.is-selected.s-confirmed { border-left-color: var(--accent-strong); }
-.node.is-selected.s-risk { border-left-color: var(--risk); }
 .node.is-selected.s-not_applicable { border-left-color: var(--text-faint); }
 .node.is-selected.s-not_configured { border-left-color: var(--text-faint); }
 .node.is-selected.s-missing { border-left-color: var(--text-faint); }
@@ -620,6 +628,15 @@ h1, h2, h3 { margin: 0; }
 .node.is-dimmed { opacity: 0.32; }
 .node.is-progress { border-color: var(--accent); animation: progressPulse 1.4s ease-in-out infinite; }
 @keyframes progressPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); } 50% { box-shadow: 0 0 0 5px var(--accent-soft); } }
+@keyframes riskAttentionRing {
+  0%, 55%, 100% { opacity: 0; transform: scale(0.78); }
+  12% { opacity: 0.72; }
+  42% { opacity: 0; transform: scale(1.5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-status-ico.has-risk::before { animation: none; opacity: 0.65; transform: none; }
+}
 
 /* edge label pills (React Flow EdgeLabelRenderer) */
 .edge-label-pill {
