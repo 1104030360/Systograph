@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from hashlib import sha256
 from pathlib import Path
 from typing import Literal
 
@@ -118,7 +119,10 @@ class DetailScanService:
             target=target,
         )
         existing_ids = {item.id for item in updated.evidence}
-        target_slug = _slug(target)
+        target_slug = _target_slug(
+            target_type=normalized_target_type,
+            target=target,
+        )
 
         component_extraction = self._component_detail_scan_service.scan(
             project_root=project_root,
@@ -348,7 +352,11 @@ class DetailScanService:
         scan_depth: str,
         existing_ids: set[str],
     ) -> str:
-        base = f"detail-scan:{scan_depth}:{target_type}:{_slug(target)}"
+        normalized_type = self._normalize_target_type(target_type)
+        base = (
+            f"detail-scan:{scan_depth}:{target_type}:"
+            f"{_target_slug(target_type=normalized_type, target=target)}"
+        )
         if base not in existing_ids:
             return base
         index = 2
@@ -415,6 +423,16 @@ def _append_missing(values: list[str], candidates: Sequence[str]) -> None:
         if candidate not in existing:
             values.append(candidate)
             existing.add(candidate)
+
+
+def _target_slug(*, target_type: DetailScanTargetType, target: str) -> str:
+    """Keep generated ids readable and bounded across evidence drill-downs."""
+    slug = _slug(target)
+    if target_type != "evidence" and len(slug) <= 80:
+        return slug
+
+    digest = sha256(f"{target_type}:{target}".encode()).hexdigest()[:16]
+    return f"{_slug(target_type)}-{digest}"
 
 
 def _flatten(values: Iterable[Iterable[str]]) -> list[str]:

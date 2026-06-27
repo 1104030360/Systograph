@@ -31,9 +31,14 @@ export const graphEdgeSchema = z.object({
 export const evidenceDetailSchema = z
   .object({
     title: z.string().optional(),
+    kind: z.string().optional(),
     file: z.string().optional(),
     path: z.string().optional(),
     value: z.string().optional(),
+    rule_id: z.string().nullable().optional(),
+    line_start: z.number().int().positive().nullable().optional(),
+    line_end: z.number().int().positive().nullable().optional(),
+    snippet: z.string().nullable().optional(),
   })
   .passthrough();
 

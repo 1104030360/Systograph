@@ -32,6 +32,7 @@ import {
 import { compactId, formatValue, titleCase } from "../utils/format";
 
 type DetailMode = "overview" | "component" | "code_path";
+type EvidenceDetail = GraphViewModel["details"]["evidence_by_id"][string];
 
 type DetailRequestState = {
   projectId?: string;
@@ -78,6 +79,46 @@ function EvidenceItem({ graph, id }: { graph: GraphViewModel; id: string }) {
         <div className="et">{evidence?.title ?? compactId(id)}</div>
         <div className="ef">{evidence?.file ?? evidence?.path ?? id}</div>
       </div>
+    </div>
+  );
+}
+
+function basename(path?: string) {
+  return path?.split("/").at(-1) ?? "Project source";
+}
+
+function lineLabel(evidence?: EvidenceDetail) {
+  if (evidence?.line_start == null) return undefined;
+  return evidence.line_end != null && evidence.line_end !== evidence.line_start
+    ? `${evidence.line_start}–${evidence.line_end}`
+    : String(evidence.line_start);
+}
+
+function CodeReference({ evidence, compact = false }: { evidence?: EvidenceDetail; compact?: boolean }) {
+  const lines = lineLabel(evidence);
+  return (
+    <span className={compact ? "code-reference is-compact" : "code-reference"}>
+      <FileCode2 size={13} />
+      <span className="code-reference-file">{basename(evidence?.file)}</span>
+      {evidence?.path ? <span className="code-reference-symbol">{evidence.path}</span> : null}
+      {lines ? <span className="code-reference-line">:{lines}</span> : null}
+    </span>
+  );
+}
+
+function CodeReferencePreview({ evidence }: { evidence: EvidenceDetail }) {
+  return (
+    <div className="code-reference-preview">
+      <CodeReference evidence={evidence} />
+      <div className="code-reference-meta">
+        {evidence.file ? <span>{evidence.file}</span> : null}
+        {evidence.kind ? <span>{titleCase(evidence.kind)}</span> : null}
+      </div>
+      {evidence.snippet ? (
+        <pre aria-label="Masked code reference preview">{evidence.snippet}</pre>
+      ) : (
+        <span className="code-reference-no-preview">No masked snippet is available for this reference.</span>
+      )}
     </div>
   );
 }
@@ -134,6 +175,7 @@ function RequestNotice({
   scanDepth,
   request,
   hasResult,
+  selectedReference,
 }: {
   mode: DataSourceMode;
   projectId?: string;
@@ -141,6 +183,7 @@ function RequestNotice({
   scanDepth: DetailScanDepth;
   request: DetailRequestState;
   hasResult: boolean;
+  selectedReference?: EvidenceDetail;
 }) {
   if (mode === "sample") {
     return (
@@ -205,7 +248,15 @@ function RequestNotice({
     return (
       <div className="detail-empty-note">
         <Info className="ico" size={14} />
-        No {scanDepth === "component" ? "component-level" : "code-path"} result exists for this target yet.
+        {selectedReference ? (
+          <span>
+            Selected <b>{basename(selectedReference.file)}</b>
+            {lineLabel(selectedReference) ? `:${lineLabel(selectedReference)}` : ""}. Trace this reference to collect
+            bounded project-owned code-path hints.
+          </span>
+        ) : (
+          <span>No {scanDepth === "component" ? "component-level" : "code-path"} result exists for this target yet.</span>
+        )}
       </div>
     );
   }
@@ -233,7 +284,10 @@ function DetailResultView({
       <div className="detail-block">
         <span className="eyebrow">Result</span>
         <KeyValue label="status" value={result.status} tag />
-        <KeyValue label="target" value={compactId(result.target)} />
+        <KeyValue
+          label="target"
+          value={result.target_type === "evidence" ? "Selected code reference" : compactId(result.target)}
+        />
         <KeyValue label="scope" value={result.target_type} tag />
         <KeyValue label="scan depth" value={result.scan_depth} tag />
         <KeyValue label="best effort" value={result.best_effort} tag />
@@ -246,7 +300,7 @@ function DetailResultView({
         </div>
       ) : null}
 
-      {result.findings.length > 0 ? (
+      {result.findings.length > 0 && scanDepth === "component" ? (
         <div className="detail-block">
           <span className="eyebrow">Findings · {result.findings.length}</span>
           {result.findings.map((finding, index) => (
@@ -261,9 +315,13 @@ function DetailResultView({
                   {finding.evidence_ids.map((evidenceId) => {
                     const evidence = graph.details.evidence_by_id[evidenceId];
                     return (
-                      <button type="button" key={evidenceId} onClick={() => onEvidenceDrilldown(evidenceId)}>
-                        <FileCode2 size={13} />
-                        <span>{evidence?.file ?? evidence?.path ?? compactId(evidenceId)}</span>
+                      <button
+                        type="button"
+                        key={evidenceId}
+                        title={evidence?.file ?? "Review code reference"}
+                        onClick={() => onEvidenceDrilldown(evidenceId)}
+                      >
+                        <CodeReference evidence={evidence} compact />
                         <ChevronRight size={13} />
                       </button>
                     );
@@ -277,7 +335,13 @@ function DetailResultView({
 
       {scanDepth === "code_path" ? (
         <div className="detail-block">
-          <span className="eyebrow">Project-owned code path · {result.code_path.length}</span>
+          <span className="eyebrow">Project-owned static path hints · {result.code_path.length}</span>
+          {result.code_path.length > 0 ? (
+            <div className="detail-state is-warning">
+              <Info size={14} />
+              Best-effort static observations inside the bounded project context; not runtime call proof.
+            </div>
+          ) : null}
           {result.code_path.length > 0 ? (
             <ol className="code-path-list">
               {result.code_path.map((step, index) => {
@@ -296,7 +360,7 @@ function DetailResultView({
                         {step.file}
                         {lineRange ? `:${lineRange}` : ""}
                       </span>
-                      {step.best_effort ? <em>Best-effort hop</em> : null}
+                      {step.best_effort ? <em>Best-effort static hint</em> : null}
                     </div>
                   </li>
                 );
@@ -391,6 +455,9 @@ export function DetailPanel({
   const evidenceIds = node?.evidence_ids ?? edge?.evidence_ids ?? (trace?.evidence_id ? [trace.evidence_id] : []);
   const riskIds = node?.risk_hint_ids ?? edge?.risk_hint_ids ?? [];
   const scanDepth: DetailScanDepth = detailMode === "code_path" ? "code_path" : "component";
+  const selectedReference = evidenceTargetId
+    ? (graph.details.evidence_by_id[evidenceTargetId] ?? {})
+    : undefined;
   const scanTarget =
     detailMode === "code_path" && evidenceTargetId
       ? targetForEvidence(evidenceTargetId)
@@ -503,8 +570,11 @@ export function DetailPanel({
           <div className="detail-scan-heading">
             <div>
               <span className="eyebrow">{detailMode === "component" ? "L2 component detail" : "L3 code path"}</span>
-              <strong>{scanTarget?.label ?? "Unavailable target"}</strong>
-              {evidenceTargetId ? <span className="mono">Evidence: {compactId(evidenceTargetId)}</span> : null}
+              {selectedReference ? (
+                <CodeReference evidence={selectedReference} />
+              ) : (
+                <strong>{scanTarget?.label ?? "Unavailable target"}</strong>
+              )}
             </div>
             {dataSourceMode === "api" ? (
               <button
@@ -522,10 +592,20 @@ export function DetailPanel({
                 ) : (
                   <Route size={14} />
                 )}
-                {requestMatches && detailRequest.isPending ? "Scanning…" : result ? "Run again" : "Run scan"}
+                {requestMatches && detailRequest.isPending
+                  ? selectedReference
+                    ? "Tracing…"
+                    : "Scanning…"
+                  : result
+                    ? "Run again"
+                    : selectedReference
+                      ? "Trace reference"
+                      : "Run scan"}
               </button>
             ) : null}
           </div>
+
+          {selectedReference ? <CodeReferencePreview evidence={selectedReference} /> : null}
 
           <RequestNotice
             mode={dataSourceMode}
@@ -534,6 +614,7 @@ export function DetailPanel({
             scanDepth={scanDepth}
             request={requestMatches ? detailRequest : { isPending: false }}
             hasResult={result != null}
+            selectedReference={selectedReference}
           />
 
           {result ? (
