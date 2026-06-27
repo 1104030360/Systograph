@@ -990,3 +990,8 @@ h1, h2, h3 { margin: 0; }
   .timeline { grid-auto-columns: 78vw; }
   .tl-step { min-width: 0; }
 }
+.detail-mapping-action {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 14px;
+}

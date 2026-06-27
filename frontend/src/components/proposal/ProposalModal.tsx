@@ -30,10 +30,11 @@ import {
 import { CandidateCard } from "./CandidateCard";
 import { EditForm } from "./EditForm";
 import { PROPOSALS } from "../../data/scanTemplate.mock";
+import { useMappingProposal } from "../../hooks/useMappingProposal";
 import { useWording } from "../../wording";
 import type { ManualMappingCreate, MappingCandidate } from "../../types";
 
-export type ProposalTarget = { unmapped_id: string; node_path: string; node_kind?: string };
+export type ProposalTarget = { unmapped_id: string; node_path: string; node_kind?: string; realApi?: boolean };
 export type ProposalScenario = "ok" | "fallback" | "error" | "empty";
 
 type Phase = "loading" | "loaded" | "error" | "empty" | "result";
@@ -98,7 +99,7 @@ function ResultView({ result, node }: { result: Result; node: ProposalTarget }) 
       Icon: CheckCircle2,
       cls: "",
       title: "Match confirmed",
-      body: `${node.node_path} is now matched. The viewer will refresh with the new evidence.`,
+      body: `${node.node_path} was confirmed. The saved mapping will be applied by the next scan.`,
     },
     edit: {
       Icon: CheckCircle2,
@@ -132,7 +133,7 @@ function ResultView({ result, node }: { result: Result; node: ProposalTarget }) 
   );
 }
 
-export function ProposalModal({
+function SampleProposalModal({
   node,
   scenario = "ok",
   onClose,
@@ -171,12 +172,12 @@ export function ProposalModal({
       } else if (s === "fallback") {
         setPhase("loaded");
         setProvider({ name: "deterministic", fallback: true });
-        setSelectedId(candidates[0].candidate_id);
+        setSelectedId(candidates[0].candidate_id ?? null);
         setFoot({ kind: "ok", msg: w.fallbackSuggestions });
       } else {
         setPhase("loaded");
         setProvider({ name: "nvidia-nim", fallback: false });
-        setSelectedId(candidates[0].candidate_id);
+        setSelectedId(candidates[0].candidate_id ?? null);
         setFoot({ kind: "ok", msg: `${candidates.length} ${w.candidateWord.toLowerCase()}s ready` });
       }
     }, 650);
@@ -436,5 +437,167 @@ export function ProposalModal({
         )}
       </div>
     </div>
+  );
+}
+
+function ApiProposalModal({
+  node,
+  apiBaseUrl,
+  projectId,
+  onClose,
+}: {
+  node: ProposalTarget;
+  apiBaseUrl: string;
+  projectId: string;
+  onClose: () => void;
+}) {
+  const w = useWording();
+  const mapping = useMappingProposal(apiBaseUrl);
+  const [rejecting, setRejecting] = useState(false);
+
+  useEffect(() => {
+    mapping.load({ projectId, sourceUnmappedId: node.unmapped_id });
+    // A modal instance owns one immutable mapping target.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node.unmapped_id, projectId]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const proposal = mapping.proposal;
+  const result = mapping.decision?.result;
+  const error = mapping.loadError ?? mapping.decisionError;
+  const retry = () => {
+    mapping.reset();
+    mapping.load({ projectId, sourceUnmappedId: node.unmapped_id });
+  };
+
+  return (
+    <div className="mp-scrim" onClick={onClose}>
+      <div className="mp-sheet" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={w.modalTitle}>
+        <div className="mp-head">
+          <div className="mp-head-top">
+            <span className="kind-tag unmapped"><CircleDashed size={12} /> {w.unmappedTag}</span>
+            <h2>{w.modalTitle}</h2>
+            <button className="icon-btn mp-x" type="button" onClick={onClose} aria-label="Close"><X size={15} /></button>
+          </div>
+          <div className="mp-summary">
+            <div className="mp-summary-file">
+              <span className="mp-summary-k">{w.unmappedNodeLabel}</span>
+              <span className="mp-summary-v"><FileCode2 size={14} /><span className="path">{node.node_path}</span></span>
+            </div>
+          </div>
+        </div>
+
+        {mapping.isLoading ? (
+          <div className="mp-status"><span className="spinner" /> {w.lookingForSuggestions}</div>
+        ) : proposal?.provider_error_reason ? (
+          <div className="mp-status is-fallback"><AlertTriangle size={14} /> {w.fallbackSuggestions}</div>
+        ) : null}
+
+        <div className="mp-body">
+          {mapping.isLoading
+            ? [0, 1, 2].map((index) => (
+                <div className="mp-sk-cand" key={index}>
+                  <div className="sk h" /><div className="sk" /><div className="sk s" />
+                </div>
+              ))
+            : null}
+
+          {error ? (
+            <div className="st-state">
+              <div className="ico is-error"><PlugZap size={20} /></div>
+              <h4>Couldn't complete the mapping request</h4>
+              <p>{error}</p>
+              <button className="btn" type="button" onClick={retry}><RefreshCw size={14} /> Try again</button>
+            </div>
+          ) : null}
+
+          {!mapping.isLoading && !error && proposal?.candidates.length === 0 ? (
+            <div className="st-state">
+              <div className="ico"><Inbox size={20} /></div>
+              <h4>No suggestions found</h4>
+              <p>The component remains unknown. Run a deeper scan to collect more evidence, then retry.</p>
+              <button className="btn" type="button" onClick={retry}><RefreshCw size={14} /> Try again</button>
+            </div>
+          ) : null}
+
+          {!result && !error
+            ? proposal?.candidates.map((candidate, index) => (
+                <CandidateCard
+                  key={candidate.candidate_id ?? `${proposal.proposal_id}:${index}`}
+                  cand={candidate}
+                  index={index}
+                  selected={index === 0}
+                  busy={mapping.isDeciding}
+                  allowEdit={false}
+                  onSelect={() => {}}
+                  onEditOpen={() => {}}
+                  onAccept={() => {
+                    if (candidate.candidate_id) {
+                      mapping.decide({ proposal, decision: "accept", candidateId: candidate.candidate_id });
+                    }
+                  }}
+                  onReject={() => setRejecting(true)}
+                />
+              ))
+            : null}
+
+          {rejecting && proposal && !result ? (
+            <ReasonComposer
+              action="reject"
+              busy={mapping.isDeciding}
+              onCancel={() => setRejecting(false)}
+              onConfirm={(reason) => mapping.decide({ proposal, decision: "reject", reason })}
+            />
+          ) : null}
+
+          {result ? (
+            <ResultView node={node} result={{ kind: result.proposal.status === "accepted" ? "accept" : "reject" }} />
+          ) : null}
+
+          {mapping.decision?.refreshWarning ? (
+            <div className="detail-warning"><AlertTriangle size={14} /> {mapping.decision.refreshWarning}</div>
+          ) : null}
+        </div>
+
+        <div className="mp-foot">
+          <span className={`mp-foot-msg${result ? " is-ok" : error ? " is-error" : ""}`}>
+            {mapping.isDeciding ? <span className="spinner" /> : result ? <Check size={13} /> : null}
+            {mapping.isDeciding ? "Saving decision…" : result ? "Decision saved" : "Confirm or reject a suggestion"}
+          </span>
+          <div className="mp-foot-actions">
+            <button className={result ? "btn primary" : "btn"} type="button" disabled={mapping.isDeciding} onClick={onClose}>
+              {result ? "Done" : "Close"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ProposalModal({
+  node,
+  scenario = "ok",
+  apiBaseUrl,
+  projectId,
+  onClose,
+}: {
+  node: ProposalTarget;
+  scenario?: ProposalScenario;
+  apiBaseUrl?: string;
+  projectId?: string;
+  onClose: () => void;
+}) {
+  return apiBaseUrl && projectId ? (
+    <ApiProposalModal node={node} apiBaseUrl={apiBaseUrl} projectId={projectId} onClose={onClose} />
+  ) : (
+    <SampleProposalModal node={node} scenario={scenario} onClose={onClose} />
   );
 }

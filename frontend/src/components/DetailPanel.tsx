@@ -53,6 +53,7 @@ type Props = {
   detailMode: DetailMode;
   detailRequest: DetailRequestState;
   onRunDetailScan: (target: DetailScanTarget, scanDepth: DetailScanDepth) => void;
+  onOpenMappingProposal: (node: GraphNodeModel) => void;
   onDetailModeChange: (mode: DetailMode) => void;
   onClose: () => void;
 };
@@ -349,6 +350,7 @@ export function DetailPanel({
   detailMode,
   detailRequest,
   onRunDetailScan,
+  onOpenMappingProposal,
   onDetailModeChange,
   onClose,
 }: Props) {
@@ -475,6 +477,14 @@ export function DetailPanel({
           </div>
 
           <div className="detail-block">
+            {node &&
+            dataSourceMode === "api" &&
+            projectId &&
+            (node.type === "unmapped" || node.status === "needs_confirmation") ? (
+              <button className="btn primary detail-mapping-action" type="button" onClick={() => onOpenMappingProposal(node)}>
+                Review mapping proposal
+              </button>
+            ) : null}
             <span className="eyebrow">Evidence · {evidenceIds.length}</span>
             {evidenceIds.length > 0 ? (
               evidenceIds.map((id) => <EvidenceItem key={id} graph={graph} id={id} />)

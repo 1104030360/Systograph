@@ -494,6 +494,14 @@ export default function App() {
                   refreshWarning: detailScan.data?.refreshError,
                 }}
                 onRunDetailScan={handleRunDetailScan}
+                onOpenMappingProposal={(node) =>
+                  setProposalTarget({
+                    unmapped_id: node.source_id ?? node.id.replace(/^node:/, ""),
+                    node_path: node.subtitle ?? node.label,
+                    node_kind: node.type,
+                    realApi: true,
+                  })
+                }
                 onDetailModeChange={setDetailMode}
                 onClose={() => setSelected(null)}
               />
@@ -548,7 +556,13 @@ export default function App() {
         ) : null}
 
         {proposalTarget ? (
-          <ProposalModal node={proposalTarget} scenario="ok" onClose={() => setProposalTarget(null)} />
+          <ProposalModal
+            node={proposalTarget}
+            scenario="ok"
+            apiBaseUrl={proposalTarget.realApi ? apiBaseUrl : undefined}
+            projectId={proposalTarget.realApi ? projectSession?.project_id : undefined}
+            onClose={() => setProposalTarget(null)}
+          />
         ) : null}
       </WordingProvider>
     </div>

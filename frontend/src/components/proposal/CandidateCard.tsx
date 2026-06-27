@@ -18,6 +18,7 @@ export function CandidateCard({
   onAccept,
   onEditOpen,
   onReject,
+  allowEdit = true,
 }: {
   cand: MappingCandidate;
   index: number;
@@ -27,6 +28,7 @@ export function CandidateCard({
   onAccept: () => void;
   onEditOpen: () => void;
   onReject: () => void;
+  allowEdit?: boolean;
 }) {
   const w = useWording();
   const isRecommended = cand.recommendation_level === "recommended";
@@ -46,7 +48,7 @@ export function CandidateCard({
       </div>
       <div className="mp-cand-body">
         <p className="mp-verdict">
-          {w.verdictPre} <b>{cand.component_name}</b>
+          {w.verdictPre} <b>{cand.component_name ?? cand.proposed_extension_name ?? cand.label ?? "Suggested component"}</b>
           {w.verdictPost}
         </p>
         <p className="mp-why">
@@ -64,9 +66,11 @@ export function CandidateCard({
         <button className="btn primary" type="button" disabled={busy} onClick={onAccept}>
           <Check size={14} /> {w.acceptBtn}
         </button>
-        <button className="btn" type="button" disabled={busy} onClick={onEditOpen}>
-          <Pencil size={14} /> {w.editBtn}
-        </button>
+        {allowEdit ? (
+          <button className="btn" type="button" disabled={busy} onClick={onEditOpen}>
+            <Pencil size={14} /> {w.editBtn}
+          </button>
+        ) : null}
         <span className="spacer" />
         <button className="btn danger" type="button" disabled={busy} onClick={onReject}>
           <X size={14} /> {w.rejectBtn}
