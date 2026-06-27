@@ -5,6 +5,7 @@ import { ChatPanel } from "./components/ChatPanel";
 import { BoundaryDecisionModal, decisionsForBoundary } from "./components/BoundaryDecisionModal";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
+import { DraggableInspector } from "./components/DraggableInspector";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { ReplayTimeline } from "./components/ReplayTimeline";
 import { Sidebar } from "./components/Sidebar";
@@ -475,7 +476,7 @@ export default function App() {
           </div>
 
           {selected && !showOverlay && payload ? (
-            <div className="inspector">
+            <DraggableInspector>
               <DetailPanel
                 graph={graph}
                 payload={payload}
@@ -505,7 +506,7 @@ export default function App() {
                 onDetailModeChange={setDetailMode}
                 onClose={() => setSelected(null)}
               />
-            </div>
+            </DraggableInspector>
           ) : null}
         </div>
 

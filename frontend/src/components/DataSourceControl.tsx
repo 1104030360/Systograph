@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { RefreshCw, Server } from "lucide-react";
 import type { DataSourceMode } from "../types";
 
@@ -30,8 +31,33 @@ export function DataSourceControl({
   onRefresh,
   onStartScan,
 }: Props) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    function closeOnOutsidePointer(event: PointerEvent) {
+      const details = detailsRef.current;
+      if (details?.open && event.target instanceof Node && !details.contains(event.target)) {
+        details.open = false;
+      }
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && detailsRef.current?.open) {
+        detailsRef.current.open = false;
+        detailsRef.current.querySelector("summary")?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
   return (
-    <details className="toolbar-menu source-control">
+    <details ref={detailsRef} className="toolbar-menu source-control">
       <summary className="source-summary" aria-label={`Source ${mode}`}>
         <Server size={13} />
         <span>Source</span>
