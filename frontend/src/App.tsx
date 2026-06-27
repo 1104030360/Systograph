@@ -15,12 +15,20 @@ import { ProposalModal, type ProposalTarget } from "./components/proposal/Propos
 import { WordingProvider } from "./wording";
 import { getTraceEvents, viewerPayload as sampleViewerPayload } from "./data/sampleMap";
 import { useScanProgress } from "./hooks/useScanProgress";
+import { useDetailScan } from "./hooks/useDetailScan";
 import { useTheme } from "./hooks/useTheme";
 import { useViewerPayload } from "./hooks/useViewerPayload";
 import { importProject, startProjectScan } from "./services/projectScanApi";
 import { loadApiViewerPayload } from "./services/viewerApi";
+import type { DetailScanTarget } from "./services/detailScanApi";
 import { useViewerStore } from "./store/viewerStore";
-import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal } from "./types";
+import type {
+  DetailScanDepth,
+  GraphViewModel,
+  ProjectImportResponse,
+  ScanBoundaryAction,
+  ScanBoundaryProposal,
+} from "./types";
 import { createProgressTargets, resolveProgressTargetId } from "./utils/graph";
 
 const EMPTY_GRAPH: GraphViewModel = {
@@ -47,6 +55,7 @@ export default function App() {
   const setDataSourceMode = useViewerStore((state) => state.setDataSourceMode);
   const setApiBaseUrl = useViewerStore((state) => state.setApiBaseUrl);
   const payloadQuery = useViewerPayload(dataSourceMode, apiBaseUrl);
+  const detailScan = useDetailScan(apiBaseUrl);
   const data = payloadQuery.data;
 
   // ---- state matrix (explicit and honest) --------------------------------
@@ -292,6 +301,15 @@ export default function App() {
     await runScan(projectSession, decisionsForBoundary(pendingBoundary, boundaryDecisions));
   }, [boundaryDecisions, pendingBoundary, projectSession, runScan]);
 
+  const handleRunDetailScan = (target: DetailScanTarget, scanDepth: DetailScanDepth) => {
+    if (!projectSession) return;
+    detailScan.run({
+      projectId: projectSession.project_id,
+      target,
+      scanDepth,
+    });
+  };
+
   const projectName = graph.summary?.project_name ? String(graph.summary.project_name) : "Local AI Health Doctor";
 
   return (
@@ -462,7 +480,20 @@ export default function App() {
                 graph={graph}
                 payload={payload}
                 selected={selected}
+                traceEvents={traceEvents}
+                dataSourceMode={dataSourceMode}
+                projectId={dataSourceMode === "api" ? projectSession?.project_id : undefined}
                 detailMode={detailMode}
+                detailRequest={{
+                  projectId: detailScan.variables?.projectId,
+                  target: detailScan.variables?.target,
+                  scanDepth: detailScan.variables?.scanDepth,
+                  result: detailScan.data?.response.detail_scan,
+                  isPending: detailScan.isPending,
+                  error: detailScan.error,
+                  refreshWarning: detailScan.data?.refreshError,
+                }}
+                onRunDetailScan={handleRunDetailScan}
                 onDetailModeChange={setDetailMode}
                 onClose={() => setSelected(null)}
               />
@@ -475,6 +506,9 @@ export default function App() {
           activeIndex={activeTraceIndex}
           isRunning={isReplayRunning}
           onIndexChange={setActiveTraceIndex}
+          onSelectEvent={(event) => {
+            if (event.id) setSelected({ kind: "trace", id: event.id });
+          }}
           onRunningChange={setReplayRunning}
         />
       </section>

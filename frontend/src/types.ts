@@ -48,6 +48,36 @@ export const riskHintDetailSchema = z
   })
   .passthrough();
 
+export const detailScanFindingSchema = z.object({
+  kind: z.string(),
+  summary: z.string(),
+  evidence_ids: stringArray,
+  best_effort: z.boolean().nullable().optional(),
+});
+
+export const codePathStepSchema = z.object({
+  file: z.string(),
+  symbol: z.string().nullable().optional(),
+  line_start: z.number().int().positive().nullable().optional(),
+  line_end: z.number().int().positive().nullable().optional(),
+  evidence_id: z.string().nullable().optional(),
+  best_effort: z.boolean().nullable().optional(),
+});
+
+export const detailScanResultSchema = z.object({
+  id: z.string(),
+  target_type: z.string(),
+  target: z.string(),
+  scan_depth: z.enum(["component", "code_path"]),
+  status: z.string(),
+  replay_depth: z.string().nullable().optional(),
+  findings: z.array(detailScanFindingSchema).default([]),
+  code_path: z.array(codePathStepSchema).default([]),
+  warnings: stringArray,
+  best_effort: z.boolean().nullable().optional(),
+  context_limits: z.record(z.unknown()).default({}),
+});
+
 export const graphFilterSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -103,6 +133,7 @@ export const viewerPayloadSchema = z.object({
         scan_summary: scanSummarySchema.optional(),
         query_trace_events: z.array(z.record(z.unknown())).optional(),
         unmapped_components: z.array(z.record(z.unknown())).optional(),
+        detail_scans: z.array(detailScanResultSchema).optional(),
       }),
     ),
     graph_view_model: graphViewModelSchema,
@@ -136,6 +167,9 @@ export type GraphFilterModel = z.infer<typeof graphFilterSchema>;
 export type GraphViewModel = z.infer<typeof graphViewModelSchema>;
 export type ViewerPayload = z.infer<typeof viewerPayloadSchema>;
 export type ScanProgressEvent = z.infer<typeof scanProgressEventSchema>;
+export type DetailScanFinding = z.infer<typeof detailScanFindingSchema>;
+export type CodePathStep = z.infer<typeof codePathStepSchema>;
+export type DetailScanResult = z.infer<typeof detailScanResultSchema>;
 
 export type DataSourceMode = "sample" | "api";
 
@@ -225,6 +259,31 @@ export type ScanBoundaryDecision = z.infer<typeof scanBoundaryDecisionSchema>;
 export type ScanCreateRequest = z.infer<typeof scanCreateRequestSchema>;
 export type ScanCreateResponse = z.infer<typeof scanCreateResponseSchema>;
 
+export const detailScanCreateRequestSchema = z.object({
+  project_id: z.string().min(1),
+  target_type: z.enum([
+    "component_slot",
+    "component_instance",
+    "extension",
+    "unmapped_component",
+    "edge",
+    "evidence",
+  ]),
+  target: z.string().min(1),
+  scan_depth: z.enum(["component", "code_path"]),
+});
+
+export const detailScanResponseSchema = z.object({
+  project_id: z.string(),
+  detail_scan: detailScanResultSchema,
+  ai_system_map: z.record(z.unknown()),
+});
+
+export type DetailScanCreateRequest = z.infer<typeof detailScanCreateRequestSchema>;
+export type DetailScanResponse = z.infer<typeof detailScanResponseSchema>;
+export type DetailScanDepth = DetailScanCreateRequest["scan_depth"];
+export type DetailScanTargetType = DetailScanCreateRequest["target_type"];
+
 export type Selection =
   | { kind: "node"; id: string }
   | { kind: "edge"; id: string }
@@ -248,6 +307,7 @@ export const traceEventSchema = z.object({
     .optional(),
   input: z.record(z.unknown()).optional(),
   output: z.record(z.unknown()).optional(),
+  evidence_id: z.string().nullable().optional(),
 });
 
 export type TraceEvent = z.infer<typeof traceEventSchema>;

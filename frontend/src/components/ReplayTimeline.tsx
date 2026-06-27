@@ -7,10 +7,18 @@ type Props = {
   activeIndex: number;
   isRunning: boolean;
   onIndexChange: (index: number) => void;
+  onSelectEvent?: (event: TraceEvent) => void;
   onRunningChange: (running: boolean) => void;
 };
 
-export function ReplayTimeline({ events, activeIndex, isRunning, onIndexChange, onRunningChange }: Props) {
+export function ReplayTimeline({
+  events,
+  activeIndex,
+  isRunning,
+  onIndexChange,
+  onSelectEvent,
+  onRunningChange,
+}: Props) {
   const active = events[activeIndex];
   const maxIndex = Math.max(events.length - 1, 0);
 
@@ -76,7 +84,10 @@ export function ReplayTimeline({ events, activeIndex, isRunning, onIndexChange, 
                 .filter(Boolean)
                 .join(" ")}
               type="button"
-              onClick={() => onIndexChange(index)}
+              onClick={() => {
+                onIndexChange(index);
+                onSelectEvent?.(event);
+              }}
             >
               <span className="tl-idx">{index + 1}</span>
               <span className="tl-body">

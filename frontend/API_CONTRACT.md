@@ -216,16 +216,63 @@ The UI already supports replay ordering by `sequence_index`. A future API endpoi
 
 ## Detail Scan
 
-For this checkpoint, L2/L3 panels render the sample `detail_scan_result_sample` and `mapping_proposal_result_sample`.
+Sample mode continues to render bounded examples from `detail_scan_result_sample` and
+`viewer_load_result.ai_system_map.detail_scans`. API mode uses the project session created by
+the Project-Scoped Scan Flow and calls the real detail scan endpoint.
 
-The future frontend request should stay aligned with Timmy's design:
+```http
+POST /api/detail-scans
+Content-Type: application/json
+```
 
 ```json
 {
-  "target_type": "component_slot | component | edge | trace_step",
-  "target": "node-or-edge-or-source-id",
+  "project_id": "project:<uuid>",
+  "target_type": "component_slot | component_instance | extension | unmapped_component | edge | evidence",
+  "target": "canonical-source-id",
   "scan_depth": "component | code_path"
 }
 ```
 
-The result should be append-only evidence/detail data. It must not silently rewrite canonical facts before validation or user confirmation.
+The frontend derives `target` from the graph model's canonical `source_id`, never from a
+display label. Invalid or unavailable targets are rejected before a request is sent.
+
+```ts
+{
+  project_id: string;
+  detail_scan: {
+    id: string;
+    target_type: string;
+    target: string;
+    scan_depth: "component" | "code_path";
+    status: string;
+    findings: Array<{
+      kind: string;
+      summary: string;
+      evidence_ids: string[];
+      best_effort?: boolean | null;
+    }>;
+    code_path: Array<{
+      file: string;
+      symbol?: string | null;
+      line_start?: number | null;
+      line_end?: number | null;
+      evidence_id?: string | null;
+      best_effort?: boolean | null;
+    }>;
+    warnings: string[];
+    best_effort?: boolean | null;
+    context_limits: Record<string, unknown>;
+  };
+  ai_system_map: object;
+}
+```
+
+After success, API mode reloads `GET /api/map` so the graph and inspector receive the backend's
+validated projection. A map-refresh failure is shown separately from Detail Scan completion and
+does not clear the existing graph.
+
+L3 renders only the project-relative file, symbol, and exact `line_start`/`line_end` supplied by
+the backend. It does not invent a fixed surrounding-line window or perform frontend code-path
+inference. Findings and evidence are supplemental, append-only information and never silently
+rewrite canonical facts. The UI does not render raw source blobs or full secret values.

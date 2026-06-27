@@ -19,9 +19,22 @@ const DEPTH_ROWS = [
 ];
 const DEPTH_ORDER = ["system", "component", "code_path"];
 
+const FILTER_GROUPS = [
+  { id: "status", label: "Status", kinds: ["status"] },
+  { id: "type", label: "Component type", kinds: ["type"] },
+  { id: "flow", label: "Flow", kinds: ["flow"] },
+  { id: "review", label: "Review signals", kinds: ["risk", "mapping"] },
+] as const;
+
 function fdotKind(kind: string): string {
   if (kind === "flow" || kind === "risk" || kind === "mapping") return kind;
   return "";
+}
+
+function filterDisplayLabel(filter: GraphFilterModel): string {
+  if (filter.kind === "status") return filter.label.replace(/^Status:\s*/i, "");
+  if (filter.kind === "type") return filter.label.replace(/^Type:\s*/i, "");
+  return filter.label;
 }
 
 export function Sidebar({
@@ -34,13 +47,25 @@ export function Sidebar({
   onToggleFilter,
   onClearFilters,
 }: Props) {
-  const cell = (value: number | undefined) => (dataAvailable && value != null ? String(value) : "unknown");
-  const missingAndNotConfigured =
-    dataAvailable && (scanSummary?.missing_slots != null || scanSummary?.not_configured_slots != null)
-      ? String((scanSummary?.missing_slots ?? 0) + (scanSummary?.not_configured_slots ?? 0))
-      : "unknown";
+  const cell = (value: number | undefined) => (value != null ? String(value) : "—");
+  const missingAndNotConfigured = String(
+    (scanSummary?.missing_slots ?? 0) + (scanSummary?.not_configured_slots ?? 0),
+  );
   const reached = dataAvailable && scanDepth ? DEPTH_ORDER.indexOf(scanDepth) : -1;
-  const scanStatus = dataAvailable ? (scanSummary?.status ?? "unknown") : "unknown";
+  const scanStatus = scanSummary?.status ?? "unknown";
+  const knownFilterKinds = new Set<string>(FILTER_GROUPS.flatMap((group) => group.kinds));
+  const groupedFilters = [
+    ...FILTER_GROUPS.map((group) => ({
+      id: group.id,
+      label: group.label,
+      filters: filters.filter((filter) => (group.kinds as readonly string[]).includes(filter.kind)),
+    })),
+    {
+      id: "other",
+      label: "Other",
+      filters: filters.filter((filter) => !knownFilterKinds.has(filter.kind)),
+    },
+  ].filter((group) => group.filters.length > 0);
 
   return (
     <aside className={isOpen ? "sidebar is-open" : "sidebar"}>
@@ -58,26 +83,36 @@ export function Sidebar({
         <div className="side-head">
           <span className="eyebrow">Scan summary</span>
         </div>
-        <div className="summary-compact">
-          <div className="summary-status">
-            <span className="pulse" />
-            <strong>{scanStatus}</strong>
+        {dataAvailable && scanSummary ? (
+          <div className="summary-compact">
+            <div className="summary-status">
+              <span className="pulse" />
+              <strong>{scanStatus}</strong>
+            </div>
+            <div className="summary-line">
+              <span><b>{cell(scanSummary.detected_slots)}</b> detected</span>
+              <span><b>{missingAndNotConfigured}</b> missing</span>
+            </div>
+            <div className="summary-line">
+              <span><b>{cell(scanSummary.risk_hints)}</b> risk hints</span>
+              <span><b>{cell(scanSummary.unmapped_components)}</b> unmapped</span>
+            </div>
           </div>
-          <div className="summary-line">
-            <span>{cell(scanSummary?.detected_slots)} detected</span>
-            <span>{missingAndNotConfigured} missing</span>
+        ) : (
+          <div className="summary-empty">
+            <span className="summary-empty-icon">
+              <Info size={15} />
+            </span>
+            <div>
+              <strong>{dataAvailable ? "Map loaded" : "Waiting for map"}</strong>
+              <span>
+                {dataAvailable
+                  ? "This map does not include scan summary metrics."
+                  : "Choose API, enter a project path, then start a scan."}
+              </span>
+            </div>
           </div>
-          <div className="summary-line">
-            <span>{cell(scanSummary?.risk_hints)} risk hints</span>
-            <span>{cell(scanSummary?.unmapped_components)} unmapped</span>
-          </div>
-        </div>
-        {!dataAvailable ? (
-          <div className="scan-banner is-neutral">
-            <Info className="ico" size={14} />
-            <span>No map loaded. Summary unavailable until the backend returns a system map.</span>
-          </div>
-        ) : null}
+        )}
       </section>
 
       <section className="side-section">
@@ -87,24 +122,37 @@ export function Sidebar({
             <RotateCcw size={14} />
           </button>
         </div>
-        <div className="filter-list">
-          {filters.map((filter) => {
-            const active = activeFilterIds.includes(filter.id);
-            return (
-              <button
-                key={filter.id}
-                className={active ? "filter-pill is-active" : "filter-pill"}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onToggleFilter(filter.id)}
-              >
-                <span className={`fdot ${fdotKind(filter.kind)}`} />
-                {filter.label}
-                <span className="fcount">{filter.matches_node_ids.length + filter.matches_edge_ids.length}</span>
-              </button>
-            );
-          })}
-        </div>
+        {groupedFilters.length > 0 ? (
+          <div className="filter-groups">
+            {groupedFilters.map((group) => (
+              <section className="filter-group" key={group.id} aria-labelledby={`filter-group-${group.id}`}>
+                <h3 id={`filter-group-${group.id}`}>{group.label}</h3>
+                <div className="filter-list">
+                  {group.filters.map((filter) => {
+                    const active = activeFilterIds.includes(filter.id);
+                    return (
+                      <button
+                        key={filter.id}
+                        className={active ? "filter-pill is-active" : "filter-pill"}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => onToggleFilter(filter.id)}
+                      >
+                        <span className={`fdot ${fdotKind(filter.kind)}`} />
+                        <span className="filter-label">{filterDisplayLabel(filter)}</span>
+                        <span className="fcount">
+                          {filter.matches_node_ids.length + filter.matches_edge_ids.length}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="filter-empty">Filters appear after a map is loaded.</div>
+        )}
       </section>
 
       <details className="side-section collapse-section">
