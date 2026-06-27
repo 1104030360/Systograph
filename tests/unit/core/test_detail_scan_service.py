@@ -335,6 +335,67 @@ def test_detail_scan_supports_evidence_target_without_source_attachment(
     assert original.id == "evidence:retriever"
 
 
+def test_evidence_drilldown_uses_bounded_non_recursive_ids(
+    tmp_path: Path,
+) -> None:
+    project_root = build_router_project(tmp_path)
+    service = DetailScanService()
+    l2_result = service.scan(
+        project_root=project_root,
+        system_map=base_map(),
+        target_type="unmapped_component",
+        target="unmapped:router",
+        scan_depth="component",
+    )
+    l2_evidence_id = l2_result.detail_scan.findings[0].evidence_ids[0]
+
+    l3_result = service.scan(
+        project_root=project_root,
+        system_map=l2_result.system_map,
+        target_type="evidence",
+        target=l2_evidence_id,
+        scan_depth="code_path",
+    )
+    l3_evidence_ids = [
+        evidence_id
+        for finding in l3_result.detail_scan.findings
+        for evidence_id in finding.evidence_ids
+    ]
+    recursive_slug = "".join(
+        character.lower() if character.isalnum() else "-"
+        for character in l2_evidence_id
+    ).strip("-")
+
+    assert l3_result.detail_scan.code_path
+    assert l3_evidence_ids
+    assert all(
+        evidence_id.startswith("evidence:detail-scan:evidence-")
+        for evidence_id in l3_evidence_ids
+    )
+    assert all(len(evidence_id) <= 160 for evidence_id in l3_evidence_ids)
+    assert recursive_slug not in " ".join(l3_evidence_ids)
+    assert len(l3_result.detail_scan.id) <= 96
+    assert recursive_slug not in l3_result.detail_scan.id
+
+    repeated_result = service.scan(
+        project_root=project_root,
+        system_map=l3_result.system_map,
+        target_type="evidence",
+        target=l3_evidence_ids[0],
+        scan_depth="code_path",
+    )
+    repeated_ids = [
+        evidence_id
+        for finding in repeated_result.detail_scan.findings
+        for evidence_id in finding.evidence_ids
+    ]
+
+    assert repeated_result.detail_scan.code_path
+    assert repeated_ids
+    assert all(len(evidence_id) <= 160 for evidence_id in repeated_ids)
+    assert len(repeated_result.detail_scan.id) <= 96
+
+
 def build_router_project(tmp_path: Path) -> Path:
     project_root = tmp_path / "router_project"
     source_dir = project_root / "src"
