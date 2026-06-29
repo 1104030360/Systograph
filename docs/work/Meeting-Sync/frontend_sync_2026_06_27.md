@@ -4,6 +4,7 @@
 
 - Base branch：`main`
 - Head branch：`feature/detail-scan-ui-flow`
+- Pull request：#198
 - GitHub issues：#81、#82、#83
 - 後端依賴：#43（已完成）
 - Project session 依賴：#122 / PR #196（已完成並 merge）
@@ -104,7 +105,28 @@ Frontend 已提供 typed API helper；目前互動流程直接使用 POST respon
 - `frontend/src/types.ts`
 - `frontend/API_CONTRACT.md`
 
-## 7. 驗證結果
+## 7. 本 branch 的後端修改（請特別 review）
+
+這個 PR 主要是 frontend integration，但包含一項必要的 backend correctness fix：
+
+- 修改 `src/kai_mind/core/services/detail_scan_service.py`。
+- evidence 作為下一層 Detail Scan target 時，不再把完整上一層 evidence ID
+  遞迴嵌入新的 detail-scan/evidence ID。
+- `_target_slug(...)` 對 evidence target 使用 SHA-256 的 16 字元摘要，讓 ID
+  保持 deterministic、readable prefix 與 bounded length。
+- 非 evidence target 只有在 slug 超過 80 字元時才改用摘要，避免一般 ID
+  不必要地失去可讀性。
+- 這項修改不改變 API request/response schema，也不寫入被掃描專案。
+
+對應 regression test 位於
+`tests/unit/core/test_detail_scan_service.py`：
+
+- 驗證 repeated evidence drill-down 不包含上一層 recursive slug。
+- 驗證產生的 evidence ID 不超過 160 字元。
+- 驗證 Detail Scan ID 不超過 96 字元。
+- 驗證重複進入 L3 code-path scan 仍能產出 bounded result。
+
+## 8. 驗證結果
 
 ### Frontend
 
@@ -125,10 +147,10 @@ pnpm --dir frontend run build
 ### Backend contract
 
 ```powershell
-uv run pytest tests/web/test_detail_scan_routes.py
+uv run pytest tests/web/test_detail_scan_routes.py tests/unit/core/test_detail_scan_service.py
 ```
 
-結果：`2 passed`。
+結果：`14 passed`。
 
 ### 已完成的 desktop interaction checks
 
@@ -140,7 +162,7 @@ uv run pytest tests/web/test_detail_scan_routes.py
 
 依開發過程中的決定，完整 Playwright responsive pass 暫停；mobile 仍需人工確認。
 
-## 8. Merge 前人工確認
+## 9. Merge 前人工確認
 
 使用 fixture：
 
@@ -160,9 +182,9 @@ tests/fixtures/rag_projects/basic_qdrant_ollama_rag
 8. 在 390 px 左右寬度確認 Summary、filter groups、Detail Panel tabs、長路徑與按鈕
    沒有重疊或水平溢出。
 
-## 9. 後續工作
+## 10. 後續工作
 
 1. 完成本 PR 的 mobile / narrow viewport review。
-2. Merge 後從最新 `main` 建立獨立 branch 實作 #85。
+2. #85 已由 stacked PR #199 實作；#198 merge 後將 #199 retarget/rebase 到 `main`。
 3. #85 不應因 #81–#83 完成而提前關閉。
 4. Bundle / `web-worker` warnings 應由獨立 build-performance task 處理。
