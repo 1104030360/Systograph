@@ -4,11 +4,9 @@
      candidate → accept | edit(+validation) | reject(+reason) | skip(+reason)
      result → accept/edit/reject/skip success
 
-   The proposal shapes already match the real /api/mapping-proposals contract, so
-   the swap point is small: replace the `runLoad` / `decide` setTimeout stubs with
-   the real create / decide mutations and forward `provider_name` /
-   `provider_error_reason` into the `scenario`. On any decision success, the host
-   should refetch the viewer payload and close.
+   API mode uses the real /api/mapping-proposals lifecycle. Sample mode keeps the
+   local state-machine seam for deterministic UI review. Confirm refreshes the
+   viewer payload; reject preserves the unknown component state.
 
    To avoid overwhelming the user, only the recommended candidate is expanded by
    default; the rest sit behind an "Other suggestions" toggle. */
