@@ -139,6 +139,10 @@ export type ScanProgressEvent = z.infer<typeof scanProgressEventSchema>;
 
 export type DataSourceMode = "sample" | "api";
 
+export const viewerLoadMapRequestSchema = z.object({
+  map_json_path: z.string().trim().min(1),
+});
+
 export const apiErrorSchema = z
   .object({
     detail: z.union([z.string(), z.record(z.unknown()), z.array(z.unknown())]).optional(),
@@ -217,6 +221,7 @@ export const scanCreateResponseSchema = z.object({
 });
 
 export type ApiErrorPayload = z.infer<typeof apiErrorSchema>;
+export type ViewerLoadMapRequest = z.infer<typeof viewerLoadMapRequestSchema>;
 export type ProjectImportRequest = z.infer<typeof projectImportRequestSchema>;
 export type ProjectImportResponse = z.infer<typeof projectImportResponseSchema>;
 export type ScanBoundaryAction = z.infer<typeof scanBoundaryActionSchema>;

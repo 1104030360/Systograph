@@ -7,6 +7,7 @@ import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { ReplayTimeline } from "./components/ReplayTimeline";
+import { ReportPreviewModal } from "./components/ReportPreviewModal";
 import { SampleDataIndicator } from "./components/SampleDataIndicator";
 import { Sidebar } from "./components/Sidebar";
 import { StateOverlay, type ViewerState } from "./components/StateOverlay";
@@ -19,6 +20,11 @@ import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
 import { useViewerPayload } from "./hooks/useViewerPayload";
 import { importProject, startProjectScan } from "./services/projectScanApi";
+import {
+  loadExistingViewerMap,
+  loadLatestMapReport,
+  mapReportDownloadUrl,
+} from "./services/viewerArtifactApi";
 import { loadApiViewerPayload } from "./services/viewerApi";
 import { useViewerStore } from "./store/viewerStore";
 import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal } from "./types";
@@ -98,11 +104,15 @@ export default function App() {
   const [fitSignal, setFitSignal] = useState(0);
   const [graphInteracting, setGraphInteracting] = useState(false);
   const [projectPath, setProjectPath] = useState("");
+  const [mapJsonPath, setMapJsonPath] = useState("");
   const [projectSession, setProjectSession] = useState<ProjectImportResponse | null>(null);
   const [pendingBoundary, setPendingBoundary] = useState<ScanBoundaryProposal[]>([]);
   const [boundaryDecisions, setBoundaryDecisions] = useState<Record<string, ScanBoundaryAction>>({});
   const [scanBusy, setScanBusy] = useState(false);
   const [scanFlowError, setScanFlowError] = useState<string | undefined>();
+  const [artifactBusy, setArtifactBusy] = useState<"load-map" | "report">();
+  const [artifactError, setArtifactError] = useState<string>();
+  const [reportMarkdown, setReportMarkdown] = useState<string>();
   // Scan Template route (full-bleed overlay) + Mapping Proposal modal (z 60, can
   // sit over the route or the graph). The selection API does not exist yet, so
   // the page runs on the scanTemplateApi mock seam.
@@ -296,6 +306,50 @@ export default function App() {
     await runScan(projectSession, decisionsForBoundary(pendingBoundary, boundaryDecisions));
   }, [boundaryDecisions, pendingBoundary, projectSession, runScan]);
 
+  const handleLoadExistingMap = useCallback(async () => {
+    const path = mapJsonPath.trim();
+    if (!path) return;
+
+    setArtifactBusy("load-map");
+    setArtifactError(undefined);
+    try {
+      const freshPayload = await loadExistingViewerMap(apiBaseUrl, path);
+      queryClient.setQueryData(
+        ["viewer-load-result", "api", apiBaseUrl],
+        freshPayload,
+      );
+      setProjectSession(null);
+      setDataSourceMode("api");
+      resetFocus();
+    } catch (error) {
+      setArtifactError(
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setArtifactBusy(undefined);
+    }
+  }, [
+    apiBaseUrl,
+    mapJsonPath,
+    queryClient,
+    resetFocus,
+    setDataSourceMode,
+  ]);
+
+  const handlePreviewReport = useCallback(async () => {
+    setArtifactBusy("report");
+    setArtifactError(undefined);
+    try {
+      setReportMarkdown(await loadLatestMapReport(apiBaseUrl));
+    } catch (error) {
+      setArtifactError(
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setArtifactBusy(undefined);
+    }
+  }, [apiBaseUrl]);
+
   const projectName = graph.summary?.project_name ? String(graph.summary.project_name) : "Local AI Health Doctor";
 
   return (
@@ -375,15 +429,22 @@ export default function App() {
             mode={dataSourceMode}
             apiBaseUrl={apiBaseUrl}
             projectPath={projectPath}
+            mapJsonPath={mapJsonPath}
             isLoading={payloadQuery.isFetching}
             isScanning={scanBusy}
+            artifactBusy={artifactBusy}
             error={sourceError}
             scanError={scanFlowError}
+            artifactError={artifactError}
+            reportDownloadUrl={mapReportDownloadUrl(apiBaseUrl)}
             onModeChange={setDataSourceMode}
             onApiBaseUrlChange={setApiBaseUrl}
             onProjectPathChange={setProjectPath}
+            onMapJsonPathChange={setMapJsonPath}
             onRefresh={() => void payloadQuery.refetch()}
             onStartScan={() => void handleStartScan()}
+            onLoadMap={() => void handleLoadExistingMap()}
+            onPreviewReport={() => void handlePreviewReport()}
           />
 
           <button
@@ -486,6 +547,14 @@ export default function App() {
       </section>
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+
+      {reportMarkdown !== undefined ? (
+        <ReportPreviewModal
+          markdown={reportMarkdown}
+          downloadUrl={mapReportDownloadUrl(apiBaseUrl)}
+          onClose={() => setReportMarkdown(undefined)}
+        />
+      ) : null}
 
       {pendingBoundary.length > 0 ? (
         <BoundaryDecisionModal

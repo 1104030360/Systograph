@@ -56,6 +56,52 @@ Response shape must match the sample file:
 
 The frontend treats `graph_view_model` as the rendering input. It does not rescan files and does not infer canonical facts.
 
+### Load an existing map artifact
+
+API mode can ask the backend to validate and load an existing map JSON:
+
+```http
+POST /api/viewer/load
+Content-Type: application/json
+```
+
+```json
+{
+  "map_json_path": "C:\\path\\to\\ai_system_map.json"
+}
+```
+
+The path is resolved by the local backend. Browser code does not read the file
+directly. The response is the same `ViewerPayload` shape as `GET /api/map`.
+When `viewer_load_result.loaded` is false, the frontend reports
+`error_reason` and retains the currently displayed graph.
+
+### Latest Markdown report
+
+```http
+GET /api/map/report
+Accept: text/markdown
+```
+
+The route returns the latest controlled Markdown report artifact. Before a
+successful build/load with an available report, it returns:
+
+```json
+{
+  "detail": "map_markdown_not_available"
+}
+```
+
+Download uses the same controlled artifact:
+
+```http
+GET /api/map/report?download=true
+```
+
+The backend supplies `Content-Disposition: attachment;
+filename="ai_system_map.md"`. The frontend never accepts an arbitrary report
+path.
+
 ## Project-Scoped Scan Flow
 
 The API mode can start a scan from a local project path. The frontend first imports the project path, then starts a scan with the returned project id. It does not call `/api/map/build` for this interactive flow.

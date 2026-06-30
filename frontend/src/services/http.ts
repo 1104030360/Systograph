@@ -20,11 +20,28 @@ export async function fetchJson(
   url: string,
   options: RequestInit & { timeoutMs?: number } = {},
 ): Promise<unknown> {
+  const response = await fetchResponse(url, options, "application/json");
+  return response.json();
+}
+
+export async function fetchText(
+  url: string,
+  options: RequestInit & { timeoutMs?: number } = {},
+): Promise<string> {
+  const response = await fetchResponse(url, options, "text/plain");
+  return response.text();
+}
+
+async function fetchResponse(
+  url: string,
+  options: RequestInit & { timeoutMs?: number },
+  accept: string,
+): Promise<Response> {
   const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, signal, headers, ...requestOptions } = options;
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   const requestHeaders = new Headers(headers);
-  if (!requestHeaders.has("Accept")) requestHeaders.set("Accept", "application/json");
+  if (!requestHeaders.has("Accept")) requestHeaders.set("Accept", accept);
 
   if (signal) {
     if (signal.aborted) controller.abort();
@@ -42,7 +59,7 @@ export async function fetchJson(
       throw new ApiRequestError(await errorMessage(response), response.status);
     }
 
-    return response.json();
+    return response;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       // The caller's signal aborting means cancellation (unmount, newer
