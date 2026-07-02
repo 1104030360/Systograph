@@ -92,6 +92,14 @@
   font-size: 10px; font-weight: 650; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-faint);
 }
 .st-head h1 { font-size: 20px; font-weight: 650; letter-spacing: -0.02em; }
+.st-head h1 .st-sample-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-left: 8px; padding: 3px 8px; vertical-align: 3px;
+  border: 1px solid var(--unmapped); border-radius: 999px;
+  background: var(--unmapped-soft); color: var(--text-2);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.03em; line-height: 1;
+}
+.st-head h1 .st-sample-badge svg { color: var(--unmapped); flex: none; }
 .st-head .st-sub { font-size: var(--fs-sm); color: var(--text-2); }
 .st-head .st-project {
   display: inline-flex; align-items: center; gap: 7px; margin-top: 5px;
