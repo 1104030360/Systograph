@@ -223,6 +223,7 @@ export default function App() {
 
         if (response.status === "error") {
           setScanFlowError("Scan finished with an error. Check the backend report or logs for details.");
+          setProgressRunning(false);
           setLiveProgressEvent({
             event: "scan_progress",
             status: "error",
@@ -239,6 +240,7 @@ export default function App() {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setScanFlowError(message);
+        setProgressRunning(false);
         setLiveProgressEvent({
           event: "scan_progress",
           status: "error",
@@ -250,7 +252,7 @@ export default function App() {
         setScanBusy(false);
       }
     },
-    [apiBaseUrl, completeScanFlow, setLiveProgressEvent],
+    [apiBaseUrl, completeScanFlow, setLiveProgressEvent, setProgressRunning],
   );
 
   const handleStartScan = useCallback(async () => {
@@ -276,6 +278,7 @@ export default function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setScanFlowError(message);
+      setProgressRunning(false);
       setLiveProgressEvent({
         event: "scan_progress",
         status: "error",
@@ -495,6 +498,10 @@ export default function App() {
             setPendingBoundary([]);
             setBoundaryDecisions({});
             setScanBusy(false);
+            // Cancelling the boundary review abandons this scan run: stop the
+            // progress stream and return the strip to its idle state.
+            setProgressRunning(false);
+            setLiveProgressEvent(null);
           }}
         />
       ) : null}

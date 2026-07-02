@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AlertTriangle, Check, ShieldAlert, X } from "lucide-react";
 import type { ScanBoundaryAction, ScanBoundaryDecision, ScanBoundaryProposal } from "../types";
 
@@ -21,6 +22,15 @@ export function BoundaryDecisionModal({
   onCancel,
 }: Props) {
   const allDecided = proposals.every((proposal) => decisions[proposal.proposal_id]);
+
+  // Escape cancels like the other modals, but never while a submit is running.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isSubmitting) onCancel();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSubmitting, onCancel]);
 
   return (
     <div className="modal-scrim" role="presentation">
