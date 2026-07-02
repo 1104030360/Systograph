@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Crosshair, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
+import { Crosshair, FlaskConical, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
 import { BoundaryDecisionModal, decisionsForBoundary } from "./components/BoundaryDecisionModal";
 import { DataSourceControl } from "./components/DataSourceControl";
@@ -446,6 +446,13 @@ export default function App() {
             onSelect={setSelected}
             onInteractingChange={setGraphInteracting}
           />
+
+          {dataSourceMode === "sample" ? (
+            <div className="sample-indicator" role="note" aria-label="Sample data indicator">
+              <FlaskConical size={13} />
+              Sample data — example map, not a real scan
+            </div>
+          ) : null}
 
           <div className="map-key-float" aria-label="Map color key">
             {MAP_KEY.map(([color, label]) => (
