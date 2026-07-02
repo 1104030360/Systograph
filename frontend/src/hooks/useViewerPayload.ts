@@ -4,8 +4,10 @@ import { loadApiViewerPayload, loadSampleViewerPayload } from "../services/viewe
 
 export function useViewerPayload(mode: DataSourceMode, apiBaseUrl: string) {
   return useQuery({
+    // React Query aborts this signal when the query key changes or the last
+    // consumer unmounts, so a stale request cannot outlive its consumer.
     queryKey: ["viewer-load-result", mode, apiBaseUrl],
-    queryFn: () => (mode === "api" ? loadApiViewerPayload(apiBaseUrl) : loadSampleViewerPayload()),
+    queryFn: ({ signal }) => (mode === "api" ? loadApiViewerPayload(apiBaseUrl, signal) : loadSampleViewerPayload()),
     retry: false,
     staleTime: mode === "sample" ? Number.POSITIVE_INFINITY : 5_000,
   });

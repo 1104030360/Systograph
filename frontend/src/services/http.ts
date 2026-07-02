@@ -45,6 +45,11 @@ export async function fetchJson(
     return response.json();
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
+      // The caller's signal aborting means cancellation (unmount, newer
+      // request); only our own timer means the request actually timed out.
+      if (signal?.aborted) {
+        throw new ApiRequestError("Request was cancelled.");
+      }
       throw new ApiRequestError("Request timed out. Check that the local API server is running.");
     }
     throw error;

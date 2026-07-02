@@ -8,7 +8,7 @@ export async function loadSampleViewerPayload(): Promise<ViewerPayload> {
   return sampleViewerPayload;
 }
 
-export async function loadApiViewerPayload(baseUrl: string): Promise<ViewerPayload> {
+export async function loadApiViewerPayload(baseUrl: string, signal?: AbortSignal): Promise<ViewerPayload> {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   const errors: string[] = [];
 
@@ -16,10 +16,12 @@ export async function loadApiViewerPayload(baseUrl: string): Promise<ViewerPaylo
     const url = `${normalizedBaseUrl}${endpoint}`;
 
     try {
-      const payload = await fetchJson(url);
+      const payload = await fetchJson(url, { signal });
       return viewerPayloadSchema.parse(payload);
     } catch (error) {
       errors.push(`${endpoint}: ${error instanceof Error ? error.message : String(error)}`);
+      // A cancelled request must not fall through to the next endpoint.
+      if (signal?.aborted) break;
     }
   }
 
