@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, ChevronRight, Folder, Info, Layers3, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, FlaskConical, Folder, Info, Layers3, RefreshCw, Search } from "lucide-react";
 import { scanTemplateApi } from "../services/scanTemplateApi";
 import { TemplateGallery } from "../components/scan-template/TemplateGallery";
 import { TemplateDetail } from "../components/scan-template/TemplateDetail";
@@ -100,7 +100,12 @@ export function ScanTemplatePage({
           </div>
           <div className="st-titles">
             <span className="st-eyebrow">Scan setup</span>
-            <h1>Scan Template</h1>
+            <h1>
+              Scan Template
+              <span className="st-sample-badge" title={w.sampleBadgeHint}>
+                <FlaskConical size={11} /> {w.sampleBadge}
+              </span>
+            </h1>
             <span className="st-sub">{subtitle}</span>
             <span className="st-project">
               <Folder size={12} /> project <b>{projectName}</b>
@@ -131,7 +136,9 @@ export function ScanTemplatePage({
           <button className="btn" type="button" onClick={refreshAll}>
             <RefreshCw size={14} /> Refresh
           </button>
-          <button className="btn primary lg" type="button">
+          {/* The scan-template-scoped scan API does not exist yet; an enabled
+              button that does nothing reads as broken, so keep it disabled. */}
+          <button className="btn primary lg" type="button" disabled title={w.newScanUnavailable}>
             <Search size={14} /> New scan
           </button>
         </div>
