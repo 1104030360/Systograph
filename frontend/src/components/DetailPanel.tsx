@@ -153,19 +153,20 @@ function latestMatchingResult(
 ) {
   if (!target) return undefined;
   const acceptedTargets = [target, ...alternativeTargets];
-  const candidates = [
-    ...availableResults(payload),
-    ...(requestResult ? [requestResult] : []),
-  ].filter(
-    (result) =>
-      result.scan_depth === scanDepth &&
-      acceptedTargets.some(
-        (candidate) =>
-          result.target_type === candidate.targetType &&
-          result.target === candidate.target,
-      ),
-  );
-  return candidates.at(-1);
+  const matches = (result: DetailScanResult) =>
+    result.scan_depth === scanDepth &&
+    acceptedTargets.some(
+      (candidate) =>
+        result.target_type === candidate.targetType &&
+        result.target === candidate.target,
+    );
+
+  // The result the user just requested always wins over stored results.
+  if (requestResult && matches(requestResult)) return requestResult;
+
+  // detail_scans has no timestamp, so recency relies on the backend keeping
+  // the array append-only; the last matching entry is the newest one.
+  return availableResults(payload).filter(matches).at(-1);
 }
 
 function RequestNotice({
