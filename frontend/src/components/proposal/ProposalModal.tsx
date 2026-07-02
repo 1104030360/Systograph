@@ -452,12 +452,19 @@ function ApiProposalModal({
   const w = useWording();
   const mapping = useMappingProposal(apiBaseUrl);
   const [rejecting, setRejecting] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     mapping.load({ projectId, sourceUnmappedId: node.unmapped_id });
     // A modal instance owns one immutable mapping target.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.unmapped_id, projectId]);
+
+  // Selection mirrors the sample modal: the first candidate starts selected
+  // and clicking a card moves the highlight along with it.
+  useEffect(() => {
+    setSelectedId(mapping.proposal?.candidates[0]?.candidate_id || null);
+  }, [mapping.proposal]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -531,10 +538,10 @@ function ApiProposalModal({
                   key={candidate.candidate_id ?? `${proposal.proposal_id}:${index}`}
                   cand={candidate}
                   index={index}
-                  selected={index === 0}
+                  selected={Boolean(candidate.candidate_id) && candidate.candidate_id === selectedId}
                   busy={mapping.isDeciding}
                   allowEdit={false}
-                  onSelect={() => {}}
+                  onSelect={() => setSelectedId(candidate.candidate_id || null)}
                   onEditOpen={() => {}}
                   onAccept={() => {
                     if (candidate.candidate_id) {
