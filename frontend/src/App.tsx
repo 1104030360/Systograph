@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Crosshair, FlaskConical, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
+import { Crosshair, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
 import { BoundaryDecisionModal, decisionsForBoundary } from "./components/BoundaryDecisionModal";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { ReplayTimeline } from "./components/ReplayTimeline";
+import { SampleDataIndicator } from "./components/SampleDataIndicator";
 import { Sidebar } from "./components/Sidebar";
 import { StateOverlay, type ViewerState } from "./components/StateOverlay";
 import { SystemGraph } from "./components/SystemGraph";
@@ -450,12 +451,7 @@ export default function App() {
             onInteractingChange={setGraphInteracting}
           />
 
-          {dataSourceMode === "sample" ? (
-            <div className="sample-indicator" role="note" aria-label="Sample data indicator">
-              <FlaskConical size={13} />
-              Sample data — example map, not a real scan
-            </div>
-          ) : null}
+          <SampleDataIndicator visible={dataSourceMode === "sample"} />
 
           <div className="map-key-float" aria-label="Map color key">
             {MAP_KEY.map(([color, label]) => (
