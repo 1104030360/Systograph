@@ -311,6 +311,20 @@ h1, h2, h3 { margin: 0; }
 }
 .legend-chip .swatch { width: 7px; height: 7px; border-radius: 2px; flex: none; border: 1px solid var(--line-strong); }
 
+/* Persistent sample-mode indicator (#176): always readable, never fades,
+   sits below the docked progress strip so it cannot be mistaken for it. */
+.sample-indicator {
+  position: absolute; top: 58px; left: 14px; z-index: 7;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--unmapped); border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  color: var(--text-2);
+  font-size: 11px; line-height: 1; white-space: nowrap;
+  pointer-events: none;
+}
+.sample-indicator svg { color: var(--unmapped); flex: none; }
+
 .map-key-float {
   position: absolute; left: 14px; bottom: 14px; z-index: 7;
   display: flex; flex-wrap: wrap; gap: 5px;

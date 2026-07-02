@@ -2,6 +2,9 @@ import { createContext, createElement, useContext, type ReactNode } from "react"
 
 export interface Wording {
   pageSubtitle: string;
+  sampleBadge: string;
+  sampleBadgeHint: string;
+  newScanUnavailable: string;
   tabSystem: string;
   tabCustom: string;
   galleryOpen: string;
@@ -62,6 +65,9 @@ export interface Wording {
 
 export const COPY: Wording = {
   pageSubtitle: "Choose the scan template Kai-Mind uses the next time it scans this project.",
+  sampleBadge: "Sample data",
+  sampleBadgeHint: "This page shows example mappings. It is not connected to your project yet.",
+  newScanUnavailable: "New scan is not available from this page yet. Use Start scan in the viewer toolbar.",
   tabSystem: "Built-in template",
   tabCustom: "Project template",
   galleryOpen: "Open",
