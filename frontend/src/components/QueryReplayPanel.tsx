@@ -18,6 +18,16 @@ type Props = {
   onTraceEvents: (events: TraceEvent[]) => void;
 };
 
+const TIMEOUT_MIN_SECONDS = 1;
+const TIMEOUT_MAX_SECONDS = 120;
+const TIMEOUT_DEFAULT_SECONDS = 30;
+
+function clampTimeoutSeconds(raw: string) {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value === 0) return TIMEOUT_DEFAULT_SECONDS;
+  return Math.min(Math.max(Math.round(value), TIMEOUT_MIN_SECONDS), TIMEOUT_MAX_SECONDS);
+}
+
 function endpointLabel(endpoint: SystemEndpoint) {
   const method = endpoint.method ? `${endpoint.method.toUpperCase()} ` : "";
   return `${method}${endpoint.value}`;
@@ -45,7 +55,7 @@ export function QueryReplayPanel({
   const maxIndex = Math.max(sortedEvents.length - 1, 0);
   const [selectedEndpointId, setSelectedEndpointId] = useState("");
   const [query, setQuery] = useState("");
-  const [timeoutSeconds, setTimeoutSeconds] = useState(30);
+  const [timeoutSeconds, setTimeoutSeconds] = useState(TIMEOUT_DEFAULT_SECONDS);
   const [projectIdInput, setProjectIdInput] = useState(projectId);
   const trace = useQueryTrace(apiBaseUrl);
 
@@ -129,11 +139,11 @@ export function QueryReplayPanel({
         <label className="query-field timeout-field">
           <span>Timeout</span>
           <input
-            min={1}
-            max={120}
+            min={TIMEOUT_MIN_SECONDS}
+            max={TIMEOUT_MAX_SECONDS}
             type="number"
             value={timeoutSeconds}
-            onChange={(event) => setTimeoutSeconds(Number(event.target.value) || 30)}
+            onChange={(event) => setTimeoutSeconds(clampTimeoutSeconds(event.target.value))}
           />
         </label>
 

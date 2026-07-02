@@ -125,7 +125,10 @@ export default function App() {
     () => parseSystemEndpoints(aiSystemMap && typeof aiSystemMap === "object" ? (aiSystemMap as { endpoints?: unknown }).endpoints : undefined),
     [aiSystemMap],
   );
-  const projectId = useMemo(() => resolveProjectId(aiSystemMap), [aiSystemMap]);
+  // Prefer the project id embedded in the loaded map; fall back to the current
+  // import session so the trace panel does not ask the user to paste an id.
+  const mapProjectId = useMemo(() => resolveProjectId(aiSystemMap), [aiSystemMap]);
+  const projectId = mapProjectId || projectSession?.project_id || "";
   const activeTraceEvent = replayEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
   const liveProgressTargetId = resolveProgressTargetId(liveProgressEvent, graph);

@@ -8,6 +8,10 @@ export type TraceCreateRequest = {
   timeout_seconds: number;
 };
 
+// The HTTP request must outlive the backend trace budget, otherwise the client
+// aborts at the default fetch timeout while the trace is still running.
+const TRACE_NETWORK_BUFFER_MS = 10_000;
+
 export async function createQueryTrace(
   baseUrl: string,
   request: TraceCreateRequest,
@@ -16,6 +20,7 @@ export async function createQueryTrace(
   const payload = await fetchJson(`${normalizeBaseUrl(baseUrl)}/api/trace`, {
     method: "POST",
     signal,
+    timeoutMs: request.timeout_seconds * 1000 + TRACE_NETWORK_BUFFER_MS,
     headers: {
       "Content-Type": "application/json",
     },
