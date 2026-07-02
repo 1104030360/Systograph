@@ -28,7 +28,8 @@ type ViewerState = {
   resetFocus: () => void;
 };
 
-const defaultApiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+// || (not ??): an empty VITE_API_BASE_URL must still fall back to the default.
+const defaultApiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 export const useViewerStore = create<ViewerState>((set) => ({
   dataSourceMode: "sample",
