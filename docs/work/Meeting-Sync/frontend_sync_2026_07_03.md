@@ -125,3 +125,59 @@ corepack pnpm --dir frontend run build   # tsc -b + vite build 通過
   其中 #227 與 #222 都動到 `http.ts`,#218/#198 與 #221/#223 都動到 `App.tsx`,
   同步時需解衝突。
 - 建議後續合併順序維持:#198 →(rebase 後)#199 → #218 → #227。
+
+## 7. Frontend test foundation 與 CI gate
+
+### 範圍
+
+- Branch：`codex/frontend-test-foundation`
+- Issues：#176、#178
+- Contract follow-up：#231
+- CI：`.github/workflows/frontend-ci.yml`
+
+本次建立 frontend test runner，將先前只能人工驗證的穩定性修正轉成可重複執行的
+regression tests：
+
+1. Sample mode 顯示常駐 Sample data 標示；API mode 不顯示。
+2. API request 的 bounded timeout 與 caller cancellation 顯示不同錯誤。
+3. SSE 單次瞬斷交由 EventSource 重連，成功訊息會重置錯誤計數；
+   連續三次失敗或連線關閉才降級。
+
+### 主要修改
+
+- 使用 Vitest、jsdom、React Testing Library 與 jest-dom。
+- 新增 `pnpm test` / `pnpm test:watch`。
+- Frontend CI 在 lint 與 build 之間執行 `pnpm test`。
+- Sample data 標示抽成純展示元件，維持原有 DOM、文案與 CSS class。
+
+### Contract 邊界與已知限制
+
+- 本批 tests 不固定 Viewer payload、Detail Scan、Query Trace 或 artifact API 的
+  request/response schema，不阻擋 Timmy 目前的 contract 調整。
+- 若正式 contract 改變 SSE endpoint/event schema、error code 或 request lifecycle，
+  需依 #231 更新 API-facing tests、mocks 與 fixtures。
+- #198、#199、#218、#227 維持等待 contract freeze，不在本批 rebase 或合併。
+
+### 驗證與 handoff
+
+合併前執行：
+
+```powershell
+corepack pnpm --dir frontend run test
+corepack pnpm --dir frontend run lint
+corepack pnpm --dir frontend run build
+```
+
+結果：
+
+- Vitest：3 files / 7 tests passed。
+- ESLint：0 errors；1 個既有 Fast Refresh warning。
+- TypeScript / Vite production build：通過。
+- 既有 `web-worker` external dependency 與 bundle chunk warning 不變。
+
+人工驗收順序維持：
+
+1. `feature/detail-scan-ui-flow`（#198）
+2. `feature/mapping-proposal-confirm-reject`（#199，stacked on #198）
+3. `codex/query-trace-ui-flow`（#218）
+4. `feature/219-viewer-artifact-actions`（#227）
