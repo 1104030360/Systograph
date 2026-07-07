@@ -1,0 +1,26 @@
+{
+  "status": "ok",
+  "project_id": "project:sample-ai-health-rag",
+  "scan_id": "scan:sample-s1",
+  "build_id": "build:sample-b2",
+  "environment_id": "environment:default-static",
+  "based_on_build_id": "build:sample-b1",
+  "applied_mapping_ids": ["mapping:reranker-review"],
+  "project_name": "sample-ai-health-rag",
+  "artifacts": [
+    {"artifact_id": "artifact:build-sample-b2:ai-system-map", "artifact_type": "ai_system_map", "file_name": "ai_system_map.json", "media_type": "application/json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "size_bytes": 4096},
+    {"artifact_id": "artifact:build-sample-b2:evidence-table", "artifact_type": "evidence_table", "file_name": "evidence_table.json", "media_type": "application/json", "sha256": "2222222222222222222222222222222222222222222222222222222222222222", "size_bytes": 2048},
+    {"artifact_id": "artifact:build-sample-b2:call-graph", "artifact_type": "call_graph", "file_name": "call_graph.json", "media_type": "application/json", "sha256": "3333333333333333333333333333333333333333333333333333333333333333", "size_bytes": 3072},
+    {"artifact_id": "artifact:build-sample-b2:dataflow-hints", "artifact_type": "dataflow_hints", "file_name": "dataflow_hints.json", "media_type": "application/json", "sha256": "4444444444444444444444444444444444444444444444444444444444444444", "size_bytes": 1536},
+    {"artifact_id": "artifact:build-sample-b2:execution-paths", "artifact_type": "execution_paths", "file_name": "execution_paths.json", "media_type": "application/json", "sha256": "5555555555555555555555555555555555555555555555555555555555555555", "size_bytes": 2560},
+    {"artifact_id": "artifact:build-sample-b2:profile-signals", "artifact_type": "profile_signals", "file_name": "profile_signals.json", "media_type": "application/json", "sha256": "6666666666666666666666666666666666666666666666666666666666666666", "size_bytes": 3584},
+    {"artifact_id": "artifact:build-sample-b2:readiness-report", "artifact_type": "readiness_report", "file_name": "readiness_report.json", "media_type": "application/json", "sha256": "7777777777777777777777777777777777777777777777777777777777777777", "size_bytes": 2304},
+    {"artifact_id": "artifact:build-sample-b2:map-markdown", "artifact_type": "ai_system_map_markdown", "file_name": "ai_system_map.md", "media_type": "text/markdown", "sha256": "8888888888888888888888888888888888888888888888888888888888888888", "size_bytes": 1024},
+    {"artifact_id": "artifact:build-sample-b2:system-map-mermaid", "artifact_type": "system_map_mermaid", "file_name": "system_map.mmd", "media_type": "text/plain", "sha256": "9999999999999999999999999999999999999999999999999999999999999999", "size_bytes": 768},
+    {"artifact_id": "artifact:build-sample-b2:execution-map-mermaid", "artifact_type": "execution_map_mermaid", "file_name": "execution_map.mmd", "media_type": "text/plain", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "size_bytes": 896}
+  ],
+  "ai_system_map": null,
+  "viewer_load_result": null,
+  "warnings": [],
+  "error": null
+}

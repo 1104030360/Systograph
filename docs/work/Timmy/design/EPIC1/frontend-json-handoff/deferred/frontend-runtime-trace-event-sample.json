@@ -1,0 +1,39 @@
+{
+  "trace_id": "trace:example-001",
+  "event_id": "trace-event:response-received",
+  "event_type": "response_received",
+  "status": "completed",
+  "timestamp": "2026-07-03T12:00:03Z",
+  "endpoint_id": "endpoint:chat",
+  "step_index": 4,
+  "step_type": "generation",
+  "component_ref": {
+    "ref_type": "canonical_component",
+    "ref_id": "component:llm:openai-chat",
+    "display_name": "OpenAI Chat Model"
+  },
+  "related_static_refs": [
+    {
+      "ref_type": "capability_candidate",
+      "ref_id": "capability-candidate:reranker",
+      "display_name": "Reranker"
+    }
+  ],
+  "input_summary": {
+    "query": "[MASKED_QUERY]",
+    "context_chunk_count": 5
+  },
+  "output_summary": {
+    "answer": "[MASKED_ANSWER_SUMMARY]",
+    "retrieved_chunks_keys": ["documents", "context"]
+  },
+  "raw_input_included": false,
+  "raw_output_included": false,
+  "evidence_ids": [
+    "evidence:retriever-call",
+    "evidence:llm-call"
+  ],
+  "warnings": [
+    "Runtime trace is an opt-in overlay and must not be synthesized from static execution artifacts."
+  ]
+}

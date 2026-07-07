@@ -1,0 +1,66 @@
+{
+  "schema_version": "evidence-table/v1",
+  "source_schema_version": "ai-system-map/v2",
+  "project_id": "project:sample-ai-health-rag",
+  "scan_id": "scan:sample-s1",
+  "build_id": "build:sample-b2",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:sample-b2",
+  "rows": [
+    {
+      "evidence_id": "evidence:api-route",
+      "artifact_type": "source_code",
+      "path": "src/api/chat.py",
+      "line_start": 12,
+      "line_end": 12,
+      "json_pointer": null,
+      "extract_summary": "FastAPI POST route detected.",
+      "rule_id": "py.fastapi.route",
+      "evidence_strength": "static_single_signal",
+      "emits_component_ids": ["component:input:api"],
+      "emits_edge_ids": [],
+      "emits_profile_ids": [],
+      "review_state": "not_required",
+      "source_artifact_refs": ["ai_system_map.components.component:input:api"]
+    },
+    {
+      "evidence_id": "evidence:retriever-call",
+      "artifact_type": "source_code",
+      "path": "src/rag/pipeline.py",
+      "line_start": 42,
+      "line_end": 42,
+      "json_pointer": null,
+      "extract_summary": "Vector retriever call detected.",
+      "rule_id": "py.vectorstore.retriever",
+      "evidence_strength": "static_single_signal",
+      "emits_component_ids": ["component:retriever:qdrant"],
+      "emits_edge_ids": ["edge:api-to-retriever"],
+      "emits_profile_ids": ["rag-grounding", "hybrid-retrieval"],
+      "review_state": "not_required",
+      "source_artifact_refs": [
+        "ai_system_map.components.component:retriever:qdrant",
+        "profile_signals.profiles.hybrid-retrieval"
+      ]
+    },
+    {
+      "evidence_id": "evidence:reranker-call",
+      "artifact_type": "source_code",
+      "path": "src/rag/pipeline.py",
+      "line_start": 58,
+      "line_end": 58,
+      "json_pointer": null,
+      "extract_summary": "Reranker-like call detected.",
+      "rule_id": "py.reranker.call",
+      "evidence_strength": "weak_or_ambiguous_signal",
+      "emits_component_ids": [],
+      "emits_edge_ids": [],
+      "emits_profile_ids": ["reranking"],
+      "review_state": "needs_review",
+      "source_artifact_refs": [
+        "profile_signals.profiles.reranking",
+        "mapping_proposals.mapping-proposal:reranker-review"
+      ]
+    }
+  ],
+  "truncated": false
+}

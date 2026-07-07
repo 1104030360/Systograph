@@ -1,0 +1,65 @@
+{
+  "schema_version": "readiness-report/v1",
+  "source_schema_version": "ai-system-map/v2",
+  "project_id": "project:sample-ai-health-rag",
+  "scan_id": "scan:sample-s1",
+  "build_id": "build:sample-b2",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:sample-b2",
+  "primary_map_type": "linear_grounding_pipeline",
+  "summary": {
+    "status": "partial",
+    "runtime_verified": false,
+    "evidence_scope": [
+      "capability:retrieval",
+      "capability:grounding",
+      "capability:generation"
+    ],
+    "evidence_ids": [
+      "evidence:retriever-call",
+      "evidence:prompt-context",
+      "evidence:llm-call"
+    ]
+  },
+  "findings": [
+    {
+      "finding_id": "finding:source-traceability-not-detected",
+      "category": "source_traceability",
+      "title": "Source traceability not detected",
+      "severity": "medium",
+      "status": "not_detected",
+      "description": "Static scan did not find evidence that retrieved context is mapped back to source documents in the final answer.",
+      "affected_component_ids": [
+        "component:retriever:qdrant",
+        "component:llm:openai-chat"
+      ],
+      "evidence_ids": ["evidence:prompt-context"],
+      "evidence_gap": "No final answer output field such as citations, sources, references, source_documents, or metadata was detected.",
+      "recommended_next_checks": [
+        "Check whether retriever output preserves source metadata.",
+        "Check whether the final answer or API response exposes sources/citations."
+      ]
+    },
+    {
+      "finding_id": "finding:context-assembly-undetermined",
+      "category": "grounding_context_assembly",
+      "title": "Context assembly path is not fully proven",
+      "severity": "low",
+      "status": "undetermined",
+      "description": "Static evidence suggests retrieved documents are used in a prompt, but the complete data path is not strong enough to mark as detected.",
+      "affected_component_ids": [
+        "component:retriever:qdrant",
+        "component:llm:openai-chat"
+      ],
+      "evidence_ids": ["evidence:prompt-context"],
+      "recommended_next_checks": [
+        "Review the prompt builder and document formatting function."
+      ]
+    }
+  ],
+  "ui_hints": {
+    "runtime_verified": false,
+    "review_scanner_suggestions_required_to_show_results": false,
+    "review_scanner_suggestions_item_count": 1
+  }
+}

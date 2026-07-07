@@ -1,0 +1,71 @@
+{
+  "proposal_id": "mapping-proposal:reranker-review",
+  "project_id": "project:sample-ai-health-rag",
+  "source_unmapped_id": "unmapped:reranker-review",
+  "status": "needs_review",
+  "evidence_packet": {
+    "observed_kind": "reranker",
+    "source_file": "src/rag/pipeline.py",
+    "evidence_ids": ["evidence:reranker-call"],
+    "extract_summaries": [
+      {
+        "path": "src/rag/pipeline.py",
+        "start_line": 58,
+        "end_line": 58,
+        "extract_summary": "Reranker-like call detected."
+      }
+    ],
+    "related_capability_refs": [
+      "capability:retrieval",
+      "capability:grounding",
+      "capability:generation"
+    ],
+    "confirmed_component_ids": [
+      "component:retriever:qdrant",
+      "component:llm:openai-chat"
+    ]
+  },
+  "candidates": [
+    {
+      "candidate_id": "candidate:capability-reranking",
+      "candidate_type": "non_baseline_capability_candidate",
+      "target_slot": null,
+      "component_name": null,
+      "component_kind": null,
+      "provider": null,
+      "proposed_capability_candidate_id": "capability-candidate:reranker",
+      "proposed_capability_candidate_name": "Reranker",
+      "proposed_capability_candidate_kind": "reranker",
+      "label": "Review as reranking capability candidate",
+      "rationale": "Static evidence shows reranker-like code, but it is not a required legacy v1 slot.",
+      "evidence_ids": ["evidence:reranker-call"],
+      "rank": 1,
+      "recommendation_level": "plausible_candidate",
+      "uncertainty_reason": "Static evidence does not prove the reranker is used in the active answer path.",
+      "suggested_edges": [],
+      "flow_hint": null
+    },
+    {
+      "candidate_id": "candidate:skip",
+      "candidate_type": "skip_for_now",
+      "target_slot": null,
+      "component_name": null,
+      "component_kind": null,
+      "provider": null,
+      "proposed_capability_candidate_id": null,
+      "proposed_capability_candidate_name": null,
+      "proposed_capability_candidate_kind": null,
+      "label": "Skip for now",
+      "rationale": "Leave this evidence unresolved and keep the scan result visible.",
+      "evidence_ids": ["evidence:reranker-call"],
+      "rank": 2,
+      "recommendation_level": "safe_fallback",
+      "uncertainty_reason": null,
+      "suggested_edges": [],
+      "flow_hint": null
+    }
+  ],
+  "provider_name": "deterministic",
+  "provider_error_reason": null,
+  "available_actions": ["accept", "edit", "reject", "skip_for_now"]
+}

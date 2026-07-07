@@ -1,224 +1,729 @@
-// KAI-Mind Epic 1 - RAG System Map Builder Entity Relationship Model
-// Source: docs/spec/draft/overview.md and docs/spec/draft/epic1.md
-
-Table RagSystemMap {
-  schema_version string [primary key, note: 'AI System Map schema version for the Epic 1 artifact ai_system_map.json. Example: ai-system-map/v1']
-  system_type string [not null, note: 'System type for Epic 1. Epic 1 fixes this value to rag.']
-
-  Note: '''
-    Standardized RAG System Map produced by Epic 1.
-    It is the machine-readable foundation for later Runtime Readiness, Privacy & Exposure, RAG Knowledge Trust, and CI/CD Gate checks.
-
-    Invariants:
-    - system_type must be rag in Epic 1.
-    - Scanner output must use evidence, slot status, and recommended next checks.
-    - Scanner output must not use confidence.
-    - Full API key or secret values must not be displayed.
-    - Secret-like values may show a small prefix and suffix, with the middle masked.
-  '''
-}
+// KAI-Mind Epic 1 Phase 2 specification model
+// Source: docs/spec/draft/epic1-phase2.md
 
 Table Project {
-  root_path string [primary key, note: 'Input project folder path scanned by KAI-Mind. This preserves the input root path. Example: /path/to/project']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  name string [note: 'Project name recorded in the RAG System Map.']
+  project_id string [primary key, note: '本機 project registry 的穩定識別碼。']
+  latest_build_id string [note: '只有完整 artifact set 通過驗證並完成 atomic publish 後才可切換的最新 Build 識別碼；initial_scan、apply_confirmations 與 detail_scan 成功 publish 後都會立即切換。']
+  canonical_path_digest string [not null, unique, note: 'Local-only project identity digest；輸入必須先解析 symlink／相對片段為平台原生真實路徑，再依實際檔案系統的大小寫語意正規化。相同 digest 重新匯入時重用 project_id，且不得輸出原始絕對路徑。']
 
   Note: '''
-    Existing RAG project folder provided by the user.
-    KAI-Mind scans repo files, config files, Docker files, package files, and README information from this folder.
+    使用者匯入的本機 AI system project registry 紀錄。
+    Project 1:N ScanSnapshot；Project 透過 latest_build_id 指向目前可用的最新 Build。
+    單一 project 的 persisted local JSON state 損壞時，只能 fail closed 該 project；其他 project 必須維持可載入。
+    canonical_path_digest 只用於本機 identity；reports、logs、artifacts 與 API 不得包含其原始絕對路徑。
   '''
 }
 
-Table Classification {
-  system_map_schema_version string [primary key, note: 'Associated RAG System Map schema_version.']
-  mode string [not null, note: 'Classification mode. Epic 1 uses user_selected_or_default.']
-  selected_template string [not null, note: 'Selected reference architecture template. Example: rag-core-v1']
-  future_layer string [note: 'Future classification layer marker. Example: architecture_classification']
+Table ScanSnapshot {
+  scan_id string [primary key, note: 'Provider collection 完成後建立的 immutable repo scan snapshot 識別碼；Phase2 不另設第二層 snapshot identity。']
+  schema_version string [not null, note: 'Scan snapshot contract version；Phase2 初始值為 scan-snapshot/v1。']
+  project_id string [not null, note: '此 snapshot 所屬的 Project.project_id。']
+  generated_at string [not null, note: '此 immutable snapshot 完成並建立的時間。']
+  inventory_digest string [not null, note: '凍結 filesystem inventory 與 provider collection scope 的 digest；使用 canonical-json/v1 bytes 計算 SHA-256，並保留 canonicalization/hash version。']
+  scan_result string [not null, note: '凍結的 ProjectScanResult，包含 bounded facts 與 evidence，供後續 build replay 使用。']
+  ua_analysis_result string [note: 'Nullable snapshot-internal UA sidecar payload/storage reference；Phase A 必須允許 null，Phase B/C completed scan 必須保存通過 kai-mind-ua-result/v1 validation 的結果。']
+  ua_analysis_schema_version string [note: 'Nullable UA sidecar schema version；有 ua_analysis_result 時必須為 kai-mind-ua-result/v1。']
+  ua_analysis_digest string [note: 'Nullable UA sidecar digest；有 ua_analysis_result 時使用 canonical-json/v1 bytes + SHA-256 驗證內容，且不得列為 public Artifact。']
 
   Note: '''
-    Classification placeholder for Epic 1.
-    Epic 1 fixes the selected architecture type to RAG while preserving fields for a future deterministic architecture classification layer.
-  '''
-}
-
-Table ReferenceArchitecture {
-  id string [primary key, note: 'Reference architecture template id. Example: rag-core-v1']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  flows string [note: 'JSON array of flow ids. Epic 1 mentions indexing and query_answer.']
-  component_slots string [note: 'JSON array of RAG reference architecture component slot names.']
-
-  Note: '''
-    RAG reference architecture template loaded before scanning.
-    It provides component slots for deterministic scanner rules and GUI visualization.
-  '''
-}
-
-Table ComponentSlot {
-  slot string [primary key, note: 'RAG component slot name such as vector_store, llm, retriever, or citation_or_response_composer.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  reference_architecture_id string [not null, note: 'ReferenceArchitecture.id that defines this slot.']
-  required_for_rag bool [note: 'Whether this slot is required for this RAG project. The value is not fixed by the reference architecture; scanner determines it from project evidence.']
-  status string [not null, note: 'Slot status. Allowed values: detected, missing, not_configured, not_applicable.']
-
-  Note: '''
-    Normalized RAG component slot scanned from the reference architecture.
-
+    掃描完成後凍結的唯讀證據包。
     Invariants:
-    - required_for_rag is determined by scanner based on project evidence.
-    - status must be one of detected, missing, not_configured, not_applicable.
-    - detected requires at least one ComponentInstance with Evidence.
-    - missing, not_configured, and not_applicable must not invent component instances without evidence.
+    - Boundary 未完成時不可建立或寫入 snapshot。
+    - 一次完成的 immutable scan snapshot 只使用一個 scan_id 作 domain identity。
+    - Repo 證據改變時必須建立新的 scan_id。
+    - Phase A 允許 ua_analysis_result/schema_version/digest 全部為 null；Phase B/C 三者必須同時存在並通過 schema、digest、path 與 secret safety validation。
+    - UA semantic payload 在 Phase2 只保存、不消費；Apply 可重播同 scan_id 的 structural facts，但不得啟動 AI assessment flow。
+    - inventory_digest、Artifact.digest 與 ManualMapping.digest 共用 canonical-json/v1 + SHA-256 規格，但各自定義納入 hash 的欄位集合。
   '''
 }
 
-Table ComponentInstance {
-  id string [primary key, note: 'Detected component instance id. Example: qdrant_vector_db or ollama_runtime.']
-  slot string [not null, note: 'ComponentSlot.slot where this detected instance belongs.']
-  kind string [not null, note: 'Detected component kind. Examples in the spec include vector_db and llm_runtime.']
-  name string [not null, note: 'Human-readable detected component name. Examples include Qdrant and Ollama.']
+Table Build {
+  build_id string [primary key, note: '從 immutable snapshot materialize 的完整且不可變 artifact set 識別碼。']
+  project_id string [not null, note: '此 Build 所屬的 Project.project_id。']
+  scan_id string [not null, note: '此 Build 沿用的 immutable ScanSnapshot.scan_id；Apply 與 detail_scan 不建立新的 scan_id。']
+  environment_id string [not null, note: 'Phase2 固定為 environment:default-static；不提供建立、選擇或切換 Environment 的操作。']
+  based_on_build_id string [note: 'Apply 或 detail enrichment 建立 child build 時使用的 parent Build.build_id；initial_scan 沒有 parent。']
+  generated_from_build_id string [not null, note: '必須等於此 Build.build_id；它表示目前 materialize 此 artifact set 的 build，不表示 parent lineage。']
+  build_reason string [not null, note: '建立原因；規格明確列出 initial_scan、apply_confirmations、detail_scan。']
+  applied_mapping_ids string [note: '此 build 套用的 ManualMapping.mapping_id JSON array；首次 initial_scan 必須為空，explicit rescan 的 initial_scan 可包含經新 scan evidence 重新驗證的 confirmed mappings，apply_confirmations 必須為非空且唯一。']
+  generated_at string [not null, note: '此 immutable Build 完成 atomic publish 的時間；build history 預設由新到舊，先依 generated_at DESC 排序，再以 build_id DESC 作 tie-breaker。']
 
   Note: '''
-    A concrete component instance detected for a RAG component slot.
-    Every detected component must contain slot, status, name, and evidence in the Epic 1 acceptance criteria.
+    同一個 scan_id 可產生的 immutable 報告版本。
+    Invariants:
+    - Phase2 build history 是 linear。
+    - 首次 initial_scan 沒有 parent，也沒有 applied mappings。
+    - explicit rescan 建立新的 scan_id 與 initial_scan build；仍可驗證的 same-project confirmed mappings 會自動 replay 並寫入 applied_mapping_ids，stale mappings 只保留 warning，不得套用。
+    - apply_confirmations 必須以 latest build 為 parent，並使用非空、唯一、同 project 的 confirmed mappings。
+    - detail_scan 建立 child build，不可覆寫 parent；成功 atomic publish 後必須立即成為 Project.latest_build_id 並更新 Viewer。
+    - initial_scan、apply_confirmations 與 detail_scan 的 environment_id 都固定為 environment:default-static。
+    - initial_scan、apply_confirmations 與 detail_scan 的 generated_from_build_id 都必須等於目前 Build.build_id；parent lineage 只由 based_on_build_id 表示。
+    - Build 只有在所有 core artifacts 通過驗證並 atomic publish 後才可成為 latest。
+  '''
+}
+
+Table Artifact {
+  build_id string [not null, note: '此 sibling artifact 所屬的 Build.build_id。']
+  artifact_name string [not null, note: '規格要求的輸出名稱。ai_system_map.json、profile_signals.json、readiness_report.json、evidence_table.json、call_graph.json、dataflow_hints.json 與 execution_paths.json 全部屬於 atomic core set。']
+  scan_id string [not null, note: '必須與同 build 其他 sibling artifacts 相同的 ScanSnapshot.scan_id。']
+  environment_id string [not null, note: 'Phase2 固定為 environment:default-static，且必須與同 build 其他 sibling artifacts 相同。']
+  generated_from_build_id string [not null, note: '必須等於此 Artifact.build_id；所有 sibling artifacts 都指向目前正在產生它們的 Build。']
+  schema_version string [note: '此 artifact 自身的 schema version。']
+  source_schema_version string [note: '此 derived artifact 所引用的 canonical source schema version。']
+  storage_reference string [note: '安全的 artifact storage reference；它不是 domain identity。']
+  digest string [not null, note: 'Local state store 保存的 artifact content digest，用於驗證 reference 與內容一致性；使用 canonical-json/v1 bytes 計算 SHA-256，並保留 canonicalization/hash version。']
+
+  Indexes {
+    (build_id, artifact_name) [pk]
+  }
+
+  Note: '''
+    Build 的 persisted sibling artifact metadata。
+    Invariants:
+    - Required static outputs 只能引用同 build 的 ids。
+    - generated_from_build_id 必須等於 build_id；parent lineage 只由 Build.based_on_build_id 表示。
+    - 所有 Phase2 JSON artifacts 都屬於 atomic core set；任一 JSON 缺失或驗證失敗時，整個 build 不 publish。
+    - Markdown 與 Mermaid renderer 失敗時可 degraded publish，但必須附帶明確 warning，不得留下無標記的半成品。
+    - Artifact.digest、ScanSnapshot.inventory_digest 與 ManualMapping.digest 共用 canonical-json/v1 + SHA-256 規格，但 Artifact.digest 只納入該 artifact content contract 所定義欄位。
+    - Artifact path 只是一個 storage reference，不得成為 domain identity。
+  '''
+}
+
+Table CanonicalMap {
+  build_id string [primary key, note: '此 ai_system_map.json 所屬的 Build.build_id。']
+  project_id string [not null, note: '此 canonical map 所屬的 Project.project_id。']
+  schema_version string [not null, note: 'Active target 使用 generic ai-system-map/v2；legacy v1 只作明確 migration/read input。']
+  system_type string [not null, note: 'Active Phase2 generic canonical value 固定為 ai_system，不預設 RAG 或 Agent。']
+  scan_id string [not null, note: '產生此 canonical map 的 ScanSnapshot.scan_id。']
+  environment_id string [not null, note: 'Phase2 固定為 environment:default-static。']
+  generated_from_build_id string [not null, note: '必須等於此 CanonicalMap.build_id，表示目前產生此 canonical map 的 Build。']
+
+  Note: '''
+    唯一 canonical artifact ai_system_map.json 的 header。
+    Canonical truth 僅包含 project/build scope、components、edges、evidence、endpoints、risk hints、unmapped components 與可驗證 metadata。
+    Profile、readiness、viewer ids、layout、filters、static execution path、runtime trace 與 primary_map_type 不得寫回此實體。
   '''
 }
 
 Table Evidence {
-  id string [primary key, note: 'Evidence identifier for linking scanner facts and GUI detail panels.']
-  component_instance_id string [note: 'ComponentInstance.id supported by this evidence.']
-  kind string [not null, note: 'Evidence kind. Examples include docker_service, published_port, and env_key.']
-  file string [note: 'Project-relative POSIX source file path where the evidence was found, such as docker-compose.yml or src/rag.py.']
-  path string [note: 'Structured source path inside the source file, such as services.qdrant.image.']
-  value string [note: 'Evidence value. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
+  evidence_id string [not null, note: '同 build 內可供 component、assessment、finding 與 mapping 追溯的 evidence 識別碼。']
+  build_id string [not null, note: '此 evidence 所屬的 CanonicalMap.build_id。']
+  kind string [not null, note: 'Evidence 分類；assessment 使用 direct、indirect 或 explicit_negative。']
+  rule_id string [note: '產生此 deterministic evidence 的 scanner rule id。']
+
+  Indexes {
+    (build_id, evidence_id) [pk]
+  }
 
   Note: '''
-    Scanner evidence fact used to justify a component, endpoint, exposure hint, or GUI detail.
-    Evidence must be traceable to source files or config paths.
+    Deterministic scanner 產生並隨 snapshot/build materialize 的 bounded evidence。
+    Evidence 必須遮罩 secret，且 location 必須使用 project-relative path、symbol、line range、config key 或 JSON pointer。
+  '''
+}
 
-    Invariants:
-    - file must use project-relative POSIX path format across Windows and macOS.
-    - Project.root_path preserves the input root path.
+Table EvidenceLocation {
+  build_id string [not null, note: '此 location 所屬的 CanonicalMap.build_id。']
+  evidence_id string [not null, note: '此 location 所描述的 Evidence.evidence_id。']
+  file string [note: 'Project-relative POSIX 檔案位置，不得輸出 unmanaged absolute path。']
+  symbol string [note: 'Evidence 對應的程式 symbol。']
+  line_range string [note: 'Evidence 對應的行號範圍。']
+  config_key string [note: 'Evidence 對應的設定鍵。']
+  json_pointer string [note: 'Evidence 對應的 workflow JSON pointer。']
+
+  Indexes {
+    (build_id, evidence_id) [pk]
+  }
+
+  Note: '''
+    CanonicalEvidenceLocation 的 DB staging model。
+    每個 location 只能引用同 build Evidence，且不得保存完整 raw source 或 unmanaged absolute path。
+  '''
+}
+
+Table RepoComponent {
+  component_id string [not null, note: '目前 build 中 evidence-backed repo component 的識別碼。']
+  build_id string [not null, note: '此 component 所屬的 CanonicalMap.build_id。']
+  canonical_type string [not null, note: 'Generic ai-system-map/v2 component type。']
+  layer string [not null, note: 'Component 所屬的 generic canonical layer。']
+  assessment_status string [not null, note: '五態之一：detected、partial、undetermined、not_detected、conflicted。']
+  evidence_ids string [not null, note: '支持此 component 的同 build Evidence.evidence_id JSON array。']
+
+  Indexes {
+    (build_id, component_id) [pk]
+  }
+
+  Note: '''
+    Step 4 Bridge 1 從 rule_id 與 evidence materialize 的 repo component。
+    Repo component 與穩定的 ReferenceNode 必須使用不同 semantic kinds 與 visual semantics。
+  '''
+}
+
+Table ComponentEdge {
+  edge_id string [not null, note: 'Canonical map 內 component connection 的識別碼。']
+  build_id string [not null, note: '此 edge 所屬的 CanonicalMap.build_id。']
+  from_component_id string [not null, note: '連線起點 RepoComponent.component_id。']
+  to_component_id string [not null, note: '連線終點 RepoComponent.component_id。']
+  relationship string [not null, note: 'Source 與 target component 之間的 evidence-backed canonical relationship。']
+  assessment_status string [not null, note: '五態之一：detected、partial、undetermined、not_detected、conflicted。']
+  evidence_ids string [not null, note: '支持此 edge 的同 build Evidence.evidence_id JSON array。']
+
+  Indexes {
+    (build_id, edge_id) [pk]
+  }
+
+  Note: '''
+    Canonical map 中同一 build 的 component 關係。
+    Edge 不得引用其他 build 的 component id。
   '''
 }
 
 Table Endpoint {
-  id string [primary key, note: 'Endpoint identifier in the RAG System Map.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  value string [not null, note: 'Endpoint value detected by the scanner. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
-  evidence_id string [not null, note: 'Evidence.id that identifies the source of this endpoint.']
-  endpoint_type string [not null, note: 'Endpoint type. Allowed values: local, external.']
+  endpoint_id string [not null, note: 'Canonical map 中 evidence-backed endpoint 的識別碼。']
+  build_id string [not null, note: '此 endpoint 所屬的 CanonicalMap.build_id。']
+  evidence_id string [not null, note: '支持此 endpoint 的 Evidence.evidence_id。']
+
+  Indexes {
+    (build_id, endpoint_id) [pk]
+  }
 
   Note: '''
-    Endpoint detected in the scanned RAG project.
-    Endpoints are modeled independently in the RAG System Map so external endpoint detection, network exposure hints, GUI detail panels, and later Privacy & Exposure checks can use a stable data structure.
-
-    Invariants:
-    - endpoint_type must be one of local, external.
-    - each Endpoint must reference source Evidence.
-    - full API key or secret values must not be displayed in value.
-    - secret-like endpoint values may show a small prefix and suffix, with the middle masked.
-  '''
-}
-
-Table Flow {
-  id string [primary key, note: 'Flow id. Epic 1 mentions indexing and query_answer.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-
-  Note: '''
-    RAG flow represented in the System Map.
-    Epic 1 uses indexing flow and query / answer flow as reference architecture flows.
-  '''
-}
-
-Table Edge {
-  id string [primary key, note: 'Connection edge id for graph visualization and detail lookup.']
-  flow_id string [not null, note: 'Flow.id that owns this edge.']
-  from_slot string [not null, note: 'Source ComponentSlot.slot.']
-  to_slot string [not null, note: 'Target ComponentSlot.slot.']
-  relationship string [not null, note: 'Relationship reason. Examples include calls_retriever, queries_vector_store, and builds_prompt_for.']
-
-  Note: '''
-    Connection between RAG component slots.
-    GUI users can click an edge to see the connection reason.
+    Scanner 從 deterministic evidence materialize 的 endpoint。
+    Static config evidence 不等於 endpoint 可達，network exposure 結果必須表達不確定性。
   '''
 }
 
 Table RiskHint {
-  id string [primary key, note: 'Risk hint identifier.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  type string [not null, note: 'Risk hint type. Examples include network_exposure and external endpoint.']
-  target string [not null, note: 'Target of the risk hint, such as a ComponentInstance.id, Endpoint.id, or ComponentSlot.slot.']
-  target_type string [not null, note: 'Target type. Allowed values: component_instance, endpoint, component_slot.']
-  evidence_id string [not null, note: 'Evidence.id that supports this risk hint and allows users to trace back to source evidence.']
-  rule_id string [not null, note: 'Scanner rule id that produced this risk hint.']
-  rationale string [not null, note: 'Human-readable explanation of why the evidence triggered this risk hint.']
-  uncertainty string [note: 'Human-readable uncertainty note explaining limits of the hint.']
-  severity_hint string [note: 'Initial severity hint. Example: high.']
+  risk_hint_id string [not null, note: 'Canonical map 中 evidence-backed risk hint 的識別碼。']
+  build_id string [not null, note: '此 risk hint 所屬的 CanonicalMap.build_id。']
+  evidence_id string [not null, note: '支持此 hint 的 Evidence.evidence_id。']
+  uncertainty string [note: 'Static evidence 無法證明 runtime reachability 時必須保存的不確定性。']
+
+  Indexes {
+    (build_id, risk_hint_id) [pk]
+  }
 
   Note: '''
-    Initial risk hint produced by Epic 1.
-    Epic 1 records exposure and external-provider hints, but complete security judgment belongs to later epics.
+    RiskHintService 依明確 pattern 邊界產生的 evidence-backed finding hint。
+    Risk hint 不是完整企業級資安判斷，且 network exposure 必須保留不確定性。
+  '''
+}
 
+Table UnmappedComponent {
+  unmapped_id string [not null, note: 'Step 4 無法定案、可供後續 review 的 unmapped component 識別碼。']
+  build_id string [not null, note: '此 unmapped component 所屬的 CanonicalMap.build_id。']
+  status string [not null, note: '規格明確指定 unresolved canonical item 使用 needs_review。']
+  evidence_ids string [not null, note: '支持此 unmapped component 的同 build Evidence.evidence_id JSON array。']
+
+  Indexes {
+    (build_id, unmapped_id) [pk]
+  }
+
+  Note: '''
+    Step 4 Bridge 1 無法 materialize 為 repo component 時保留的 review candidate context。
+    Step 4 不得同步建立 MappingProposal；Proposal 只能在 Step 9 由 Viewer/API 觸發。
+  '''
+}
+
+Table CapabilityCandidateComponent {
+  build_id string [not null, note: '此 non-canonical capability candidate 所屬的 Build.build_id。']
+  capability_candidate_id string [not null, note: 'Confirmed non-baseline capability candidate 的穩定識別碼；由 ManualMapping decision 決定，套用到後續 build 或 rescan replay 時保持相同 id。']
+  name string [note: '使用者確認或編輯後的 capability candidate 顯示名稱。']
+  observed_kind string [not null, note: 'Deterministic evidence 所觀察到的 generic capability kind。']
+  status string [not null, note: 'Confirmed non-baseline candidate 固定使用 confirmed_non_baseline。']
+  evidence_ids string [not null, note: '支持此 candidate 的同 build Evidence.evidence_id JSON array。']
+  source_unmapped_component_id string [note: '此 candidate 來源的 UnmappedComponent.unmapped_id。']
+  source_file string [note: 'Project-relative source file；不得保存 unmanaged absolute path。']
+  proposal_id string [note: '建立此 confirmed candidate 的 MappingProposal.proposal_id。']
+  decision_source string [note: '此 candidate 的 durable decision source。']
+
+  Indexes {
+    (build_id, capability_candidate_id) [pk]
+  }
+
+  Note: '''
+    Profile inference 可消費的 non-canonical confirmed capability candidate。
+    Candidate 不得直接加入 canonical topology，也不得單獨將 profile 升級為 detected。
+    同一筆 confirmed ManualMapping 重新 materialize 到 apply child build、detail child build 或 rescan build 時，capability_candidate_id 必須保持穩定；它不是每個 build 重新產生的新 id，也不是 project-global registry identity。
+  '''
+}
+
+Table ReferenceCatalog {
+  catalog_id string [primary key, note: 'Package-bundled capability reference map catalog 識別碼。']
+  version string [not null, note: 'Reference catalog contract version；node 新增、刪除或 rename 必須變更 contract。']
+  display_name string [not null, note: 'Catalog 顯示名稱。']
+  description string [note: 'Catalog 用途與閱讀座標說明。']
+
+  Note: '''
+    Fixed ten-plane / 52-node reference metadata catalog。
+    Catalog 只保存 data-only metadata，不保存 detector、threshold、condition、weight、prompt 或 lifecycle action。
+  '''
+}
+
+Table ReferencePlane {
+  plane_id string [primary key, note: '固定十個 Capability Reference Map plane 之一。']
+  catalog_id string [not null, note: '此 plane 所屬的 ReferenceCatalog.catalog_id。']
+  label string [not null, note: 'Plane 顯示標籤。']
+  description string [note: 'Plane 的閱讀座標說明。']
+  order_index int [not null, note: 'Reference catalog metadata 中的 0-based 顯示順序；在同 catalog parent scope 內必須連續且唯一。']
+  visual_group_metadata string [note: 'Data-only visual group metadata；不得影響 assessment。']
+
+  Indexes {
+    (catalog_id, order_index) [unique]
+  }
+
+  Note: '''
+    Fixed ten-plane reference map 的穩定 plane 座標。
+    order_index 從 0 開始、不可跳號，且同 catalog 內不可重複。
+    Governance/observability 是 canonical plane；derived lens 不得複製 canonical facts。
+  '''
+}
+
+Table ReferenceNode {
+  reference_node_id string [primary key, note: '固定 52 個 reference component/node 之一的穩定識別碼。']
+  plane_id string [not null, note: '此 node 所屬的 ReferencePlane.plane_id。']
+  label string [not null, note: 'Metadata TOML 保存的顯示標籤。']
+  description string [note: 'Metadata TOML 保存的 reference node 說明。']
+  order_index int [not null, note: 'Metadata TOML 保存的 0-based 顯示順序；在同 plane parent scope 內必須連續且唯一。']
+  icon_token_hints string [note: 'Data-only icon/token 顯示提示。']
+  aliases string [note: '只供文件、migration 與 display lookup 的 aliases JSON array；不得觸發 detection。']
+  activation_applicable bool [not null, note: 'Catalog 是否宣告此 node 有 activation 語意；只有 false 時才可用 not_applicable。']
+  default_uncertainty string [note: '掃描不足時顯示的預設不確定性文字。']
+  recommended_next_checks string [note: 'Metadata TOML 保存的 recommended next checks JSON array。']
+
+  Indexes {
+    (plane_id, order_index) [unique]
+  }
+
+  Note: '''
+    Stable product coordinate，不是目前 repo 的 component fact。
+    order_index 從 0 開始、不可跳號，且同 plane 內不可重複。
+    Metadata 不得保存 regex、threshold、condition、weight、provider config、prompt 或 lifecycle action。
+  '''
+}
+
+Table ReferenceAssessment {
+  build_id string [not null, note: '此 assessment 所屬的 Build.build_id。']
+  scan_id string [not null, note: '此 assessment 所使用的 ScanSnapshot.scan_id。']
+  environment_id string [not null, note: 'Phase2 固定為 environment:default-static。']
+  reference_node_id string [not null, note: '被評估的 ReferenceNode.reference_node_id。']
+  assessment_status string [not null, note: '五態之一：detected、partial、undetermined、not_detected、conflicted。']
+  activation string [not null, note: '與 assessment 分離的 activation：enabled、disabled、conditional、unknown、conflicted、not_applicable。']
+  direct_evidence_ids string [note: '同 build direct Evidence.evidence_id JSON array；detected 必須有 direct evidence 並通過 gate。']
+  indirect_evidence_ids string [note: '同 build indirect Evidence.evidence_id JSON array；indirect-only 最多為 partial。']
+  explicit_negative_evidence_ids string [note: '同 build explicit_negative Evidence.evidence_id JSON array；單純 absence 不屬於此類。']
+  conflict_fields string [note: '發生 field-specific conflict 的欄位名稱 JSON array。']
+  conflict_evidence_ids string [note: '支持 conflict 雙方的同 build Evidence.evidence_id JSON array。']
+  coverage_detected int [not null, note: 'Capability-specific coverage gate 已完成檢查的 signal 數量，必須大於或等於 0。']
+  coverage_total int [not null, note: 'Capability-specific coverage gate 的 signal 總數，必須大於或等於 coverage_detected。']
+  not_detected_coverage_gate_passed bool [not null, note: '只有 true 時 assessment_status 才可為 not_detected。']
+  repo_component_ids string [note: '此 reference node assessment 對應的同 build RepoComponent.component_id JSON array。']
+  uncertainty string [note: 'Static assessment 的限制與不確定性。']
+  recommended_next_checks string [note: 'Backend 提供的 recommended next checks JSON array。']
+
+  Indexes {
+    (build_id, reference_node_id) [pk]
+  }
+
+  Note: '''
+    Step 6 對 fixed reference node 產生的 derived assessment。
     Invariants:
-    - every RiskHint must include target, target_type, evidence_id, rule_id, and rationale.
-    - evidence_id is the traceable source for the risk hint.
-    - rationale must explain why the evidence triggered the hint.
-    - uncertainty must be used when Epic 1 can only provide a hint rather than a complete security judgment.
+    - detected 必須有 direct evidence 並通過 capability-specific gate。
+    - indirect-only 固定為 partial。
+    - not_detected 必須先通過 bounded coverage gate。
+    - conflicted 必須保留同 scope、同欄位的雙方 evidence。
+    - assessment_status 與 activation 是正交欄位。
+    - Assessment、Profile、API 與 frontend contract 的正式欄位名稱一律為 activation；不得使用 activation_state 作為 persisted 或 projection 欄位名稱。
   '''
 }
 
-Table RecommendedNextCheck {
-  id string [primary key, note: 'Recommended next check identifier.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  check_name string [not null, note: 'Recommended next check name. Examples include runtime_readiness, privacy_exposure, and rag_knowledge_trust.']
+Table ProfileSignalSet {
+  build_id string [primary key, note: '此 profile_signals.json 所屬的 Build.build_id。']
+  schema_version string [not null, note: 'Profile sidecar contract version；Phase2 使用 profile-signals/v1。']
+  source_schema_version string [not null, note: '產生此 sidecar 的 canonical schema version。']
+  scan_id string [not null, note: '此 sidecar 使用的 ScanSnapshot.scan_id。']
+  environment_id string [not null, note: 'Phase2 固定為 environment:default-static。']
 
   Note: '''
-    Follow-up checker recommendation produced from the RAG System Map.
-    These recommendations connect Epic 1 output to later readiness modules.
+    profile_signals.json 的 validated header 與 scope identity。
+    ProfileSignalSet 1:N ProfileSignal，且可包含同 build CapabilityCandidateComponent。
+    Assessment、Profile、API 與 frontend contract 的正式欄位名稱一律為 activation；不得使用 activation_state 作為 persisted 或 projection 欄位名稱。
   '''
 }
 
-Table QueryTraceEvent {
-  id string [primary key, note: 'Query trace event identifier.']
-  system_map_schema_version string [not null, note: 'Associated RAG System Map schema_version.']
-  sequence_index int [not null, note: 'Replay order index for deterministic pause, step forward, step backward, and replay controls.']
-  timestamp string [not null, note: 'Actual event time for debugging and latency analysis.']
-  slot string [note: 'Mapped RAG ComponentSlot.slot for this trace step.']
-  edge_id string [note: 'Mapped Edge.id for this trace step when the event corresponds to a connection.']
-  input string [note: 'Trace step input shown in the GUI detail panel. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
-  output string [note: 'Trace step output shown in the GUI detail panel. Secret-like values may show a small prefix and suffix, with the middle masked; full secrets must not be displayed.']
-  latency string [note: 'Trace step latency shown in the GUI detail panel.']
-  error string [note: 'Trace step error shown in the GUI detail panel.']
-  retrieved_chunks string [note: 'Retrieved chunks shown for query trace replay, stored as a JSON string if present.']
+Table ProfileSignal {
+  build_id string [not null, note: '此 profile signal 所屬的 ProfileSignalSet.build_id。']
+  profile_id string [not null, note: 'One-level profile contract 的 profile 識別碼。']
+  label string [not null, note: 'Backend metadata 提供的 profile 顯示標籤。']
+  description string [note: 'Backend metadata 提供的 profile 說明。']
+  assessment_status string [not null, note: 'Profile 的五態 assessment status。']
+  activation string [not null, note: '與 profile assessment 分離的六態 activation：enabled、disabled、conditional、unknown、conflicted、not_applicable。']
+  primary_axis string [not null, note: 'Profile 的主要 capability axis。']
+  secondary_axes string [note: 'Profile 的次要 capability axes JSON array。']
+  implementation_depth_level int [not null, note: 'Deterministic implementation depth level；規格值域為 0 到 4。']
+  implementation_depth_reason string [note: '說明 implementation depth 的 deterministic reason。']
+  evidence_ids string [note: '此 profile 引用的全部同 build Evidence.evidence_id JSON array。']
+  negative_evidence_ids string [note: '此 profile 的 negative evidence ids JSON array。']
+  direct_evidence_ids string [note: '支持 profile 的 direct Evidence.evidence_id JSON array。']
+  indirect_evidence_ids string [note: '支持 profile 的 indirect Evidence.evidence_id JSON array。']
+  explicit_negative_evidence_ids string [note: '支持 profile 的 explicit_negative Evidence.evidence_id JSON array。']
+  conflict_fields string [note: '發生 field-specific conflict 的欄位名稱 JSON array。']
+  conflict_evidence_ids string [note: '支持 conflict 雙方的 evidence ids JSON array。']
+  detected_signals string [note: 'Deterministic detected signals JSON array。']
+  missing_signals string [note: 'Coverage gate 檢查後的 missing signals JSON array。']
+  coverage_detected int [not null, note: '已完成且 detected 的 coverage signal 數量，必須大於或等於 0。']
+  coverage_total int [not null, note: 'Coverage signal 總數，必須大於或等於 coverage_detected。']
+  not_detected_coverage_gate_passed bool [not null, note: '只有 true 時 assessment_status 才可為 not_detected。']
+  evidence_strength string [not null, note: 'Deterministic evidence strength 分類，不是 numeric confidence。']
+  uncertainty string [note: 'Profile assessment 的限制與不確定性。']
+  related_unmapped_component_ids string [note: '供 read-only navigation 的 UnmappedComponent ids JSON array。']
+  related_capability_candidate_component_ids string [note: '供 read-only navigation 的 CapabilityCandidateComponent ids JSON array。']
+  related_risk_hint_ids string [note: '供 read-only navigation 的 RiskHint ids JSON array。']
+  related_execution_path_ids string [note: 'Supporting static execution path ids JSON array；不得視為 runtime proof。']
+  recommended_next_checks string [note: 'Backend 提供的 recommended next checks JSON array。']
+  source string [not null, note: 'Standard deterministic profile source 固定為 deterministic_static。']
+
+  Indexes {
+    (build_id, profile_id) [pk]
+  }
 
   Note: '''
-    Query trace or replay event collected by Epic 1 MVP through a detected RAG endpoint basic trace.
-    Proxy wrapper, trace hook, and complete runtime trace capture are advanced scope for Epic 1 or later Runtime Readiness / Observability work.
+    profile_signals.json 中的 validated read-only enrichment。
+    Profile 不得 mutate canonical map；sidecar 缺失或損壞時 normal viewer degraded load，strict validation fail closed。
+    detected 必須有 direct evidence 且 implementation_depth_level 大於或等於 3。
+    not_detected 必須有 completed coverage gate 且 implementation_depth_level 為 0。
+  '''
+}
 
+Table AssessmentSummary {
+  build_id string [primary key, note: '此 assessment summary 所屬的 Build.build_id。']
+  mapping_completeness float [not null, note: '固定 52-node catalog 的覆蓋率；只能稱為 Mapping Completeness。']
+  numerator float [not null, note: '依固定 weights 加總的 Mapping Completeness 分子。']
+  reference_node_count int [not null, note: '固定 catalog 全部 reference node 數量；Phase2 規格為 52。']
+  per_status_counts string [not null, note: '五態各自的 reference node counts JSON object。']
+  fixed_weights string [not null, note: 'detected=1、not_detected=1、partial=0.5、undetermined=0、conflicted=0 的固定 weights JSON object。']
+
+  Note: '''
+    同 build 的 Mapping Completeness 摘要。
     Invariants:
-    - sequence_index controls replay order.
-    - timestamp records actual event time for debugging and latency analysis.
-    - secret-like input and output values may show a small prefix and suffix, with the middle masked.
-    - full API key or secret values must not be displayed in input or output.
+    - detected 與通過 coverage gate 的 not_detected 權重為 1.0。
+    - partial 權重為 0.5。
+    - undetermined 與 conflicted 權重為 0.0。
+    - activation 的 not_applicable 不得縮小分母。
+    - 不得命名為 confidence、accuracy、readiness score 或 quality。
   '''
 }
 
-Ref: Project.system_map_schema_version > RagSystemMap.schema_version
-Ref: Classification.system_map_schema_version > RagSystemMap.schema_version
-Ref: ReferenceArchitecture.system_map_schema_version > RagSystemMap.schema_version
-Ref: ComponentSlot.system_map_schema_version > RagSystemMap.schema_version
-Ref: ComponentSlot.reference_architecture_id > ReferenceArchitecture.id
-Ref: ComponentInstance.slot > ComponentSlot.slot
-Ref: Evidence.component_instance_id > ComponentInstance.id
-Ref: Endpoint.system_map_schema_version > RagSystemMap.schema_version
-Ref: Endpoint.evidence_id > Evidence.id
-Ref: Flow.system_map_schema_version > RagSystemMap.schema_version
-Ref: Edge.flow_id > Flow.id
-Ref: Edge.from_slot > ComponentSlot.slot
-Ref: Edge.to_slot > ComponentSlot.slot
-Ref: RiskHint.system_map_schema_version > RagSystemMap.schema_version
-Ref: RiskHint.evidence_id > Evidence.id
-Ref: RecommendedNextCheck.system_map_schema_version > RagSystemMap.schema_version
-Ref: QueryTraceEvent.system_map_schema_version > RagSystemMap.schema_version
-Ref: QueryTraceEvent.slot > ComponentSlot.slot
-Ref: QueryTraceEvent.edge_id > Edge.id
+Table ReadinessReport {
+  build_id string [primary key, note: '此 readiness_report.json 所屬的 Build.build_id。']
+  schema_version string [not null, note: 'Readiness sidecar contract version；Phase2 使用 readiness-report/v1。']
+  source_schema_version string [not null, note: '產生此 report 的 canonical source schema version。']
+  scan_id string [not null, note: '此 report 使用的 ScanSnapshot.scan_id。']
+  environment_id string [not null, note: 'Phase2 固定為 environment:default-static。']
+  summary string [not null, note: 'Evidence-backed readiness summary。']
+  release_verdict string [not null, note: 'Top-level release gate verdict；固定值為 ready、needs_review、blocked，必須由 backend 固定 policy 從同 build findings 推導。']
+  finding_registry_version string [not null, note: 'Readiness finding category/severity registry version；Phase2 使用 readiness-finding-registry/v1。']
+  grounding_applicability string [note: 'Grounding 是否適用及其 evidence-backed reason。']
+  dimensions string [note: 'Readiness dimensions JSON array。']
+  capability_summaries string [note: 'Capability assessment summaries JSON array。']
+  recommended_next_checks string [note: 'Report-level recommended next checks JSON array。']
+  limitations string [note: 'Report-level static analysis limitations JSON array。']
+  primary_map_type string [note: 'Optional derived summary；只能存在 report/projection 且必須可由 canonical facts 重算。']
+
+  Note: '''
+    Release-readiness 的 derived sidecar report。
+    Active surface 使用 evidence-backed summary、release_verdict 與 findings。
+    release_verdict 是 report-level derived field：
+    - 只能使用 ready、needs_review、blocked。
+    - 必須由 backend 固定 readiness policy 從同 build findings 推導。
+    - Frontend 不得自行重算或覆寫 release_verdict。
+    - 不得命名為 score、confidence、quality 或 pass/fail。
+    finding_registry_version 固定 category/severity vocabulary；新增或改名 category/severity 必須升級 registry version。
+  '''
+}
+
+Table ReadinessFinding {
+  finding_id string [not null, note: 'Readiness report 中可追溯 finding 的識別碼。']
+  build_id string [not null, note: '此 finding 所屬的 ReadinessReport.build_id。']
+  category string [not null, note: '固定 readiness-finding-registry/v1 category enum：source_traceability、network_exposure、artifact_integrity、schema_contract、evidence_gap、static_uncertainty、manual_review。']
+  severity string [not null, note: '固定 readiness-finding-registry/v1 severity enum：blocker、high、medium、low、info。']
+  status string [not null, note: '固定使用五態：detected、partial、undetermined、not_detected、conflicted；表示 finding 的 evidence-backed 判斷，不得與 activation 或 top-level release verdict 混用。']
+  evidence_ids string [note: '支持此 finding 的同 build Evidence.evidence_id JSON array。']
+  reason string [note: '無 evidence ref 或 status 為 undetermined/not_detected 時的明確原因。']
+  recommended_next_checks string [note: 'Finding-level recommended next checks JSON array。']
+  limitations string [note: 'Finding-level static analysis limitations JSON array。']
+  uncertainty string [note: 'Static config 無法證明 runtime 狀態時的 uncertainty。']
+
+  Indexes {
+    (build_id, finding_id) [pk]
+  }
+
+  Note: '''
+    readiness_report.json.findings[] 中的 evidence-backed 交付前缺口。
+    Finding 只能引用同 build 的 ids。
+    Category/severity 使用固定且版本化的 readiness-finding-registry/v1；不得由 rule metadata 任意輸出開放字串。
+    Severity 是 release policy input，不是 numeric score；release_verdict 只能由 backend 固定 policy 從同 build findings 的 status/category/severity 推導。
+    Category registry v1:
+    - source_traceability：citation、source mapping 或 evidence ref 缺口。
+    - network_exposure：static config 顯示可能對外暴露或無法證明 exposure 邊界。
+    - artifact_integrity：必要 artifact 缺失、digest mismatch 或 atomic publish integrity 問題。
+    - schema_contract：JSON schema、sidecar contract 或 compatibility contract 不符合。
+    - evidence_gap：缺少足以支持 readiness 判斷的 bounded evidence。
+    - static_uncertainty：static analysis 無法證明 runtime 狀態的限制。
+    - manual_review：需要人工決策或 review queue 介入的交付前項目。
+    Severity registry v1:
+    - blocker：不應 demo、交付或部署，release_verdict 應推導為 blocked。
+    - high：需要交付前優先處理或人工確認。
+    - medium：需要 review，但通常不單獨阻擋交付。
+    - low：可追蹤的低風險改善或提醒。
+    - info：純資訊性 finding。
+    Status semantics:
+    - detected：直接 deterministic evidence 足以支持此 finding。
+    - partial：僅部分條件有直接支持，或目前只有間接 evidence。
+    - undetermined：static evidence 或 coverage 不足，無法判定。
+    - not_detected：finding-specific coverage gate 已完成，且未偵測到支持 evidence。
+    - conflicted：同一判斷存在互不相容的 evidence，必須保留雙方依據。
+  '''
+}
+
+Table StaticCallGraph {
+  build_id string [primary key, note: '此 call_graph.json 所屬的 Build.build_id。']
+  schema_version string [not null, note: 'Static call graph artifact schema version。']
+  source_schema_version string [not null, note: '此 call graph 引用的 canonical source schema version。']
+  runtime_verified bool [not null, note: 'Static inferred artifact 固定為 false。']
+  limitations string [not null, note: 'Static-only limitations JSON array。']
+
+  Note: '''
+    Architecture-oriented bounded static call graph header。
+    StaticCallGraph 1:N StaticCallEdge，不得宣稱 runtime executed 或 traversed。
+  '''
+}
+
+Table StaticCallEdge {
+  build_id string [not null, note: '此 call edge 所屬的 StaticCallGraph.build_id。']
+  call_edge_id string [not null, note: '同 build static call edge 識別碼。']
+  source_ref string [not null, note: '掃描器實際解析到的安全 source symbol／source reference；路徑部分必須使用 project-relative POSIX representation。']
+  target_ref string [not null, note: '掃描器實際解析到的安全 target symbol／source reference；路徑部分必須使用 project-relative POSIX representation。']
+  source_component_id string [note: '只有 source_ref 可對應到同 build RepoComponent 時才填入；無法對應時保持空值。']
+  target_component_id string [note: '只有 target_ref 可對應到同 build RepoComponent 時才填入；無法對應時保持空值。']
+  relationship string [not null, note: 'Route-to-handler、handler-to-service 或其他 bounded static call relationship。']
+  status string [not null, note: '固定使用五態：detected、partial、undetermined、not_detected、conflicted；表示此 static edge 的 evidence-backed assessment。']
+  inference_kind string [not null, note: 'Static derived edge 使用 static_inferred。']
+  evidence_strength string [not null, note: 'Static evidence strength，例如 indirect。']
+  analysis_depth string [not null, note: 'Static extraction depth，例如 same_file_dataflow。']
+  evidence_ids string [note: '支持此 edge 的同 build Evidence.evidence_id JSON array。']
+  undetermined_reason string [note: '缺少可用 evidence id 時的明確 undetermined reason。']
+
+  Indexes {
+    (build_id, call_edge_id) [pk]
+  }
+
+  Note: '''
+    call_graph.json 中的 bounded static edge。
+    每筆 edge 必須有 evidence ids 或明確 undetermined reason。
+    source_ref 與 target_ref 必須保存掃描器確實解析到的結構；無法對應 canonical component 時不得捏造 component id。
+  '''
+}
+
+Table DataflowHint {
+  build_id string [not null, note: '此 hint 所屬的 Build.build_id。']
+  dataflow_hint_id string [not null, note: '同 build shallow dataflow hint 識別碼。']
+  source_ref string [not null, note: 'Assignment、argument 或 return flow 的 source reference。']
+  target_ref string [not null, note: 'Assignment、argument 或 return flow 的 target reference。']
+  status string [not null, note: '固定使用五態：detected、partial、undetermined、not_detected、conflicted；weak signal 維持 undetermined。']
+  inference_kind string [not null, note: 'Static derived hint 使用 static_inferred。']
+  evidence_strength string [not null, note: '支持此 hint 的 static evidence strength。']
+  analysis_depth string [not null, note: 'Shallow dataflow analysis depth。']
+  evidence_ids string [note: '支持此 hint 的同 build Evidence.evidence_id JSON array。']
+  limitations string [note: '此 hint 的 static-only limitations JSON array。']
+
+  Indexes {
+    (build_id, dataflow_hint_id) [pk]
+  }
+
+  Note: '''
+    dataflow_hints.json 中的 same-function shallow dataflow hint。
+    不建立 interprocedural dataflow engine，也不作 runtime proof。
+  '''
+}
+
+Table ExecutionPath {
+  build_id string [not null, note: '此 execution path 所屬的 Build.build_id。']
+  execution_path_id string [not null, note: '同 build ordered static execution path 識別碼。']
+  label string [not null, note: 'Backend 提供的 execution path 顯示標籤。']
+  status string [not null, note: '固定使用五態：detected、partial、undetermined、not_detected、conflicted；表示此 path 的 evidence-backed static assessment。']
+  inference_kind string [not null, note: 'Static derived path 使用 static_inferred。']
+  runtime_verified bool [not null, note: 'Static execution path 固定為 false。']
+  limitations string [not null, note: 'Static-only limitations JSON array；無法排序時必須保留。']
+
+  Indexes {
+    (build_id, execution_path_id) [pk]
+  }
+
+  Note: '''
+    execution_paths.json 中的 ordered static inferred path。
+    ExecutionPath 1:N ExecutionStep；不得硬湊完整 pipeline 或轉成 runtime trace steps。
+  '''
+}
+
+Table ExecutionStep {
+  build_id string [not null, note: '此 step 所屬的 Build.build_id。']
+  execution_path_id string [not null, note: '此 step 所屬的 ExecutionPath.execution_path_id。']
+  sequence_index int [not null, note: 'Path 中的 0-based deterministic step 順序；在同 execution_path parent scope 內必須連續且唯一。']
+  role string [not null, note: '固定 role vocabulary，例如 entrypoint、retrieval、generation 或 output。']
+  source_ref string [not null, note: '掃描器實際解析到的安全 symbol／source reference；路徑部分必須使用 project-relative POSIX representation。']
+  component_id string [note: '只有 source_ref 可對應到同 build RepoComponent 時才填入；無法對應時保持空值。']
+  status string [not null, note: '固定使用五態：detected、partial、undetermined、not_detected、conflicted；表示此 step 的 evidence-backed static assessment。']
+  evidence_ids string [note: '支持此 step 的同 build Evidence.evidence_id JSON array。']
+  undetermined_reason string [note: '無法確認 step 時的明確 undetermined reason。']
+
+  Indexes {
+    (build_id, execution_path_id, sequence_index) [pk]
+  }
+
+  Note: '''
+    Ordered static execution path step。
+    sequence_index 從 0 開始、不可跳號，且同 execution_path 內不可重複。
+    Step 只能引用同 build component/evidence，不保存 runtime latency 或 runtime status。
+    source_ref 必須保存掃描器確實解析到的結構；無法對應 canonical component 時不得捏造 component id。
+  '''
+}
+
+Table EvidenceTableRow {
+  build_id string [not null, note: '此 flattened evidence row 所屬的 Build.build_id。']
+  evidence_id string [not null, note: '此 row 對應的同 build Evidence.evidence_id。']
+  artifact_types string [note: '引用此 evidence 的同 build artifact type JSON array。']
+  project_relative_path string [note: 'Project-relative POSIX source path。']
+  line_range string [note: 'Evidence source line range。']
+  json_pointer string [note: 'Workflow JSON evidence pointer。']
+  rule_id string [note: '產生此 evidence 的 scanner rule id。']
+  extract_summary string [note: 'Bounded、masked extract/snippet summary；不得保存完整 raw source。']
+  source_artifact_refs string [note: '引用此 row 的同 build artifact refs JSON array。']
+
+  Indexes {
+    (build_id, evidence_id) [pk]
+  }
+
+  Note: '''
+    evidence_table.json 的 flattened、可查詢 DB staging row。
+    每個 build 的每個 evidence_id 固定只產生一列；artifact usage 必須彙整到 artifact_types 與 source_artifact_refs，不得依 artifact 或 location 拆成多列。
+    它是獨立 sibling artifact，不取代 ai_system_map.json.evidence[]。
+  '''
+}
+
+Table MappingProposal {
+  proposal_id string [primary key, note: 'Scanner 建議包的識別碼。']
+  project_id string [not null, note: '此 proposal 所屬的 Project.project_id；由 server 綁定。']
+  source_build_id string [not null, note: '產生此 proposal 的 Build.build_id；決策不可跨 build 使用 evidence。']
+  unmapped_id string [not null, note: '觸發 proposal 的 UnmappedComponent.unmapped_id。']
+  evidence_summary string [not null, note: '提供 review 的 bounded、masked evidence 摘要。']
+  available_actions string [not null, note: 'UI 可提供的 accept、edit、reject、skip actions JSON array。']
+  status string [not null, note: 'Proposal lifecycle status；accept／edit 後為 accepted，reject 後為 rejected，skip 後為 skipped。']
+
+  Note: '''
+    Step 9 由 Viewer/API 針對重要且模糊項目建立的問題加選項。
+    Proposal 不得直接決定 profile assessment status，也不得阻塞第一次 map/readiness/graph 結果。
+  '''
+}
+
+Table MappingCandidate {
+  proposal_id string [not null, note: '此 candidate 所屬的 MappingProposal.proposal_id。']
+  rank int [not null, note: 'Proposal 內 0-based deterministic candidate 排序；在同 proposal parent scope 內必須連續且唯一。']
+  candidate_type string [not null, note: 'Candidate type，例如 existing_slot_mapping、non_baseline_capability_candidate、needs_more_information 或 skip_for_now。']
+  proposed_capability_candidate_id string [note: 'Non-baseline candidate 建議的 capability candidate id。']
+  proposed_capability_candidate_name string [note: 'Non-baseline candidate 建議的顯示名稱。']
+  proposed_capability_candidate_kind string [note: 'Non-baseline candidate 建議的 generic observed kind。']
+  label string [not null, note: 'UI 顯示的 candidate label。']
+  rationale string [not null, note: '此 candidate 與 evidence 關係的 bounded rationale。']
+  evidence_ids string [not null, note: '支持此 candidate 的來源 Evidence.evidence_id JSON array。']
+  recommendation_level string [note: 'Bounded recommendation level，不是 numeric confidence。']
+  uncertainty_reason string [note: 'Static evidence 尚不足時的 uncertainty reason。']
+
+  Indexes {
+    (proposal_id, rank) [pk]
+  }
+
+  Note: '''
+    MappingProposal 1:N MappingCandidate 的 DB staging model。
+    rank 從 0 開始、不可跳號，且同 proposal 內不可重複。
+    Candidate 是問題的可選方案，不是 durable decision，也不得直接改變 profile status。
+  '''
+}
+
+Table ManualMapping {
+  mapping_id string [primary key, note: '持久化 review decision 的穩定識別碼；更新時保留 ID。']
+  project_id string [not null, note: '此 decision 所屬的 Project.project_id；由 server 填入。']
+  source_build_id string [not null, note: '此 decision 原始使用的來源 Build.build_id；Apply request 必須拒絕 stale 或跨 build 決策，explicit rescan replay 則只能重用 same-project 且能由新 snapshot evidence 重新驗證的 confirmed decision。']
+  proposal_id string [note: '此 decision 連回的 MappingProposal.proposal_id。']
+  decision string [not null, note: '使用者的 durable 決策結果；accept／edit 寫入 confirmed，reject 寫入 rejected，skip 寫入 skipped。只有 confirmed 可被 Apply。']
+  mapping_type string [not null, note: 'Decision 的 mapping type。']
+  source_unmapped_id string [note: 'Decision 所處理的 UnmappedComponent.unmapped_id。']
+  source_file string [note: 'Project-relative source file；不得保存 unmanaged absolute path。']
+  observed_kind string [note: 'Decision 來源 deterministic evidence 的 observed kind。']
+  source_evidence_ids string [not null, note: '由 server 保存的來源 Evidence.evidence_id JSON array。']
+  capability_candidate_id string [note: 'non_baseline_capability_candidate decision 必須提供的 candidate id；此 id 由 durable mapping decision 決定，materialize 到後續 build 或 rescan replay 時保持穩定。']
+  capability_candidate_name string [note: 'non_baseline_capability_candidate decision 必須提供的 candidate name。']
+  capability_candidate_kind string [note: 'non_baseline_capability_candidate decision 必須提供的 candidate kind。']
+  digest string [not null, note: 'Server-owned mapping digest，用於 Apply retry idempotency；使用 canonical-json/v1 bytes 計算 SHA-256，並保留 canonicalization/hash version。']
+  recorded_at string [not null, note: 'Server-owned decision/audit 時間。']
+
+  Note: '''
+    使用者 accept/edit/reject/skip 後都必須寫入 store 的正式 mapping decision。
+    只有 confirmed mapping 會在 Apply 或 rescan 時影響 build；rejected／skipped 只保留 audit trail，decision 不得直接寫回 ai_system_map.json。
+    ManualMapping.digest、ScanSnapshot.inventory_digest 與 Artifact.digest 共用 canonical-json/v1 + SHA-256 規格，但 ManualMapping.digest 只納入 server-owned decision contract 所定義欄位。
+    non_baseline_capability_candidate 不得同時包含 target_slot 或 legacy extension fields。
+  '''
+}
+
+Ref: Project.latest_build_id > Build.build_id
+Ref: ScanSnapshot.project_id > Project.project_id
+Ref: Build.project_id > Project.project_id
+Ref: Build.scan_id > ScanSnapshot.scan_id
+Ref: Build.based_on_build_id > Build.build_id
+Ref: Artifact.build_id > Build.build_id
+Ref: Artifact.scan_id > ScanSnapshot.scan_id
+Ref: CanonicalMap.build_id > Build.build_id
+Ref: CanonicalMap.project_id > Project.project_id
+Ref: CanonicalMap.scan_id > ScanSnapshot.scan_id
+Ref: Evidence.build_id > CanonicalMap.build_id
+Ref: EvidenceLocation.(build_id, evidence_id) > Evidence.(build_id, evidence_id)
+Ref: RepoComponent.build_id > CanonicalMap.build_id
+Ref: ComponentEdge.build_id > CanonicalMap.build_id
+Ref: ComponentEdge.(build_id, from_component_id) > RepoComponent.(build_id, component_id)
+Ref: ComponentEdge.(build_id, to_component_id) > RepoComponent.(build_id, component_id)
+Ref: Endpoint.build_id > CanonicalMap.build_id
+Ref: Endpoint.(build_id, evidence_id) > Evidence.(build_id, evidence_id)
+Ref: RiskHint.build_id > CanonicalMap.build_id
+Ref: RiskHint.(build_id, evidence_id) > Evidence.(build_id, evidence_id)
+Ref: UnmappedComponent.build_id > CanonicalMap.build_id
+Ref: CapabilityCandidateComponent.build_id > Build.build_id
+Ref: CapabilityCandidateComponent.(build_id, source_unmapped_component_id) > UnmappedComponent.(build_id, unmapped_id)
+Ref: CapabilityCandidateComponent.proposal_id > MappingProposal.proposal_id
+Ref: ReferencePlane.catalog_id > ReferenceCatalog.catalog_id
+Ref: ReferenceNode.plane_id > ReferencePlane.plane_id
+Ref: ReferenceAssessment.build_id > Build.build_id
+Ref: ReferenceAssessment.scan_id > ScanSnapshot.scan_id
+Ref: ReferenceAssessment.reference_node_id > ReferenceNode.reference_node_id
+Ref: ProfileSignalSet.build_id > Build.build_id
+Ref: ProfileSignalSet.scan_id > ScanSnapshot.scan_id
+Ref: ProfileSignal.build_id > ProfileSignalSet.build_id
+Ref: AssessmentSummary.build_id > Build.build_id
+Ref: ReadinessReport.build_id > Build.build_id
+Ref: ReadinessReport.scan_id > ScanSnapshot.scan_id
+Ref: ReadinessFinding.build_id > ReadinessReport.build_id
+Ref: StaticCallGraph.build_id > Build.build_id
+Ref: StaticCallEdge.build_id > StaticCallGraph.build_id
+Ref: StaticCallEdge.(build_id, source_component_id) > RepoComponent.(build_id, component_id)
+Ref: StaticCallEdge.(build_id, target_component_id) > RepoComponent.(build_id, component_id)
+Ref: DataflowHint.build_id > Build.build_id
+Ref: ExecutionPath.build_id > Build.build_id
+Ref: ExecutionStep.(build_id, execution_path_id) > ExecutionPath.(build_id, execution_path_id)
+Ref: ExecutionStep.(build_id, component_id) > RepoComponent.(build_id, component_id)
+Ref: EvidenceTableRow.(build_id, evidence_id) > Evidence.(build_id, evidence_id)
+Ref: MappingProposal.project_id > Project.project_id
+Ref: MappingProposal.source_build_id > Build.build_id
+Ref: MappingProposal.(source_build_id, unmapped_id) > UnmappedComponent.(build_id, unmapped_id)
+Ref: MappingCandidate.proposal_id > MappingProposal.proposal_id
+Ref: ManualMapping.project_id > Project.project_id
+Ref: ManualMapping.source_build_id > Build.build_id
+Ref: ManualMapping.proposal_id > MappingProposal.proposal_id
+Ref: ManualMapping.(source_build_id, source_unmapped_id) > UnmappedComponent.(build_id, unmapped_id)

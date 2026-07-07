@@ -1,0 +1,228 @@
+{
+  "schema_version": "graph-view-model/v1",
+  "source_schema_version": "ai-system-map/v2",
+  "project_id": "project:sample-ai-health-rag",
+  "scan_id": "scan:sample-s1",
+  "build_id": "build:sample-b2",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:sample-b2",
+  "summary": {
+    "fixture_scope": "partial_projection_fragment",
+    "is_complete_reference_map": false,
+    "required_reference_node_count": 52,
+    "project_name": "sample-ai-health-rag",
+    "component_count": 3,
+    "profile_count": 4,
+    "review_item_count": 1
+  },
+  "nodes": [
+    {
+      "id": "node:component:input:api",
+      "source_id": "component:input:api",
+      "type": "api_input",
+      "semantic_kind": "canonical_component",
+      "slot": "input_source",
+      "status": "detected",
+      "activation": "enabled",
+      "label": "Chat API",
+      "subtitle": "FastAPI endpoint",
+      "badges": ["detected"],
+      "evidence_ids": ["evidence:api-route"],
+      "risk_hint_ids": [],
+      "profile_id": null,
+      "primary_anchor_node_id": null,
+      "anchor_node_ids": [],
+      "related_unmapped_component_ids": [],
+      "related_capability_candidate_component_ids": [],
+      "related_risk_hint_ids": []
+    },
+    {
+      "id": "node:component:retriever:qdrant",
+      "source_id": "component:retriever:qdrant",
+      "type": "retriever",
+      "semantic_kind": "grounding_component",
+      "slot": "retrieval",
+      "status": "detected",
+      "activation": "enabled",
+      "label": "Qdrant Retriever",
+      "subtitle": "Vector retriever",
+      "badges": ["detected", "grounding"],
+      "evidence_ids": ["evidence:retriever-call"],
+      "risk_hint_ids": [],
+      "profile_id": null,
+      "primary_anchor_node_id": null,
+      "anchor_node_ids": [],
+      "related_unmapped_component_ids": [],
+      "related_capability_candidate_component_ids": [],
+      "related_risk_hint_ids": []
+    },
+    {
+      "id": "node:component:llm:openai-chat",
+      "source_id": "component:llm:openai-chat",
+      "type": "llm",
+      "semantic_kind": "canonical_component",
+      "slot": "generation",
+      "status": "detected",
+      "activation": "enabled",
+      "label": "OpenAI Chat Model",
+      "subtitle": "Generation",
+      "badges": ["detected"],
+      "evidence_ids": ["evidence:llm-call"],
+      "risk_hint_ids": [],
+      "profile_id": null,
+      "primary_anchor_node_id": null,
+      "anchor_node_ids": [],
+      "related_unmapped_component_ids": [],
+      "related_capability_candidate_component_ids": [],
+      "related_risk_hint_ids": []
+    },
+    {
+      "id": "node:profile-attachment:rag-grounding:retriever",
+      "source_id": "profile:rag-grounding",
+      "type": "profile_attachment",
+      "semantic_kind": "profile_attachment",
+      "slot": null,
+      "status": "detected",
+      "activation": "enabled",
+      "label": "RAG Grounding",
+      "subtitle": "Capability overlay",
+      "badges": ["detected"],
+      "evidence_ids": ["evidence:retriever-call", "evidence:llm-call"],
+      "risk_hint_ids": [],
+      "profile_id": "rag-grounding",
+      "primary_anchor_node_id": "node:component:retriever:qdrant",
+      "anchor_node_ids": [
+        "node:component:retriever:qdrant",
+        "node:component:llm:openai-chat"
+      ],
+      "related_unmapped_component_ids": [],
+      "related_capability_candidate_component_ids": [],
+      "related_risk_hint_ids": []
+    },
+    {
+      "id": "node:unmapped:reranker-review",
+      "source_id": "unmapped:reranker-review",
+      "type": "review_item",
+      "semantic_kind": "unmapped_component",
+      "slot": null,
+      "status": "needs_review",
+      "activation": "unknown",
+      "label": "Reranker evidence",
+      "subtitle": "Review candidate",
+      "badges": ["review"],
+      "evidence_ids": ["evidence:reranker-call"],
+      "risk_hint_ids": [],
+      "profile_id": null,
+      "primary_anchor_node_id": "node:component:retriever:qdrant",
+      "anchor_node_ids": ["node:component:retriever:qdrant"],
+      "related_unmapped_component_ids": ["unmapped:reranker-review"],
+      "related_capability_candidate_component_ids": [
+        "capability-candidate:reranker"
+      ],
+      "related_risk_hint_ids": []
+    }
+  ],
+  "edges": [
+    {
+      "id": "view-edge:api-to-retriever",
+      "source_id": "edge:api-to-retriever",
+      "flow_id": null,
+      "from": "node:component:input:api",
+      "to": "node:component:retriever:qdrant",
+      "relationship": "data_flow",
+      "label": "query",
+      "evidence_ids": ["evidence:retriever-call"],
+      "risk_hint_ids": []
+    },
+    {
+      "id": "view-edge:retriever-to-llm",
+      "source_id": "edge:retriever-to-llm",
+      "flow_id": null,
+      "from": "node:component:retriever:qdrant",
+      "to": "node:component:llm:openai-chat",
+      "relationship": "context_flow",
+      "label": "context",
+      "evidence_ids": ["evidence:prompt-context"],
+      "risk_hint_ids": []
+    }
+  ],
+  "details": {
+    "evidence_by_id": {
+      "evidence:retriever-call": {
+        "evidence_id": "evidence:retriever-call",
+        "artifact_type": "source_code",
+        "path": "src/rag/pipeline.py",
+        "start_line": 42,
+        "end_line": 42,
+        "extract_summary": "Vector retriever call detected.",
+        "rule_id": "py.vectorstore.retriever",
+        "evidence_strength": "static_single_signal"
+      },
+      "evidence:reranker-call": {
+        "evidence_id": "evidence:reranker-call",
+        "artifact_type": "source_code",
+        "path": "src/rag/pipeline.py",
+        "start_line": 58,
+        "end_line": 58,
+        "extract_summary": "Reranker-like call detected.",
+        "rule_id": "py.reranker.call",
+        "evidence_strength": "weak_or_ambiguous_signal"
+      }
+    },
+    "risk_hints_by_id": {},
+    "profile_findings_by_id": {
+      "rag-grounding": {
+        "profile_id": "rag-grounding",
+        "label": "RAG Grounding",
+        "status": "detected",
+        "primary_axis": "grounding",
+        "coverage_detected": 3,
+        "coverage_total": 4,
+        "evidence_ids": ["evidence:retriever-call", "evidence:llm-call"]
+      },
+      "reranking": {
+        "profile_id": "reranking",
+        "label": "Reranking",
+        "status": "undetermined",
+        "primary_axis": "retrieval_strategy",
+        "coverage_detected": 1,
+        "coverage_total": 2,
+        "evidence_ids": ["evidence:reranker-call"],
+        "related_unmapped_component_ids": ["unmapped:reranker-review"],
+        "related_capability_candidate_component_ids": [
+          "capability-candidate:reranker"
+        ]
+      }
+    },
+    "capability_candidates_by_id": {
+      "capability-candidate:reranker": {
+        "id": "capability-candidate:reranker",
+        "name": "Reranker",
+        "observed_kind": "reranker",
+        "status": "confirmed_non_baseline",
+        "evidence_ids": ["evidence:reranker-call"],
+        "proposal_id": "mapping-proposal:reranker-review",
+        "decision_source": "manual"
+      }
+    }
+  },
+  "filters": {
+    "available": [
+      {
+        "id": "filter:profile_attachments",
+        "label": "Capability overlays",
+        "kind": "node_semantic_kind",
+        "matches_node_ids": ["node:profile-attachment:rag-grounding:retriever"],
+        "matches_edge_ids": []
+      },
+      {
+        "id": "filter:needs_review",
+        "label": "Needs review",
+        "kind": "status",
+        "matches_node_ids": ["node:unmapped:reranker-review"],
+        "matches_edge_ids": []
+      }
+    ],
+    "behavior": "positive_filter_highlight_matches_dim_others"
+  }
+}

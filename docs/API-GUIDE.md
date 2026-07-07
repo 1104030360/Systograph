@@ -2,7 +2,12 @@
 
 本機 Python 後端（FastAPI）的前端對接文件。涵蓋所有 endpoint 的輸入、輸出與錯誤。
 
-- 設計意圖與相容性規則：`docs/work/Timmy/design/epic1-local-api-guide.md`
+## 相關文件
+
+- 欄位語意與 contract 邊界：`docs/MODEL-CONTRACT.md`
+- UA 整合邊界（2026-07-07）：`ref-opensource/kai-mind-understand-anything-integration-boundary.md`
+- JSON payload 範例：`docs/work/Timmy/design/EPIC1/frontend-json-handoff/`（依 Phase2 pipeline step 分資料夾；見根目錄 `README.md`）
+- 設計意圖與相容性規則：`docs/work/Timmy/design/EPIC1/Phase1/epic1-local-api-guide.md`
 - 可執行的逐 endpoint 範例：`scripts/trace_*.sh`（每支對應一個 API）
 - 互動式型別瀏覽：後端啟動後開 `http://127.0.0.1:8000/docs`
 
@@ -20,11 +25,72 @@
 - 錯誤回傳統一為 `{ "detail": string }`；request 結構錯誤（422）的 `detail` 為陣列。
 - 413 / 500 類安全錯誤回傳 stable error code，不包含 raw secret、Python exception string 或本機絕對路徑。
 - 只要 request `Origin` 在 allowlist 中，包含 413 / 500 在內的錯誤回應都會保留 CORS header，讓前端可讀取錯誤內容。
-- Session 狀態存在記憶體中，重啟後端會清空，`project_id` 需重新 import。
-- **兩種流程**：
+- **Current runtime** 的 session 狀態存在記憶體中，重啟後端會清空，`project_id` 需重新 import。
+- **Current runtime 的兩種流程**：
   - **Project session**（`import` → `scans`）：建立 `project_id`，掃描結果綁在該 project 上。`detail-scans`、`mapping-proposals`、`mappings` 都必須走這條。Scan boundary review 內嵌在 `POST /api/scans` 的正式掃描前 gate。
   - **Viewer demo**（`map/build`）：只掃 path、更新 latest viewer payload，**不建立 `project_id`**。適合快速載圖，不能接後續 project-scoped API。
 - `graph_view_model` 是前端渲染輸入；它是投影，不是 canonical truth，前端不應回寫。
+- **Phase2 target contract**：本文件同時標出 static-trace-plan 目標欄位。若欄位標示為
+  Phase2 target，代表前端可先對齊型別與 mock；不代表 current runtime 已可用。
+  實際 runtime availability 仍以當前 backend sample / OpenAPI / trace script 為準。
+  欄位語意、五態、activation、Mapping Completeness 與 GraphViewModel 邊界以
+  `docs/MODEL-CONTRACT.md` 為準。
+
+## Phase2 Static Contract Overlay（2026-07-05）
+
+Phase2 static path 的 input 是 **AI system repo / workflow artifacts**，不是固定 RAG repo。
+`rag-core-v1@1.1.0` 只保留為 v1 grounding compatibility template；active target 會經
+`00A` compatibility gate、`13` cutover、`14` validation 後走 generic
+`ai-system-map/v2`。API 只提供 generic map、profile、readiness findings 與 evidence artifacts。
+
+本節只列 API Guide 需要知道的 endpoint / artifact overlay，不重複完整 Graph Studio 規格。
+Graph Studio 的 projection semantics、reference map / repo overlay、五態圖例、lens 與
+Evidence Inspector contract 以 `docs/MODEL-CONTRACT.md` 與 frontend handoff 文件為準。
+
+Phase2 P0 output 是多個 independent sibling artifacts，不是一個 aggregate JSON：
+
+```text
+ai_system_map.json
+evidence_table.json
+call_graph.json
+dataflow_hints.json
+execution_paths.json
+profile_signals.json
+readiness_report.json
+ai_system_map.md
+system_map.mmd
+execution_map.mmd
+```
+
+Frontend 不需要等 manual review 才能顯示第一次 scan 結果。Ambiguous evidence 只應顯示成
+optional review queue；confirmed decision 會透過 Apply replay（不重掃、不重跑 UA）或下一次
+Rescan 套用，不直接 mutate 當前 artifact。
+
+Phase2 target 中，readiness 只透過 `readiness_report.json.findings[]`、profile/capability
+assessment 與 GraphViewModel projection 呈現；frontend 不需要也不應自行判斷 repo 是否
+屬於某種 RAG。
+
+## Phase2 Target — UA Scanner Staged Rollout
+
+UA integration 尚未進入 current runtime；目前 Step 3 仍由
+`ProjectScanService` 與現有 KAI scan providers 執行。Phase2 分三階段遷移：
+
+- **Phase A — TOML primary（current runtime）**：現有 KAI providers 產生 Step 3
+  facts/evidence；`ua-analysis-result` 可以不存在。
+- **Phase B — UA primary + TOML parity（target）**：UA structural extraction 成為
+  primary；KAI providers 只產 parity report。
+- **Phase C — UA only（target）**：Plan 14 parity gate 通過後，由 Plan 18 退役
+  transitional KAI provider 主掃描路徑。
+- `ua-analysis-result.json` 是 reserved nullable internal sidecar slot，不列 public
+  artifact。Phase2 active path 不執行 `file-analyzer` bounded LLM，因此不產生、不消費
+  semantic sidecar；Step 6 由純 Python `ProfileInferenceService` 定案五態。
+- UA failure 在 Phase B/C 採 fail-closed；Apply 沿用同一 `scan_id`、不重跑 UA，
+  並建立新的 `build_id`。Rescan 建立新 `scan_id` 並重跑 UA。
+- Plan 17 `AssessmentOrchestrator` / AI semantic candidate flow 已 deferred，不是
+  Phase2 acceptance dependency。
+
+UA integration 本身不要求 frontend 讀取 UA 欄位；但 broader Phase2 contract 仍會因
+00A、03A、build-scoped API 與 safe artifact refs 改變 response shape。
 
 ```json
 // 錯誤回傳範例
@@ -82,6 +148,10 @@ Response `200`：
 ### POST /api/scans
 
 用已 import 的 `project_id` 執行 L1 系統掃描（同步）。正式掃描前會先做 scan boundary preflight；若有 `.env`、secret-like config、vector persistence path 等需要使用者確認的 target，response 會先回 `requires_boundary_decision`，不產生 map、不寫 artifact、不更新 `/api/map`。使用者在同一個 endpoint 帶本次 `boundary_decisions` 後，才會正式掃描並更新 `/api/map`。
+
+Current runtime 仍使用現有 KAI scan providers。Phase B/C target 才會在 Step 2
+boundary 完成後呼叫 Understand-Anything sidecar 作為 Step 3 primary source；
+屆時 UA sidecar 無效會 fail closed 並以 `status:"error"` / build error 呈現。
 
 ```http
 POST /api/scans
@@ -144,8 +214,8 @@ POST /api/scans
 }
 ```
 
-- `scan_this_run`：只讓該 target 在這一次 scan 進入 provider collection。
-- `skip_this_run`：只在這一次 scan 把該 target 從 provider collection 排除。API-visible 結果是本次 `files_scanned` 下降、`files_skipped` 上升；內部 inventory reason 為 `skipped_by_policy_overlay`，不會作為前端可依賴的 canonical map 欄位輸出。
+- `scan_this_run`：只讓該 target 在這一次 scan 進入 Step 3 scan input。
+- `skip_this_run`：只在這一次 scan 把該 target 從 Step 3 scan input 排除。API-visible 結果是本次 `files_scanned` 下降、`files_skipped` 上升；內部 inventory reason 為 `skipped_by_policy_overlay`，不會作為前端可依賴的 canonical map 欄位輸出。
 - Decision 必須 match `target_path + fingerprint`；檔案內容或 metadata 改變時，舊 decision 不套用，API 會重新回 `requires_boundary_decision`。
 - Decision 不會保存成歷史偏好，也不會影響下一次 scan。
 - 已由 deterministic scanner hard-skip 的 large/binary/generated/log、dependency/cache、model weights 等 target 只留在 skipped audit trail，不產生使用者 decision proposal。
@@ -183,7 +253,11 @@ data: {"event":"scan_progress","status":"completed","stage":"validate","message"
 
 ### POST /api/map/build
 
-All-in-one viewer / demo build：送入 path 觸發 L1 build，寫出 artifact，更新 latest `/api/map`。
+All-in-one viewer / demo build：送入 path 觸發 L1 build，寫出 artifact，更新 current
+runtime 的 process-wide latest `/api/map`。
+
+Current runtime 的 Step 3 仍由現有 KAI scan providers 執行。Phase B/C target 才改由
+UA structural sidecar 主導，並在 UA 失敗時 fail closed。
 
 > **不建立 project session**——沒有 `project_id`，build result 也不會存到 project-scoped store。若要接 `detail-scans` 或 `mapping-proposals`，請改走 `import` → `scans`。
 
@@ -200,7 +274,7 @@ POST /api/map/build
 }
 ```
 
-Response `200`（`MapBuildResult`）：
+Current runtime response `200`（`MapBuildResult`）：
 
 ```ts
 {
@@ -211,21 +285,72 @@ Response `200`（`MapBuildResult`）：
   map_markdown_path: string | null;
   map_error_path: string | null;
   viewer_load_result: ViewerLoadResult; // 見 GET /api/map
-  ai_system_map: object;                // canonical 掃描事實
+  ai_system_map: object;                // canonical 掃描事實；Phase2 target: ai-system-map/v2
   warnings: string[];
   error: string | null;
 }
 ```
 
-> `status="ok"` 時必有 `map_json_path`、`map_markdown_path`、`viewer_load_result`、`ai_system_map`。
+> Current runtime 的 `output_run_dir` 與 `*_path` 可能是 server-local absolute path，
+> 僅屬 compatibility contract。Phase2 target response 不得新增或延續 absolute-path 欄位。
+
+Phase2 target 以兩層 identity 與 safe artifact refs 回傳：
+
+```ts
+type ArtifactRef = {
+  artifact_id: string;
+  artifact_type: string;
+  file_name: string; // basename only
+  media_type: string;
+  sha256: string;
+  size_bytes: number;
+};
+
+type Phase2MapBuildResult = {
+  status: "ok" | "error";
+  scan_id: string;  // immutable read-only scan snapshot
+  build_id: string; // one materialization from that scan
+  environment_id: string;
+  artifacts: ArtifactRef[];
+  viewer_load_result: ViewerLoadResult | null;
+  ai_system_map: object | null;
+  warnings: string[];
+  error: string | null;
+};
+```
+
+Phase2 active target 不另設 `snapshot_id`；同一 `scan_id` 可產生 initial、Apply 或
+Detail Scan 等多個 immutable `build_id`。
 
 ---
 
 ## 2. 地圖讀取（Viewer）
 
+### Current runtime 與 Phase2 target
+
+| Contract | Current runtime | Phase2 target |
+|---|---|---|
+| Read surface | process-wide `GET /api/map` | project latest 或指定 `build_id` |
+| Response wrapper | `ViewerPayload` | build-scoped `ViewerLoadResult` |
+| Persistence | `InMemorySessionStore` latest only | project/scan/build local JSON repositories |
+| Identity | 無持久化 build identity | `scan_id` + `build_id` |
+| Artifacts | server-local `*_path` compatibility fields | safe `artifact_refs` |
+
+Phase2 primary endpoints：
+
+```http
+GET /api/projects/{project_id}/map-builds/latest
+GET /api/map-builds/{build_id}
+POST /api/map-builds/{base_build_id}/apply
+```
+
+這三支 endpoint 都是 Phase2 target，尚未存在於 current OpenAPI。`GET /api/map`
+與 `GET /map` 在 Phase2 僅保留為單專案 demo / legacy compatibility path。
+
 ### GET /api/map
 
-回傳目前 session 最新的 viewer payload。前端 API mode 的主要載入入口。
+Current runtime 回傳目前 process session 最新的 viewer payload。它是現行前端 API mode
+入口，但不是 Phase2 build history 的正式讀取入口。
 
 ```http
 GET /api/map
@@ -262,9 +387,63 @@ Response `200`（`ViewerPayload`）：
 
 `GET /api/map` 的 legacy fallback，回傳完全相同的 `ViewerPayload`。前端會先試 `/api/map`，失敗再退回 `/map`。
 
+### GET /api/projects/{project_id}/map-builds/latest（Phase2 target）
+
+取得指定 project 的 latest immutable build，不讀 process-wide latest。
+
+### GET /api/map-builds/{build_id}（Phase2 target）
+
+取得指定歷史 build。Response 直接包含 build-scoped `ViewerLoadResult`：
+
+```ts
+type ViewerLoadResult = {
+  loaded: boolean;
+  error_reason: string | null;
+  warnings: string[];
+  scan_id: string;
+  build_id: string;
+  environment_id: string;
+  artifact_refs: ArtifactRef[];
+  ai_system_map: object;
+  profile_inference_result: object | null;
+  readiness_report: object | null;
+  graph_view_model: GraphViewModel;
+};
+```
+
+`artifact_refs` 不包含 server-local absolute path；frontend 只能依 stable artifact id/type
+與受控下載／讀取 API 使用 artifact。
+
+### POST /api/map-builds/{base_build_id}/apply（Phase2 target）
+
+套用已確認 manual mappings，沿用 base build 的同一 `scan_id`，跳過 Step 3 並重跑
+Step 4～7，建立新的 `build_id`。Apply 不重新掃描 repo；Phase B/C 也不重跑 UA。
+
+```json
+{ "mapping_ids": ["mapping:abc", "mapping:def"] }
+```
+
+```ts
+{
+  project_id: string;
+  scan_id: string;
+  build_id: string;
+  based_on_build_id: string;
+  build_reason: "apply_confirmations";
+  applied_mapping_ids: string[];
+  build_result: Phase2MapBuildResult;
+  viewer_load_result: ViewerLoadResult;
+}
+```
+
 ### POST /api/viewer/load
 
 載入磁碟上既有的 `ai_system_map.json`，重新 validate 後成為最新 viewer payload。**不掃描專案、不呼叫 scanner。**
+這支 current compatibility endpoint 接受 server-local `map_json_path`；Phase2 target
+build-scoped workflow 改用 safe `artifact_refs`，不接受 frontend 傳入任意 absolute path。
+若同一 run directory 有 `profile_signals.json`、`readiness_report.json` 或 static execution
+artifacts，Phase2 target viewer 可讀取它們作為 enrichment；缺失時應回 warnings，不阻塞
+base graph 載入。
 
 ```http
 POST /api/viewer/load
@@ -313,8 +492,10 @@ POST /api/detail-scans
 }
 ```
 
-- `target_type`：`component_slot` | `component_instance` | `extension` | `unmapped_component` | `edge` | `evidence`
+- `target_type`：`component_slot` | `component_instance` | `unmapped_component` |
+  `capability_candidate` | `profile` | `edge` | `evidence`
   （另接受別名 `slot` / `component` / `unmapped`）
+- `extension` 僅屬 legacy v1 compatibility；active v2 UI 不應把 extension 當作 detail target。
 - `scan_depth`：`component`（L2）| `code_path`（L3）
 
 Response `200`：
@@ -354,6 +535,10 @@ Response `200`：與 `POST /api/detail-scans` 相同。
 對已載入 project map 的某個 endpoint id 執行一次黑箱 query trace。這是明確 opt-in 的 runtime 路徑；`POST /api/scans`、`POST /api/map/build`、`GET /api/map` 不會自動呼叫任何 endpoint。
 
 Trace 只回傳 transient `TraceRunResult`，不寫回 `ai_system_map.query_trace_events`，也不會把 observed unmapped component 自動升級成 confirmed mapping 或 baseline edge。
+
+Static execution artifacts（`call_graph.json`、`dataflow_hints.json`、`execution_paths.json`）
+不是 runtime trace。Frontend 不可把 static inferred path 轉成 `trace_steps`，也不可用它宣稱
+某次 query 實際執行該路徑。
 
 Query Trace 會從該 project session 的 `project_path/pyproject.toml` 讀取 optional tool config。沒有設定時使用預設 retrieved chunk keys：`retrieved_chunks`、`chunks`、`documents`。
 
@@ -435,6 +620,8 @@ Response `200`：
 ## 5. Manual Mappings
 
 保存使用者對 `unmapped / needs_confirmation` 元件做出的 project-level 決定。只寫入 mapping store，不直接 mutate map artifact。
+Phase2 UI 語意是 **optional ambiguous evidence review**：第一次 scan 結果應先顯示；
+review decision 透過 Apply replay（同 scan snapshot、不重跑 UA）或下一次 Rescan 改善後續 map。
 
 ### GET /api/mappings
 
@@ -458,8 +645,9 @@ Response `200`：
 
 | `mapping_type` | `confirmed` 必填欄位 |
 | --- | --- |
-| `existing_slot_mapping` | `target_slot`（已知 slot）、`component_name` |
-| `new_extension_component` | `extension_id`、`extension_name`、`extension_kind`；`extension_edges` 的 `from`/`to` 須為已知 slot 或該 `extension_id` |
+| `existing_slot_mapping` | `target_slot`（已知 grounding slot / dimension）、`component_name` |
+| `non_baseline_capability_candidate` | `capability_candidate_id`、`capability_candidate_name`、`capability_candidate_kind` |
+| `new_extension_component` | legacy compatibility only；active v2 UI 不應建立新的 extension |
 
 ```http
 POST /api/mappings
@@ -468,15 +656,18 @@ POST /api/mappings
 ```json
 {
   "project_id": "project:<uuid>",
-  "mapping_type": "existing_slot_mapping",
+  "mapping_type": "non_baseline_capability_candidate",
   "decision": "confirmed",
-  "target_slot": "vector_store",
-  "component_name": "Qdrant",
+  "source_unmapped_id": "unmapped:reranker",
+  "capability_candidate_id": "capability-candidate:reranker",
+  "capability_candidate_name": "Reranker",
+  "capability_candidate_kind": "reranker",
   "evidence_ids": ["evidence:<id>"]
 }
 ```
 
-- `mapping_type`：`existing_slot_mapping` | `new_extension_component`
+- `mapping_type`：`existing_slot_mapping` | `non_baseline_capability_candidate` |
+  `new_extension_component`（legacy compatibility）
 - `decision`：`confirmed` | `rejected` | `skip_for_now` | `not_applicable`
 
 Response `200`：`ManualMapping`（含 `mapping_id`、`mapping_digest`、`created_at`、`updated_at`）。
@@ -497,7 +688,9 @@ PATCH /api/mappings/{mapping_id}
 { "reason": "Confirmed after reviewing config.yaml" }
 ```
 
-可更新欄位：`decision`、`reason`、`target_slot`、`component_name`、`component_kind`、`provider`、`audit_metadata`。
+可更新欄位：`decision`、`reason`、`target_slot`、`component_name`、`component_kind`、
+`provider`、`capability_candidate_id`、`capability_candidate_name`、
+`capability_candidate_kind`、`audit_metadata`。Extension 欄位只屬 legacy compatibility。
 
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |
@@ -559,7 +752,7 @@ Response `200`（`MappingProposal`）：
   project_id: string;
   source_unmapped_id: string;
   status: "pending_user_confirmation";
-  candidates: MappingCandidate[];   // candidate_id, candidate_type, target_slot, recommendation_level, rationale...
+  candidates: MappingCandidate[];   // candidate_type: existing_slot_mapping / non_baseline_capability_candidate / needs_more_information / skip_for_now
   evidence_packet: object;          // 送給 provider 的 masked evidence 摘要
   provider_name: string;            // "deterministic" | "nvidia-nim"
   provider_error_reason: string | null; // fallback 時如 "provider_unavailable"
@@ -610,7 +803,7 @@ Response `200`：
 
 ## 7. Scan Boundary Same-Run Gate（掃描邊界審查）
 
-Scan boundary review 已整合進 `POST /api/scans`，沒有獨立的 `/api/scan-boundary-proposals` endpoints。這個 gate 的目的，是在正式 provider collection 前先攔住 `.env`、secret-like config、vector persistence path 等需要人工確認的 target，避免第一次 scan 就深入讀取敏感或 local-only 檔案。
+Scan boundary review 已整合進 `POST /api/scans`，沒有獨立的 `/api/scan-boundary-proposals` endpoints。這個 gate 的目的，是在正式 Step 3 scan 前先攔住 `.env`、secret-like config、vector persistence path 等需要人工確認的 target，避免第一次 scan 就深入讀取敏感或 local-only 檔案。
 
 核心規則：
 
