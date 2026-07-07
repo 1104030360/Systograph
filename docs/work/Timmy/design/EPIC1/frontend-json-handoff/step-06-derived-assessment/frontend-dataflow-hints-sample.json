@@ -1,0 +1,45 @@
+{
+  "schema_version": "static-dataflow-hints/v1",
+  "source_schema_version": "ai-system-map/v2",
+  "project_id": "project:sample-ai-health-rag",
+  "scan_id": "scan:sample-s1",
+  "build_id": "build:sample-b2",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:sample-b2",
+  "analysis_kind": "static_inferred",
+  "hints": [
+    {
+      "hint_id": "dataflow:query-to-retriever",
+      "source_ref": "component:input:api",
+      "target_ref": "component:retriever:qdrant",
+      "flow_kind": "query_to_retriever",
+      "status": "detected",
+      "evidence_ids": ["evidence:api-route", "evidence:retriever-call"],
+      "evidence_strength": "static_multiple_signals",
+      "limitations": ["Static dataflow hints do not prove runtime values."]
+    },
+    {
+      "hint_id": "dataflow:retriever-to-llm-context",
+      "source_ref": "component:retriever:qdrant",
+      "target_ref": "component:llm:openai-chat",
+      "flow_kind": "docs_to_context",
+      "status": "undetermined",
+      "evidence_ids": ["evidence:prompt-context", "evidence:llm-call"],
+      "evidence_strength": "weak_or_ambiguous_signal",
+      "limitations": ["Prompt construction is inferred from static code patterns only."]
+    },
+    {
+      "hint_id": "dataflow:reranker-to-context",
+      "source_ref": "capability-candidate:reranker",
+      "target_ref": "component:llm:openai-chat",
+      "flow_kind": "docs_to_context",
+      "status": "undetermined",
+      "evidence_ids": ["evidence:reranker-call"],
+      "evidence_strength": "weak_or_ambiguous_signal",
+      "limitations": ["Reranker output is not proven to reach context assembly."]
+    }
+  ],
+  "warnings": [
+    "Use static wording in UI. Do not label these hints as executed runtime flows."
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "schema_version": "static-execution-paths/v1",
+  "source_schema_version": "ai-system-map/v2",
+  "project_id": "project:sample-ai-health-rag",
+  "scan_id": "scan:sample-s1",
+  "build_id": "build:sample-b2",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:sample-b2",
+  "analysis_kind": "static_inferred",
+  "paths": [
+    {
+      "path_id": "execution-path:chat-answer-static",
+      "label": "Chat answer path",
+      "status": "undetermined",
+      "inference_kind": "static_inferred",
+      "runtime_verified": false,
+      "evidence_strength": "weak_or_ambiguous_signal",
+      "steps": [
+        {
+          "step_id": "step:input-api",
+          "role": "entrypoint",
+          "component_ref": "component:input:api",
+          "evidence_ids": ["evidence:api-route"]
+        },
+        {
+          "step_id": "step:retrieval",
+          "role": "retrieval",
+          "component_ref": "component:retriever:qdrant",
+          "evidence_ids": ["evidence:retriever-call"]
+        },
+        {
+          "step_id": "step:reranking-candidate",
+          "role": "reranking",
+          "component_ref": "capability-candidate:reranker",
+          "evidence_ids": ["evidence:reranker-call"]
+        },
+        {
+          "step_id": "step:generation",
+          "role": "generation",
+          "component_ref": "component:llm:openai-chat",
+          "evidence_ids": ["evidence:llm-call"]
+        }
+      ],
+      "interpretation": "Static evidence suggests a query -> retrieval -> optional reranking -> generation path, but runtime execution has not been observed.",
+      "limitations": ["This path is static-inferred and must not be shown as an executed trace."]
+    }
+  ],
+  "warnings": [
+    "Frontend must not convert static execution paths into runtime trace events."
+  ]
+}
