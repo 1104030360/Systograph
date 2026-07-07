@@ -117,15 +117,15 @@ compatibility path，不作為 Phase2 build history 的正式讀取入口。
 | 🔵 **UA structural sidecar**（藍底） | `ua` | Understand-Anything deterministic structural subset（import map、batches、structure）；Step 3 primary 掃描來源 |
 | 📦 **TOML 掃描規則**（黃底） | `toml` | 加 `rule_id` + 匹配條件 → 產掃描事實（**過渡期 parity only**，Plan 14 後退役；Step 2 `scan_inventory_rules.toml` 保留） |
 | 🏷️ **TOML metadata**（橘底） | `tomlMeta` | 只放 label / 文案 / 座標；**不含** threshold / regex（例如 `risk_hint_rules.toml`、`profile_registry.toml`、`capability_reference_map.toml`） |
-| ⚙️ **TOML runtime config**（紅底） | `runtimeConfig` | 控制外部 provider、model、endpoint、timeout、generation 與 prompt template；目前為 `llm_proposal.toml`，不是 metadata-only |
+| ⚙️ **TOML runtime config**（靛紫底） | `runtimeConfig` | 控制外部 provider、model、endpoint、timeout、generation 與 prompt template；目前為 `llm_proposal.toml`（Step 9 active-optional assist） |
 | 🐍 **Python**（紫底） | `py` | 橋接 / 五態 / 投影 / proposal heuristics；**不要**把 executable 規則塞進 TOML |
 | ★ **底圖對位**（淺黃底） | `match` | 系統地圖 repo 元件 ↔ 10 planes / 52 格 reference node（Step 6 邏輯、Step 7 畫圖） |
-| 🔖 **Proposal 流程**（粉底） | `proposal` | `4-1` unmapped 候標、`4-2` Apply replay、Step 9 `ManualMapping`；**Step 9** 才建立 pending `MappingProposal` |
+| 🔖 **Proposal 流程**（青綠底） | `proposal` | **Phase2 active** review：`4-1` unmapped 候標、`4-2` Apply replay、Step 9 `ManualMapping` / pending `MappingProposal` |
 | ★ **Canonical 產物**（綠底粗框） | `canon` | `ai_system_map.json` — 唯一 repo 真相 |
 | 📄 **Derived artifact**（淺綠底） | `artifact` | `snapshot.json`、sidecar JSON、`GraphViewModel` 等衍生檔 |
 | 🌐 **API 聚合**（藍底） | `api` | build-scoped `ViewerLoadResult` / `GraphViewModel`；以 project latest 或指定 `build_id` 載入。`GET /api/map` 僅回 legacy `ViewerPayload` |
 | 💾 **記憶體 only**（灰底虛線） | `mem` | `SystemMapIndex` — 不寫檔、不產新 facts |
-| 🤖 **AI deferred**（紫紅底虛線） | `ai` | Phase2 active path 不執行 UA `file-analyzer` bounded LLM；semantic sidecar / AI candidate flow deferred；Step 1～9 無 AI orchestration（Step 6 AI 評估 deferred） |
+| ⛔ **AI deferred**（灰底紅框虛線） | `ai` | Phase2 **不執行**：UA `file-analyzer`、semantic sidecar、Plan 17。**圖上唯一紅框虛線 = deferred** |
 | ⬜ **備註 / 邊界**（灰底） | `noToml` | 此步無 TOML 擴充，或標示「不做」的邊界說明 |
 | （預設白底） | — | 一般 pipeline 子步驟（組裝、validate、Viewer 載入等） |
 
@@ -140,11 +140,11 @@ flowchart TB
   classDef api fill:#eff6ff,stroke:#3b82f6,stroke-width:1px,color:#1e3a8a
   classDef toml fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
   classDef tomlMeta fill:#ffedd5,stroke:#ea580c,stroke-width:1px,color:#9a3412
-  classDef runtimeConfig fill:#fee2e2,stroke:#dc2626,stroke-width:1px,color:#7f1d1d
+  classDef runtimeConfig fill:#e0e7ff,stroke:#4338ca,stroke-width:1px,color:#312e81
   classDef py fill:#ede9fe,stroke:#7c3aed,stroke-width:1px,color:#4c1d95
   classDef match fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
-  classDef proposal fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
-  classDef ai fill:#fae8ff,stroke:#a21caf,stroke-width:2px,stroke-dasharray:4 4,color:#581c87
+  classDef proposal fill:#ccfbf1,stroke:#0f766e,stroke-width:2px,color:#134e4a
+  classDef ai fill:#f1f5f9,stroke:#dc2626,stroke-width:2px,stroke-dasharray:6 4,color:#64748b
   classDef ua fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
   classDef noToml fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#475569
 
@@ -388,7 +388,7 @@ Apply   跳 Step 3 · 重跑 4-2～7（同 snapshot · 新 build_id）
 
 **維護時記住：** 新增 scan `rule_id` 若可能 ambiguous，先在 **橋接 1（4-1）** 決定 unmapped vs component；proposal 邏輯只加在 `MappingProposalService` / Step 9，**不要**塞進 Step 4 registry 或 scan TOML。
 
-> 小圖配色：`proposal` 粉底 = 🔖 Proposal 流程（含 `4-2` Apply replay）；`noToml` 灰底 = ⬜ 備註 / 邊界。
+> 小圖配色：`proposal` 青綠底 = 🔖 Proposal 流程（含 `4-2` Apply replay）；`ai` 灰底紅框虛線 = ⛔ deferred only；`noToml` 灰底 = ⬜ 備註 / 邊界。
 
 ```mermaid
 flowchart LR
@@ -399,9 +399,9 @@ flowchart LR
   A -.->|"Viewer/API 觸發"| B
   B -->|"accept/edit"| C
 
-  style A fill:#fce7f3,stroke:#db2777,color:#831843
-  style B fill:#fce7f3,stroke:#db2777,color:#831843
-  style C fill:#fce7f3,stroke:#db2777,color:#831843
+  style A fill:#ccfbf1,stroke:#0f766e,color:#134e4a
+  style B fill:#ccfbf1,stroke:#0f766e,color:#134e4a
+  style C fill:#ccfbf1,stroke:#0f766e,color:#134e4a
 ```
 
 > 小圖配色：`match` 淺黃 = ★ 底圖對位（Step 6）；`canon` 淺綠 = ★ Canonical（Step 4 系統地圖）。

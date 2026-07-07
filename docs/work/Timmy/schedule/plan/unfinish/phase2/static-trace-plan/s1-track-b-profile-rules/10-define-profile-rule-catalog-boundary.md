@@ -108,6 +108,9 @@ proposal/manual lifecycle；optional LLM output 不進 canonical/profile status 
 
 | 產品規格概念 | Phase2 source of truth |
 |---|---|
+| HTTP API 端點與錯誤碼 | `docs/API-GUIDE.md` |
+| 欄位語意、五態、activation、artifact schema | `docs/MODEL-CONTRACT.md` |
+| 設計意圖與 staged rollout | `docs/design/epic1-phase2.md` |
 | `scan_config.json` | CLI/API options + `pyproject.toml [tool.kai-mind.scan]`；不新增第二套重複設定 |
 | `component_taxonomy.json` | v2 typed model/schema + package metadata catalog |
 | `profile_registry.json` | Plan 11 從 hand-authored `profile_registry.toml` 產生的 read-only JSON projection；不是第二份可手改 source |
@@ -252,7 +255,7 @@ Assessment orchestration
 
 **檔案：**
 
-- Modify: `docs/work/Timmy/design/EPIC1/Phase2/epic1-phase2/epic1-phase2-design.md`
+- Modify: `docs/design/epic1-phase2.md`（canonical design）
 - Test: 僅 documentation review
 
 - [ ] 新增 decision note：Phase 2B MVP profile detection 是 Python deterministic logic，不是 TOML catalog。
@@ -352,7 +355,7 @@ related_rule_ids = ["code_pattern_reranker_detected"]
 
 **檔案：**
 
-- Modify: `docs/work/Timmy/design/EPIC1/Phase2/epic1-phase2/epic1-phase2-design.md`
+- Modify: `docs/design/epic1-phase2.md`（canonical design）
 - Test: 僅 documentation review
 
 - [ ] 新增簡短 comparison table：

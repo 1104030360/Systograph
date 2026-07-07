@@ -14,14 +14,45 @@ entrypoint -> handler/service -> retriever/reranker/context builder -> LLM -> ou
 path、call edge 與 dataflow hint 必須標示 static-only 限制，並以 evidence ids 回溯
 到 source code、config 或 workflow JSON。
 
+## Contract source of truth
+
+本 README 只維護執行順序與 gate；**HTTP 端點、request/response 欄位、錯誤碼**以
+`docs/API-GUIDE.md` 為準；**欄位語意、五態、activation、artifact lifecycle、
+`ViewerLoadResult` / `GraphViewModel`、Step 8 viewer load、Rescan vs Apply** 以
+`docs/MODEL-CONTRACT.md` 為準；**設計意圖與 compatibility path** 以
+`docs/design/epic1-phase2.md` §16 為準。JSON payload 範例見
+`docs/work/Timmy/design/EPIC1/frontend-json-handoff/`。
+
+2026-07-08 contract audit 與 grill-me 拍板摘要見
+[`CONTRACT-AUDIT-2026-07-08.md`](./CONTRACT-AUDIT-2026-07-08.md)。
+
+Phase2 primary HTTP surface（current runtime 尚未全部實作；見 API-GUIDE §2）：
+
+```http
+POST /api/projects/import
+POST /api/scans
+GET  /api/projects/{project_id}/map-builds
+GET  /api/projects/{project_id}/map-builds/latest
+GET  /api/map-builds/{build_id}
+POST /api/map-builds/{base_build_id}/apply
+POST /api/map-builds/{build_id}/detail-scans
+POST /api/map-builds/{build_id}/trace
+```
+
+Step 9 review / manual decision 仍使用 current runtime 的
+`POST /api/mapping-proposals`、`POST /api/mapping-proposals/{proposal_id}/decision`、
+`GET|POST|PATCH /api/mappings`（API-GUIDE §5–6）；confirmed decision 透過 Apply replay
+materialize 成新 `build_id`，不直接 mutate 舊 map artifact。
+
 ## 2026-07-07 UA staged rollout 對齊
 
 本 README 只擁有 **執行順序、stage 與 gate**；不修改各編號 plan 的 task、acceptance
 criteria 或實作內容。Phase2 Step 3 採三階段切換：
 
-1. **Phase A：TOML primary。** 先用現有 KAI scan TOML providers 打通 Step 1～9、
-   deterministic `ProfileInferenceService` 與 Apply B1→B2。Plan 03A 在此階段即使用既有
-   nullable `ScanSnapshot.ua_analysis_result` 接縫，`sidecar=null` 必須可完成 build / Apply。
+1. **Phase A：TOML primary。** 先用現有 KAI scan TOML providers 打通 Step 1～7 publish +
+   Step 8 viewer（**B1 initial build 不必跑 Step 9**）、deterministic
+   `ProfileInferenceService` 與 Apply B1→B2。Plan 03A 在此階段即使用既有 nullable
+   `ScanSnapshot.ua_analysis_result` 接縫，`sidecar=null` 必須可完成 build / Apply。
 2. **Phase B：UA primary + TOML parity。** Gate-1 通過後才開始 Plan 16；UA structural
    facts 成為 primary，KAI TOML providers 暫時並跑，只產 parity report。
 3. **Phase C：UA only。** Plan 14 留下通過的 UA parity / fail-closed / Apply replay report
@@ -30,8 +61,11 @@ criteria 或實作內容。Phase2 Step 3 採三階段切換：
 Step 6 在 Plan 14 前維持純 Python deterministic assessment；Plan 17
 `AssessmentOrchestrator` 與 AI semantic candidate flow deferred，不阻擋 Plan 14。Apply
 始終不重跑 UA；它只使用 Plan 03A `ScanSnapshot.scan_result` 的 deterministic structural
-facts / evidence 重跑 Step 4～7。`ua-analysis-result` semantic internal sidecar 在 Phase2 僅
-保存、無消費者，不列 public artifact，也不新增 frontend contract 欄位。
+facts / evidence 重跑 Step 4～7。`ua-analysis-result` /
+`ScanSnapshot.ua_analysis_result` 在 Phase2 為 reserved nullable snapshot-internal slot：
+`semantic` payload **不產生、不消費**；Phase B/C 可選保存 structural wrapper 供追溯，但
+Step 4～7 / Apply / Viewer 只讀 `ScanSnapshot.scan_result`。不列 public artifact，也不新增
+frontend contract 欄位。
 
 ## P0 Output Mapping
 
@@ -39,16 +73,21 @@ facts / evidence 重跑 Step 4～7。`ua-analysis-result` semantic internal side
 
 | 補充計劃概念 | Phase2 實際 artifact | Owner |
 |---|---|---|
-| `ua-analysis-result.json` | reserved nullable ScanSnapshot internal sidecar（非 public artifact；Phase2 active path 不產生、不消費） | 16 / 03A |
+| UA structural facts（adapter 後） | `ScanSnapshot.scan_result`（`ScanFact[]` + `Evidence[]`） | 16 adapter → Step 4～7 consumer |
+| `ua-analysis-result.json` / `ScanSnapshot.ua_analysis_result` | reserved nullable snapshot-internal wrapper slot；Phase2 **semantic=null**、**無 consumer**；Phase A 整欄為 `null`；Phase B/C 可選保存 structural wrapper 供追溯，但 Step 4～7 / Apply / Viewer **只讀 `scan_result`** | 03A（slot 預留）/ 16（Phase B/C 寫入） |
 | `canonical-map.json` | `ai_system_map.json` | 00A / 13 |
 | `call-graph.json` | `call_graph.json` | dynamic `00`（static inferred） |
 | `dataflow-hints.json` | `dataflow_hints.json` | dynamic `00`（static inferred） |
 | `execution-paths.json` | `execution_paths.json` | dynamic `00`（static inferred） |
 | `capability-profiles.json` | `profile_signals.json` | 02 / 03 |
 | `readiness-report.json` | `readiness_report.json` | 03 |
-| `evidence_table.json` | `evidence_table.json` | 03 / dynamic `00` |
+| `evidence_table.json` | `evidence_table.json` | dynamic `00`（flattened rows writer）；Plan `03`（lifecycle / atomic publish） |
 | `system-map.mmd` | `system_map.mmd` | 06 |
 | `execution-map.mmd` | `execution_map.mmd` | dynamic `00` |
+
+> **消歧：** `ua-analysis-result` 檔名 ≠ Step 4～7 的 primary input。Canonical consumer 路徑
+> 永遠是 `scan_result`；wrapper 與 `semantic` payload 不列 public artifact、不進 API
+> `ArtifactRef[]`。
 
 Capability assessment 與 profile aggregate 統一使用
 `detected / partial / undetermined / not_detected / conflicted`。`not_detected` 只有在
@@ -68,6 +107,36 @@ schema、writer 與 validation gate。
 - Phase2 後若導入資料庫，每個 JSON artifact 應可對應到獨立 table 或 table group；
   Phase2 不先把它們包成一個 aggregate JSON。
 
+### Atomic publish set（對齊 MODEL-CONTRACT）
+
+成功 build 的 **10 public sibling artifacts**（7 JSON + 3 render）。另 **+1** ephemeral
+`GraphViewModel`（Step 7 API projection，**非** atomic-publish 磁碟檔）。對外勿寫「11 sibling
+artifacts」（7+3=10；舊標題為計數錯誤）。
+
+```text
+JSON（7）
+  ai_system_map.json
+  profile_signals.json
+  readiness_report.json
+  call_graph.json
+  dataflow_hints.json
+  execution_paths.json
+  evidence_table.json
+
+Render（3）— export / report；Viewer 主畫布不依賴；Phase2 target 為 artifact_refs lazy load
+  ai_system_map.md
+  system_map.mmd
+  execution_map.mmd
+```
+
+**不計入 7 JSON：** `scans/{scan_id}/snapshot.json`（Step 3 scan 輸入）、
+`mappings/{mapping_id}.json`（Step 9 manual mapping 決策）— 屬 project state store，非
+`output/{build_id}/` siblings。詳見 Plan `03A` local JSON layout。
+
+Writer ownership：`03` = lifecycle orchestration；[`dynamic/00`](../dynamic-trace-plan/00-implement-static-call-graph-and-execution-path-mvp.md)
+= static execution + `evidence_table.json` flattened rows；`06` = `system_map.mmd`
+projection input。不得把上述 JSON nest 成單一 aggregate file。
+
 ## Pipeline Bridge Alignment（對照 Phase4 ASCII Map）
 
 `phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md` 是 Step 1～9 的視覺 source of truth。
@@ -82,9 +151,64 @@ capability assessment 與 Step 7 projection 混在一起。
 | Step 5 Index | `05`～`09` | validated map 的 read-only lookup | 不寫檔、不 validate、不 infer capability |
 | Step 6 Bridge 2 | `01A` + `02` + `10` + `11` | repo component / unmapped / confirmed non-baseline candidates ↔ 10 planes / 52 reference nodes，產五態與 profiles | `ProfileInferenceService` 以 Python 算對位、五態、coverage；Plan 17 AI candidates deferred 且非 Plan 14 前置 |
 | Step 7 Projection | `06` | 依 Step 6 結果畫 fixed reference map + repo overlay | backend projection only；frontend 不重算 |
-| Step 9 Review / Apply | `01` + `03A` + `04` | Viewer/API 觸發 proposal，confirmed decision 由 Apply replay 產新 build | `MappingProposalService` 不在 Step 4 呼叫；Apply 跳 Step 3 |
+| Step 9 Review / Apply | `01` + `03A` + `04` | Viewer/API 觸發 proposal，confirmed decision 由 Apply replay 產新 build | `MappingProposalService` 不在 Step 4 呼叫；Apply 跳 Step 3/UA，**4-1 bridge replay → 4-2 confirmed mappings overlay** → Step 4～7 |
 
 白話邊界：**Step 4 不對 10 planes / 52 格；Step 6 才做底圖對位；Step 7 只畫，不重新判斷。**
+
+## Step 6 子步驟與 Ownership 速查（6-1～6-6）
+
+Step 6 在 **同一 validated build context**（`scan_id` / `build_id` / `environment_id`）內完成
+所有 assessment **邏輯**；sibling JSON 的 **原子寫檔** 在 Step 7（Plan `03` + Plan `06`）。
+Step 5 `SystemMapIndex` 僅為記憶體 lookup，不寫檔、不產生新 facts。
+
+| 子步 | Owner service | 輸出 artifact / 結果 | 備註 |
+|------|---------------|----------------------|------|
+| **6-1** | `ProfileInferenceService` | `ProfileInferenceResult` → `profile_signals.json` | 52 格五態、15 profiles、Mapping Completeness 的 **唯一定案 owner**；plans `01A` + `02` + `10` + `11` |
+| **6-2** | `ReadinessReportService` | `readiness_report.json` | evidence-backed delivery findings；不寫回 canonical map；Plan `03` |
+| **6-3** | `StaticCallGraphService` | `call_graph.json` | static inferred；`runtime_verified=false`；owner dynamic `00` |
+| **6-4** | `ShallowDataflowService` | `dataflow_hints.json` | 元件層 dataflow hints；owner dynamic `00` |
+| **6-5** | `ExecutionPathRecoveryService` | `execution_paths.json` | 有序 execution steps；owner dynamic `00`；`execution_map.mmd` 為同 plan renderer |
+| **6-6** | `OutputArtifactProvider.write_evidence_table(...)` | `evidence_table.json` | flattened evidence rows；**產生邏輯** owner dynamic `00`；**lifecycle 寫檔** Plan `03` |
+
+Step 6 **不**引入 `AssessmentOrchestrator` 或 AI semantic candidates（Plan `17` deferred）。
+`ProfileInferenceService` **不得**呼叫 `MappingProposalService` / manual mapping / LLM proposal
+providers。
+
+### Profile Inference 命名三層（禁止混用）
+
+| 層級 | 名稱 | 說明 |
+|------|------|------|
+| **流程 / 服務** | **Profile Inference** / `ProfileInferenceService` | Step 6 Bridge 2（6-1）executable owner |
+| **型別 / 磁碟** | `ProfileInferenceResult` / `profile_signals.json` | schema `profile-signals/v1`；artifact JSON **不得**使用 `profile_inference_result` 作為 top-level key |
+| **API 欄位** | `ViewerLoadResult.profile_inference_result` | 與同 build 的 `profile_signals.json` **同一份**已驗證 payload |
+
+### Step 6 artifact 與主畫布（GraphViewModel）消費邊界
+
+| Artifact | 是否 feed 主 canvas | Viewer 載入策略 |
+|----------|---------------------|-----------------|
+| `profile_signals.json` | **是**（經 Step 7 `GraphProjectionService` 投影為 52 格、repo overlay、profile attachment） | 可 inline；缺失 → degraded base graph + warning |
+| `readiness_report.json` | **否**（report / findings 面板） | inline 或 ref；非 graph topology 來源 |
+| `call_graph.json` | **否** | `artifact_refs`；lazy / Inspector |
+| `dataflow_hints.json` | **否** | 同上 |
+| `execution_paths.json` | **否** | 同上；不得當 runtime trace |
+| `evidence_table.json` | **否**（debug / join；details 仍用 map evidence） | `artifact_refs`；lazy |
+
+`GraphViewModel` 由 Step 7 **即時投影**產生，**不是** viewer load 時 merge 上述 6 份 JSON。
+Static execution 三件套 **不得**合成 `GraphViewModel.edges[]` 的 runtime path edge。
+
+### Step 6 metadata catalogs（雙 TOML，非 executable）
+
+| 檔案 | 擁有 | 不擁有 |
+|------|------|--------|
+| `capability_reference_map.toml`（Plan `01A`） | 10 planes / 52 reference node 的 id、label、order、`activation_applicable` | 五態規則、regex、scan matching |
+| `profile_registry.toml`（Plan `11`） | 15 MVP profile 的 label、axis、default wording | profile trigger、threshold、reference node 對位 |
+
+兩份 TOML **互不**定義對方的 executable 語意；bridge 1 在 Step 4 Python registry；bridge 2 在
+`ProfileInferenceService`。
+
+`filters.available[]` 由 Step 7 **`GraphProjectionService`** 計算；frontend 只 render
+highlight/dim，**不得**自行推導 `matches_node_ids` / `matches_edge_ids`（見 `MODEL-CONTRACT.md`
+§ `GraphViewModel`）。
 
 ## 目錄結構（依執行順序，非檔案編號）
 
@@ -105,6 +229,29 @@ static-trace-plan/
 ├── s3-retirement/                   ← S3 退役（18→15）；Gate-3 / Gate-4 後
 └── deferred/                        ← 不阻擋 Plan 14（12、17）
 ```
+
+## 資料夾短版導覽
+
+1. `s0-contract-compatibility/`：先凍結 legacy `rag-core-v1` 邊界，建立 v1→v2 compatibility
+   path，讓後面可以安全切到 generic `ai-system-map/v2`。
+2. `s1-pipeline-core/`：打通 Phase2 主線，包含 manual review、Step 4 component bridge、
+   52 格 capability assessment、profile/readiness sidecars、Apply lineage 與本機 JSON persistence。
+3. `s1-track-a-index-projection/`：把 validated map 做成 read-only lookup index，並由 backend
+   產出 `GraphViewModel` projection，讓 frontend 只 render 不重算。
+4. `s1-track-b-profile-rules/`：整理 profile / capability metadata 的 TOML 邊界；TOML 放 label
+   與文案，五態判斷仍留在 Python。
+5. `s1-track-d-inventory/`：補 Step 2 inventory include / ignore metadata，為後續 UA sidecar
+   與 scan boundary 提供穩定檔案清單基礎。
+6. `s1-v2-cutover/`：在 compatibility gate 通過後，正式把 active surface 切到 v2，退役
+   legacy extension output。
+7. `s2-ua-integration/`：導入 Understand-Anything structural sidecar，讓 UA 成為 Step 3 primary，
+   同時保留 TOML parity report 與 fail-closed 邊界。
+8. `s3-validation/`：用本機真實專案與 fixtures 做 final validation，確認 Apply、UA parity、
+   static execution artifacts 與安全邊界都可回溯。
+9. `s3-retirement/`：在驗證報告保存後，退役 KAI scan TOML providers 主掃描路徑，最後完成
+   legacy v1 compatibility retirement。
+10. `deferred/`：放 Phase2 static MVP 不阻擋的項目，例如 runtime boundary 文件與 AI
+    `AssessmentOrchestrator` candidate flow。
 
 ## 計畫一覽（依執行順序）
 
@@ -193,10 +340,15 @@ S1  TOML-primary pipeline（Step 3 = 現有 KAI scan TOML providers）
     s1-pipeline-core/: 01 -> 01B -> 01A -> 02 -> 03 -> 03A* -> 04
          ├─ s1-track-a-index-projection/: 05 -> 06 -> 07 -> 08 -> 09
          ├─ s1-track-b-profile-rules/: 10 -> 11（與 05+ 並行）
-         ├─ Track-C: dynamic/00（03 + 05 穩定後，Plan 14 前完成）
+         ├─ Track-C: [dynamic/00 — static call graph & execution path MVP](../dynamic-trace-plan/00-implement-static-call-graph-and-execution-path-mvp.md)
+              （03 + 05 穩定後、**Gate-1 前完成**；產出 `call_graph.json`、
+              `dataflow_hints.json`、`execution_paths.json`、`evidence_table.json`、
+              `execution_map.mmd`，與 Plan 03 atomic publish 對齊 `docs/MODEL-CONTRACT.md`）
          └─ s1-track-d-inventory/: 19（建議 Plan 16 前完成）
     s1-v2-cutover/: 13
-    ──[Gate-1: TOML Step 1～9 E2E + Apply B1→B2；sidecar=null 可通過]──►
+    ──[Gate-1: B1 Step 1～7 + Step 8 viewer（initial scan 不必 Step 9）；
+         另驗 Step 9 decision + Apply B1→B2（4-1→4-2→4～7）；
+         P0 static execution artifacts；`ua_analysis_result=None`；`runtime_verified=false`]──►
 
 S2  s2-ua-integration/
     16（UA structural primary + TOML parity harness）
@@ -223,7 +375,7 @@ deferred/
 | Gate | 通過條件 | 解鎖 |
 |---|---|---|
 | Gate-0 | Plan 00 legacy characterization 與 Plan 00A v2 compatibility gate 完成 | S1 正式 v2 consumer work、Plan 13 |
-| Gate-1 | TOML-primary Step 1～9 E2E；Apply B1→B2 共用 snapshot；`ua_analysis_result=None` 可通過 | Plan 16 |
+| Gate-1 | **B1 path：** TOML-primary Step 1～7 publish + Step 8 viewer（**initial scan 不必跑 Step 9**）。**Apply path（Gate-1 必驗）：** Step 9 decision + Apply B1→B2（跳 Step 3/UA；**4-1 bridge replay → 4-2 overlay** → Step 4～7）；共用 snapshot；`ua_analysis_result=None` 可通過。Track-C `dynamic/00` 已接入 Step 6，同一 validated build 產出 P0 static execution artifacts（`call_graph.json`、`dataflow_hints.json`、`execution_paths.json`、`evidence_table.json`、`execution_map.mmd`），皆標 `runtime_verified=false` / static inferred，**不得宣稱 runtime proof** | Plan 16 |
 | Gate-2 | Plan 16 UA structural path、snapshot internal sidecar、fail-closed 與 parity harness 通過 | Plan 14 |
 | Gate-3 | Plan 14 final validation 完成並保存 UA parity / no-UA-rerun report | Plan 18 |
 | Gate-4 | Plan 18 provider retirement 通過，且 Plan 14 report 可回溯 | Plan 15 |
@@ -236,7 +388,9 @@ Plan 14 hard prerequisite，執行排程以本 README 為準。Plan 14 使用 de
 
 - **Input**：AI system repo / workflow artifacts，不預設 RAG 或 Agent。
 - **Legacy RAG template**：`rag-core-v1` 只作 v1 compatibility template 與 migration
-  adapter input；active assessment surface 使用 generic v2 map、profiles 與 readiness findings。
+  adapter input；**freeze at `@1.0.0` / 13 slots / 2 flows**；Phase2 變更在 v2 map、
+  profiles、readiness，不在 `rag-core-v1.json`；active assessment surface 使用 generic v2
+  map、profiles 與 readiness findings。
 - **Source traceability**：citation / source mapping 不屬於 hard baseline；只作
   `readiness_report.json` 的 `source_traceability` finding。
 - **Readiness findings**：`readiness_report.json.findings[]` 使用固定 shape；每個 finding
@@ -247,8 +401,10 @@ Plan 14 hard prerequisite，執行排程以本 README 為準。Plan 14 使用 de
   分類。
 - **Capability map**：固定 reference map 與 repo evidence overlay 共用同一 canvas；
   reference node 永遠存在，狀態描述特定 repo/build/environment 的對應結果。
-- **Component bridge**：Step 4 只把 scan facts 轉成 repo component / unmapped /
-  candidate input；它不是底圖對位，也不是 proposal generator。
+- **Component bridge（Step 4 產 map 主路徑）**：immutable scan facts 經 **確定性 Python
+  bridge rule**（`component_bridge_registry`）materialize 成 generic
+  `components[]` / `edges[]` / `unmapped_components[]`；每筆必須有 `evidence_ids`。
+  **不是** `rag-core-v1` slot 填格；**不是**底圖 52 格對位；**不是** proposal generator。
 - **Capability bridge**：Step 6 才把 validated repo facts 對到 10 planes / 52 reference
   nodes，並產生五態、profiles 與 Mapping Completeness。
 - **Mapping Completeness**：`detected=1`、`not_detected=1`、`partial=0.5`、

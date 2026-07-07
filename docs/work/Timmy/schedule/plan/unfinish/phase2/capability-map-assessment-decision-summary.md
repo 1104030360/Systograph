@@ -5,7 +5,8 @@ Status: confirmed Phase 2 contract decision.
 Audience: Timmy backend implementers, Hardy frontend implementers, reviewers, and
 future plan authors.
 
-Last updated: 2026-07-06.
+Last updated: 2026-07-08（對齊 `docs/MODEL-CONTRACT.md`、`docs/API-GUIDE.md`：`activation`、
+`scan_id` / `environment_id` scope；Phase2 不另設 `snapshot_id`）。
 
 ## Purpose
 
@@ -87,9 +88,10 @@ detected | partial | undetermined | not_detected | conflicted
 舊三態不是 active target contract。Migration adapter 可將舊資料映射為五態，但新 output
 不得再以 coverage/depth/reason 隱藏 `partial` 或 `conflicted` 的一級語意。
 
-## Activation State
+## Activation
 
-Assessment status 回答「能力是否被辨識」；`activation_state` 回答「能力在此環境是否啟用」。
+Assessment status 回答「能力是否被辨識」；JSON 欄位名 **`activation`** 回答「能力在此環境
+是否啟用」（不是 `activation_state`）。
 兩者不可合併：
 
 ```text
@@ -129,7 +131,7 @@ evidence_kind = direct | indirect | explicit_negative
 project-relative path / config key / JSON pointer
 optional symbol and line range
 rule id / parser id
-build_id + snapshot_id + environment scope
+build_id + scan_id + environment_id scope
 ```
 
 LLM semantic assist 只能解釋 bounded deterministic fact packet；它不能建立 canonical
@@ -138,15 +140,17 @@ conflict。
 
 ## Assessment Scope
 
-每個結果都綁定 **build/snapshot + environment**：
+每個結果都綁定 **`scan_id` / `build_id` / `environment_id`**：
 
 - `build_id`：已驗證 artifact set 的 immutable identity。
-- `snapshot_id`：scanner 實際分析的 repo/workflow snapshot identity；相同 repo 的不同
-  commit、import snapshot 或 Apply build 不可混用 evidence。
-- `environment`：至少有 stable id/name；可再帶 config digest 或 environment metadata。
-- 未指定 environment 時必須使用明確的 `unknown/default-static` scope，不可假裝是 production。
+- `scan_id`：一次 immutable read-only scan snapshot identity（Phase2 **不另設**
+  `snapshot_id`）；相同 repo 的不同 commit、import 或 Apply build 不可混用 evidence。
+- `environment_id`：Phase2 固定為 `environment:default-static`；不提供建立、選擇或切換
+  environment。
+- 未指定 environment 時必須使用明確的 `environment:default-static` scope，不可假裝是
+  production。
 
-同一 capability 在不同 environment 可以有不同 `activation_state`。Frontend 比較結果時
+同一 capability 在不同 `environment_id` 可以有不同 `activation`。Frontend 比較結果時
 必須顯示 scope，避免把 staging disabled 與 production enabled 合併成單一結論。
 
 ## Field-Specific Conflict
@@ -155,9 +159,9 @@ Conflict 必須落在欄位，不得粗暴把整個 component/profile 都標成 
 
 ```text
 assessment.status = detected
-assessment.activation_state = conflicted
+assessment.activation = "conflicted"
 assessment.conflicts = [
-  { field: "activation_state", evidence_ids: ["...", "..."] }
+  { field: "activation", evidence_ids: ["...", "..."] }
 ]
 ```
 
@@ -176,7 +180,7 @@ environment binding 與 implementation depth。未受衝突影響的欄位仍保
 - coverage 不足時為何只能輸出 `undetermined`。
 
 只有 catalog metadata 宣告該 reference node 本質上沒有 activation 語意時，才使用
-`activation_state="not_applicable"`。對有 activation 語意的 node，backend 必須輸出
+`activation="not_applicable"`。對有 activation 語意的 node，backend 必須輸出
 `enabled`、`disabled`、`conditional`、`unknown` 或 `conflicted`；不得依目前 system/scope
 臨時改成 `not_applicable`，也不得用 `not_detected` 取代 activation 判斷。
 
@@ -201,7 +205,7 @@ mapping_completeness = sum(status_weight) / total_fixed_reference_node_count
 - denominator 永遠是 catalog 內全部固定 reference nodes；activation 與
   `not_applicable` 都不排除任何 node。
 - Catalog metadata 必須宣告每個 reference node 的 activation applicability（data-only）；
-  Python 依 evidence 推論實際 `activation_state`。
+  Python 依 evidence 推論實際 `activation`。
 - UI 可以顯示百分比，但必須同時顯示分子、分母、各狀態數量、scope 與公式說明。
 - 此數值不得命名為 confidence、accuracy、readiness score 或 mapping quality。
 
@@ -276,12 +280,12 @@ deterministic repository/workflow scan
 - Plan 10/11：Python executable semantics 與 TOML metadata 邊界。
 - Plan 14：fixtures、external repo validation、coverage gate 與 contract regression；不是產品
   Validation Simulator。
-- Plan 15：只在 00A、13、14 gates 通過後收斂 active v2 / legacy compatibility。
+- Plan 15：只在 00A、13、14、18 gates 通過後收斂 active v2 / legacy compatibility。
 
 ## Completion Gate
 
 - [ ] `MODEL-CONTRACT.md` 與 00A/02/03/06/10/11/14/15 使用相同五態與 activation enum。
-- [ ] 所有 status/activation 都綁定 build/snapshot/environment scope。
+- [ ] 所有 status/activation 都綁定 `scan_id` / `build_id` / `environment_id` scope。
 - [ ] `not_detected` 無法繞過 coverage gate。
 - [ ] Mapping Completeness 使用固定 weights，且沒有 confidence/mapping-quality wording。
 - [ ] Capability Map / profile / readiness findings 是唯一 active assessment surface。

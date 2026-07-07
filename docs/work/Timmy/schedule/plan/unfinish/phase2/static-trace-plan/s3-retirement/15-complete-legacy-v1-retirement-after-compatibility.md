@@ -14,8 +14,9 @@ v1 write path、legacy extension product surface 與 dual-read 長期維護負�
 **Architecture:** 本計畫是 expand-and-contract 的 **contract phase**，不是 hard cut。
 `00A` 先建立 v1/v2 dual-read 與 v1-to-v2 adapter；`13` 切換 active v2；`14` 驗證
 active v2 與 legacy import；本計畫再把 legacy compatibility 降為 migration-only 或刪除。
-`rag-core-v1@1.1.0` 可保留為 scanner 內部 grounding template，但不得作為 active
-canonical schema 或 top-level `extensions[]` 產品 surface。
+`rag-core-v1@1.0.0`（**凍結內容**）可保留為 scanner 內部 grounding / migration-only
+template，但不得 bump version、改 slots/flows，或作為 active canonical schema 或 top-level
+`extensions[]` 產品 surface。
 
 **Tech Stack:** Python 3.11、Pydantic v2、JSON Schema、pytest、Ruff、mypy、frontend
 pnpm build/lint。
@@ -180,8 +181,10 @@ CLI / API regression gate。
 - [ ] `OutputArtifactProvider` 的 artifact filename set 包含 P0 static execution outputs。
 - [ ] `docs/MODEL-CONTRACT.md`、`docs/API-GUIDE.md`、`frontend/API_CONTRACT.md` 移除 v1 active
   output 語意，保留 migration note。
-- [ ] `static-trace-plan/README.md` 與 `dynamic-trace-plan/README.md` 更新為 00A -> 13 -> 14
-  -> 15 的順序。
+- [ ] `static-trace-plan/README.md` 與 `dynamic-trace-plan/README.md` 更新為
+  `00A -> 13 -> Gate-1 -> 16 -> Gate-2 -> 14 -> Gate-3 -> 18 -> Gate-4 -> 15`
+  的順序（與 `static-trace-plan/README.md`「建議執行順序」及 `epic1-phase2.md` §20 DAG 一致）。
+- [ ] 文件明確記載：Plan 18（KAI TOML provider 主掃描退役）為 Plan 15 的 Gate-4 前置，不可跳過。
 
 ### Task 6：完整 regression gate
 

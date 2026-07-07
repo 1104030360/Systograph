@@ -32,14 +32,19 @@ deterministic facts
 - 提供 characterization tests，避免 migration 遺失 evidence；
 - 在 13/15 cutover 前維持 legacy compatibility。
 
+**Phase2 active 新 build 不再以 template 填格產 map。** 改由 Step 3 facts/evidence 經 Step 4
+**確定性 bridge rule**（`component_bridge_registry.py`）materialize generic
+`ai-system-map/v2` 的 `components[]` / `edges[]`。
+
 ## 目前 code 狀態
 
-目前 source code 仍直接產生 v1 map：
+目前 source code 仍直接產生 v1 map（Plan 00 / 13 完成前的過渡現況）：
 
 - `MapBuildService` 載入 `RagTemplateService.load("rag-core-v1")`；
 - `SystemMapNormalizeService` 建立 `schema_version="ai-system-map/v1"`、
   `system_type="rag"`；
-- `rag-core-v1.json` 仍是 active scanner template；
+- `rag-core-v1.json` 在 cutover 前仍被 scanner 載入，但 Plan 00 目標是標記為
+  **legacy-only** 並 **凍結** `@1.0.0` 內容（不修改 slots/flows/version）；
 - 多個 service、tests、fixtures 仍消費 `RagSystemMap`。
 
 這些不是本計畫要長期保留的產品語意，而是 00A/13/15 之前的 migration input。
@@ -49,6 +54,10 @@ deterministic facts
 本計畫只做 legacy characterization 與 migration boundary：
 
 - 鎖定目前 v1 template、fixtures、viewer load、Markdown render 與 validation 行為；
+  **2026-07-08 grill-me Q2：** 此「鎖定」= **characterization only**（golden baseline，
+  保護 00A/13/15 migration）；**不是** Phase2 active UX surface。Active viewer/report surface
+  使用 generic `ai-system-map/v2` + sidecars（見 `epic1-phase2.md`、`MODEL-CONTRACT.md`）。
+  **freeze 範圍包含** `version`、`slots[]`、`flows[]` 現有內容；v1→v2 遷移只讀不改 template；
 - 確認 v1 slots / flows / evidence / endpoints / risks 可被 00A adapter 完整讀取；
 - 標記 `rag-core-v1` 為 legacy-only scanner template；
 - 移除或避免新增任何 active product copy，避免 frontend 或 report 把它當作能力分類。

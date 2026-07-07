@@ -1,6 +1,16 @@
 # Step 6 — 衍生評估（sidecar JSON）
 
-Last updated: 2026-07-07（UA 整合決策對齊）
+Last updated: 2026-07-08（Step 6-1～6-6 ownership、Profile Inference 命名、GraphViewModel 邊界）
+
+**命名：** 流程與服務叫 **Profile Inference** / `ProfileInferenceService`（6-1）；磁碟檔
+`profile_signals.json`；API 欄位 `profile_inference_result`（同一份 `ProfileInferenceResult`）。
+
+**主畫布：** Viewer 的 System Graph 用 Step 7 **`graph_view_model`**（inline），**不是** merge
+本步六份 JSON。僅 **6-1 profile assessment** 經 Step 7 投影進 canvas；call graph / dataflow /
+execution paths / evidence table 多為 `artifact_refs` lazy load。
+
+**Step 6 子步速查：** 見 `static-trace-plan/README.md` § Step 6 子步驟與 Ownership 速查；
+契約細節見 `docs/MODEL-CONTRACT.md` § Phase2 Pipeline · Step 6 Assessment。
 
 從 canonical map **推導**出來的資料，Step 7 寫入磁碟。**不是** canonical truth，不要 write back 到 `ai_system_map.json`。
 

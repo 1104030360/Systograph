@@ -182,6 +182,10 @@ nodes/edges/config facts；不承諾平台專用 importer、runtime execution �
 
 ## Direct Import Targets
 
+**計數：** 本表 **8** 個 direct import target（不是 10）。「10」指 validated build 的
+**10 public sibling artifacts** + 1 ephemeral `ViewerLoadResult.graph_view_model`（見下方
+E2E hard gate）。
+
 這些專案會被 clone 到本機外部測試目錄，直接以 read-only scanner 跑 import / scan。大型 repo 可限制掃描目錄，但限制必須記錄在結果表。
 
 | # | Repo | 主要驗證 profile | Import mode | 驗證重點 |
@@ -500,3 +504,17 @@ Final validation 需要把 P0 execution map 納入驗收：
   Langflow/Dify/Flowise runtime semantics。
 - Scan report 必須區分 static inferred execution path 與 dynamic runtime trace；Plan 14 不把
   dynamic `01` 作為前置條件。
+
+## E2E Artifact Hard Gate（2026-07-08 audit）
+
+Plan 14 final validation 必須有**單一** E2E hard gate，對齊 `MODEL-CONTRACT.md` §3 / §9.1：
+
+| 類別 | 數量 | 驗收 |
+|------|------|------|
+| **Public sibling artifacts** | **10** | 7 JSON（`ai_system_map`、`profile_signals`、`readiness_report`、`call_graph`、`dataflow_hints`、`execution_paths`、`evidence_table`）+ 3 render（`ai_system_map.md`、`system_map.mmd`、`execution_map.mmd`）；atomic publish；**不含** `snapshot.json` / `mappings/*.json` |
+| **Ephemeral API projection** | **1** | `ViewerLoadResult.graph_view_model`（inline；非磁碟 sibling） |
+
+- [ ] 至少一個 Tier A fixture **與** 一條 Apply B1→B2 regression 必須通過上述 **10 + 1** gate。
+- [ ] `GET /api/map-builds/{build_id}` 的 inline 欄位與 lazy `artifact_refs` 分派符合
+      `API-GUIDE.md` / `MODEL-CONTRACT.md` §9.1。
+- [ ] 不得把 P0 execution JSON 與 core 7 JSON 混成不同計數口径；本 gate 覆蓋 full publish set。

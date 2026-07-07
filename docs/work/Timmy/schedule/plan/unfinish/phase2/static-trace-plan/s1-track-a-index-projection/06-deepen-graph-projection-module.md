@@ -8,10 +8,20 @@
 backend 同一投影模型產生 JSON graph、Markdown 與 Mermaid，再讓 frontend render
 該 contract；不得讓 UI 成為唯一可見輸出。
 
+## Contract source of truth
+
+| 主題 | Source |
+|---|---|
+| `GraphViewModel` / `ViewerLoadResult` | `docs/MODEL-CONTRACT.md` |
+| Viewer 讀取端點 | `docs/API-GUIDE.md` `GET /api/map-builds/{build_id}` |
+| 五態 / activation | `../../capability-map-assessment-decision-summary.md` + `docs/MODEL-CONTRACT.md` |
+
+`GraphViewModel` 是 `ViewerLoadResult` 內的 ephemeral projection，不是 persisted sibling JSON。
+
 ## 2026-07-06 Confirmed Reference Map and Overlay Contract
 
 完整決策見
-[`../capability-map-assessment-decision-summary.md`](../capability-map-assessment-decision-summary.md)。
+[`../../capability-map-assessment-decision-summary.md`](../../capability-map-assessment-decision-summary.md)。
 本計畫是 backend projection 與最小 viewer consumption contract 的唯一 owner；Plan 02
 只提供 assessment result，Plan 03 只提供 validated artifacts/lifecycle。
 
@@ -35,7 +45,7 @@ Viewer legend/minimal contract 必須顯示五態 status、六態 activation、d
 explicit-negative evidence、reference/repo node 差異、static/runtime 差異、assessment scope，
 以及 Mapping Completeness numerator/denominator/status counts 與非 confidence 說明。
 
-Mapping Completeness 由 backend 使用固定 weights 投影：detected=1、not_detected=1（coverage
+Mapping Completeness 由 Step 6-1 `ProfileInferenceService` 計算；Step 7 只 surface / project（不重算）。Weights：detected=1、not_detected=1（coverage
 gate 通過）、partial=.5、undetermined/conflicted=0；denominator 是全部固定 reference
 nodes，activation/not_applicable 不排除任何 node。Frontend
 只 render，不重算。
@@ -277,8 +287,8 @@ Frontend contract parsing、renderer 與 layout 必須直接修改本 repo 的
   overlay mapping 保存 reference/repo ids 與 evidence refs，不複製 canonical facts。
 - [ ] Projection 同時輸出五態 status、六態 activation、typed evidence、field-specific
   conflicts、not-detected coverage gate 與 build/snapshot/environment scope。
-- [ ] Backend 計算 Mapping Completeness 並輸出 numerator/denominator/status counts/fixed
-  weights；frontend 不重算。
+- [ ] Backend **surface** Step 6-1 已計算的 Mapping Completeness（numerator/denominator/status
+  counts / fixed weights disclosure）；**不得**在 Step 7 重算 completeness；frontend 不重算。
 - [ ] 新增 `MermaidRenderer`，從同一 projection 產生 `system_map.mmd`，顯示
   generic components/edges、capability relationships 與 agent/workflow control edges；每個節點可
   回查 source id/evidence，但不嵌入 raw source。
@@ -320,8 +330,8 @@ Frontend contract parsing、renderer 與 layout 必須直接修改本 repo 的
 - [ ] Reference nodes 與 repo overlay 都由 backend emit，具 explicit semantic fields 與 stable ids。
 - [ ] Fixed reference nodes 與 repo overlay nodes 使用不同 semantic kinds；reference node
   不因存在於底圖而自動成為 detected/enabled。
-- [ ] 五態、activation、field conflicts、coverage gate 與 Mapping Completeness 皆由 backend
-  projection 提供，frontend 不推論或重算。
+- [ ] 五態、activation、field conflicts、coverage gate 與 Mapping Completeness 皆由 Step 6-1
+  計算、Step 7 projection **surface**；frontend 不推論或重算。
 - [ ] 不向 topology `GraphViewModel.edges[]` 新增會誤導成 runtime path 的 mapping edges。
 - [ ] `filter:profile_attachments` 可用，但預設不 active。
 - [ ] Backend contract tests 以 `semantic_kind="profile_attachment"` 作為 consumer renderer selection marker。

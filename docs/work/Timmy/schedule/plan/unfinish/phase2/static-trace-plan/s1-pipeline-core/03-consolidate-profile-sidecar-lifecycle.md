@@ -25,7 +25,7 @@ result 產生，而不是散落在 routes、CLI 或 viewer load 裡。
 ## 2026-07-05 Confirmed Lifecycle Ownership
 
 本計畫是 Phase2 artifact lifecycle 的唯一 owner。完整 assessment contract 見
-[`../capability-map-assessment-decision-summary.md`](../capability-map-assessment-decision-summary.md)。
+[`../../capability-map-assessment-decision-summary.md`](../../capability-map-assessment-decision-summary.md)。
 
 - Plan 02 只產生 validated assessment result，不新增 writer、path、CLI output 或 viewer
   projection。
@@ -55,7 +55,7 @@ Step 4 validated ai_system_map.json
   -> Step 6 ProfileInferenceService result
        profile_signals.json
        readiness_report.json
-       evidence_table.json（若由本 lifecycle 聚合）
+       evidence_table.json（same-build publish；flattened rows writer owned by dynamic/00）
   -> Step 7 GraphViewModel / Markdown / Mermaid
 ```
 
@@ -108,17 +108,25 @@ Plan 06 擁有。
 成功 build 的核心 artifacts 位於同一 run directory；失敗 build 不留下彼此版本
 不一致的 partial outputs；viewer 對 missing/invalid sidecar 降級但仍載入 base graph。
 
-核心 artifacts：
+核心 artifacts（Phase2 P0 atomic publish sibling set；對齊 `docs/MODEL-CONTRACT.md`）：
 
 ```text
-ai_system_map.json
-profile_signals.json
-readiness_report.json
+ai_system_map.json          # canonical map
+profile_signals.json        # Step 6 assessment sidecar
+readiness_report.json       # readiness findings
+call_graph.json             # static execution；writer owned by dynamic/00
+dataflow_hints.json
+execution_paths.json
+evidence_table.json         # flattened evidence rows；writer owned by dynamic/00
 ai_system_map.md
 system_map.mmd
+execution_map.mmd
 ```
 
-Internal snapshot sidecar（非 public artifact）：
+7 core JSON = 上列除 3 個 render 外的全部 JSON sibling。Render 與 JSON 分開 schema /
+writer / validation gate；不得 nest 成 aggregate JSON。
+
+Internal snapshot sidecar（非 public artifact、不由 `OutputArtifactProvider` 發布）：
 
 ```text
 ua-analysis-result
@@ -198,9 +206,16 @@ flowchart TD
 
 ## Acceptance Criteria
 
-- [ ] A successful Phase2 build writes `ai_system_map.json`, `profile_signals.json`,
-  `readiness_report.json`, `ai_system_map.md`, and `system_map.mmd` into the same run
-  directory.
+- [ ] A successful Phase2 build atomically writes all **10 public sibling artifacts** into the
+  same run directory with identical `scan_id`, `build_id`, and `environment_id`:
+  `ai_system_map.json`, `profile_signals.json`, `readiness_report.json`,
+  `call_graph.json`, `dataflow_hints.json`, `execution_paths.json`,
+  `evidence_table.json`, `ai_system_map.md`, `system_map.mmd`, `execution_map.mmd`.
+  Plan 03 owns lifecycle orchestration; dynamic `00` owns static execution writers.
+- [ ] Failed builds do not leave partial sibling JSON that contradicts sibling scope or
+  evidence refs.
+- [ ] Viewer/API load may degrade when optional execution artifacts or profile sidecar
+  are missing/invalid, but a valid canonical map must still load with stable warnings.
 - [ ] `readiness_report.json` carries evidence-backed findings derived from Capability Map /
   profile assessment / evidence gaps.
   `source_traceability` remains a readiness finding category.

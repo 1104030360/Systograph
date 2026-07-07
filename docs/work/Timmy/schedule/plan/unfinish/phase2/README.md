@@ -2,12 +2,12 @@
 
 ## Phase2 完成後預計後端架構
 
-> **互動式圖表（建議從這裡看）：** [phase2-backend-architecture.html](./phase2-backend-architecture.html)
-> **點擊各 Layer / Phase 標題列可展開**進階架構（檔案路徑、資料流、Plan 對照）。
-> 分頁：① 三層總覽 · ② Static 流水線 A→F · ③ Static vs Dynamic · ④ 時序 · ⑤ Plan 表
+> **權威總覽：** [`docs/design/epic1-phase2.md`](../../../../../../design/epic1-phase2.md)
+> 定義設計與完整 pipeline；[`static-trace-plan/README.md`](./static-trace-plan/README.md)
+> 定義執行順序與 gates。
 
 **狀態（2026-07-06）：** static path `00A`～`15`（含 `01A`、`01B`、`03A`）落地後的 core 形貌；dynamic `00` 為 P0 static inferred execution mapping，dynamic `01` 為 post-Phase2 runtime overlay。
-**預設 cutover：** `00A` 相容遷移 → `13` active v2 cutover → `14` validation → `15` 完全退役 legacy compatibility。
+**預設 cutover：** `00A` → `13` → Gate-1 → `16` → Gate-2 → `14` → Gate-3 → `18` → Gate-4 → `15`。
 **虛線框** = 計畫中、repo 尚未完整實作（`ProfileInferenceService`、`SystemMapIndex`、`GraphProjectionService` 等）。
 
 <details>
@@ -45,7 +45,7 @@ flowchart TB
     PSS["ProjectScanService"]
     CPS["CodePathScanService"]
     Rules["RuleCatalogLoader\ncore/rules/*.toml\n+ profile rule catalog\n（Plan 10–11）"]
-    RTS["RagTemplateService\nrag-core-v1@1.1.0\ninternal scanner template"]
+    RTS["RagTemplateService\nrag-core-v1@1.0.0\nfrozen legacy template\n(v1 / migration only)"]
     Prov["Scan providers\nAST / regex / config parsers"]
   end
 

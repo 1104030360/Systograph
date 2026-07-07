@@ -24,7 +24,7 @@ Sidecar 缺失時 viewer degraded load，canonical graph 仍可用。
 
 本節取代本文後續任何三態 status、`not_detected` 不需 coverage gate、或由本計畫實作
 artifact writer / graph projection / frontend renderer 的舊內容。完整決策見
-[`../capability-map-assessment-decision-summary.md`](../capability-map-assessment-decision-summary.md)。
+[`../../capability-map-assessment-decision-summary.md`](../../capability-map-assessment-decision-summary.md)。
 
 本計畫唯一職責是 capability assessment/profile inference：
 
@@ -133,6 +133,17 @@ activation/conflict/scope contract，再把同一 validated result 交給 Plan 0
 每次成功 build 依 active profile registry 產生完整 assessment checklist；五態、activation、
 evidence kinds、coverage gate、field-specific conflict 與 scope 都通過 validation；canonical
 map 不被修改。Plan 03 負責將同一 result 寫入 `profile_signals.json`。
+
+**2026-07-08 hard gate（52 格覆蓋）：**
+
+- [ ] `profile_signals.json` 的 `reference_capability_assessments` 陣列 **必須 exactly 52 rows**
+      （對齊 `capability_reference_map.toml` 固定 reference nodes）。
+- [ ] `mapping_completeness.denominator` **必須等於 52**；numerator / status counts 與五態 weights
+      一致。
+- [ ] schema validation、fixtures 與 contract tests 覆蓋 denominator=52；不得只驗「有輸出」而不驗
+      row count。
+- [ ] Mapping Completeness 唯一定案 owner = 本計畫 Step 6-1 `ProfileInferenceService`；Plan 06
+      Step 7 只 surface / project，不重算。
 
 ### 風險與注意事項
 

@@ -41,12 +41,24 @@ dynamic 01 (runtime typed steps, opt-in)
 | 00 | [00-implement-static-call-graph-and-execution-path-mvp.md](./00-implement-static-call-graph-and-execution-path-mvp.md) | draft | Static call graph、shallow dataflow、execution path artifacts |
 | 01 | [01-implement-runtime-component-trace-mvp.md](./01-implement-runtime-component-trace-mvp.md) | draft | Typed runtime trace contract + backend MVP + viewer transient focus |
 
+## 依序完成什麼
+
+1. `README.md`：定義 dynamic trace plan 的邊界與順序，先把 static inferred
+   execution map、finished black-box trace、future runtime trace 三者分清楚。
+2. `00-implement-static-call-graph-and-execution-path-mvp.md`：先完成不發送 runtime
+   request 的 static execution artifacts，包括 `call_graph.json`、`dataflow_hints.json`、
+   `execution_paths.json`、`evidence_table.json` 與 `execution_map.mmd`；所有結果都必須標成
+   static inferred / `runtime_verified=false`。
+3. `01-implement-runtime-component-trace-mvp.md`：等 static path 完成後，再擴充現有
+   Query Trace，讓 opt-in `/api/trace` 回傳 typed `trace_steps[]`、`component_ref` 與 viewer
+   transient focus；trace 結果仍不得寫回 canonical map、profile 或 readiness artifacts。
+
 ## 相關文件（repo 內）
 
-- Static boundary：[`../static-trace-plan/12-add-runtime-component-trace-contract.md`](../static-trace-plan/12-add-runtime-component-trace-contract.md)
+- Static boundary：[`../static-trace-plan/deferred/12-add-runtime-component-trace-contract.md`](../static-trace-plan/deferred/12-add-runtime-component-trace-contract.md)
 - Static plan index：[`../static-trace-plan/README.md`](../static-trace-plan/README.md)
 - 已完成 black-box trace：[finished Plan 22](../../../finish/22-implement-query-trace-mvp.md)
-- Frontend 方向（等 backend sample 與產品決策）：[frontend-runtime-trace.md](../../../../../../Meeting-Sync/meeting_sync_2026_07_05/frontend-runtime-trace.md)
+- Frontend 方向（等 backend sample 與產品決策）：[frontend-runtime-trace.md](../../../../../../Meeting-Sync/meeting_sync_2026_07_07/frontend-runtime-trace.md)
 - API：`docs/API-GUIDE.md`、`frontend/API_CONTRACT.md`
 
 ## 不在本 folder

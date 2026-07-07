@@ -17,6 +17,18 @@ grounding dimension，或確認為 `non_baseline_capability_candidate`。新的�
 
 **Tech Stack：** Python 3.11、Pydantic v2、FastAPI routes、pytest，以及現有的 `ComponentDetectionService`、`ManualMappingService`、`MappingProposalService`、`MapBuildService`。
 
+## Contract source of truth
+
+| 主題 | Source |
+|---|---|
+| HTTP 端點與 payload | `docs/API-GUIDE.md` §5 Manual Mappings、§6 Mapping Proposals |
+| `ManualMappingType` / candidate 欄位 | `docs/MODEL-CONTRACT.md` Manual Mapping & Proposal contract |
+| Apply 後 materialize 新 `build_id` | `03A-implement-apply-build-lineage-and-local-json-persistence.md`；`POST /api/map-builds/{base_build_id}/apply` |
+| JSON 範例 | `docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-09-review-apply/` |
+
+本計畫擁有 durable decision lifecycle；**不得**在 proposal route 內實作 build lineage 或
+直接 patch `ai_system_map.json`。
+
 ---
 
 ## 執行摘要
@@ -1165,6 +1177,40 @@ inference consumes capability_candidate_components produced by confirmed
 non-baseline decisions.
 ```
 
+## Task 8：持久化 Reject / Skip 的 Durable ManualMapping 與 Audit Trail
+
+**2026-07-08 audit（OPEN code gap）：** 本 Task 的 plan/contract 方向成立，但現行
+implementation 尚未對齊。`mapping.py` 的 `MappingProposalDecisionResult` validator 對
+`REJECTED` / `SKIPPED` 仍要求 `manual_mapping: null`；`MappingProposalService.decide(REJECT|SKIP_FOR_NOW)`
+只更新 proposal status、不回傳 durable mapping。完成本 Task 時須同時修 model validator、
+service、web route 與下列 tests。
+
+**背景：** Plan 03A 規定 `rejected` / `skip_for_now` 不得進入 `applied_mapping_ids`。
+`docs/MODEL-CONTRACT.md` 的 `ManualMappingCreate.decision` 已包含
+`rejected | skip_for_now | not_applicable`，並要求 `audit_metadata`。目前
+`MappingProposalService.decide(REJECT|SKIP_FOR_NOW)` 只更新 proposal status，未寫入
+durable manual mapping。
+
+**檔案：**
+
+- Modify: `src/kai_mind/core/services/mapping_proposal_service.py`
+- Modify: `src/kai_mind/core/services/manual_mapping_service.py`
+- Test: `tests/unit/core/test_mapping_proposal_service.py`
+- Test: `tests/unit/core/test_manual_mapping_service.py`
+- Test: `tests/integration/test_manual_mapping_component_detection.py`
+- Test: `tests/web/test_mapping_proposal_routes.py`
+
+- [ ] `decide(REJECT)` 建立 durable `ManualMapping(decision=REJECTED)`，含
+  `source_unmapped_id`、`evidence_ids`、`proposal_id`、`audit_metadata`（`acted_at`、
+  `actor_surface`）。
+- [ ] `decide(SKIP_FOR_NOW)` 建立 durable `ManualMapping(decision=SKIP_FOR_NOW)`；不得
+  materialize `capability_candidate_components`；保留 unmapped + scanner warning。
+- [ ] `rejected` / `skip_for_now` / `not_applicable` 不進入 Plan 03A 的
+  `applied_mapping_ids`；Apply replay 只 materialize confirmed decisions。
+- [ ] `evidence_table.json.review_state` 與 manual mapping decision 對齊（confirmed /
+  rejected / needs_confirmation / not_required）；與 Plan 03 / dynamic `00` 接縫。
+- [ ] Web route 在 reject/skip 時回傳 `manual_mapping` payload，不只回 proposal status。
+
 ## Task 7：最終驗證
 
 - [ ] `.venv/bin/pytest tests/unit/core/test_mapping_models.py -q`
@@ -1194,6 +1240,10 @@ non-baseline decisions.
 - [ ] Mapping proposal accept 會將 non-baseline candidates 轉換為新的 manual mapping type。
 - [ ] Profile inference 計畫 `02` 從本計畫 consume `CapabilityCandidateComponent`，而非另建平行 model。
 - [ ] Canonical `ai-system-map/v1` schema 不因本計畫而變更。
+- [ ] `MappingProposalService.decide(REJECT|SKIP_FOR_NOW)` 會持久化 durable
+  `ManualMapping`（含 `audit_metadata`），不只更新 proposal status。
+- [ ] `rejected` / `skip_for_now` / `not_applicable` 不 materialize
+  `capability_candidate_components`，也不進入 Plan 03A 的 `applied_mapping_ids`。
 
 ## 後續備註
 
