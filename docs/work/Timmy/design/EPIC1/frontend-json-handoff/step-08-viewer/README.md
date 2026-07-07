@@ -12,7 +12,10 @@ project history 或多專案載入的正式入口。
 
 **是，但不等於「把所有 JSON 貼成一大包」。**
 
-Pipeline 在磁碟上仍會寫出 **多個 sibling 檔**（Step 4 map、Step 6 六份 sidecar、Step 7 graph 等）。
+Pipeline 在磁碟上仍會寫出 **10 個 public sibling 檔**（7 JSON + 3 render；見
+`MODEL-CONTRACT.md`）。`GraphViewModel` 為 **+1 ephemeral API projection**，非磁碟 sibling。
+`snapshot.json`、manual mapping 在 project state store，**不**計入 7 JSON。
+
 `ViewerLoadResult` 是 **給 Viewer 第一次載入用的 API 聚合**，把「畫面立刻需要」的內容 inline，其餘只給安全的 `ArtifactRef` 供之後 lazy load。
 
 | 來源步驟 | 磁碟 artifact | 在 sample 裡怎麼出現 |
@@ -45,6 +48,9 @@ call_graph / dataflow / paths ──► artifact_refs[]       [safe reference]
   `project_id` / `build_id` 驗證 scope。Lazy load 必須透過受控 API 解析 `artifact_id`，
   frontend 不可直接讀 server-local path。
 - static 三件套（call / dataflow / paths）P0 主畫面不一定需要；路徑先備著，Inspector 或進階面板再載。
+- Step 6 子步、Profile Inference 命名、filters backend ownership：見 `docs/MODEL-CONTRACT.md`
+  § Phase2 Pipeline · Step 6 Assessment、`GraphViewModel`；plan 速查見
+  `static-trace-plan/README.md` § Step 6 子步驟與 Ownership 速查。
 
 ## 頂層
 

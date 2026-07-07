@@ -21,16 +21,17 @@ validation。Registry 不限定 12 列，frontend 不得硬編碼數量或順序
 
 本節取代本文較早的三態與「status enum 不變」描述。
 
-- TOML 可保存固定 10 planes / 52 nodes 的 id、display name、順序與說明：
-  `input_intent`、`control`、`ingestion_indexing`、`retrieval`、
-  `extension_subsystems`、`evidence`、`generation`、`memory_state`、
-  `governance_observability`、`deployment_topology`。Governance lens metadata 可保留，
-  但 canonical governance/observability grouping 只能指向 `governance_observability`。
-- TOML 可保存 reference capability 的 id、plane、label、description，以及五態、六種
-  `activation`、direct / indirect / explicit-negative evidence 的 viewer legend wording。
-- TOML 必須為每個 reference node 宣告 activation applicability metadata；它只是 data，
-  不決定實際 `activation`。只有 metadata 宣告 node 本質上沒有 enable/disable
-  語意時，backend 才使用 `not_applicable`。
+**Catalog split（2026-07-08 對齊 Plan 01A）：** 52 reference node metadata（10 planes /
+52 nodes、legend wording、`activation_applicable`）**只**在
+`capability_reference_map.toml`（Plan `01A`）。本計畫的 `profile_registry.toml` **只**含
+`[[profiles]]` 列（15 MVP profile 的 label、axis、wording、recommended next checks）。
+**不得**在 `profile_registry.toml` 重複定義 52 格 reference node catalog。
+
+- **`profile_registry.toml` 可保存：** 15 MVP profile 的 id、display name、short label、
+  description、axis metadata、default evidence wording、uncertainty 文案、viewer legend
+  文案（profile 層級）。
+- **`profile_registry.toml` 不可保存：** 52 reference node id/plane 清單、五態 threshold、
+  reference node matching、profile trigger、regex、score、provider、lifecycle action。
 - Python 擁有五態判斷、activation 判斷、evidence classification、field-specific conflict、
   `not_detected` coverage gate、`build_id` / `scan_id` / `environment_id` scope 驗證與
   Mapping Completeness 公式和權重。
@@ -46,6 +47,9 @@ validation。Registry 不限定 12 列，frontend 不得硬編碼數量或順序
   屬於 Plan `01B`、`02`、`04` 與 `03A` 的 Python services。
 
 ## 2026-07-07 UA 整合對齊
+
+**2026-07-08 audit 小修：** `ProfileRegistryEntry` loader 的 `allowed_fields` 須包含
+`primary_axis` 與 `secondary_axes`（範例 loader 已補；實作時 fail-closed 驗證）。
 
 本計畫仍只遷移 profile wording / metadata。若新增 UA 相關 metadata，TOML 只能保存
 UA rule/source 的描述、display label、migration alias 或 generated JSON projection；
@@ -349,6 +353,8 @@ def load_profile_registry(
         "profile_id",
         "display_name",
         "short_label",
+        "primary_axis",
+        "secondary_axes",
         "description",
         "default_evidence_strength",
         "default_uncertainty",

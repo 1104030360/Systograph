@@ -27,9 +27,9 @@ Step 2 FileInventory（KAI boundary owner）
        compute-batches
        extract-structure
        file-analyzer（bounded LLM）deferred；不執行
-       ua-analysis-result.json nullable deferred sidecar
-       structural -> facts / evidence / issues
-       semantic   -> ScanSnapshot internal sidecar
+       ua-analysis-result.json（Phase B/C 可選保存；semantic=null）
+       structural -> UaStructuralAdapter -> ScanSnapshot.scan_result（Step 4～7 consumer）
+       semantic   -> reserved nullable slot；Phase2 不執行 file-analyzer、不產生、不消費
 ```
 
 Sidecar request / result schema：
@@ -181,7 +181,10 @@ kai-mind-ua-result/v1
 - [ ] `kai-mind-analyze.mjs` 不執行 `scan-project.mjs`，不寫 target repo。
 - [ ] `kai-mind-ua-request/v1` 與 `kai-mind-ua-result/v1` schema 通過 contract tests。
 - [ ] Structural result 可轉成 KAI facts / evidence / issues，且 evidence path/line 可追溯。
-- [ ] Semantic result 保存為 `ScanSnapshot` internal sidecar，不列 public artifact。
+- [ ] `ScanSnapshot.ua_analysis_result` 為 reserved nullable internal slot（`03A` 預留）；
+  Phase2 active path **不產生、不消費** semantic payload；`semantic` 欄位維持 `null`。
+- [ ] Phase B/C 可選保存 structural wrapper JSON 於 snapshot 內供追溯，但 Step 4～7 / Apply /
+  Viewer 只讀 `ScanSnapshot.scan_result`，不列 public artifact、不新增 API artifact path。
 - [ ] Node 缺失、schema invalid、必要 batch 失敗全部 fail closed，不進 Step 4。
 - [ ] Parity harness 可產生可追溯 diff，供 Plan 14 / Plan 18 使用。
 

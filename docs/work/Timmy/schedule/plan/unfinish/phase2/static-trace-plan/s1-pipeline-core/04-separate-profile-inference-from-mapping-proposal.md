@@ -15,6 +15,15 @@ analysis 寫回 canonical facts。
 
 **為何現在要做：** Phase2 profile findings 可能引用 unmapped components、non-baseline capability candidate components、legacy extensions、risks 與 evidence。若沒有明確的分離規則，未來程式可能誤把 `MappingProposalService` 或 manual mapping actions 重用於 profile detection，因而混淆 candidate evidence、legacy v1 slot confirmation、confirmed non-baseline candidates 與 profile findings。
 
+## Contract source of truth
+
+| 主題 | Source |
+|---|---|
+| Mapping / proposal HTTP（Step 9） | `docs/API-GUIDE.md` §5–6 |
+| Profile 為 read-only sidecar | `docs/MODEL-CONTRACT.md` `ProfileInferenceResult` |
+| `GraphViewModel` / `ViewerLoadResult` | `docs/MODEL-CONTRACT.md` |
+| Apply 後重算 profile | `03A` + `POST /api/map-builds/{base_build_id}/apply` |
+
 **Pipeline 對齊：** `01B` 的 Step 4 component bridge 只負責產出 component /
 unmapped / candidate input；本計畫確保 Step 9 `MappingProposalService` 不被塞回 Step 4，
 也確保 Step 6 `ProfileInferenceService` 不回呼 proposal lifecycle。

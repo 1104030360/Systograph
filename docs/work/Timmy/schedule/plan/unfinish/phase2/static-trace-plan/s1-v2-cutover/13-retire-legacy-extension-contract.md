@@ -164,16 +164,31 @@ test 或 migration 文件。
 
 ## Task 5：統一 Artifact Lifecycle
 
-- [ ] 同一 validated v2 build result 產生：
-  - `ai_system_map.json`
-  - `profile_signals.json`
-  - `readiness_report.json`
-  - `ai_system_map.md`
-  - `system_map.mmd`
-- [ ] 每個 finding、component、edge、profile signal 都只引用存在的 evidence id。
-- [ ] profile/readiness/renderers 不重跑 scanner 或 LLM 來建立 canonical facts。
-- [ ] missing/invalid optional sidecar 時，viewer 仍載入 base v2 graph並回傳 degraded
-  warning。
+- [ ] 同一 validated v2 build result 以 **一次 atomic publish** 產生 Phase2 P0 sibling set
+  （對齊 `docs/MODEL-CONTRACT.md` Artifact Lifecycle；**7 JSON + 3 render，共 10 檔**；另
+  `GraphViewModel` 為 ephemeral API projection，**非** required on-disk sibling）：
+  - **Canonical + assessment（Plan 03 lifecycle owner）：**
+    - `ai_system_map.json`
+    - `profile_signals.json`
+    - `readiness_report.json`
+  - **Static execution（dynamic `00` writer；Plan 03 協調 same-build publish）：**
+    - `call_graph.json`
+    - `dataflow_hints.json`
+    - `execution_paths.json`
+    - `evidence_table.json`
+  - **Render outputs：**
+    - `ai_system_map.md`
+    - `system_map.mmd`
+    - `execution_map.mmd`
+- [ ] 上述 **10** 個 sibling 共用同一 `scan_id`、`build_id`、`environment_id`；不得混用不同
+  scope 的 evidence refs。`GraphViewModel` 僅為 ephemeral API projection，不是 required
+  on-disk sibling JSON。
+- [ ] 每個 finding、component、edge、profile signal、static call edge、execution step 都只
+  引用存在的 evidence id。
+- [ ] profile/readiness/renderers/static execution recoverers 不重跑 scanner、UA 或 LLM 來
+  建立 canonical facts。
+- [ ] missing/invalid optional sidecar 或 execution artifact 時，viewer 仍載入 base v2
+  graph 並回傳 stable degraded warning；不得 blocking canonical map load。
 - [ ] artifact write failure 不留下內容互相矛盾的 partial set。
 
 ## Task 6：Rollback 與 Regression Gate
@@ -200,7 +215,9 @@ cd frontend && npm run build && npm run lint
 - [ ] v2 是 generic AI system map，不預設 RAG/Agent 類別。
 - [ ] v1 artifacts 仍可透過唯一 loader/adapter path 讀取。
 - [ ] active code 不建立 `extensions` 或 `new_extension_component`。
-- [ ] 五個核心 artifacts 來自同一 validated v2 result。
+- [ ] Phase2 P0 **10 public sibling artifacts**（7 JSON + 3 render）來自同一 validated v2
+  build result 與同一 atomic publish；若 dynamic `00` 尚未啟用，cutover report 必須明列
+  execution subset 為 `not_enabled`，但不得把 5-file subset 當成新的 product contract。
 - [ ] 五態 status、evidence traceability 與禁止 numeric confidence 的規則未破壞。
 - [ ] rollback 已實測且 cutover report 已保存。
 - [ ] Plan 14 依賴本計畫完成，不再接受 v1-only output 作 final success。

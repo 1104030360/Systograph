@@ -8,6 +8,19 @@
 
 **Tech Stack:** Python 3.11、Pydantic v2、FastAPI、standard-library JSON/filesystem APIs、React、TypeScript、Zod、pytest。
 
+## Contract source of truth
+
+| 主題 | Source |
+|---|---|
+| Phase2 primary endpoints | `docs/API-GUIDE.md` §2 |
+| `scan_id` / `build_id` / `based_on_build_id` / `build_reason` | `docs/MODEL-CONTRACT.md` Assessment scope & build lineage |
+| `POST /api/map-builds/{base_build_id}/apply` | `docs/API-GUIDE.md` §2 Apply；response 欄位為 `viewer_load_result`（非 `viewer_payload`） |
+| `ViewerLoadResult`（含巢狀 `graph_view_model`） | `docs/MODEL-CONTRACT.md` |
+| Manual mapping HTTP contract | `docs/API-GUIDE.md` §5–6 |
+
+Phase2 固定 `environment_id: "environment:default-static"`；所有 sibling artifacts 共用同一
+scope triple。
+
 ---
 
 ## Confirmed Decisions（through 2026-07-05）
@@ -28,9 +41,10 @@
     payload。
 11. Boundary completion 不代表每次都要人工確認：沒有 proposals 時自動通過；有 proposals
     時必須收到每個 `target_path + fingerprint` 的完整 same-run decision 才能繼續。
-12. Rebuild／Apply 從既有 `ScanSnapshot` 的 raw `ProjectScanResult` 開始，先 replay component
-    detection，再重算 normalization 與全部 downstream artifacts；不得從舊 B1 的 normalized
-    map 直接 patch，也不得重新執行 filesystem/provider scan。
+12. Rebuild／Apply 從既有 `ScanSnapshot` 的 raw `ProjectScanResult` 開始，先 **Step 4-1
+    bridge replay**，再 **Step 4-2 overlay confirmed mappings**，然後重算 normalization 與全部
+    downstream artifacts；不得從舊 B1 的 normalized map 直接 patch，也不得重新執行
+    filesystem/provider scan。
 13. 依 Phase2 pipeline terminology，Apply **跳過 Step 3**，但仍重跑 Step 4～7：
     Step 4 使用 `component_bridge_registry.py` 重新 materialize repo component /
     unmapped / candidate input，並在 4-2 套用 confirmed manual mappings；Step 6 再重算
@@ -148,14 +162,13 @@ ScanSnapshot S1
   + scan_result deterministic structural facts / evidence
   + ua-analysis-result internal sidecar（保存但 Phase2 不消費）
   + confirmed mappings selected by mapping_id
-  -> component detection replay
-  -> canonical normalization
+  -> Step 4-1 component bridge replay           # raw facts -> component / unmapped / candidate input
+  -> Step 4-2 apply confirmed mappings          # overlay durable decisions; same snapshot
+  -> canonical normalization / validate
   -> edge/flow derivation
-  -> profile inference
-  -> capability assessment + activation state
-  -> static execution artifacts
-  -> GraphViewModel
-  -> Mapping Completeness（由五態 counts 重算）
+  -> profile inference（Step 6-1；含 Mapping Completeness 重算）
+  -> readiness + static execution artifacts
+  -> GraphViewModel projection
   -> Markdown / Mermaid / sibling JSON artifacts
   -> cross-reference validation
   -> immutable Build B2
@@ -165,13 +178,14 @@ ScanSnapshot S1
 
 `ScanSnapshot.scan_result` 保存正式 scan 產生的 raw `ProjectScanResult`，並以 internal
 sidecar 保存同次 UA `ua-analysis-result`。它不是已完成 mapping 的 canonical map，因此
-Rebuild／Apply 必須從 component detection replay 開始，不能跳到 normalization，也不能
-沿用 B1 的 component、edge、assessment 或 projection 結果。
+Rebuild／Apply 必須從 **Step 4-1 bridge replay** 開始，再 **Step 4-2 overlay confirmed
+mappings**；不能跳到 normalization-only，也不能沿用 B1 的 component、edge、assessment
+或 projection 結果。
 
 | Operation | 起點 | Filesystem/provider scan | Component detection | Identity result |
 |---|---|---:|---:|---|
 | Initial scan | boundary-complete scan request | 執行一次 | 執行 | 新 `scan_id` + 新 `build_id` |
-| Rebuild / Apply | 既有 `ScanSnapshot` + confirmed mappings | 不執行 | Replay | 相同 `scan_id` + 新 `build_id` |
+| Rebuild / Apply | 既有 `ScanSnapshot` + confirmed mappings | 不執行 | **4-1 replay → 4-2 overlay** | 相同 `scan_id` + 新 `build_id` |
 | Explicit rescan | 新的 boundary preflight | 重新執行 | 執行 | 新 `scan_id` + 新 `build_id` |
 
 ```text
@@ -179,7 +193,7 @@ Initial scan / explicit rescan
   boundary complete
     -> filesystem inventory + provider collection
     -> persist raw ScanSnapshot
-    -> component detection
+    -> Step 4-1 component bridge（initial scan 亦走 bridge registry）
     -> endpoint / risk / edge / flow derivation
     -> normalize + validate
     -> downstream assessment / projection / artifacts
@@ -269,7 +283,7 @@ Response：
   "build_reason": "apply_confirmations",
   "applied_mapping_ids": ["mapping:abc", "mapping:def"],
   "build_result": {},
-  "viewer_payload": {}
+  "viewer_load_result": {}
 }
 ```
 
@@ -280,7 +294,7 @@ Validation rules：
 - 每個 `mapping_id` 必須存在、屬於同一 project、`decision="confirmed"`，且 evidence ids 必須存在於 source snapshot。
 - 空陣列、重複 mapping ids、跨 project ids 回 `422`。
 - 相同 base build + 相同 sorted mapping ids + 相同 mapping digests 的重試必須 idempotent，回傳既有 build，不重複建立 B2。
-- 只有全部 artifacts validate 且 atomic publish 成功後，才更新 project `latest_build_id` 與 latest ViewerPayload。
+- 只有全部 artifacts validate 且 atomic publish 成功後，才更新 project `latest_build_id` 與 latest `viewer_load_result`（legacy `GET /api/map` 的 `ViewerPayload` 僅 compatibility）。
 - 任一階段失敗時保留 B1 為 latest，不留下可被載入的 partial B2。
 
 ### Read builds
@@ -302,7 +316,9 @@ degraded state；只有 canonical map missing / invalid 或 project-build identi
 closed。Route tests 必須覆蓋 project latest、指定歷史 build、unknown build、cross-project build、
 sidecar degraded load 與 deterministic history ordering。
 
-`GET /api/map` 暫時保留 compatibility，回傳目前 active project 的 latest ViewerPayload；新 frontend workflow 應優先使用 Apply response 或 project-scoped latest route，避免 process-wide latest 混用。
+`GET /api/map` 暫時保留 compatibility，回傳 process-wide latest `ViewerPayload`（內層
+`viewer_load_result`）；Phase2 正式 workflow 應優先使用 Apply response 的
+`viewer_load_result` 或 project-scoped latest route，避免 process-wide latest 混用。
 
 ## Implementation Tasks
 
@@ -489,8 +505,8 @@ def test_second_build_reuses_snapshot_without_scanning_filesystem() -> None:
     assert second.lineage.build_id != first.lineage.build_id
 ```
 
-The same test must use a counting component detector and assert component detection runs once for B1
-and replays once for B2, while the filesystem/provider scan count remains one. It must also assert that
+The same test must use a counting component bridge replay hook and assert Step 4-1 runs once for B1
+and replays once for B2 (with 4-2 overlay), while the filesystem/provider scan count remains one. It must also assert that
 B2 recomputes downstream assessment, projection, completeness, and artifact refs instead of reusing B1
 derived objects.
 
@@ -538,7 +554,7 @@ Expected: PASS and provider collection count remains one per completed scan.
 
 - [ ] **Step 1: Write failing service tests**
 
-Cover successful B1→B2, unconfirmed mapping, cross-project mapping, unknown/stale base, evidence not present in snapshot, repeated request idempotency, and build failure preserving B1 as latest. The successful path must prove that Apply resolves the original snapshot, replays component detection with the selected mappings, recomputes every downstream artifact, keeps the same `scan_id`, creates a new `build_id`, and never calls filesystem/provider scan.
+Cover successful B1→B2, unconfirmed mapping, cross-project mapping, unknown/stale base, evidence not present in snapshot, repeated request idempotency, and build failure preserving B1 as latest. The successful path must prove that Apply resolves the original snapshot, replays **4-1 bridge → 4-2 overlay** with the selected mappings, recomputes every downstream artifact, keeps the same `scan_id`, creates a new `build_id`, and never calls filesystem/provider scan.
 
 - [ ] **Step 2: Implement `ApplyConfirmationsService.apply(...)`**
 
@@ -567,8 +583,8 @@ class ApplyConfirmationsResponse(WebSchema):
     based_on_build_id: str
     build_reason: Literal["apply_confirmations"]
     applied_mapping_ids: list[str]
-    build_result: MapBuildResult
-    viewer_payload: ViewerPayload
+    build_result: Phase2MapBuildResult  # 見 docs/API-GUIDE.md
+    viewer_load_result: ViewerLoadResult  # 見 docs/MODEL-CONTRACT.md；內含 graph_view_model
 ```
 
 - [ ] **Step 4: Add `POST /api/map-builds/{base_build_id}/apply`**
@@ -676,7 +692,9 @@ Supporting copy：
 
 - [ ] **Step 4: Update viewer atomically from Apply response**
 
-On success, replace the current ViewerPayload with response `viewer_payload`, clear only mapping ids listed in `applied_mapping_ids`, and display B2 lineage. Do not issue a mandatory extra `GET /api/map`.
+On success, replace the current viewer state with response `viewer_load_result`（含
+`graph_view_model`），clear only mapping ids listed in `applied_mapping_ids`, and display B2
+lineage. Do not issue a mandatory extra `GET /api/map`.
 
 - [ ] **Step 5: Handle failure without losing B1**
 
@@ -804,7 +822,7 @@ Expected: PASS.
 - [ ] Project-scoped scan 在 boundary 無 proposals 時自動繼續；有 proposals 時，只有全部
   same-run decisions 完整且 fingerprint-matched 才能進入 provider scan。
 - [ ] `requires_boundary_decision` 不呼叫正式 provider scan、不建立 persisted
-  `ScanSnapshot`／Build、不寫 artifacts，也不更新 latest ViewerPayload；missing/stale decision
+  `ScanSnapshot`／Build、不寫 artifacts，也不更新 latest `viewer_load_result`；missing/stale decision
   仍停在 boundary gate。
 - [ ] `scan_id` 與 `build_id` 是不同 domain identities；Apply 不建立新 `scan_id`。
 - [ ] `scan_id` 同時識別 immutable `ScanSnapshot`；Phase2 domain/API/artifacts 不新增或要求
@@ -813,7 +831,7 @@ Expected: PASS.
   完成 Step 4～7 與 atomic publish，且 Apply 不呼叫 UA/filesystem/parity providers。
 - [ ] Apply API 對外名稱為 `/apply`，內部只呼叫共用 Map Build pipeline。
 - [ ] 使用者按「套用 N 項確認並建立新版本」不觸發 filesystem/provider scan。
-- [ ] Rebuild／Apply 從原 `ScanSnapshot.scan_result` replay component detection，再重算
+- [ ] Rebuild／Apply 從原 `ScanSnapshot.scan_result` **4-1 bridge replay → 4-2 overlay**，再重算
   normalization 與所有 downstream artifacts；不得從舊 normalized map 或 B1 derived results
   開始 patch。
 - [ ] Explicit rescan 重新跑 boundary preflight 與 filesystem/provider scan，並建立新的

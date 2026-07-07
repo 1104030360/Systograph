@@ -52,7 +52,8 @@ v1/v2 dual-read loader 的輸入，也不列入 public sibling artifact set。
 
 本節取代本文任何三態、`partial`/`contradicted` 非一級狀態、或缺少 assessment scope
 的舊規劃。完整決策見
-[`../capability-map-assessment-decision-summary.md`](../capability-map-assessment-decision-summary.md)。
+[`../../capability-map-assessment-decision-summary.md`](../../capability-map-assessment-decision-summary.md)
+（欄位名以本節與 `docs/MODEL-CONTRACT.md` 為準：`activation`、`scan_id`、`environment_id`）。
 
 - v2 支援固定 10-plane / 52-node reference map 與 per-repo overlay。Reference node 是穩定能力
   座標；repo component 是目前 build/snapshot 以 evidence 支撐的實際元件，兩者不得混為

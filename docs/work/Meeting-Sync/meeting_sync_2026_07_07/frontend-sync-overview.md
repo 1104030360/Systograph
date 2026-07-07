@@ -1,6 +1,6 @@
-# Phase 2 前端同步總覽（2026-07-05）
+# Phase 2 前端同步總覽（2026-07-07）
 
-Last updated: 2026-07-07（UA 整合決策對齊）
+Last updated: 2026-07-08（10+1 計數、state vs build、ViewerLoadResult、render 用途）
 
 > **2026-07-06 superseding taxonomy:** 固定 reference catalog 改為 10 planes /
 > 52 nodes；plane/node ids 以 `docs/MODEL-CONTRACT.md` 與 Plan `01A` 為準。
@@ -13,10 +13,13 @@ Last updated: 2026-07-07（UA 整合決策對齊）
 - `docs/work/Timmy/schedule/plan/unfinish/phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/dynamic-trace-plan/00-implement-static-call-graph-and-execution-path-mvp.md`
 - `docs/MODEL-CONTRACT.md`
+- `docs/API-GUIDE.md`（HTTP 端點、`ViewerLoadResult` 聚合與 lazy-load 契約）
 
 若本資料夾內的 sync 文件與上述計畫衝突，執行 stage / gate 以
 `static-trace-plan/README.md` 為準，Step 1～9 pipeline 與同日修訂的 Step 6 邊界以
-`00-phase2-pipeline-ascii-map.md` 為準；其餘 schema 再依 `MODEL-CONTRACT.md`。
+`00-phase2-pipeline-ascii-map.md` 為準；欄位語意、五態、activation、artifact lifecycle 與
+`GraphViewModel` 邊界以 `MODEL-CONTRACT.md` 為準；API 載入策略以 `API-GUIDE.md` §
+`ViewerLoadResult` 為準。
 
 ## 產品方向（Product Direction）
 
@@ -75,23 +78,97 @@ Scanner 已產生報告。有少數項目建議 review，可讓後續 scan 更�
 
 ## 必要產出物認知（Required Output Awareness）
 
-Frontend 要知道 Phase2 P0 會有多個 independent sibling artifacts，不是一個 aggregate JSON：
+Frontend 要知道 Phase2 P0 會有多個 **independent sibling artifacts**（磁碟上 **10 個 public
+檔**），不是一個 aggregate JSON。另加 **1 個 ephemeral API projection**（`graph_view_model`，
+**不**列為 atomic-publish 磁碟 sibling 檔）：
 
 ```text
-ai_system_map.json
-evidence_table.json
-call_graph.json
-dataflow_hints.json
-execution_paths.json
-profile_signals.json
-readiness_report.json
-ai_system_map.md
-system_map.mmd
-execution_map.mmd
+JSON（7）
+  ai_system_map.json
+  profile_signals.json
+  readiness_report.json
+  call_graph.json
+  dataflow_hints.json
+  execution_paths.json
+  evidence_table.json
+
+Render（3）
+  ai_system_map.md
+  system_map.mmd
+  execution_map.mmd
+
+Ephemeral（API only，非 sibling 磁碟檔）
+  graph_view_model  ← Step 7 GraphProjectionService 投影；隨 ViewerLoadResult inline
 ```
 
 JSON artifacts 之後可各自映射成 database table 或 table group。Frontend 不要假設全部都
 被塞在 `ai_system_map.json`。
+
+`ua-analysis-result` / `ScanSnapshot.ua_analysis_result` 是 **snapshot-internal reserved
+slot**，不是 public artifact；frontend contract **不得** fetch 或解析。
+
+### 不算進 7 JSON 的 persistence（Frontend 必知）
+
+以下 JSON 存在 **project state store**，不是 `output/{build_id}/` 的 build siblings：
+
+| 儲存 | Step | 與 Viewer 關係 |
+|------|------|----------------|
+| `scans/{scan_id}/snapshot.json` | 3 | build **輸入**；Apply 重用同一 scan |
+| `mappings/{mapping_id}.json` | 9 | 使用者 decision；經 `/api/mappings`，非 `artifact_refs` |
+| `project.json`、build manifest | 1 / 7 | metadata only |
+
+Rescan → 新 `scan_id` + 新 snapshot + 新 build。Apply → 同 snapshot、新 `build_id`、
+新 10 siblings。見 [`rescan-vs-apply.md`](rescan-vs-apply.md)。
+
+### Render 三檔（export，非主畫布）
+
+| 檔案 | 用途 |
+|------|------|
+| `ai_system_map.md` | Epic 1 人類可讀報告（`GET /api/map/report`） |
+| `system_map.mmd` | 架構 Mermaid export（Plan 06） |
+| `execution_map.mmd` | static execution Mermaid export（dynamic 00） |
+
+三者不參與 scoring；Phase2 target 為 **`artifact_refs` lazy**；主 canvas 仍用 inline
+`graph_view_model`。
+
+## ViewerLoadResult 載入策略（Phase2 target）
+
+Build 在磁碟上仍 publish 上述 sibling 檔；**`ViewerLoadResult`** 是 Viewer **首次載入用的
+API 聚合**，不是把多份 JSON merge 成單一 bundle 檔。詳細 sample 見
+`docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-08-viewer/README.md`。
+
+| 來源 | 磁碟 artifact / 投影 | `ViewerLoadResult` 欄位 | 載入方式 |
+|------|----------------------|-------------------------|----------|
+| Step 4 | `ai_system_map.json` | `ai_system_map` | **inline** |
+| Step 6-1 Profile Inference | `profile_signals.json` | `profile_inference_result` | **inline**（≡ 同 schema；欄位名不同） |
+| Step 6-2 Readiness | `readiness_report.json` | `readiness_report` | **inline** |
+| Step 7 投影 | （無獨立 sibling 檔） | `graph_view_model` | **inline**（ephemeral；非磁碟檔） |
+| Step 6-3～5 static execution | `call_graph.json` / `dataflow_hints.json` / `execution_paths.json` | — | **`artifact_refs[]` only**（lazy load） |
+| Step 6-6 | `evidence_table.json` | — | **`artifact_refs[]` only**（lazy load） |
+| Step 7 render | `*.md` / `*.mmd` | — | **`artifact_refs[]` only**（lazy load） |
+
+重點：
+
+- **主畫布 ≠ merge 六份 Step 6 JSON。** Viewer load 時 **不得**把 `profile_signals.json`、
+  `call_graph.json`、`dataflow_hints.json`、`execution_paths.json`、`readiness_report.json`、
+  `evidence_table.json` 拼成單一 graph JSON。
+- **只有 6-1 Profile Inference 結果**（經 Step 7 `GraphProjectionService`）進 **主 canvas**
+  （52 格 reference overlay、repo overlay、`profile_attachment` 等）。`readiness_report` 供
+  report 面板；static execution 三件套與 `evidence_table` 供 Inspector / debug **lazy surface**。
+- Frontend 消費 **`graph_view_model`**（canvas）與 **`profile_inference_result`**
+ （panel / 詳情）；API mode **不**直接讀 server-local sidecar path。
+- Sidecar 缺失或 invalid → **degraded load + warnings**（例如 `profile_signals_missing`），
+  **不** blocking canonical `ai_system_map` / base graph。
+- Lazy load 必須以 `project_id` + `build_id` scope 呼叫 **受控 artifact API**；`artifact_refs`
+  不含 absolute path。
+
+命名對照（禁止混用）：
+
+| 層級 | 名稱 |
+|------|------|
+| 流程 / 服務 | **Profile Inference** / `ProfileInferenceService`（Step 6-1） |
+| 磁碟 sibling | `profile_signals.json`（`profile-signals/v1`） |
+| API 欄位 | `profile_inference_result: ProfileInferenceResult \| null` |
 
 ## Backend / Frontend 職責切分
 
@@ -108,13 +185,18 @@ JSON artifacts 之後可各自映射成 database table 或 table group。Fronten
 
 ### Pipeline bridge boundary（Frontend 必讀）
 
+完整 Step 1～9 見 `00-phase2-pipeline-ascii-map.md`。下表為 **frontend 視角** bridge 邊界
+（Step 5 / 8 未列於舊版表，但 Viewer 仍會消費其產物）：
+
 | Step | Backend 意義 | Frontend 可做 | Frontend 不可做 |
 |---|---|---|---|
 | Step 3 staged scan | Phase A 以 KAI scan TOML providers 為 primary；Phase B 改為 UA structural primary + TOML parity；Phase C 為 UA only。Semantic sidecar 是 reserved nullable slot，Phase2 active path 不產生、不消費 | 不直接消費；只理解 Phase B/C build error 可能來自 fail-closed structural scan | 依賴 `ua-analysis-result.json`、新增 schema 欄位或讀 internal sidecar |
 | Step 4 Bridge 1 | `rule_id + evidence` → repo component / unmapped / candidate input | 顯示 backend 已投影的 component、unmapped、review queue | 從 rule id、dependency、檔名自行建立 component |
-| Step 6 Bridge 2 | `ProfileInferenceService` 以純 Python 對 validated map ↔ 10 planes / 52 reference nodes 定五態 / profiles / completeness；Plan 17 AI flow deferred | 顯示 backend status、reason、related refs | 自己把 repo node 對到 reference node、推五態或信任 internal semantic sidecar |
-| Step 7 Projection | fixed reference map + repo overlay / GraphViewModel | render backend projection、lens、legend、Evidence Inspector | 從 layout、顏色或缺欄位重算 completeness |
-| Step 9 Review | 對 unmapped evidence 建 proposal，存 confirmed decision | accept/edit/reject/skip decision mutation | 讓 proposal 直接改 JSON 或 profile status |
+| Step 5 Index | read-only lookup；不寫檔、不 infer | （無直接 UI） | 依賴 index 或自行 rebuild topology |
+| Step 6 Bridge 2 | `ProfileInferenceService` 以純 Python 對 validated map ↔ 10 planes / 52 reference nodes 定五態 / profiles / completeness；Plan 17 AI flow deferred | 顯示 backend status、reason、related refs（經 `profile_inference_result`） | 自己把 repo node 對到 reference node、推五態或信任 internal semantic sidecar |
+| Step 7 Projection | fixed reference map + repo overlay → **`graph_view_model`** | render backend projection、lens、legend、Evidence Inspector | 從 layout、顏色或缺欄位重算 completeness；merge sibling JSON 建 graph |
+| Step 8 Viewer | 聚合 `ViewerLoadResult`（inline + `artifact_refs`） | 解析 contract、render、warning、optional review 入口 | load-time 重算 profile inference 或 assessment |
+| Step 9 Review | **post-build** optional：對 unmapped 建 proposal，存 confirmed decision | accept/edit/reject/skip decision mutation | 讓 proposal 直接改 JSON 或 profile status |
 
 ## 計畫影響摘要（Plan Impact Summary）
 
@@ -174,6 +256,49 @@ node/edge detail 與 replay interaction。Validation Simulator 與 runtime trace
 驗收標準見 [`frontend-deepresearch-icon-migration.md`](frontend-deepresearch-icon-migration.md)。
 此工作只搬移 icon 與必要呈現樣式，不搬移示意頁的資料、schema、inference 或互動邏輯。
 
+## 2026-07-03 Frontend Stability Baseline
+
+`../frontend_sync_2026_07_03.md` 是舊的穩定性修正批次紀錄，不再作為 active Phase2
+handoff 入口。0707 sync 仍需承接其中的 baseline，因為後續 Graph Studio、artifact、
+Apply / Rescan 與 runtime trace UI 都建立在這些 frontend 行為已穩定的前提上。
+
+已完成或已定義的穩定性基線：
+
+| PR / branch | Baseline | 對 0707 sync 的影響 |
+|---|---|---|
+| #221 `fix/scan-flow-state-reset` | scan 三個出口會重置 progress / SSE；boundary modal 可 Escape 關閉 | 新的 scan / Apply / degraded flow 不得重新引入卡在 progress running 的狀態 |
+| #222 `fix/178-viewer-payload-cancellation` | `useViewerPayload` request 可由 React Query `AbortSignal` 取消；cancel 與 timeout 文案分離 | build-scoped viewer payload、artifact lazy load 與 API base URL 切換都應延續可取消 request |
+| #223 `feat/176-sample-data-indicator` | Sample mode graph 區域常駐標示 `Sample data — example map, not a real scan`；API mode 不顯示 | Graph Studio、static execution、readiness panels 的 sample/API mode 都不得讓 sample 看起來像真實 scan |
+| #224 `fix/scan-template-mock-affordances` | Scan Template mock surface 有 sample badge；無作用按鈕停用 | 後續 sample/mock surface 需明確標示，不以可點擊假操作誤導使用者 |
+| #225 `fix/api-base-url-env-fallback` | `VITE_API_BASE_URL=""` fallback 到 `http://127.0.0.1:8000` | API mode / local dev config 不應因空 env 變成隱性壞狀態 |
+| #226 `fix/sse-reconnect-tolerance` | SSE 單次瞬斷交由 EventSource 重連；連續三次失敗或 closed 才降級 mock | 新的 scan progress / build status UI 應保持瞬斷容錯，不要第一次 error 就永久降級 |
+| `codex/frontend-test-foundation` | Vitest + jsdom + React Testing Library；`pnpm test` 進 frontend CI | 新增 Graph Studio / artifact / readiness parser 時應優先補 API-facing tests，而不是只靠人工驗收 |
+
+0703 批次刻意沒有修改 `API_CONTRACT.md`、`/api/*` contract 或 `src/kai_mind/`。
+因此 0707 的 Phase2 contract 仍以本資料夾、`docs/API-GUIDE.md` 與
+`docs/MODEL-CONTRACT.md` 為準；0703 只提供 frontend stability baseline。
+
+目前仍要追蹤的 follow-up：
+
+- #231：正式 contract 改變 SSE endpoint/event schema、error code 或 request lifecycle 時，
+  更新 API-facing tests、mocks 與 fixtures。
+- #198 `feature/detail-scan-ui-flow`、#199 `feature/mapping-proposal-confirm-reject`、
+  #218 `codex/query-trace-ui-flow`、#227 `feature/219-viewer-artifact-actions` 需要以最新
+  main / contract rebase；已知衝突風險包含 `App.tsx` 與 `http.ts`。
+- 建議人工驗收順序維持：#198 → #199 → #218 → #227。
+
+驗證基線：
+
+```powershell
+corepack pnpm --dir frontend run test
+corepack pnpm --dir frontend run lint
+corepack pnpm --dir frontend run build
+```
+
+0703 記錄中的結果是 Vitest 3 files / 7 tests passed、ESLint 0 errors（1 個既有
+Fast Refresh warning）、TypeScript / Vite production build 通過；既有 `web-worker`
+external dependency 與 bundle chunk warning 不變。
+
 ## Frontend 執行順序
 
 1. Review scanner suggestions UX 與 proposal decision flow。
@@ -205,6 +330,10 @@ node/edge detail 與 replay interaction。Validation Simulator 與 runtime trace
 ## 同步完成檢查清單（Sync Completion Checklist）
 
 - [ ] Frontend 已讀完本資料夾每一個檔案（含 [`rescan-vs-apply.md`](rescan-vs-apply.md)）。
+- [ ] 對外 artifact 計數：**10 public siblings + 1 ephemeral `graph_view_model`**；不寫「11 sibling JSON」。
+- [ ] 不把 `snapshot.json` 或 `mappings/*.json` 算進 build 7 JSON。
+- [ ] `ViewerLoadResult` inline vs `artifact_refs` lazy load 已對齊上表；主畫布只消費
+      `graph_view_model`，不 merge Step 6 sibling JSON。
 - [ ] Sample mode 與 API mode 已用同一 active contract 測試。
 - [ ] Review scanner suggestions queue 為 optional，不阻擋 report rendering。
 - [ ] Active payload parsing 不要求 `extensions`。
@@ -216,3 +345,5 @@ node/edge detail 與 replay interaction。Validation Simulator 與 runtime trace
       source-to-target inventory。
 - [ ] Graph Studio 使用 backend projection，未建立 frontend-only graph/inference contract。
 - [ ] Graph Studio 的 loading、empty、error、degraded、accessibility 與 responsive states 已納入驗收。
+- [ ] 0703 frontend stability baseline 仍有效：sample/API mode 標示、request cancellation、
+      SSE reconnect tolerance、API base URL fallback 與 frontend test gate 沒有 regression。

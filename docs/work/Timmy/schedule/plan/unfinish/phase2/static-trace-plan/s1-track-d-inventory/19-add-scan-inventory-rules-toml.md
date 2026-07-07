@@ -2,6 +2,10 @@
 
 Status: planned（ASCII map Step 2 📦 擴充點的 owner plan；2026-07-07 對齊時補建）
 
+**2026-07-08 grill-me Q4：** `max_file_size_bytes` 等**數值 scan 門檻**先留 Python（對齊 Plan 10
+threshold 不進 TOML）。TOML 的 `inventory_limit_metadata` 只放 binary/oversize **描述**，不決定
+是否掃描。
+
 > **執行者注意：** 逐 task 實作本計畫。步驟使用 checkbox（`- [ ]`）語法以便追蹤。
 > 本計畫是 `phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md` Step 2 標示
 > 「📦 `scan_inventory_rules.toml` 待建」的唯一 owner。
@@ -16,7 +20,8 @@ Status: planned（ASCII map Step 2 📦 擴充點的 owner plan；2026-07-07 對
 ## 架構
 
 ```text
-scan_inventory_rules.toml（include / ignore patterns、size 與 binary 門檻 metadata）
+scan_inventory_rules.toml（include / ignore patterns、binary/oversize **描述 metadata**；
+數值 scan 門檻留 Python — 見 2026-07-08 grill-me Q4）
   -> ScanInventoryRuleLoader（fail-closed schema validation）
   -> FilesystemProvider.build_inventory（套用 default include / ignore）
   -> ScanBoundaryReviewService / InventoryPolicyOverlay（runtime 決策 overlay，不變）
@@ -28,8 +33,9 @@ TOML / Python 邊界（對照 ASCII map「各步擴充點速查」）：
 | 放進 TOML | 不放進 TOML |
 |---|---|
 | include / ignore glob patterns | component 對位、`rule_id` 匹配條件 |
-| binary / oversize / generated 檔案門檻 metadata | `plane_id`、`reference_node_id` |
+| binary / oversize / generated 的 **描述 metadata**（`inventory_limit_metadata`） | **`max_file_size_bytes` 等數值 scan 門檻**（留 Python；對齊 Plan 10 threshold 不進 TOML） |
 | 描述文案（為何預設忽略） | boundary 決策邏輯（blocked / completed 仍在 Python） |
+| path / glob / reason / category / message | executable scan fact 條件、profile threshold |
 
 ## 依賴
 
@@ -49,7 +55,8 @@ TOML / Python 邊界（對照 ASCII map「各步擴充點速查」）：
 **Steps**
 
 - [ ] 定義 TOML schema：`schema_version`、`ignore[]`（pattern + reason）、
-  `include_overrides[]`、`limits`（max file size、binary 偵測策略 metadata）。
+  `include_overrides[]`、`inventory_limit_metadata`（binary/oversize **描述**；**不含**
+  `max_file_size_bytes` 等會影響是否掃描的數值門檻 — grill-me Q4 留 Python）。
 - [ ] Loader 對 unknown fields、缺 `schema_version`、非法 pattern fail closed。
 - [ ] Reject executable fields：`rule_id`、`component_type`、`plane_id`、regex 匹配
   scan fact 條件一律拒絕。

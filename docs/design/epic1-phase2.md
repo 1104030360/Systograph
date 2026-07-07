@@ -32,18 +32,26 @@ target，不得把 planned modules、mock samples 或文件 claim 寫成已實�
 ### 2026-07-07 UA 整合決策（含同日修訂）
 
 > 修訂紀錄：2026-07-07 同日修訂——Step 6 取消 AI 編排（不建立 `AssessmentOrchestrator`，
-> Plan 17 deferred），回歸純 Python 評估；semantic sidecar 是 reserved nullable slot，
-> Phase2 active path 不產生、不消費。
+> Plan 17 deferred），回歸純 Python 評估；UA 語意分析結果 Phase2 不產生、不消費。
 > 修訂決策以 `phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md`（§2 第 4 順位）
 > 為準，下表已套用修訂後定案。
+>
+> 下表「白話定案」供快速理解；括號內為實作錨點（模組名、identity、plan id），細節見後文各節。
+>
+> **為什麼 Step 3 要 Phase A / B / C（分三階段上線）？** 若一次把主掃描器換成 UA，Step 1～9、
+> `ScanSnapshot`、Apply、持久化與 Gate 驗收會同時賭在 Node runtime、adapter 正確性與 facts
+> 差異上，回歸面太大。**Phase A** 先用已存在的 KAI TOML 掃描跑通整條 pipeline 與 Apply（Gate-1），
+> 證明 `ua_analysis_result=null` 也能完成 build。**Phase B** 才把 UA 結構分析升為主掃描，
+> 舊 TOML 只跑 parity 對照，用真實 repo / fixture 驗 diff（Plan 14 前）。**Phase C** 對照通過後
+> （Plan 18）退役主掃描 TOML，只留 UA，避免長期維護兩套 primary facts。
 
-| 決策面 | 2026-07-07 定案 |
+| 決策面 | 2026-07-07 定案（白話） |
 |---|---|
-| Step 3 scanner | 採 staged rollout：Phase A 先以現有 KAI scan TOML providers 打通 Step 1～9；Gate-1 後進入 Phase B，由 Python `UnderstandAnythingAnalysisService` 呼叫 Understand-Anything sidecar 作 primary、TOML providers 僅供 parity；Plan 14 通過後由 Plan 18 進入 Phase C UA-only |
-| UA 採用範圍 | Phase2 active path 只採用 deterministic structural extraction：`extract-import-map` → `compute-batches` → `extract-structure`；不執行 `scan-project.mjs`，其語言 / fileCategory / 行數 enrichment 移植到 Step 2 inventory；不執行 `file-analyzer` bounded LLM，`ua-analysis-result.json` / semantic sidecar 保持 nullable deferred |
-| Step 6 assessment | Phase2 維持純 Python deterministic `ProfileInferenceService`；Plan 17 `AssessmentOrchestrator` / AI semantic candidate flow deferred，不阻擋 Plan 14，五態由 Python 唯一定案，`detected` 必須有 direct evidence |
-| Apply / Rescan | Apply 不重跑 Step 3 或 UA：只重放 `scan_id` 所指 immutable `ScanSnapshot.scan_result` 的 facts/evidence，再重跑 Step 4～7；nullable `ua-analysis-result` 保持不變且不被消費。Rescan 才建立新 `scan_id` 並在 Phase B/C 重跑 UA |
-| Artifact / failure boundary | semantic sidecar 是 reserved nullable scan internal sidecar，不列 public artifact，frontend contract 不新增欄位，Phase2 無 consumer；Phase B/C 只對 deterministic structural extraction / Node / necessary batch 失敗 fail-closed；`file-analyzer`、UA Phase 3～7、`knowledge-graph.json` 與 dashboard deferred |
+| Step 3 scanner | **分三階段上線（理由見上）：** ① **Phase A** 先用現有 KAI TOML 規則掃描，把 Step 1～9 + Apply 跑通（**Gate-1**）；② **Phase B** 改由 `UnderstandAnythingAnalysisService` 呼叫 **UA 外部分析**當主掃描，舊 KAI 規則只跑 **parity 對照**；③ **Phase C**（**Plan 14** 通過後 **Plan 18**）舊主掃描規則退役，**只留 UA**。 |
+| UA 採用範圍 | Phase2 **只用 UA 的結構分析**（`extract-import-map` → `compute-batches` → `extract-structure`），**不用 LLM 猜語意**。不跑 `scan-project.mjs`；語言 / `fileCategory` / 行數改在 **Step 2 inventory** 補。不跑 `file-analyzer`；`ua-analysis-result.json` 的 semantic 欄位 **可留空（nullable deferred）**。 |
+| Step 6 assessment | 能力 **五態只用 Python 規則**（`ProfileInferenceService`），不用 AI 編排。Plan 17 / `AssessmentOrchestrator` **先不做**，不擋 Plan 14。**五態只能 Python 定案**；`detected` **必須有 direct evidence**。 |
+| Apply / Rescan | **Apply：** 不重掃 repo、不重跑 UA；**同一個 `scan_id`**，重放 `ScanSnapshot.scan_result` 的 facts/evidence，從 Step 4 重算 → **新 `build_id`**。UA 原始 JSON（`ua-analysis-result`）**不變、Phase2 不讀**。**Rescan：** 新 `scan_id`；Phase B/C 會再跑 UA。 |
+| Artifact / failure boundary | **① LLM 語意（`file-analyzer` → `ua-analysis-result.semantic`）：** Phase2 不當正式產物；frontend 不加欄位；**無 consumer** = Step 4～7 / Apply / Viewer **都不讀**這段（scan 內可 **null 留存** 即可）。<br>**② 失敗規則：** **Phase A** 不跑 UA 仍可正常 build；**Phase B/C** 若 UA **結構分析** / Node / 必要 batch 失敗 → **整次 scan fail-closed**（不是「UA 失敗還能運作」— 指的是結構路徑，不是 LLM 語意）。<br>**③ 本階段不做（也不算失敗）：** `file-analyzer`、UA Phase 3～7、`knowledge-graph.json`、dashboard。<br>**對照：** UA **結構**結果 → adapter → `scan_result`（**有 consumer**）；**LLM 語意**結果 → **無 consumer**。 |
 
 ## 2. Source of Truth / conflict resolution
 
@@ -67,6 +75,11 @@ target，不得把 planned modules、mock samples 或文件 claim 寫成已實�
 - active target 是 generic `ai-system-map/v2`；`ai-system-map/v1` 只保留 expand-and-contract
   migration/read path。
 - `rag-core-v1` 與舊 RAG feature 是 legacy compatibility input，不是 active product surface。
+  Plan `00` **freezes** shipped `rag-core-v1@1.0.0` (13 slots / 2 flows); Phase2 does not
+  update the template unless a separate approved template contract migration is opened.
+- Phase2 active `ai_system_map.json` is materialized by **Step 4 deterministic bridge rules**
+  (`component_bridge_registry.py`: `rule_id` + evidence → generic components/edges), not by
+  filling `rag-core-v1` slots.
 - canonical truth 只有 `ai_system_map.json`；profile、readiness、viewer projection、static
   execution、runtime trace 都不得 write back canonical map。
 - formal field name 是 `activation`；`activation_state` 只可出現在 legacy plan/handoff
@@ -88,10 +101,33 @@ target，不得把 planned modules、mock samples 或文件 claim 寫成已實�
 
 ## 3. Product positioning
 
-KAI-Mind / Local AI Health Doctor 是 AI Agent / RAG system 的 release-readiness gate。它在
-demo、交付、部署或 CI/CD 前，以 read-only scanner 盤點既有 AI system repo 或 workflow
-artifacts，輸出可追溯 evidence 的 system map、capability assessment、readiness report 與
-static execution view。
+KAI-Mind / Local AI Health Doctor 是 **AI Agent / RAG / agentic RAG** 等 AI system 的
+release-readiness gate。它在 demo、交付、部署或 CI/CD 前，以 read-only scanner 盤點**既有的**
+local AI system **repo 或 workflow artifacts**（不修改被掃專案），輸出可追溯 evidence 的
+system map、capability assessment、readiness report，以及 **static / dynamic execution view**
+（見下段時程；仍不是完整 APM）。
+
+**掃描對象包括（不限單一框架或產品形態）：**
+
+- 傳統 RAG pipeline（retriever、vector store、embedding、generation 等）；
+- **agentic RAG**（retrieval 包成 tool、agent routing、多步 workflow、human-in-the-loop 等）；
+- tool-using **AI Agent** 系統（MCP、function calling、sub-agent、orchestration 等）；
+- 平台/workflow 匯出的設定或 artifact（例如 workflow JSON、部署描述檔），只要落在 Step 2
+  核准的掃描邊界內。
+
+input **不預設**一定是 RAG 或 Agent；Phase2 active target 是 generic `ai-system-map/v2`
+（`system_type="ai_system"`），以 ten-plane / 52-node capability map 評估**各類** AI system，
+而非只用 legacy RAG slot checklist 判斷 non-RAG 專案。
+
+**Execution view 時程（Phase 2）：**
+
+- **Static execution view**（Phase 2 **前半～Plan 14 前**，`dynamic/00`）：從 source/config
+  evidence **靜態推論**可走路徑（`call_graph.json`、`execution_paths.json`、`execution_map.mmd`
+  等）；`runtime_verified=false`；不宣稱實際跑過。
+- **Dynamic execution view**（Phase 2 **後半段**，Plan `12` contract + `dynamic/01`）：**opt-in**
+  runtime / query trace overlay，在 Viewer 上**暫時**高亮實際請求走過的 component path；不寫回
+  `ai_system_map.json` / `profile_signals.json`；reload 可清除。**不納入** Phase 2 前半
+  Gate-1～Gate-3 的 completion gate（見 §14、§21）。
 
 它不是：
 
@@ -107,14 +143,20 @@ Goals：
 
 - 將 active target 收斂到 generic `ai-system-map/v2`。
 - 保留 v1 artifact 可讀性與 v1→v2 adapter，完成 expand-and-contract cutover。
-- 以 deterministic facts first、bounded semantic analysis second 建立 evidence-backed map。
+- 以 **Two-Phase Analysis** 原則建立 evidence-backed map：**第一階段** deterministic structural
+  facts（Phase2 **active path 只做到這**）；**第二階段** bounded semantic analysis（UA
+  `file-analyzer` / LLM 語意候選）**Phase2 不執行**，Plan 17 deferred，不得進 canonical map
+  或五態定案。
 - 產生 fixed ten-plane / 52-node capability reference map + repo overlay。
 - 產生五態 assessment、六態 activation、evidence kinds、Mapping Completeness 與 readiness
   findings。
 - 分離 `project_id`、`scan_id`、`build_id`、`environment_id`；`scan_id` 本身就是 immutable scan
   snapshot identity，不另設第二層 snapshot identity。
 - 讓 Apply 重用 immutable scan，建立 immutable child build，不重掃 repo、不 patch 舊 JSON。
-- 以 repository protocols + atomic local JSON 實作 Phase2 persistence，保留未來 database adapter。
+- **持久化：** 先把「讀寫 project / scan / build / mapping」的**儲存介面**定好；Phase2 用**本機
+  JSON 檔**落地（整份寫完才切換，避免寫一半 corrupt）；backend 重啟後可恢復 Apply 與
+  lineage。**Phase2 不做** PostgreSQL / SQLite——以後若要上資料庫，只換底層實作，不改
+  `scan_id` / `build_id` / Apply 語意（Plan 03A）。
 - 讓 frontend 只 render backend projection，不自行推論 status、activation、readiness 或
   completeness。
 
@@ -126,6 +168,9 @@ Non-Goals：
 - Manual mapping decision 不直接修改既有 `ai_system_map.json`。
 - 不啟動 target app、不安裝 target dependencies、不修改被掃描 repo。
 - 不把 dynamic runtime trace implementation 納入 Phase2 completion gate。
+- **Phase2 不執行 bounded semantic analysis**（不跑 UA `file-analyzer`、不產不消費 LLM 語意
+  graph；第二階段留待 Plan 17 或 post-Phase2，且即使重啟也只能是候選輸入，五態仍由 Python
+  定案）。
 - 不把舊 legacy RAG feature 或相容建圖介面當成 active design。
 
 ## 5. Current implementation baseline
@@ -201,27 +246,29 @@ Rules：
 
 Target high-level pipeline：
 
+> Apply 跳 Step 3/UA；**4-1 bridge replay → 4-2 confirmed mappings overlay** → Step 4
+> normalize/validate → Step 5～7（勿將「4-2 replay」讀成跳過 4-1）。
+
 ```mermaid
 flowchart TD
-  A["Import project"] --> B["Scan boundary gate"]
-  B -->|complete| C["Step 3 staged scan\nA: TOML primary\nB: UA primary + TOML parity\nC: UA only"]
+  A["Step 1 · Import project"] --> B["Step 2 · Scan boundary gate"]
+  B -->|complete| C["Step 3 · staged scan\nA: TOML primary\nB: UA primary + TOML parity\nC: UA only"]
   B -->|requires decision| B
   C --> D["Immutable ScanSnapshot"]
-  D --> E["Step 4 Bridge 1: component bridge registry"]
-  E --> F["Normalize and validate ai-system-map/v2"]
-  F --> G["SystemMapIndex"]
-  G --> H2["ProfileInferenceService\npure Python five-state owner"]
-  G --> I["ReadinessReportService"]
-  G --> J["Static execution services"]
-  H2 --> K["GraphProjectionService"]
+  D --> E["Step 4 · Bridge 1 + normalize/validate v2"]
+  E --> F["Step 5 · SystemMapIndex"]
+  F --> H2["Step 6 · ProfileInferenceService\npure Python five-state owner"]
+  F --> I["Step 6 · ReadinessReportService"]
+  F --> J["Step 6 · Static execution services\n(dynamic/00)"]
+  H2 --> K["Step 7 · GraphProjectionService"]
   I --> K
   J --> K
-  K --> L["Validate sibling artifacts"]
-  L --> M["Atomic publish immutable Build"]
-  M --> N["Viewer / reports / CLI"]
-  N --> O["Review scanner suggestions"]
-  O --> P["Apply confirmed decisions"]
-  P --> E
+  K --> L["Step 7 · Validate sibling artifacts"]
+  L --> M["Step 7 · Atomic publish immutable Build"]
+  M --> N["Step 8 · Viewer / reports / CLI"]
+  N --> O["Step 9 · Review scanner suggestions"]
+  O --> P["Step 9 · Apply confirmed decisions"]
+  P -->|"Apply: 4-1→4-2→4～7 · skip Step 3"| E
 ```
 
 Step ownership：
@@ -229,13 +276,18 @@ Step ownership：
 | Step | Owner | Input | Output | Hard boundary |
 |---|---|---|---|---|
 | Import | project registry service | local path | `project_id` | 不修改 target repo |
-| Boundary gate | scan boundary service | inventory + same-run decisions | continue / proposals | unresolved gate 不跑 providers |
+| Boundary gate | scan boundary service + Plan `19` inventory rules（metadata） | inventory + same-run decisions | continue / proposals | unresolved gate 不跑 providers |
 | Step 3 Scan | Phase A existing KAI providers；Phase B `UnderstandAnythingAnalysisService` + UA structural adapter；Phase C UA-only | Step 2 allowlisted inventory | bounded facts + evidence + issues；reserved nullable semantic sidecar slot | 不寫 plane/profile/canonical verdict；Phase2 active path 不產生、不消費 semantic sidecar |
-| Step 4 Bridge 1 | Python component bridge | rule id + evidence + replayed mappings | repo component / unmapped / candidate input | 不做 reference node assessment |
+| Step 4 Bridge 1 | Python component bridge + `SystemMapNormalizeService` / `SystemMapValidationService` | rule id + evidence + replayed mappings | validated `ai_system_map.json` + repo component / unmapped / candidate input | 不做 reference node assessment |
 | Step 5 Index | `SystemMapIndex` | validated v2 map | read-only lookup | 不 validate、不 infer、不 project |
-| Step 6 Assessment | Python `ProfileInferenceService` + readiness services | map + index + catalogs + confirmed non-baseline candidates | profiles/readiness/coverage | 純 deterministic；Phase2 active path 不產生、不讀取 UA semantic sidecar；不 mutate canonical map |
-| Step 7 Projection | graph/report projection | same-build artifacts | GraphViewModel / reports | frontend 不重算 semantics |
-| Step 9 Review/Apply | proposal/mapping/apply services | unmapped + bounded packet | durable decision + child build | Apply 不重掃 repo、不重跑 UA |
+| Step 6 Assessment | Python `ProfileInferenceService` + readiness services + static execution（`dynamic/00`） | map + index + catalogs + confirmed non-baseline candidates | `profile_signals.json`（含 52 格 `reference_capability_assessments`）+ readiness + static execution artifacts | 純 deterministic；Phase2 active path 不產生、不讀取 UA semantic sidecar；不 mutate canonical map |
+| Step 7 Publish & Projection | Plan `03` `OutputArtifactProvider` + per-artifact validators + `GraphProjectionService` | same-build artifacts | sibling JSON artifacts + `GraphViewModel`（API projection 輸入，非獨立落盤 canonical JSON） | frontend 不重算 semantics；任一 core JSON 失敗整包不 publish |
+| Step 8 Viewer | `ViewerSessionService` + build-scoped GET routes | published immutable build | `ViewerLoadResult`（`profile_inference_result` ≡ 已驗證 `profile_signals.json`） | 不重算五態/activation/Mapping Completeness；sidecar 缺失 degraded load（`profile_signals_missing` / `profile_signals_invalid`） |
+| Step 9 Review/Apply | proposal/mapping/apply services | unmapped + bounded packet | durable decision + child build | Apply 不重掃 repo、不重跑 UA；**4-1 bridge replay → 4-2 overlay** → Step 4～7 |
+
+> **Step 編號對照：** 本表 Step 7 = Publish + Projection + sibling validate；Step 8 = Viewer load。
+> §6.1 快照與 `00-phase2-pipeline-ascii-map.md` 使用相同編號。Assessment scope 固定
+> `scan_id` + `build_id` + `environment_id`（Phase2 `environment:default-static`）。
 
 ### 6.1 Step 1～9 完整 pipeline 總圖（snapshot copy）
 
@@ -260,17 +312,26 @@ Step ownership：
 | 🔵 **UA structural sidecar**（藍底） | `ua` | Understand-Anything deterministic structural subset（import map、batches、structure）；Phase B/C 的 Step 3 primary 掃描來源 |
 | 📦 **TOML 掃描規則**（黃底） | `toml` | 加 `rule_id` + 匹配條件 → 產掃描事實（Phase A primary；Phase B **parity only**，Plan 14 後由 Plan 18 退役；Step 2 `scan_inventory_rules.toml` 保留） |
 | 🏷️ **TOML metadata**（橘底） | `tomlMeta` | 只放 label / 文案 / 座標；**不含** threshold / regex（例如 `risk_hint_rules.toml`、`profile_registry.toml`、`capability_reference_map.toml`） |
-| ⚙️ **TOML runtime config**（紅底） | `runtimeConfig` | 控制外部 provider、model、endpoint、timeout、generation 與 prompt template；目前為 `llm_proposal.toml`，不是 metadata-only |
-| 🐍 **Python**（紫底） | `py` | 橋接 / 五態 / 投影 / proposal heuristics；**不要**把 executable 規則塞進 TOML |
+| ⚙️ **TOML runtime config**（靛紫底） | `runtimeConfig` | **Phase2 active-optional** 外部 provider 設定；目前範例 = Step 9 `llm_proposal.toml`。provider 不可用時 fallback deterministic heuristics |
+| 🐍 **Python**（紫底） | `py` | 橋接 / 五態 / 投影 / **Step 9 proposal deterministic heuristics**；**不要**把 executable 規則塞進 TOML |
 | ★ **底圖對位**（淺黃底） | `match` | 系統地圖 repo 元件 ↔ 10 planes / 52 格 reference node（Step 6 邏輯、Step 7 畫圖） |
-| 🔖 **Proposal 流程**（粉底） | `proposal` | `4-1` unmapped 候標、`4-2` Apply replay、Step 9 `ManualMapping`；**Step 9** 才建立 pending `MappingProposal` |
+| 🔖 **Proposal 流程**（青綠底） | `proposal` | **Phase2 active** review 流程：`4-1` bridge replay、`4-2` confirmed mappings overlay、Step 9 `ManualMapping` / pending `MappingProposal` |
 | ★ **Canonical 產物**（綠底粗框） | `canon` | `ai_system_map.json` — 唯一 repo 真相 |
-| 📄 **Derived artifact**（淺綠底） | `artifact` | `snapshot.json`、sidecar JSON、`GraphViewModel` 等衍生檔 |
-| 🌐 **API 聚合**（藍底） | `api` | build-scoped `ViewerLoadResult` / `GraphViewModel`；以 project latest 或指定 `build_id` 載入。`GET /api/map` 僅回 legacy `ViewerPayload` |
+| 📄 **Derived artifact**（淺綠底） | `artifact` | `snapshot.json`、sibling sidecar JSON（`profile_signals.json` 等） |
+| 🔒 **Scan-internal slot**（灰綠底虛線） | `scanInternal` | `ua-analysis-result.json` — 存在於 snapshot 內、**非** public artifact / API artifact path |
+| 🌐 **API 聚合**（藍底） | `api` | build-scoped `ViewerLoadResult` / 內嵌 `GraphViewModel`（ephemeral projection，非 sibling JSON 檔） |
 | 💾 **記憶體 only**（灰底虛線） | `mem` | `SystemMapIndex` — 不寫檔、不產新 facts |
-| 🤖 **AI deferred**（紫紅底虛線） | `ai` | Phase2 active path 不執行 UA `file-analyzer` bounded LLM；semantic sidecar / AI candidate flow deferred；Step 1～9 無 AI orchestration（Step 6 AI 評估 deferred） |
+| ⛔ **AI deferred**（灰底紅框虛線） | `ai` | **Phase2 整條不執行**：UA `file-analyzer`、semantic sidecar、Plan 17。**圖上唯一使用紅框虛線的 class = deferred** |
 | ⬜ **備註 / 邊界**（灰底） | `noToml` | 此步無 TOML 擴充，或標示「不做」的邊界說明 |
 | （預設白底） | — | 一般 pipeline 子步驟（組裝、validate、Viewer 載入等） |
+
+**易混對照（Step 9 vs Step 3 semantic）— 記法：圖上只有 `ai`（灰底紅框虛線）代表 deferred：**
+
+| 路徑 | class | Phase2 | 白話 |
+|---|---|---|---|
+| Step 3 `file-analyzer` / semantic sidecar | `ai`（灰底紅框虛線） | **不做** | 掃描期語意 LLM；Phase2 不跑 |
+| Step 9 MappingProposal + ManualMapping + Apply | `proposal`（青綠底）+ `py`（紫底） | **要做** | 使用者 review scanner suggestions；deterministic 主路徑永遠存在 |
+| Step 9 optional LLM assist（`llm_proposal.toml`） | `runtimeConfig`（靛紫底） | **可選加強** | 有 key 才啟用；失敗不阻 scan/build，fallback `py` heuristics |
 
 ```mermaid
 %%{init: {"themeVariables": {"primaryTextColor": "#1e293b", "secondaryTextColor": "#334155", "tertiaryTextColor": "#475569", "lineColor": "#64748b"}}}%%
@@ -281,12 +342,13 @@ flowchart TB
   classDef api fill:#eff6ff,stroke:#3b82f6,stroke-width:1px,color:#1e3a8a
   classDef toml fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
   classDef tomlMeta fill:#ffedd5,stroke:#ea580c,stroke-width:1px,color:#9a3412
-  classDef runtimeConfig fill:#fee2e2,stroke:#dc2626,stroke-width:1px,color:#7f1d1d
+  classDef runtimeConfig fill:#e0e7ff,stroke:#4338ca,stroke-width:1px,color:#312e81
   classDef py fill:#ede9fe,stroke:#7c3aed,stroke-width:1px,color:#4c1d95
   classDef match fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
-  classDef proposal fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
-  classDef ai fill:#fae8ff,stroke:#a21caf,stroke-width:2px,stroke-dasharray:4 4,color:#581c87
+  classDef proposal fill:#ccfbf1,stroke:#0f766e,stroke-width:2px,color:#134e4a
+  classDef ai fill:#f1f5f9,stroke:#dc2626,stroke-width:2px,stroke-dasharray:6 4,color:#64748b
   classDef ua fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+  classDef scanInternal fill:#ecfdf5,stroke:#059669,stroke-width:1px,stroke-dasharray:4 4,color:#065f46
   classDef noToml fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#475569
 
   subgraph S1["Step 1 · Import"]
@@ -319,7 +381,7 @@ flowchart TB
     S3ua2["compute-batches.mjs"]:::ua
     S3ua3["extract-structure.mjs（per batch）"]:::ua
     S3ua4["file-analyzer bounded LLM<br/>deferred（不執行）"]:::ai
-    S3ua5["ua-analysis-result.json<br/>nullable deferred sidecar"]:::artifact
+    S3ua5["ua-analysis-result.json<br/>nullable deferred sidecar"]:::scanInternal
     S3adapt["3-2 Structural Adapter<br/>→ facts / evidence / issues"]:::py
     S3parity["3-3 過渡期 parity：Config / Docker /<br/>Dependency / CodePattern TOML providers<br/>（Plan 14 通過後退役）"]:::toml
     S3f["3-4 合併 · 去重 · masking"]
@@ -338,7 +400,7 @@ flowchart TB
     S4a_comp["→ component<br/>寫入系統地圖"]:::py
     S4a_cand["→ 候選能力輸入<br/>Step 6 sidecar 用"]:::py
     S4a_unmap["→ unmapped needs_review<br/>🔖 proposal 候標（尚未產 proposal）"]:::proposal
-    S4b["4-2 套用人工確認 optional<br/>（Step 9 Apply 後 replay 從此進）"]:::proposal
+    S4b["4-2 套用人工確認 optional<br/>（Apply：4-1 後 overlay confirmed mappings）"]:::proposal
     S4c["4-3 endpoints"]
     S4d["4-4 risk_hints<br/>risk_hint_rules.toml"]:::tomlMeta
     S4e["4-5 edges / flows<br/>FlowDerivationService"]:::py
@@ -404,40 +466,41 @@ flowchart TB
     S8compat -.-> S8d
   end
 
-  subgraph S9["Step 9 · Review 可選 · MappingProposal"]
+  subgraph S9["Step 9 · Review 可選 · MappingProposal（active · 非 ai deferred）"]
     direction TB
-    S9a["9-1 POST create proposal<br/>source: unmapped_id + evidence packet"]
-    S9b["9-2 MappingProposalService<br/>🐍 deterministic heuristics"]:::py
-    S9c["9-3 optional LLM provider<br/>llm_proposal.toml"]:::runtimeConfig
+    S9a["9-1 POST create proposal<br/>source: unmapped_id + evidence packet"]:::proposal
+    S9b["9-2 MappingProposalService<br/>🐍 deterministic heuristics（主路徑）"]:::py
+    S9c["9-3 optional LLM assist<br/>llm_proposal.toml · active-optional"]:::runtimeConfig
     S9d["9-4 pending MappingProposal<br/>accept / edit / reject / skip"]:::proposal
     S9e["9-5 ManualMappingService<br/>confirmed decision 持久化"]:::proposal
-    S9f["9-6 Apply → 跳 Step 3（UA 不重跑）<br/>重放 snapshot sidecar · 重跑 4-2～7"]
-    S9note["≠ profile inference · 不寫 canonical map"]:::noToml
+    S9f["9-6 Apply → 跳 Step 3（UA 不重跑）<br/>4-1 bridge replay → 4-2 overlay → 4～7"]:::proposal
+    S9note["≠ profile inference · 不寫 canonical map<br/>≠ Step 3 file-analyzer / Plan 17（ai deferred）"]:::noToml
     S9a --> S9b --> S9d
-    S9c -.-> S9b
+    S9c -.->|"optional · explicit opt-in"| S9b
     S9d --> S9e --> S9f
   end
 
   S1 --> S2
   S2 -->|"allowlisted inventory → UA sidecar"| S3
-  S3out["snapshot.json<br/>含 ua-analysis-result sidecar"]:::artifact
+  S3out["snapshot.json<br/>含 scan-internal ua sidecar slot"]:::artifact
   S3g --> S3out -->|"Core 接手 materialize"| S4
   S4out["ai_system_map.json<br/>含 unmapped_components"]:::canon
   S4h --> S4out --> S5 --> S6 --> S7 --> S8
-  S7out["GraphViewModel + sidecars"]:::artifact
+  S7out["sibling JSON artifacts<br/>+ GraphViewModel projection input"]:::artifact
   S7e --> S7out
   S8out["Build-scoped ViewerLoadResult"]:::api
   S8d --> S8out
   S4a_unmap -.->|"proposal 候標"| S9a
   S8d -.->|"使用者 review"| S9a
-  S9f -.->|"Apply replay"| S4b
+  S9f -.->|"Apply: 4-1 then 4-2"| S4a0
+  S9f -.->|"4-2 overlay"| S4b
 ```
 
 Rescan 與 Apply 的重入路徑：
 
 ```text
 Rescan   Step 2→3→4→5→6→7→8     新 scan（Phase B/C 重跑 UA），掃描事實會變
-Apply    跳 Step 3，4→5→6→7→8   同 scan（不重跑 UA，重放 immutable scan facts），只改解讀方式
+Apply    跳 Step 3/UA；4-1→4-2→4～7→8   同 scan（重放 immutable scan facts）；先 bridge replay 再 overlay confirmed mappings
 ```
 
 ### 6.2 兩段橋接（橋接 1 / 橋接 2）與模組分工
@@ -478,8 +541,11 @@ ProfileInferenceService.infer(...)     ← 橋接 2 定案入口（Python）
   · 重算 Mapping Completeness（derived metric，非 readiness 總分）
 
 輸出
-  · profile_signals.json（sidecar；不 mutate ai_system_map.json）
-  · 供 Step 7 GraphProjection 與 readiness / static execution 消費
+  · profile_signals.json（sidecar；含 `reference_capability_assessments[]` 52 格五態 +
+    `profiles[]` + `mapping_completeness`；不 mutate `ai_system_map.json`）
+  · API 載入時同一 payload 以 `ViewerLoadResult.profile_inference_result` 暴露
+  · Step 7 將 52 格 assessment 投影為 `GraphViewModel.reference_capability` nodes
+  · readiness / static execution sibling artifacts 供 Step 7 與 reports 消費
 
 （AI candidate 評估路徑 deferred：`infer(...)` 介面保留 optional `validated_candidates`
   輸入接縫、預設為空；未來重啟 Plan 17 不需改動 deterministic 定案邏輯）
@@ -555,9 +621,10 @@ Scanner 只產生 bounded facts、evidence、issues、skipped summaries：
 - Phase A 由 KAI TOML providers 提供 primary facts；Phase B/C 才由 UA structural result 提供 primary facts；
 - Phase B/C 的 UA schema 不合法、Node runtime 缺失或必要 batch 失敗時 fail-closed，不建立可進 Step 4 的 immutable scan；Phase A 的 nullable sidecar 不屬於 failure。
 
-Two-Phase Analysis 的 Phase2 active path 只執行 deterministic structural facts。第二階段
-bounded semantic analysis / `file-analyzer` deferred；未來若重啟，也只能進 reserved internal
-sidecar，不得建立 canonical truth 或五態。
+Two-Phase Analysis：**Phase2 active path 只執行第一階段** deterministic structural facts。
+**第二階段** bounded semantic analysis（`file-analyzer` bounded LLM）**現階段不做（deferred）**；
+未來若重啟（Plan 17），也只能進 scan 內部 nullable 留存或候選 pipeline，**不得**直接建立
+canonical truth 或五態。
 
 ### 7.4 Immutable scan
 
@@ -638,7 +705,8 @@ Apply semantics：
 2. Apply reuses base build's `scan_id`.
 3. Apply replays only the immutable `ScanSnapshot.scan_result` facts/evidence;
    nullable `ua-analysis-result` remains stored unchanged and has no Phase2 consumer.
-4. Apply starts replay from component detection / bridge stage with confirmed mappings, then reruns Step 4～7.
+4. Apply replays from Step 4 **`4-1` bridge replay**, then **`4-2` confirmed mappings overlay**,
+   then reruns Step 4 normalize/validate through Step 7（勿跳過 4-1）。
 5. Apply writes a new build directory / manifest and validates all core JSON.
 6. Apply succeeds only after atomic publish, then updates `latest_build_id` and response viewer payload.
 7. Apply failure leaves previous latest build and pending confirmations intact.
@@ -764,6 +832,10 @@ active scope.
 
 User-facing wording is "review scanner suggestions"; internal domain may still use mapping/proposal.
 
+> **配色提醒（§6.1）：** Step 9 MappingProposal 是 **Phase2 active**（`proposal` **青綠底** +
+> `py` 紫底 deterministic 主路徑）。`llm_proposal.toml` 是 **active-optional assist**（`runtimeConfig`
+> **靛紫底**）。**Deferred** 的只有 Step 3 semantic / Plan 17（`ai` **灰底紅框虛線** — 圖上唯一紅框）。
+
 Boundary：
 
 - Proposal is a question + candidate options.
@@ -859,36 +931,36 @@ Runtime boundary：
   and local egress policy.
 - Query Trace current feature remains a transient session overlay; reload clears it.
 
-## 15. Persistence 與未來 database adapter boundary
+## 15. 持久化（本機 JSON）與將來換資料庫的邊界
 
-Phase2 uses repository protocols + atomic local JSON adapter.
+Phase2 **先把儲存怎麼讀寫定成介面**（`ProjectRepository`、`ScanSnapshotRepository`、
+`MapBuildRepository`、`ManualMappingRepository` 等），**現在**用本機 JSON 實作；**以後**若要
+PostgreSQL / SQLite，只換 adapter，業務層與 API 不改。
 
-Persisted state：
+**會存什麼（預設 `~/.kai-mind/projects/{project_id}/`）：**
 
-- project registry and `canonical_path_digest`;
-- immutable scan snapshots;
-- immutable build manifests, lineage and latest pointer;
-- artifact metadata and digests;
-- proposal lifecycle state;
-- manual mapping decisions;
-- safe project-scoped indexes for restart recovery.
+- 專案登記與路徑指紋（`project.json`、`canonical_path_digest`）；
+- 不可變的 scan 快照（`scans/{scan_id}/snapshot.json`）；
+- 不可變的 build 清單、血緣與 **latest 指標**（`builds/`、`latest.json`）；
+- 產物 metadata 與 digest（不另存第二份 canonical map）；
+- proposal 生命週期與 **ManualMapping 決策**（`mappings/`）；
+- 供 **重啟恢復** 的 project-scoped 索引。
 
-Local JSON adapter requirements：
+**本機 JSON 怎麼寫才安全（atomic publish）：**
 
-- same-directory temp file + flush/fsync + `os.replace()`;
-- canonical-json/v1 + SHA-256 for inventory, artifact and mapping digests, with per-contract included
-  fields;
-- single project JSON corruption fails closed only that project;
-- duplicate ids, cross-project lookup, interrupted writes and digest mismatch fail closed;
-- corrupted state must not overwrite a valid `latest_build_id`;
-- no raw absolute path, raw source, full secret, raw prompt/query/output in persisted state.
+- 同目錄先寫暫存檔 → `flush` / `fsync` → `os.replace()` 一次替換（要嘛整份成功，要嘛保留舊檔）；
+- inventory / artifact / mapping 用 canonical-json + SHA-256 digest 校驗；
+- **單一 project 的 JSON 壞掉**只 fail 該 project，不影響其他 project；
+- 重複 id、跨 project 誤讀、寫入中斷、digest 不符 → fail-closed；
+- **壞狀態不得覆蓋有效的 `latest_build_id`**（Apply 失敗時 B1 仍是 latest）；
+- 持久化內容不得含 raw 絕對路徑、完整 secret、raw prompt/query/output。
 
-Future database adapter：
+**將來換資料庫時：**
 
-- implements the same repository protocols;
-- does not change API/domain identity;
-- does not force service layer to depend on ORM rows;
-- stays outside Phase2 critical path.
+- 實作**同一套** repository 介面；
+- **不改** API / domain 的 `project_id`、`scan_id`、`build_id` 語意；
+- **不讓** `MapBuildService` 等 core service 直接依賴 ORM row；
+- **不在** Phase2 必做範圍內（Non-Goals 已排除 PostgreSQL / ORM）。
 
 ## 16. API/CLI 與 compatibility paths
 
@@ -1089,7 +1161,7 @@ Current vs target matrix：
 | Project import | process-local `project_id`, raw path response | stable digest-backed project registry, no raw path in artifacts | Partially implemented |
 | Scan identity | process-local API `scan_id`, no durable scan record | `scan_id` is the immutable scan snapshot identity | Planned |
 | Build identity | `MapBuildResult`, no durable `build_id` | immutable `Build` + latest pointer | Planned |
-| Persistence | `InMemorySessionStore` | repository protocols + atomic local JSON | Planned |
+| Persistence | `InMemorySessionStore`（重啟即失） | 儲存介面 + 本機 JSON（`~/.kai-mind/`，atomic 寫入；將來可換 DB adapter） | Planned |
 | Mapping repository | in-memory protocols exist | durable decisions with confirmed/rejected/skipped audit | Partially implemented |
 | Proposal | bounded packet and candidate lifecycle exists | source-build scoped proposal + stable Apply integration | Partially implemented |
 | Detail scan | mutates current in-memory map | immutable child build | Planned migration |
@@ -1182,9 +1254,9 @@ Phase2 plan folder：
 
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/README.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/capability-map-assessment-decision-summary.md`
-- `docs/work/Timmy/schedule/plan/unfinish/phase2/phase2-pipeline-json-artifacts.html`
+- `docs/work/Meeting-Sync/meeting_sync_2026_07_07/frontend-p0-artifact-output-contract.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/README.md`
-- `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/00-define-rag-core-v1-legacy-template-boundary.md`
+- `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s0-contract-compatibility/00-define-rag-core-v1-legacy-template-boundary.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/00A-introduce-ai-system-map-v2-compatibility-migration.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/01-rework-manual-mapping-capability-candidates.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/01A-define-ai-system-capability-map-reference-catalog.md`
