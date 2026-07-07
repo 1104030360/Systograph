@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent System Map</title>
+    <meta
+      name="description"
+      content="用 Modular RAG 作為共同架構，將任意 AI agent system 正規化成可互動、可篩選、可檢查的 node canvas。"
+    />
+    <link
+      rel="icon"
+      href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%23eef7ff"/><path d="M8 16h16M16 8v16M9.5 9.5l13 13M22.5 9.5l-13 13" stroke="%23256ee8" stroke-width="2.2" stroke-linecap="round"/><circle cx="8" cy="16" r="3" fill="%2322b35d"/><circle cx="24" cy="16" r="3" fill="%23ff9f1c"/><circle cx="16" cy="8" r="3" fill="%238a45d7"/><circle cx="16" cy="24" r="3" fill="%23256ee8"/></svg>'
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">跳到 AI system map</a>
+
+    <header class="app-header" aria-label="Agent System Map 導覽列">
+      <a class="brand" href="#top" aria-label="Agent System Map 首頁">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" focusable="false">
+            <path d="M7 16h18M16 7v18M9.5 9.5l13 13M22.5 9.5l-13 13" />
+            <circle cx="7" cy="16" r="3.5" />
+            <circle cx="25" cy="16" r="3.5" />
+            <circle cx="16" cy="7" r="3.5" />
+            <circle cx="16" cy="25" r="3.5" />
+          </svg>
+        </span>
+        <span>
+          <strong>Agent System Map</strong>
+          <small>Modular RAG as the common architecture lens</small>
+        </span>
+      </a>
+
+      <nav class="header-actions" aria-label="主要操作">
+        <button class="toolbar-button" type="button" data-open-examples>
+          <span aria-hidden="true">▦</span>
+          Plan 14 Examples
+        </button>
+        <button class="toolbar-button" type="button" data-action="import">
+          <span aria-hidden="true">↥</span>
+          Import System
+        </button>
+        <button class="toolbar-button" type="button" data-action="map">
+          <span aria-hidden="true">✦</span>
+          Auto-map
+        </button>
+        <button class="toolbar-button" type="button" data-action="validate">
+          <span aria-hidden="true">◈</span>
+          Validate
+        </button>
+        <button class="toolbar-button primary" type="button" data-action="trace">
+          <span aria-hidden="true">▶</span>
+          Run Trace
+        </button>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="context-strip" aria-labelledby="page-title">
+        <div class="context-title">
+          <p class="path-label">/Users/linjunting/RAG_Research</p>
+          <h1 id="page-title">用一個 Modular RAG graph，表示任意 AI agent system。</h1>
+        </div>
+        <p class="context-copy">
+          把輸入系統拆成 10 個標準化 planes、nodes、typed edges、contracts 與 runtime signals，再用 filter 從 ingestion、retrieval、控制流、證據、記憶、治理或成本角度檢查。
+        </p>
+        <div class="hero-metrics" aria-label="目前示範系統統計">
+          <div>
+            <span>Mapping quality</span>
+            <strong id="qualityMetric">87%</strong>
+          </div>
+          <div>
+            <span>Normalized nodes</span>
+            <strong id="nodeMetric">0</strong>
+          </div>
+          <div>
+            <span>Typed edges</span>
+            <strong id="edgeMetric">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="example-simulator" id="plan14Examples" aria-labelledby="example-title">
+        <div class="example-intro">
+          <p class="path-label">Plan 14 input simulation</p>
+          <h2 id="example-title">切換每個 import example，預覽它會呈現的狀態。</h2>
+          <p>
+            這裡依據
+            <code>14-local-project-import-and-test.md</code>
+            模擬 direct import、fixture/reference-only 與 deterministic fixture 進入 scanner 後的預期 UI 狀態。它會連動主 demo graph 的 view、selected node 與 mapping quality；控制按鈕仍放在 demo canvas 外，避免污染主要圖面。
+          </p>
+        </div>
+
+        <div class="example-shell">
+          <div class="example-picker" aria-label="Plan 14 examples">
+            <div class="example-toolbar" role="group" aria-label="Example 類型">
+              <button class="example-tab is-active" type="button" data-example-group="all" aria-pressed="true">All</button>
+              <button class="example-tab" type="button" data-example-group="direct" aria-pressed="false">Direct</button>
+              <button class="example-tab" type="button" data-example-group="fixture" aria-pressed="false">Fixture</button>
+              <button class="example-tab" type="button" data-example-group="deterministic" aria-pressed="false">Deterministic</button>
+              <button class="example-tab" type="button" data-example-group="excluded" aria-pressed="false">Excluded</button>
+            </div>
+            <div class="example-list" id="exampleList"></div>
+          </div>
+
+          <article class="example-detail" id="exampleDetail" aria-live="polite"></article>
+        </div>
+      </section>
+
+      <section class="workspace" id="workspace" aria-label="互動式 AI agent system map">
+        <aside class="filter-panel" aria-labelledby="filters-title">
+          <div class="panel-heading">
+            <h2 id="filters-title">Filter Views</h2>
+            <p>從不同視角理解同一個 AI agent system。</p>
+          </div>
+
+          <div class="filter-stack" role="group" aria-label="視角篩選">
+            <button class="filter-button is-active" type="button" data-view="overview" aria-pressed="true">
+              <span class="filter-icon overview" aria-hidden="true"></span>
+              <span>
+                <strong>Overview</strong>
+                <small>完整架構</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="dataflow" aria-pressed="false">
+              <span class="filter-icon data" aria-hidden="true"></span>
+              <span>
+                <strong>Data Flow</strong>
+                <small>資料如何流動</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="control" aria-pressed="false">
+              <span class="filter-icon control" aria-hidden="true"></span>
+              <span>
+                <strong>Agent Control</strong>
+                <small>規劃、路由、迴圈</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="ingestion" aria-pressed="false">
+              <span class="filter-icon ingestion" aria-hidden="true"></span>
+              <span>
+                <strong>Ingestion & Indexing</strong>
+                <small>載入、切分、建立索引</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="retrieval" aria-pressed="false">
+              <span class="filter-icon retrieval" aria-hidden="true"></span>
+              <span>
+                <strong>Retrieval & Evidence</strong>
+                <small>檢索、排序、引用</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="memory" aria-pressed="false">
+              <span class="filter-icon memory" aria-hidden="true"></span>
+              <span>
+                <strong>Memory & State</strong>
+                <small>短期與長期狀態</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="governance" aria-pressed="false">
+              <span class="filter-icon governance" aria-hidden="true"></span>
+              <span>
+                <strong>Governance & Observability</strong>
+                <small>權限、安全、trace、eval</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="runtime" aria-pressed="false">
+              <span class="filter-icon runtime" aria-hidden="true"></span>
+              <span>
+                <strong>Runtime</strong>
+                <small>trace、eval、成本</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="variant" aria-pressed="false">
+              <span class="filter-icon variant" aria-hidden="true"></span>
+              <span>
+                <strong>Variants</strong>
+                <small>Graph、Memory、多模態</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="known" aria-pressed="false">
+              <span class="filter-icon known" aria-hidden="true"></span>
+              <span>
+                <strong>Known Nodes</strong>
+                <small>標準能力庫</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="extension" aria-pressed="false">
+              <span class="filter-icon extension" aria-hidden="true"></span>
+              <span>
+                <strong>Extension Systems</strong>
+                <small>可展開子系統</small>
+              </span>
+            </button>
+            <button class="filter-button warning" type="button" data-view="unmapped" aria-pressed="false">
+              <span class="filter-icon unmapped" aria-hidden="true"></span>
+              <span>
+                <strong>Unmapped</strong>
+                <small>未知元件保留區</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="mode" aria-pressed="false">
+              <span class="filter-icon mode" aria-hidden="true"></span>
+              <span>
+                <strong>Reasoning Mode</strong>
+                <small>固定、預定義、agentic</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="topology" aria-pressed="false">
+              <span class="filter-icon topology" aria-hidden="true"></span>
+              <span>
+                <strong>Topology</strong>
+                <small>單機、多 agent、聯邦式</small>
+              </span>
+            </button>
+            <button class="filter-button" type="button" data-view="source" aria-pressed="false">
+              <span class="filter-icon source" aria-hidden="true"></span>
+              <span>
+                <strong>Source Map</strong>
+                <small>回到 code/config/trace/doc</small>
+              </span>
+            </button>
+            <button class="filter-button warning" type="button" data-view="risk" aria-pressed="false">
+              <span class="filter-icon risk" aria-hidden="true"></span>
+              <span>
+                <strong>Risk Lens</strong>
+                <small>未映射工具與風險</small>
+              </span>
+            </button>
+          </div>
+
+          <label class="search-box" for="nodeSearch">
+            <span>Search nodes</span>
+            <input id="nodeSearch" type="search" placeholder="retriever, policy, memory..." />
+          </label>
+
+          <div class="schema-card" aria-label="共同表示法">
+            <h3>Common schema</h3>
+            <code>planes = input | control | ingestion | retrieval | extensions | evidence | generation | memory | governance | topology</code>
+            <code>node = capability + contract + layer + risk + metrics</code>
+            <code>node_type = known | extension | unmapped</code>
+            <code>mode = deterministic | predefined | agentic | hybrid</code>
+            <code>edge = data | control | evidence | tool_call | memory | approval | telemetry | deployment</code>
+          </div>
+        </aside>
+
+        <section class="canvas-panel" aria-labelledby="canvas-title">
+          <div class="canvas-toolbar">
+            <div>
+              <h2 id="canvas-title">AI Agent System (Normalized)</h2>
+              <p id="viewSummary">顯示完整圖：每個節點代表一個可替換能力，連線代表資料、控制、證據或狀態流。</p>
+            </div>
+            <div class="canvas-controls" aria-label="Canvas controls">
+              <button type="button" data-reset-view>Reset</button>
+              <button type="button" data-fit-view>Fit</button>
+              <button type="button" data-export-view>Export</button>
+            </div>
+          </div>
+
+          <div class="canvas-scroll" aria-label="Node canvas，可水平捲動">
+            <div class="graph-canvas" id="graphCanvas">
+              <svg class="edge-layer" id="edgeLayer" aria-hidden="true"></svg>
+              <div class="graph-layers" id="graphLayers"></div>
+            </div>
+          </div>
+
+          <div class="legend" aria-label="Edge type legend">
+            <span><i class="legend-line data"></i>data</span>
+            <span><i class="legend-line control"></i>control</span>
+            <span><i class="legend-line evidence"></i>evidence</span>
+            <span><i class="legend-line tool_call"></i>tool call</span>
+            <span><i class="legend-line memory_write"></i>memory</span>
+            <span><i class="legend-line approval"></i>approval</span>
+            <span><i class="legend-line telemetry"></i>telemetry</span>
+            <span><i class="legend-line deployment"></i>deployment</span>
+          </div>
+        </section>
+
+        <aside class="inspector-panel" aria-labelledby="inspector-title">
+          <div class="panel-heading inspector-heading">
+            <h2 id="inspector-title">Node Inspector</h2>
+            <p id="activeViewLabel">View: Overview</p>
+          </div>
+
+          <article class="node-detail" id="nodeDetail" aria-live="polite"></article>
+
+          <div class="status-card" aria-label="Filter 狀態">
+            <h3>Current focus</h3>
+            <dl>
+              <div>
+                <dt>Focused nodes</dt>
+                <dd id="focusedCount">0</dd>
+              </div>
+              <div>
+                <dt>Visible edges</dt>
+                <dd id="visibleEdgeCount">0</dd>
+              </div>
+              <div>
+                <dt>Warnings</dt>
+                <dd id="warningCount">2</dd>
+              </div>
+            </dl>
+          </div>
+        </aside>
+      </section>
+
+      <section class="explain-grid" aria-label="架構說明">
+        <article>
+          <h2>為什麼用 Modular RAG 當共同架構？</h2>
+          <p>
+            因為 Modular RAG 的重點是「模組邊界」，不是某條固定 pipeline。
+            它可以向下表示 naive RAG 的最小流程，也可以向上承載 planner、router、agent loop、tool calling、memory、GraphRAG、多模態與 governance。
+          </p>
+        </article>
+        <article>
+          <h2>Filter 的產品意義</h2>
+          <p>
+            同一張圖不應該只有一種閱讀方式。工程師看 data flow，PM 看能力覆蓋，安全 reviewer 看 policy gate，
+            SRE 看 trace、latency、cost，研究者看 variant 如何接到共同 backbone。
+          </p>
+        </article>
+        <article>
+          <h2>輸入任意系統時的流程</h2>
+          <ol>
+            <li>讀取 code、config、workflow JSON、trace 或文件。</li>
+            <li>抽出 LLM、tool、retriever、memory、guardrail、eval 等原始元件。</li>
+            <li>正規化成共同 node / edge schema。</li>
+            <li>依 layer、capability、contract、risk、metrics 分類。</li>
+            <li>渲染成可篩選、可檢查、可追 trace 的 canvas。</li>
+          </ol>
+        </article>
+      </section>
+
+      <section class="backend-scope" aria-labelledby="backend-scope-title">
+        <div>
+          <h2 id="backend-scope-title">前端已能表達，後端仍要補強</h2>
+          <p>
+            這個頁面現在把 schema-driven graph 需要的視角都放進 UI；但真正 input 任意 AI agent system，需要後端 mapper 產生這些欄位，前端才有可信資料可畫。
+          </p>
+        </div>
+        <div class="scope-grid">
+          <article>
+            <h3>Frontend projection now</h3>
+            <ul>
+              <li>標準節點、擴充子系統、未映射元件可分開看。</li>
+              <li>Extension node 可在 inspector 展開內部 pipeline。</li>
+              <li>Reasoning mode 與 deployment topology 已有視角。</li>
+              <li>每個 node 可顯示 source mapping evidence。</li>
+            </ul>
+          </article>
+          <article>
+            <h3>Backend mapper still needed</h3>
+            <ul>
+              <li>Code/config/workflow/trace/doc importer adapters。</li>
+              <li>Known-node classifier 與 extension-system detector。</li>
+              <li>Unknown-safe mapper：無法分類時放入 unmapped_components。</li>
+              <li>Subgraph extractor：把 RAG-Anything、Infini Memory 類系統拆成內部 pipeline。</li>
+              <li>Source mapping generator：每個 node 回指 code path、config key、trace span 或 doc section。</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>Static prototype generated in <code>/Users/linjunting/RAG_Research</code>.</p>
+      <p>Local-only demo data. No external system was imported.</p>
+    </footer>
+  </body>
+</html>
