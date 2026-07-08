@@ -39,6 +39,9 @@ reserved nullable UA semantic sidecar
 | 欄位 | 白話 |
 |------|------|
 | `profiles[]` | 每個 capability 的推斷結果（如 rag-grounding、reranking） |
+| `reference_map_version` | 固定 reference catalog 版本；Phase2 sample 為 `1` |
+| `reference_capability_assessments[]` | 完整 52 格五態；sample 不得只放 detected rows |
+| `mapping_completeness` | 依全部 52 格與固定 weights 由 backend 計算 |
 | `profile_id` / `label` | 能力 ID 與顯示名 |
 | `status` | 五態：這能力證據夠不夠 |
 | `activation` | 與五態分開的啟用狀態；正式欄位不是 `activation_state` |
@@ -56,10 +59,13 @@ reserved nullable UA semantic sidecar
 | 欄位 | 白話 |
 |------|------|
 | `summary.status` | release-readiness 摘要，使用統一 assessment 五態 |
+| `release_verdict` | backend 定案的 `ready` / `needs_review` / `blocked` |
+| `finding_registry_version` | finding catalog 版本，sample 為 `readiness-finding-registry/v1` |
 | `summary.evidence_scope` | 這份 readiness report 使用哪些 capability / component evidence |
 | `findings[]` | readiness 項目（如 `source_traceability` 引用缺失） |
 | `findings[].status` | 每個 finding 使用統一 assessment 五態 |
 | `findings[].evidence_ids` | 支撐 finding 的 evidence；缺證據時用 `evidence_gap` 說明 |
+| `findings[].limitations` | 靜態證據無法證明的邊界，避免把推論寫成 runtime fact |
 | `ui_hints` | viewer 顯示提示，不可反推 canonical truth |
 | `primary_map_type` | 衍生摘要標籤，不是 canonical |
 
@@ -82,6 +88,9 @@ reserved nullable UA semantic sidecar
 ## 靜態執行三件套：差在哪？
 
 三者都是 **static inferred、不是 runtime trace**，但回答的問題不同：
+
+三份 static execution JSON 與 `evidence_table.json` 共用
+`runtime_verified: false`、`limitations[]` header；不得因為欄位完整就宣稱已觀察 runtime。
 
 | | Call Graph | Dataflow Hints | Execution Paths |
 |---|------------|----------------|-----------------|

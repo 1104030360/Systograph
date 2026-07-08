@@ -12,6 +12,7 @@ child build。Current `POST /api/map/build` 僅是 demo / compatibility route。
 | 欄位 | 白話 |
 |------|------|
 | `status` | `ok` 或錯誤 |
+| `generated_from_build_id` | 必須等於這次 result 的 `build_id` |
 | `artifacts[]` | Stable `ArtifactRef` 清單；只含 id/type/basename/media type/digest/size |
 | `viewer_load_result` | 可能為 `null`（只給 artifact references）或內嵌完整 viewer payload |
 | `warnings` / `error` | 非致命警告或失敗原因 |
@@ -34,6 +35,8 @@ Phase2 target response 不回傳 `output_run_dir` 或 `*_path` 等 server-local 
 | 欄位 | 白話 |
 |------|------|
 | `nodes[]` | 畫布上的節點（component、profile attachment、unmapped review…） |
+| `reference_map_version` | backend 使用的 52-node catalog 版本 |
+| `mapping_completeness` | backend 從完整 52 格計算的 numerator / denominator / value / weights |
 | `summary.fixture_scope` | sample 固定 `partial_projection_fragment`，明示不是完整 52-node payload |
 | `activation` | 與 assessment 五態分開的啟用狀態 |
 | `semantic_kind` | 節點語意：`canonical_component` / `profile_attachment` / `unmapped_component` |

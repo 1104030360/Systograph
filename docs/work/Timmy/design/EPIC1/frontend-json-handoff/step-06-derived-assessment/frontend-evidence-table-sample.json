@@ -6,6 +6,10 @@
   "build_id": "build:sample-b2",
   "environment_id": "environment:default-static",
   "generated_from_build_id": "build:sample-b2",
+  "runtime_verified": false,
+  "limitations": [
+    "The table contains bounded static evidence and excludes raw secrets and runtime payloads."
+  ],
   "rows": [
     {
       "evidence_id": "evidence:api-route",

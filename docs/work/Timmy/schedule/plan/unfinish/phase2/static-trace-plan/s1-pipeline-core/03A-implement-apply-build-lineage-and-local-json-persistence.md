@@ -4,9 +4,9 @@
 
 **Goal:** 將一次 repo scan 與其後多次 map build 分開，讓使用者可在不重新掃描 repo 的情況下套用 confirmed mappings、建立可追溯的新分析版本，並以 Phase2 local JSON persistence 保存 project、scan snapshot、build lineage 與 manual mappings。
 
-**Architecture:** `project_id` 識別本機專案，`scan_id` 識別一次 read-only repo 掃描與 immutable scan snapshot，`build_id` 識別從該 snapshot materialize 出來的一組完整 artifacts。對外採容易理解的 `POST /api/map-builds/{base_build_id}/apply` command；內部不得另寫 apply-specific graph/profile/readiness 邏輯，而必須呼叫共用 Map Build pipeline。Phase2 使用 repository protocols + atomic local JSON adapter，正式 database adapter 留在 Phase2 完成後。
+**Architecture:** `project_id` 識別本機專案，`scan_id` 識別一次 read-only repo 掃描與 immutable scan snapshot，`build_id` 識別從該 snapshot materialize 出來的一組完整 artifacts。對外採容易理解的 `POST /api/map-builds/{base_build_id}/apply` command；內部不得另寫 apply-specific graph/profile/readiness 邏輯，而必須呼叫共用 Map Build pipeline。Phase2 使用 repository protocols + atomic local JSON adapter，正式 database adapter 留在 Phase2 完成後。每個 project 使用獨立 cross-process file lock 保護 state mutation，`latest.json` 另帶單調遞增 revision 做 compare-and-swap；不可只靠單檔 `os.replace()` 推論多檔交易安全。
 
-**Tech Stack:** Python 3.11、Pydantic v2、FastAPI、standard-library JSON/filesystem APIs、React、TypeScript、Zod、pytest。
+**Tech Stack:** Python 3.11、Pydantic v2、FastAPI、standard-library JSON/filesystem APIs、`filelock`（cross-platform project lock）、React、TypeScript、Zod、pytest。
 
 ## Contract source of truth
 
@@ -54,6 +54,18 @@ scope triple。
     Step 4～7。`ua-analysis-result` semantic internal sidecar 在 Phase2 僅隨 snapshot 保存，
     不重新 validate、不作 Step 6 assessment input。只有 explicit rescan 會建立新
     `scan_id` / snapshot 並重跑 UA。
+15. 每個 project state directory 使用自己的 `.project.lock`；不同 project 不共用全域鎖。
+    Lock 只涵蓋 latest/base re-check、repository mutation 與 pointer promotion，不得包住
+    filesystem scan、UA、LLM、Step 4～7 materialization 或 render。
+16. `latest.json` 必須帶 `revision`。任何 Apply／Detail Scan promotion 都要提交
+    `expected_latest_build_id + expected_revision`；取得 lock 後重新讀取並 compare-and-swap，
+    stale writer 回 `409 base_build_not_latest`，不得覆蓋較新的 latest。
+17. 每個 build 先寫入獨一無二的 `output/{build_id}/` staging/publish 路徑並完成驗證；
+    **不得對目錄執行 `os.replace()`**。`os.replace()` 只用於同目錄的單一 JSON temp file，
+    最後在 project lock 內原子替換 `latest.json`。
+18. 同 base build、相同 sorted mapping ids 與相同 mapping digests 的並發重試維持
+    idempotent：最多一個 child build 成為 latest；另一個 request 回同一結果或明確 stale conflict，
+    不得形成 lineage fork 或 lost update。
 
 ## 2026-07-07 UA 整合對齊
 
@@ -240,6 +252,20 @@ ${KAI_MIND_STATE_DIR:-~/.kai-mind}/projects/{project_id}/
 └── latest.json
 ```
 
+`latest.json` 最少包含：
+
+```json
+{
+  "project_id": "project:123",
+  "latest_build_id": "build:B2",
+  "revision": 2,
+  "updated_at": "2026-07-08T10:30:00Z"
+}
+```
+
+Lock path 固定為同 project 目錄下的 `.project.lock`。Lock file 只做協調，不得寫入 secret、
+project path、mapping 內容或 artifact payload。
+
 Product artifacts 仍寫入 build output directory；state store 只保存 safe metadata、snapshot、artifact references/digests 與 decisions，不建立第二份 canonical map truth。
 
 ```text
@@ -414,7 +440,10 @@ Expected: PASS.
 - Create: `src/kai_mind/core/repositories/__init__.py`
 - Create: `src/kai_mind/core/repositories/analysis_history.py`
 - Create: `src/kai_mind/core/providers/local_json_state_provider.py`
+- Modify: `pyproject.toml`
+- Modify: `uv.lock`
 - Test: `tests/unit/core/test_local_json_state_provider.py`
+- Test: `tests/integration/test_local_json_concurrency.py`
 
 - [ ] **Step 1: Write failing repository behavior tests**
 
@@ -436,7 +465,7 @@ def test_latest_build_update_is_atomic(tmp_path: Path) -> None:
     assert provider.get_latest_build_id("project:demo") == "build:b1"
 ```
 
-Also test corrupted JSON, duplicate IDs, cross-project lookup, path traversal IDs, interrupted temp file, and deterministic sorted serialization.
+Also test corrupted JSON, duplicate IDs, cross-project lookup, path traversal IDs, interrupted temp file, deterministic sorted serialization, stale revision, lock timeout, two concurrent Apply promotions, and concurrent writes to two different projects.
 
 - [ ] **Step 2: Define storage-neutral repository protocols**
 
@@ -449,18 +478,38 @@ class ManualMappingRepository(Protocol): ...
 
 Do not expose filesystem `Path` operations through service interfaces. Database adapters added later must implement the same protocols.
 
+`MapBuildRepository` 的 latest promotion 必須表達 CAS，而不是拆成可競爭的 `get()` + `set()`：
+
+```python
+def promote_latest_build(
+    self,
+    *,
+    project_id: str,
+    build_id: str,
+    expected_latest_build_id: str | None,
+    expected_revision: int,
+) -> LatestBuildPointer: ...
+```
+
 - [ ] **Step 3: Implement atomic JSON writes**
 
-Write to a temporary file in the same directory, flush/fsync, then `os.replace()`. Reject IDs containing `/`, `\\`, `..`, NUL, or values outside the typed ID prefixes.
+Write to a temporary file in the same directory, flush/fsync, then `os.replace()`. Reject IDs containing `/`, `\\`, `..`, NUL, or values outside the typed ID prefixes. `os.replace()` 的 source 與 destination 都必須是 regular file；禁止把 build/staging directory 當 replacement target。
 
-- [ ] **Step 4: Apply snapshot safety before persistence**
+- [ ] **Step 4: Add project-scoped cross-process locking and CAS**
+
+Use `filelock.FileLock` at `{project_dir}/.project.lock`. Acquire only around project-state
+read-modify-write sections；取得後重新讀 `latest.json`，驗證 expected base/revision，再 promotion。
+Lock timeout 回 stable `project_state_busy` domain error；不得退化成無鎖寫入。不同 project 的 lock
+必須可並行。
+
+- [ ] **Step 5: Apply snapshot safety before persistence**
 
 Before writing `snapshot.json`, use `SecretMaskingService`, relative-path normalization, and `SnapshotSafetyService`. The persisted snapshot must not contain full secrets or unmanaged absolute paths. `project.json` may retain the local project path only inside the local state adapter; API serializers must not expose it by default.
 
-- [ ] **Step 5: Run tests**
+- [ ] **Step 6: Run tests**
 
 ```bash
-.venv/bin/pytest tests/unit/core/test_local_json_state_provider.py tests/contracts/test_secret_snapshot_safety.py -q
+.venv/bin/pytest tests/unit/core/test_local_json_state_provider.py tests/integration/test_local_json_concurrency.py tests/contracts/test_secret_snapshot_safety.py -q
 ```
 
 Expected: PASS.
@@ -554,7 +603,7 @@ Expected: PASS and provider collection count remains one per completed scan.
 
 - [ ] **Step 1: Write failing service tests**
 
-Cover successful B1→B2, unconfirmed mapping, cross-project mapping, unknown/stale base, evidence not present in snapshot, repeated request idempotency, and build failure preserving B1 as latest. The successful path must prove that Apply resolves the original snapshot, replays **4-1 bridge → 4-2 overlay** with the selected mappings, recomputes every downstream artifact, keeps the same `scan_id`, creates a new `build_id`, and never calls filesystem/provider scan.
+Cover successful B1→B2, unconfirmed mapping, cross-project mapping, unknown/stale base, evidence not present in snapshot, repeated request idempotency, concurrent same-base Apply, and build failure preserving B1 as latest. The successful path must prove that Apply resolves the original snapshot, replays **4-1 bridge → 4-2 overlay** with the selected mappings, recomputes every downstream artifact, keeps the same `scan_id`, creates a new `build_id`, and never calls filesystem/provider scan。並發測試必須證明 lock 內會重新讀 base/revision，最多一個 child promotion 成功，另一個 request 不會覆蓋 latest 或建立 lineage fork。
 
 - [ ] **Step 2: Implement `ApplyConfirmationsService.apply(...)`**
 
@@ -589,7 +638,7 @@ class ApplyConfirmationsResponse(WebSchema):
 
 - [ ] **Step 4: Add `POST /api/map-builds/{base_build_id}/apply`**
 
-Map domain errors to explicit statuses: 404 unknown build/mapping, 409 stale base, 422 invalid decision/evidence, 500 safe build failure. Do not update latest pointers before successful atomic publish.
+Map domain errors to explicit statuses: 404 unknown build/mapping, 409 stale base/revision, 422 invalid decision/evidence, 503 `project_state_busy`, 500 safe build failure. Do not update latest pointers before successful atomic publish/CAS promotion.
 
 - [ ] **Step 5: Add read routes**
 
@@ -841,6 +890,11 @@ Expected: PASS.
 - [ ] B2 的 map、profile、readiness、GraphViewModel、reports、Mermaid 與 static execution artifacts 來自同一次 validated materialization。
 - [ ] Apply 失敗不更新 latest Viewer，也不留下可載入的 partial build。
 - [ ] Project、scan snapshot、build lineage 與 confirmed mappings 在 backend restart 後可由 local JSON store 恢復。
+- [ ] 每個 project 有獨立 cross-process file lock；不同 project 不互相阻塞，lock 不包住 scan、UA、LLM 或 Step 4～7 計算。
+- [ ] `latest.json` 帶單調遞增 `revision`；所有 promotion 使用 expected base + revision CAS，stale writer 無法覆蓋新 latest。
+- [ ] 同 base／mapping digest 的並發 Apply 最多 publish 一個 latest child；不得 Lost Update、lineage fork 或重複有效 build。
+- [ ] Build 使用獨一無二的 `output/{build_id}/`；`os.replace()` 僅替換 regular JSON file，Windows/macOS/Linux 都不做 directory replacement。
+- [ ] Lock timeout fail-closed 為 `project_state_busy`，不留下 partial pointer、半套 artifacts 或未受保護寫入。
 - [ ] 相同 canonical project path re-import 預設重用 project identity，不產生孤立 mappings。
 - [ ] Local JSON adapter 可由未來 database adapter 替換，不改 service/API domain contract。
 - [ ] Detail Scan 綁定 base build 並建立 child build；stale files 要求 rescan。

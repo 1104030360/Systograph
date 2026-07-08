@@ -7,18 +7,90 @@
   "build_id": "build:sample-b2",
   "environment_id": "environment:default-static",
   "based_on_build_id": "build:sample-b1",
-  "applied_mapping_ids": ["mapping:reranker-review"],
+  "applied_mapping_ids": [
+    "mapping:reranker-review"
+  ],
   "artifact_refs": [
-    {"artifact_id": "artifact:build-sample-b2:ai-system-map", "artifact_type": "ai_system_map", "file_name": "ai_system_map.json", "media_type": "application/json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "size_bytes": 4096},
-    {"artifact_id": "artifact:build-sample-b2:evidence-table", "artifact_type": "evidence_table", "file_name": "evidence_table.json", "media_type": "application/json", "sha256": "2222222222222222222222222222222222222222222222222222222222222222", "size_bytes": 2048},
-    {"artifact_id": "artifact:build-sample-b2:call-graph", "artifact_type": "call_graph", "file_name": "call_graph.json", "media_type": "application/json", "sha256": "3333333333333333333333333333333333333333333333333333333333333333", "size_bytes": 3072},
-    {"artifact_id": "artifact:build-sample-b2:dataflow-hints", "artifact_type": "dataflow_hints", "file_name": "dataflow_hints.json", "media_type": "application/json", "sha256": "4444444444444444444444444444444444444444444444444444444444444444", "size_bytes": 1536},
-    {"artifact_id": "artifact:build-sample-b2:execution-paths", "artifact_type": "execution_paths", "file_name": "execution_paths.json", "media_type": "application/json", "sha256": "5555555555555555555555555555555555555555555555555555555555555555", "size_bytes": 2560},
-    {"artifact_id": "artifact:build-sample-b2:profile-signals", "artifact_type": "profile_signals", "file_name": "profile_signals.json", "media_type": "application/json", "sha256": "6666666666666666666666666666666666666666666666666666666666666666", "size_bytes": 3584},
-    {"artifact_id": "artifact:build-sample-b2:readiness-report", "artifact_type": "readiness_report", "file_name": "readiness_report.json", "media_type": "application/json", "sha256": "7777777777777777777777777777777777777777777777777777777777777777", "size_bytes": 2304},
-    {"artifact_id": "artifact:build-sample-b2:map-markdown", "artifact_type": "ai_system_map_markdown", "file_name": "ai_system_map.md", "media_type": "text/markdown", "sha256": "8888888888888888888888888888888888888888888888888888888888888888", "size_bytes": 1024},
-    {"artifact_id": "artifact:build-sample-b2:system-map-mermaid", "artifact_type": "system_map_mermaid", "file_name": "system_map.mmd", "media_type": "text/plain", "sha256": "9999999999999999999999999999999999999999999999999999999999999999", "size_bytes": 768},
-    {"artifact_id": "artifact:build-sample-b2:execution-map-mermaid", "artifact_type": "execution_map_mermaid", "file_name": "execution_map.mmd", "media_type": "text/plain", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "size_bytes": 896}
+    {
+      "artifact_id": "artifact:build-sample-b2:ai-system-map",
+      "artifact_type": "ai_system_map",
+      "file_name": "ai_system_map.json",
+      "media_type": "application/json",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "size_bytes": 4096
+    },
+    {
+      "artifact_id": "artifact:build-sample-b2:evidence-table",
+      "artifact_type": "evidence_table",
+      "file_name": "evidence_table.json",
+      "media_type": "application/json",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "size_bytes": 2048
+    },
+    {
+      "artifact_id": "artifact:build-sample-b2:call-graph",
+      "artifact_type": "call_graph",
+      "file_name": "call_graph.json",
+      "media_type": "application/json",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "size_bytes": 3072
+    },
+    {
+      "artifact_id": "artifact:build-sample-b2:dataflow-hints",
+      "artifact_type": "dataflow_hints",
+      "file_name": "dataflow_hints.json",
+      "media_type": "application/json",
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "size_bytes": 1536
+    },
+    {
+      "artifact_id": "artifact:build-sample-b2:execution-paths",
+      "artifact_type": "execution_paths",
+      "file_name": "execution_paths.json",
+      "media_type": "application/json",
+      "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "size_bytes": 2560
+    },
+    {
+      "artifact_id": "artifact:build-sample-b2:profile-signals",
+      "artifact_type": "profile_signals",
+      "file_name": "profile_signals.json",
+      "media_type": "application/json",
+      "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "size_bytes": 3584
+    },
+    {
+      "artifact_id": "artifact:build-sample-b2:readiness-report",
+      "artifact_type": "readiness_report",
+      "file_name": "readiness_report.json",
+      "media_type": "application/json",
+      "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "size_bytes": 2304
+    },
+    {
+      "artifact_id": "artifact:build-sample-b2:map-markdown",
+      "artifact_type": "ai_system_map_markdown",
+      "file_name": "ai_system_map.md",
+      "media_type": "text/markdown",
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "size_bytes": 1024
+    },
+    {
+      "artifact_id": "artifact:build-sample-b2:system-map-mermaid",
+      "artifact_type": "system_map_mermaid",
+      "file_name": "system_map.mmd",
+      "media_type": "text/plain",
+      "sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+      "size_bytes": 768
+    },
+    {
+      "artifact_id": "artifact:build-sample-b2:execution-map-mermaid",
+      "artifact_type": "execution_map_mermaid",
+      "file_name": "execution_map.mmd",
+      "media_type": "text/plain",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size_bytes": 896
+    }
   ],
   "ai_system_map": {
     "schema_version": "ai-system-map/v2",
@@ -26,6 +98,7 @@
     "scan_id": "scan:sample-s1",
     "build_id": "build:sample-b2",
     "environment_id": "environment:default-static",
+    "generated_from_build_id": "build:sample-b2",
     "project": {
       "project_id": "project:sample-ai-health-rag",
       "name": "sample-ai-health-rag",
@@ -42,7 +115,9 @@
         "status": "detected",
         "activation": "enabled",
         "framework": "fastapi",
-        "evidence_ids": ["evidence:api-route"],
+        "evidence_ids": [
+          "evidence:api-route"
+        ],
         "metadata": {
           "route": "/chat"
         }
@@ -55,7 +130,9 @@
         "status": "detected",
         "activation": "enabled",
         "framework": "langchain",
-        "evidence_ids": ["evidence:retriever-call"],
+        "evidence_ids": [
+          "evidence:retriever-call"
+        ],
         "metadata": {
           "search_k": 5
         }
@@ -68,7 +145,9 @@
         "status": "detected",
         "activation": "enabled",
         "framework": "langchain",
-        "evidence_ids": ["evidence:llm-call"],
+        "evidence_ids": [
+          "evidence:llm-call"
+        ],
         "metadata": {
           "provider": "openai"
         }
@@ -81,7 +160,9 @@
         "target": "component:retriever:qdrant",
         "relationship": "data_flow",
         "status": "detected",
-        "evidence_ids": ["evidence:retriever-call"]
+        "evidence_ids": [
+          "evidence:retriever-call"
+        ]
       },
       {
         "edge_id": "edge:retriever-to-llm",
@@ -89,7 +170,9 @@
         "target": "component:llm:openai-chat",
         "relationship": "context_flow",
         "status": "undetermined",
-        "evidence_ids": ["evidence:prompt-context"]
+        "evidence_ids": [
+          "evidence:prompt-context"
+        ]
       }
     ],
     "evidence": [
@@ -99,6 +182,7 @@
         "path": "src/api/chat.py",
         "start_line": 12,
         "end_line": 12,
+        "json_pointer": null,
         "extract_summary": "FastAPI POST route detected.",
         "rule_id": "py.fastapi.route"
       },
@@ -108,6 +192,7 @@
         "path": "src/rag/pipeline.py",
         "start_line": 42,
         "end_line": 42,
+        "json_pointer": null,
         "extract_summary": "Vector retriever call detected.",
         "rule_id": "py.vectorstore.retriever"
       },
@@ -117,6 +202,7 @@
         "path": "src/rag/pipeline.py",
         "start_line": 64,
         "end_line": 64,
+        "json_pointer": null,
         "extract_summary": "Prompt builder appears to receive retrieved documents.",
         "rule_id": "py.context.prompt_builder"
       },
@@ -126,6 +212,7 @@
         "path": "src/rag/pipeline.py",
         "start_line": 58,
         "end_line": 58,
+        "json_pointer": null,
         "extract_summary": "Reranker-like call detected.",
         "rule_id": "py.reranker.call"
       },
@@ -135,6 +222,7 @@
         "path": "src/rag/pipeline.py",
         "start_line": 76,
         "end_line": 76,
+        "json_pointer": null,
         "extract_summary": "LLM invocation detected.",
         "rule_id": "py.llm.invoke"
       }
@@ -144,18 +232,24 @@
         "endpoint_id": "endpoint:chat",
         "method": "POST",
         "path": "/chat",
-        "handler": "src.api.chat.chat"
+        "handler": "src.api.chat.chat",
+        "component_id": "component:input:api",
+        "evidence_ids": [
+          "evidence:api-route"
+        ]
       }
     ],
     "risk_hints": [],
     "unmapped_components": [
       {
         "unmapped_id": "unmapped:reranker-review",
+        "source_file": "src/rag/pipeline.py",
         "observed_kind": "reranker",
         "status": "needs_review",
-        "source_file": "src/rag/pipeline.py",
-        "evidence_ids": ["evidence:reranker-call"],
         "reason": "Reranker-like evidence is present, but static analysis cannot prove it is part of the active answer path.",
+        "evidence_ids": [
+          "evidence:reranker-call"
+        ],
         "suggested_actions": [
           "confirm_as_non_baseline_capability_candidate",
           "skip_for_now"
@@ -171,36 +265,612 @@
     "build_id": "build:sample-b2",
     "environment_id": "environment:default-static",
     "generated_from_build_id": "build:sample-b2",
-    "profiles": [
+    "reference_map_version": "1",
+    "profile_catalog_version": "phase2-p0-static",
+    "reference_capability_assessments": [
       {
-        "profile_id": "rag-grounding",
-        "label": "RAG Grounding",
-        "status": "detected",
-        "activation": "enabled",
-        "primary_axis": "grounding",
-        "coverage_detected": 3,
-        "coverage_total": 3,
-        "evidence_ids": [
-          "evidence:retriever-call",
-          "evidence:prompt-context",
-          "evidence:llm-call"
-        ]
-      },
-      {
-        "profile_id": "reranking",
-        "label": "Reranking",
+        "reference_node_id": "user_input",
         "status": "undetermined",
         "activation": "unknown",
-        "primary_axis": "retrieval_strategy",
-        "coverage_detected": 1,
-        "coverage_total": 2,
-        "evidence_ids": ["evidence:reranker-call"],
-        "related_unmapped_component_ids": ["unmapped:reranker-review"],
-        "related_capability_candidate_component_ids": [
-          "capability-candidate:reranker"
-        ]
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [
+          "evidence:api-route"
+        ],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "session_context",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "query_classifier",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "planner",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "router",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "agent_loop",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "orchestrator",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "stop_policy",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "human_approval_gate",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "document_loader",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "parser",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "chunker",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "metadata_extractor",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "embedder",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "index_builder",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "dense_retriever",
+        "status": "detected",
+        "activation": "enabled",
+        "direct_evidence_ids": [
+          "evidence:retriever-call"
+        ],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "sparse_retriever",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "hybrid_retriever",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [
+          "evidence:retriever-call"
+        ],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "graph_retriever",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "memory_retriever",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "web_retriever",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "graph_rag_system",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "rag_anything_system",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "infini_memory_system",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "corag_federated_system",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "reranker",
+        "status": "partial",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [
+          "evidence:reranker-call"
+        ],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "conflict_checker",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "citation_mapper",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "evidence_pack",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "context_composer",
+        "status": "partial",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [
+          "evidence:prompt-context"
+        ],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "prompt_builder",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [
+          "evidence:prompt-context"
+        ],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "llm_answerer",
+        "status": "detected",
+        "activation": "enabled",
+        "direct_evidence_ids": [
+          "evidence:llm-call"
+        ],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "tool_using_generator",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "output_guardrail",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "session_state",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "working_memory",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "long_term_memory",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "memory_reader",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "memory_writer",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "input_guardrail",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "permission_policy",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "human_approval",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "trace_store",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "eval_harness",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "cost_monitor",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "latency_monitor",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "client_app",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [
+          "evidence:api-route"
+        ],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "api_server",
+        "status": "detected",
+        "activation": "enabled",
+        "direct_evidence_ids": [
+          "evidence:api-route"
+        ],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "agent_runtime",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "worker_queue",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "tool_network",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
+      },
+      {
+        "reference_node_id": "federated_clients",
+        "status": "undetermined",
+        "activation": "unknown",
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "conflict_fields": [],
+        "conflict_evidence_ids": [],
+        "not_detected_coverage_gate_passed": false
       }
     ],
+    "mapping_completeness": {
+      "numerator": 4,
+      "denominator": 52,
+      "value": 0.076923,
+      "weights": {
+        "detected": 1,
+        "partial": 0.5,
+        "undetermined": 0,
+        "not_detected": 1,
+        "conflicted": 0
+      }
+    },
     "capability_candidate_components": [
       {
         "id": "capability-candidate:reranker",
@@ -208,16 +878,526 @@
         "observed_kind": "reranker",
         "status": "confirmed_non_baseline",
         "source_unmapped_component_id": "unmapped:reranker-review",
-        "evidence_ids": ["evidence:reranker-call"],
+        "source_file": "src/rag/pipeline.py",
+        "evidence_ids": [
+          "evidence:reranker-call"
+        ],
         "proposal_id": "mapping-proposal:reranker-review",
         "decision_source": "manual"
       }
     ],
-      "summary": {
-        "detected": 1,
-        "undetermined": 1,
-        "not_detected": 0
+    "profiles": [
+      {
+        "profile_id": "rag-grounding",
+        "label": "RAG Grounding",
+        "description": "Model output appears grounded through retrieved or assembled external context.",
+        "status": "detected",
+        "activation": "enabled",
+        "primary_axis": "grounding",
+        "secondary_axes": [
+          "context_enrichment"
+        ],
+        "implementation_depth_level": 3,
+        "implementation_depth_reason": "Retriever and generation components are detected with an inferred context edge.",
+        "coverage_detected": 3,
+        "coverage_total": 3,
+        "detected_signals": [
+          "retriever_detected",
+          "llm_detected",
+          "context_flow_hint_detected"
+        ],
+        "missing_signals": [],
+        "direct_evidence_ids": [
+          "evidence:retriever-call",
+          "evidence:prompt-context",
+          "evidence:llm-call"
+        ],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [
+          "evidence:retriever-call",
+          "evidence:prompt-context",
+          "evidence:llm-call"
+        ],
+        "evidence_strength": "static_multiple_signals",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": null,
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "reranking",
+        "label": "Reranking",
+        "description": "Retrieved candidates may be reranked before context assembly.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "retrieval_strategy",
+        "secondary_axes": [],
+        "implementation_depth_level": 2,
+        "implementation_depth_reason": "A reranker call is detected, but the static path does not prove it is on the active answer path.",
+        "coverage_detected": 1,
+        "coverage_total": 2,
+        "detected_signals": [
+          "reranker_call_detected"
+        ],
+        "missing_signals": [
+          "reranker_output_used_as_context"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [
+          "evidence:reranker-call"
+        ],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [
+          "evidence:reranker-call"
+        ],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "Review scanner suggestions can confirm whether this should be treated as a capability candidate.",
+        "related_unmapped_component_ids": [
+          "unmapped:reranker-review"
+        ],
+        "related_capability_candidate_component_ids": [
+          "capability-candidate:reranker"
+        ],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Confirm whether reranked documents are passed to the context builder."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "hybrid-retrieval",
+        "label": "Hybrid Retrieval",
+        "description": "Dense and sparse retrieval signals are combined or fused.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "retrieval_strategy",
+        "secondary_axes": [],
+        "implementation_depth_level": 2,
+        "implementation_depth_reason": "Dense retrieval is detected, but sparse retrieval or fusion logic is not detected.",
+        "coverage_detected": 1,
+        "coverage_total": 4,
+        "detected_signals": [
+          "dense_retriever_detected"
+        ],
+        "missing_signals": [
+          "sparse_retriever_detected",
+          "fusion_detected",
+          "weighted_merge_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [
+          "evidence:retriever-call"
+        ],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [
+          "evidence:retriever-call"
+        ],
+        "evidence_strength": "static_single_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "No static evidence of BM25, keyword index, or fusion was found.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Check whether sparse retrieval is configured outside Python code."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "agentic-control",
+        "label": "Agentic Control",
+        "description": "Planner, router, state graph, or agent loop controls the system.",
+        "status": "not_detected",
+        "activation": "unknown",
+        "primary_axis": "agent_control",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No agent, planner, state graph, or tool selector signal was found.",
+        "coverage_detected": 0,
+        "coverage_total": 4,
+        "detected_signals": [],
+        "missing_signals": [
+          "agent_detected",
+          "planner_detected",
+          "router_detected",
+          "state_graph_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "not_detected",
+        "not_detected_coverage_gate_passed": true,
+        "uncertainty": null,
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "tool-calling",
+        "label": "Tool Calling",
+        "description": "The system can select and invoke external tools.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "tool_use",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No direct tool invocation path was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "tool_schema_detected",
+          "tool_invocation_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "The static coverage gate is insufficient to conclude absence.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect framework-specific tool registration and invocation paths."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "memory",
+        "label": "Memory",
+        "description": "The system stores or retrieves conversational or long-term memory.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "memory",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No complete memory read/write path was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "memory_reader_detected",
+          "memory_writer_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "Memory may be configured outside the scanned files.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect session and persistence configuration."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "workflow-orchestration",
+        "label": "Workflow Orchestration",
+        "description": "Multiple processing stages are coordinated as a workflow.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "workflow_orchestration",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No workflow graph or orchestrator was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "workflow_graph_detected",
+          "orchestrator_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "Simple function calls do not prove an orchestrated workflow.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect workflow framework configuration."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "corrective-retrieval",
+        "label": "Corrective Retrieval",
+        "description": "Retrieval quality is evaluated and corrected before generation.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "retrieval_strategy",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No correction or retrieval retry loop was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "retrieval_evaluator_detected",
+          "corrective_retry_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "The static coverage gate is insufficient to conclude absence.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect retry and retrieval evaluation branches."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "self-reflection",
+        "label": "Self Reflection",
+        "description": "The system critiques or revises its own intermediate output.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "agent_control",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No reflection or revision loop was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "reflection_prompt_detected",
+          "revision_loop_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "The static coverage gate is insufficient to conclude absence.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect prompts and loop conditions for critique stages."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "graph-retrieval",
+        "label": "Graph Retrieval",
+        "description": "Knowledge graph traversal contributes retrieved context.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "knowledge_structure",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No graph retriever path was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "graph_store_detected",
+          "graph_retriever_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "The static coverage gate is insufficient to conclude absence.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect graph database and traversal configuration."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "hierarchical-retrieval",
+        "label": "Hierarchical Retrieval",
+        "description": "Retrieval traverses parent-child or multi-level document structures.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "knowledge_structure",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No hierarchical retrieval path was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "parent_child_index_detected",
+          "hierarchical_retriever_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "The static coverage gate is insufficient to conclude absence.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect index metadata and retrieval traversal logic."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "contextual-retrieval",
+        "label": "Contextual Retrieval",
+        "description": "Queries or documents are enriched before retrieval.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "context_enrichment",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No contextual enrichment stage was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "query_enrichment_detected",
+          "document_context_enrichment_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "The static coverage gate is insufficient to conclude absence.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect query rewriting and contextual embedding stages."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "multimodal-grounding",
+        "label": "Multimodal Grounding",
+        "description": "Grounding evidence includes non-text modalities.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "data_modality",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No multimodal ingestion or grounding path was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "multimodal_loader_detected",
+          "multimodal_grounding_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "The static coverage gate is insufficient to conclude absence.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect image, audio, and document parser configuration."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "modular-composition",
+        "label": "Modular Composition",
+        "description": "Independent capability modules are composed through explicit contracts.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "design_paradigm",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No explicit modular composition contract was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "module_registry_detected",
+          "composition_contract_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "Ordinary Python modules do not by themselves prove modular AI composition.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect module registries and composition configuration."
+        ],
+        "source": "deterministic_static"
+      },
+      {
+        "profile_id": "multi-query-retrieval",
+        "label": "Multi-query Retrieval",
+        "description": "One input is expanded into multiple retrieval queries.",
+        "status": "undetermined",
+        "activation": "unknown",
+        "primary_axis": "retrieval_strategy",
+        "secondary_axes": [],
+        "implementation_depth_level": 0,
+        "implementation_depth_reason": "No query expansion and merge path was proven.",
+        "coverage_detected": 0,
+        "coverage_total": 2,
+        "detected_signals": [],
+        "missing_signals": [
+          "query_expansion_detected",
+          "multi_query_merge_detected"
+        ],
+        "direct_evidence_ids": [],
+        "indirect_evidence_ids": [],
+        "explicit_negative_evidence_ids": [],
+        "evidence_ids": [],
+        "evidence_strength": "weak_or_ambiguous_signal",
+        "not_detected_coverage_gate_passed": false,
+        "uncertainty": "The static coverage gate is insufficient to conclude absence.",
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": [],
+        "recommended_next_checks": [
+          "Inspect query expansion and result merge logic."
+        ],
+        "source": "deterministic_static"
       }
+    ],
+    "summary": {
+      "detected": 1,
+      "undetermined": 13,
+      "not_detected": 1
+    }
   },
   "readiness_report": {
     "schema_version": "readiness-report/v1",
@@ -227,6 +1407,8 @@
     "build_id": "build:sample-b2",
     "environment_id": "environment:default-static",
     "generated_from_build_id": "build:sample-b2",
+    "finding_registry_version": "readiness-finding-registry/v1",
+    "release_verdict": "needs_review",
     "primary_map_type": "linear_grounding_pipeline",
     "summary": {
       "status": "partial",
@@ -250,14 +1432,49 @@
         "severity": "medium",
         "status": "not_detected",
         "description": "Static scan did not find evidence that retrieved context is mapped back to source documents in the final answer.",
-        "evidence_ids": ["evidence:prompt-context"],
+        "affected_component_ids": [
+          "component:retriever:qdrant",
+          "component:llm:openai-chat"
+        ],
+        "evidence_ids": [
+          "evidence:prompt-context"
+        ],
         "evidence_gap": "No final answer output field such as citations, sources, references, source_documents, or metadata was detected.",
         "recommended_next_checks": [
           "Check whether retriever output preserves source metadata.",
           "Check whether the final answer or API response exposes sources/citations."
+        ],
+        "limitations": [
+          "Static analysis cannot prove whether citations are added by a runtime-only response formatter."
+        ]
+      },
+      {
+        "finding_id": "finding:context-assembly-undetermined",
+        "category": "grounding_context_assembly",
+        "title": "Context assembly path is not fully proven",
+        "severity": "low",
+        "status": "undetermined",
+        "description": "Static evidence suggests retrieved documents are used in a prompt, but the complete data path is not strong enough to mark as detected.",
+        "affected_component_ids": [
+          "component:retriever:qdrant",
+          "component:llm:openai-chat"
+        ],
+        "evidence_ids": [
+          "evidence:prompt-context"
+        ],
+        "recommended_next_checks": [
+          "Review the prompt builder and document formatting function."
+        ],
+        "limitations": [
+          "The complete runtime data path was not observed."
         ]
       }
-    ]
+    ],
+    "ui_hints": {
+      "runtime_verified": false,
+      "review_scanner_suggestions_required_to_show_results": false,
+      "review_scanner_suggestions_item_count": 1
+    }
   },
   "graph_view_model": {
     "schema_version": "graph-view-model/v1",
@@ -267,13 +1484,26 @@
     "build_id": "build:sample-b2",
     "environment_id": "environment:default-static",
     "generated_from_build_id": "build:sample-b2",
+    "reference_map_version": "1",
+    "mapping_completeness": {
+      "numerator": 4,
+      "denominator": 52,
+      "value": 0.076923,
+      "weights": {
+        "detected": 1,
+        "partial": 0.5,
+        "undetermined": 0,
+        "not_detected": 1,
+        "conflicted": 0
+      }
+    },
     "summary": {
       "fixture_scope": "partial_projection_fragment",
       "is_complete_reference_map": false,
       "required_reference_node_count": 52,
       "project_name": "sample-ai-health-rag",
       "component_count": 3,
-      "profile_count": 2,
+      "profile_count": 4,
       "review_item_count": 1
     },
     "nodes": [
@@ -286,8 +1516,13 @@
         "status": "detected",
         "activation": "enabled",
         "label": "Chat API",
-        "badges": ["detected"],
-        "evidence_ids": ["evidence:api-route"],
+        "subtitle": "FastAPI endpoint",
+        "badges": [
+          "detected"
+        ],
+        "evidence_ids": [
+          "evidence:api-route"
+        ],
         "risk_hint_ids": [],
         "profile_id": null,
         "primary_anchor_node_id": null,
@@ -305,12 +1540,70 @@
         "status": "detected",
         "activation": "enabled",
         "label": "Qdrant Retriever",
-        "badges": ["detected", "grounding"],
-        "evidence_ids": ["evidence:retriever-call"],
+        "subtitle": "Vector retriever",
+        "badges": [
+          "detected",
+          "grounding"
+        ],
+        "evidence_ids": [
+          "evidence:retriever-call"
+        ],
         "risk_hint_ids": [],
         "profile_id": null,
         "primary_anchor_node_id": null,
         "anchor_node_ids": [],
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": []
+      },
+      {
+        "id": "node:component:llm:openai-chat",
+        "source_id": "component:llm:openai-chat",
+        "type": "llm",
+        "semantic_kind": "canonical_component",
+        "slot": "generation",
+        "status": "detected",
+        "activation": "enabled",
+        "label": "OpenAI Chat Model",
+        "subtitle": "Generation",
+        "badges": [
+          "detected"
+        ],
+        "evidence_ids": [
+          "evidence:llm-call"
+        ],
+        "risk_hint_ids": [],
+        "profile_id": null,
+        "primary_anchor_node_id": null,
+        "anchor_node_ids": [],
+        "related_unmapped_component_ids": [],
+        "related_capability_candidate_component_ids": [],
+        "related_risk_hint_ids": []
+      },
+      {
+        "id": "node:profile-attachment:rag-grounding:retriever",
+        "source_id": "profile:rag-grounding",
+        "type": "profile_attachment",
+        "semantic_kind": "profile_attachment",
+        "slot": null,
+        "status": "detected",
+        "activation": "enabled",
+        "label": "RAG Grounding",
+        "subtitle": "Capability overlay",
+        "badges": [
+          "detected"
+        ],
+        "evidence_ids": [
+          "evidence:retriever-call",
+          "evidence:llm-call"
+        ],
+        "risk_hint_ids": [],
+        "profile_id": "rag-grounding",
+        "primary_anchor_node_id": "node:component:retriever:qdrant",
+        "anchor_node_ids": [
+          "node:component:retriever:qdrant",
+          "node:component:llm:openai-chat"
+        ],
         "related_unmapped_component_ids": [],
         "related_capability_candidate_component_ids": [],
         "related_risk_hint_ids": []
@@ -324,13 +1617,22 @@
         "status": "needs_review",
         "activation": "unknown",
         "label": "Reranker evidence",
-        "badges": ["review"],
-        "evidence_ids": ["evidence:reranker-call"],
+        "subtitle": "Review candidate",
+        "badges": [
+          "review"
+        ],
+        "evidence_ids": [
+          "evidence:reranker-call"
+        ],
         "risk_hint_ids": [],
         "profile_id": null,
         "primary_anchor_node_id": "node:component:retriever:qdrant",
-        "anchor_node_ids": ["node:component:retriever:qdrant"],
-        "related_unmapped_component_ids": ["unmapped:reranker-review"],
+        "anchor_node_ids": [
+          "node:component:retriever:qdrant"
+        ],
+        "related_unmapped_component_ids": [
+          "unmapped:reranker-review"
+        ],
         "related_capability_candidate_component_ids": [
           "capability-candidate:reranker"
         ],
@@ -346,27 +1648,117 @@
         "to": "node:component:retriever:qdrant",
         "relationship": "data_flow",
         "label": "query",
-        "evidence_ids": ["evidence:retriever-call"],
+        "evidence_ids": [
+          "evidence:retriever-call"
+        ],
+        "risk_hint_ids": []
+      },
+      {
+        "id": "view-edge:retriever-to-llm",
+        "source_id": "edge:retriever-to-llm",
+        "flow_id": null,
+        "from": "node:component:retriever:qdrant",
+        "to": "node:component:llm:openai-chat",
+        "relationship": "context_flow",
+        "label": "context",
+        "evidence_ids": [
+          "evidence:prompt-context"
+        ],
         "risk_hint_ids": []
       }
     ],
     "details": {
-      "evidence_by_id": {},
+      "evidence_by_id": {
+        "evidence:retriever-call": {
+          "evidence_id": "evidence:retriever-call",
+          "artifact_type": "source_code",
+          "path": "src/rag/pipeline.py",
+          "start_line": 42,
+          "end_line": 42,
+          "extract_summary": "Vector retriever call detected.",
+          "rule_id": "py.vectorstore.retriever",
+          "evidence_strength": "static_single_signal"
+        },
+        "evidence:reranker-call": {
+          "evidence_id": "evidence:reranker-call",
+          "artifact_type": "source_code",
+          "path": "src/rag/pipeline.py",
+          "start_line": 58,
+          "end_line": 58,
+          "extract_summary": "Reranker-like call detected.",
+          "rule_id": "py.reranker.call",
+          "evidence_strength": "weak_or_ambiguous_signal"
+        }
+      },
       "risk_hints_by_id": {},
-      "profile_findings_by_id": {},
-      "capability_candidates_by_id": {}
+      "profile_findings_by_id": {
+        "rag-grounding": {
+          "profile_id": "rag-grounding",
+          "label": "RAG Grounding",
+          "status": "detected",
+          "primary_axis": "grounding",
+          "coverage_detected": 3,
+          "coverage_total": 4,
+          "evidence_ids": [
+            "evidence:retriever-call",
+            "evidence:llm-call"
+          ]
+        },
+        "reranking": {
+          "profile_id": "reranking",
+          "label": "Reranking",
+          "status": "undetermined",
+          "primary_axis": "retrieval_strategy",
+          "coverage_detected": 1,
+          "coverage_total": 2,
+          "evidence_ids": [
+            "evidence:reranker-call"
+          ],
+          "related_unmapped_component_ids": [
+            "unmapped:reranker-review"
+          ],
+          "related_capability_candidate_component_ids": [
+            "capability-candidate:reranker"
+          ]
+        }
+      },
+      "capability_candidates_by_id": {
+        "capability-candidate:reranker": {
+          "id": "capability-candidate:reranker",
+          "name": "Reranker",
+          "observed_kind": "reranker",
+          "status": "confirmed_non_baseline",
+          "evidence_ids": [
+            "evidence:reranker-call"
+          ],
+          "proposal_id": "mapping-proposal:reranker-review",
+          "decision_source": "manual"
+        }
+      }
     },
     "filters": {
       "available": [
         {
+          "id": "filter:profile_attachments",
+          "label": "Capability overlays",
+          "kind": "node_semantic_kind",
+          "matches_node_ids": [
+            "node:profile-attachment:rag-grounding:retriever"
+          ],
+          "matches_edge_ids": []
+        },
+        {
           "id": "filter:needs_review",
           "label": "Needs review",
           "kind": "status",
-          "matches_node_ids": ["node:unmapped:reranker-review"],
+          "matches_node_ids": [
+            "node:unmapped:reranker-review"
+          ],
           "matches_edge_ids": []
         }
       ],
       "behavior": "positive_filter_highlight_matches_dim_others"
     }
-  }
+  },
+  "generated_from_build_id": "build:sample-b2"
 }
