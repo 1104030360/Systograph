@@ -6,6 +6,19 @@
   "build_id": "build:sample-b2",
   "environment_id": "environment:default-static",
   "generated_from_build_id": "build:sample-b2",
+  "reference_map_version": "1",
+  "mapping_completeness": {
+    "numerator": 4,
+    "denominator": 52,
+    "value": 0.076923,
+    "weights": {
+      "detected": 1,
+      "partial": 0.5,
+      "undetermined": 0,
+      "not_detected": 1,
+      "conflicted": 0
+    }
+  },
   "summary": {
     "fixture_scope": "partial_projection_fragment",
     "is_complete_reference_map": false,

@@ -1,6 +1,6 @@
 # Frontend JSON Handoff
 
-Last updated: 2026-07-07（UA 整合決策對齊）
+Last updated: 2026-07-08（Phase2 target contract 與 sample completeness 對齊）
 
 Phase2 pipeline 各步驟的 JSON mock sample。Contract 細節見 `docs/MODEL-CONTRACT.md`、`docs/API-GUIDE.md`。
 
@@ -84,6 +84,14 @@ Step 8 是 Step 4/6/7 的 **聚合包**；狀態語意與 sidecar 相同。
 1. **五態 UI 要一致** — component、edge、profile、readiness finding、static execution 共用同一套 legend。
 2. **`needs_review` ≠ 五態** — 表示待 review，**不阻塞**第一次 scan 顯示；決策走 Step 9 API，下次 Apply（B2）才更新。
 3. **缺證據不用 `failed`** — readiness 用 finding `status` + `evidence_gap` 說明；graph 不自行算 completeness。
+
+## Same-build 驗證規則
+
+- Step 4–8 的 build-scoped payload 必須共享同一組 `scan_id`、`build_id`、`environment_id`。
+- 每個 build artifact 的 `generated_from_build_id` 必須等於目前 `build_id`。
+- `profile_signals` 必須包含完整 52 筆 `reference_capability_assessments` 與 15 筆 `profiles`。
+- `readiness_report` 必須帶 backend-owned `release_verdict` 與 `finding_registry_version`。
+- static execution artifacts 固定 `runtime_verified: false`，並列出 `limitations[]`。
 
 ## 驗證
 

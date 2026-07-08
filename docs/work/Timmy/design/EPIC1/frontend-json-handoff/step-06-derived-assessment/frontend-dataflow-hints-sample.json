@@ -6,6 +6,10 @@
   "build_id": "build:sample-b2",
   "environment_id": "environment:default-static",
   "generated_from_build_id": "build:sample-b2",
+  "runtime_verified": false,
+  "limitations": [
+    "Dataflow hints are statically inferred and may omit runtime-only transformations."
+  ],
   "analysis_kind": "static_inferred",
   "hints": [
     {

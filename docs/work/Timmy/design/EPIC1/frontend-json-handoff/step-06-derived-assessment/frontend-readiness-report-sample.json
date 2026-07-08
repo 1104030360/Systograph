@@ -6,6 +6,8 @@
   "build_id": "build:sample-b2",
   "environment_id": "environment:default-static",
   "generated_from_build_id": "build:sample-b2",
+  "finding_registry_version": "readiness-finding-registry/v1",
+  "release_verdict": "needs_review",
   "primary_map_type": "linear_grounding_pipeline",
   "summary": {
     "status": "partial",
@@ -38,6 +40,9 @@
       "recommended_next_checks": [
         "Check whether retriever output preserves source metadata.",
         "Check whether the final answer or API response exposes sources/citations."
+      ],
+      "limitations": [
+        "Static analysis cannot prove whether citations are added by a runtime-only response formatter."
       ]
     },
     {
@@ -54,6 +59,9 @@
       "evidence_ids": ["evidence:prompt-context"],
       "recommended_next_checks": [
         "Review the prompt builder and document formatting function."
+      ],
+      "limitations": [
+        "The complete runtime data path was not observed."
       ]
     }
   ],

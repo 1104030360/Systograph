@@ -58,6 +58,7 @@ call_graph / dataflow / paths ──► artifact_refs[]       [safe reference]
 |------|------|
 | `loaded` | 是否成功載入 |
 | `project_id` / `scan_id` / `build_id` | 目前 payload 所屬 project、scan 與 build identity |
+| `generated_from_build_id` | 必須等於目前 `build_id`；用來驗證 inline artifacts 來自同一 build |
 | `based_on_build_id` / `applied_mapping_ids` | Apply build 的 lineage；initial build 可為 `null` / 空陣列 |
 | `environment_id` | assessment environment scope |
 | `error_reason` | 失敗原因（成功為 `null`） |

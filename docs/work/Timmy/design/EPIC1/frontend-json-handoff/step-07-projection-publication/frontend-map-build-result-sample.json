@@ -4,6 +4,7 @@
   "scan_id": "scan:sample-s1",
   "build_id": "build:sample-b2",
   "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:sample-b2",
   "based_on_build_id": "build:sample-b1",
   "applied_mapping_ids": ["mapping:reranker-review"],
   "project_name": "sample-ai-health-rag",

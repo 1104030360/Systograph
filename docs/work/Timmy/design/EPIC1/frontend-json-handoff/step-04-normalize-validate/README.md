@@ -9,6 +9,8 @@ Step 4 產出的 **canonical map**（磁碟檔名 `ai_system_map.json`）。
 |------|------|
 | `schema_version` | 固定 `ai-system-map/v2` |
 | `system_type` | 被掃的系統類型，sample 為 `ai_system`（不預設一定是 RAG） |
+| `scan_id` / `build_id` / `environment_id` | 這份 canonical map 的 assessment scope |
+| `generated_from_build_id` | 必須等於目前 `build_id`；parent lineage 另用 `based_on_build_id` |
 | `project` | 這次掃描綁定的專案 identity |
 | `components` | 掃到的元件（API、retriever、LLM…） |
 | `edges` | 元件之間的關係（資料流、context 流…） |

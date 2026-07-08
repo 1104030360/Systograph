@@ -6,6 +6,10 @@
   "build_id": "build:sample-b2",
   "environment_id": "environment:default-static",
   "generated_from_build_id": "build:sample-b2",
+  "runtime_verified": false,
+  "limitations": [
+    "Execution paths are static reconstructions, not observed runtime traces."
+  ],
   "analysis_kind": "static_inferred",
   "paths": [
     {

@@ -4,6 +4,7 @@
   "scan_id": "scan:sample-s1",
   "build_id": "build:sample-b2",
   "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:sample-b2",
   "project": {
     "project_id": "project:sample-ai-health-rag",
     "name": "sample-ai-health-rag",

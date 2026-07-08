@@ -1,12 +1,47 @@
-# KAI-Mind / Local AI Health Doctor
+# KAI-Mind
 
-KAI-Mind 是一個 AI Agent / RAG 系統的 Release Readiness Gate。它協助團隊在 demo、交付、部署或進入 CI/CD 前，檢查一套 local AI 系統是否安全、可用、可信，並產出可追蹤的檢查報告。
+> **命名狀態：** Repository 與部分既有文件目前仍使用
+> `Local_AI_Health_Doctor` / `Local AI Health Doctor`。這是暫時名稱，後續會統一更名；
+> 現階段產品與程式碼名稱以 **KAI-Mind** 為主。
 
-這個專案不是 AI chatbot、RAG builder，也不是完整 observability 平台。它的定位是掃描一套已存在的 AI Agent / RAG 系統，建立 AI System Map，執行 readiness checks，最後輸出清楚的判斷：
+KAI-Mind 是一個 AI Agent / RAG 系統的 **Release Readiness Gate**。它協助團隊在
+demo、交付、部署或進入 CI/CD 前，掃描既有 local AI 系統、建立 AI System Map，並產出
+可追蹤的 evidence-backed 檢查結果。
 
-- `READY`
-- `RISKY`
-- `NOT READY`
+KAI-Mind 是開發者工具，不是醫療診斷、治療、臨床決策或醫療器材認證工具；
+`Health Doctor` 暫名不代表產品提供醫療建議或醫療級保證。
+
+## 目前能力與目標能力
+
+README 必須區分「目前程式碼已能執行」與「roadmap / Phase2 target」，避免把設計文件寫成
+已交付功能。
+
+### 目前已實作
+
+- deterministic-first scanner：先以 filesystem、config、dependency、Docker 與 code pattern
+  providers 擷取結構化 facts / evidence。
+- `ai-system-map/v1` canonical artifact、Markdown summary 與 Viewer projection。
+- CLI、FastAPI local web API 與 frontend Viewer 共用同一套 core services。
+- scan boundary review、project-relative path、secret masking 與 snapshot safety checks。
+- sample projects、contract tests、scanner integration tests 與 frontend 基礎串接。
+- Project / latest Viewer state 目前仍是 process-local memory；backend restart 後不保留 history。
+
+### Phase2 目標，尚未全部實作
+
+- `ai-system-map/v2` 與 `scan_id` / immutable `build_id` lineage。
+- local JSON persistence、Apply、restart recovery 與 project-scoped build history。
+- 10-plane / 52-node Capability Map、15 profiles 與 `profile_signals.json`。
+- `readiness_report.json`、evidence-backed findings，以及 backend-owned
+  `ready` / `needs_review` / `blocked` release verdict。
+- static call graph、dataflow hints、execution paths 與 evidence table。
+- frontend v2 cutover、Graph Studio 與 CI release gate。
+
+因此，目前 UI、README 或 demo 不應把 `READY`、`RISKY`、`NOT READY` 描述成已完成的
+runtime verdict。正式 verdict 以 Phase2/Epic 6 contract 與對應實作完成後為準。
+
+這個專案不是 AI chatbot、RAG builder，也不是完整 observability 平台。它的核心邊界是：
+掃描一套已存在的 AI 系統，建立 canonical AI System Map，並用 evidence 支援後續 readiness
+判斷，而不是代替團隊建立或執行 AI 應用。
 
 ## 產品方向
 
