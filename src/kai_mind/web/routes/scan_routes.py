@@ -79,6 +79,7 @@ def create_scan(
                 output=Path(payload.output),
                 redact_root_path=payload.redact_root_path,
                 no_snippets=payload.no_snippets,
+                system_map_schema_version=payload.system_map_schema_version,
             ),
             project_id=payload.project_id,
             inventory_policy=boundary_service.for_decisions(

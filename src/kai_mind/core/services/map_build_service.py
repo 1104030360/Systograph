@@ -5,13 +5,18 @@ from __future__ import annotations
 from pathlib import Path
 
 from kai_mind.core.models.errors import PreconditionError
-from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
+from kai_mind.core.models.map_build import (
+    MapBuildRequest,
+    MapBuildResult,
+    SystemMapSchemaSelection,
+)
 from kai_mind.core.models.scan import OutputRun, ProjectScanResult
 from kai_mind.core.models.system_map import Evidence, Project, RagSystemMap
 from kai_mind.core.models.template import RagTemplate
 from kai_mind.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
+from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
 from kai_mind.core.services.component_detection_service import (
     ComponentDetectionResult,
     ComponentDetectionService,
@@ -60,6 +65,7 @@ class MapBuildService:
         markdown_summary_service: MarkdownSummaryService | None = None,
         projection_service: ViewerSessionService | None = None,
         validation_service: SystemMapValidationService | None = None,
+        canonical_map_loader: CanonicalMapLoader | None = None,
     ) -> None:
         self._output_artifact_provider = (
             output_artifact_provider or OutputArtifactProvider()
@@ -88,6 +94,9 @@ class MapBuildService:
         self._validation_service = (
             validation_service or SystemMapValidationService()
         )
+        self._canonical_map_loader = (
+            canonical_map_loader or CanonicalMapLoader()
+        )
 
     def build(
         self,
@@ -109,6 +118,7 @@ class MapBuildService:
                 error=precondition.error,
                 output_run=precondition.output_run,
                 warnings=precondition.warnings,
+                requested_schema_version=request.system_map_schema_version,
             )
 
         if (
@@ -137,6 +147,14 @@ class MapBuildService:
             system_map,
             map_json_path=map_json_path,
         )
+        load_result = self._canonical_map_loader.load(
+            system_map.model_dump(mode="json")
+        )
+        migration_warnings = list(load_result.migration_warnings)
+        if request.system_map_schema_version == "ai-system-map/v2":
+            migration_warnings.append(
+                "requested_v2_opt_in_but_active_output_remains_v1_until_plan_13"
+            )
 
         return MapBuildResult(
             status="ok",
@@ -147,6 +165,10 @@ class MapBuildService:
             map_error_path=None,
             viewer_load_result=viewer_load_result,
             ai_system_map=system_map,
+            normalized_ai_system_map=load_result.normalized,
+            active_schema_version="ai-system-map/v1",
+            requested_schema_version=request.system_map_schema_version,
+            migration_warnings=migration_warnings,
             warnings=precondition.warnings,
             error=None,
         )
@@ -158,6 +180,7 @@ class MapBuildService:
         error: PreconditionError | None,
         output_run: OutputRun | None,
         warnings: list[str],
+        requested_schema_version: SystemMapSchemaSelection,
     ) -> MapBuildResult:
         map_error_path: Path | None = None
         if error is not None and output_run is not None:
@@ -175,6 +198,10 @@ class MapBuildService:
             map_error_path=map_error_path,
             viewer_load_result=None,
             ai_system_map=None,
+            normalized_ai_system_map=None,
+            active_schema_version="ai-system-map/v1",
+            requested_schema_version=requested_schema_version,
+            migration_warnings=[],
             warnings=warnings,
             error=error,
         )

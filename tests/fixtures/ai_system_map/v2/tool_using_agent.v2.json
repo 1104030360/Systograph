@@ -1,0 +1,112 @@
+{
+  "schema_version": "ai-system-map/v2",
+  "system_type": "ai_system",
+  "scan_id": "scan:tool-agent",
+  "build_id": "build:tool-agent",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:tool-agent",
+  "project": {
+    "project_id": "project:tool-agent",
+    "name": "tool-using-agent",
+    "root_path": null,
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted"
+  },
+  "components": [
+    {
+      "component_id": "component:agent:loop",
+      "display_name": "Agent Loop",
+      "canonical_type": "agent_loop",
+      "layer": "control",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:agent-loop"],
+      "metadata": {}
+    },
+    {
+      "component_id": "component:tool:search",
+      "display_name": "Web Search Tool",
+      "canonical_type": "tool",
+      "layer": "extension_subsystems",
+      "status": "detected",
+      "activation": "conditional",
+      "evidence_ids": ["evidence:tool-binding"],
+      "metadata": {}
+    },
+    {
+      "component_id": "component:llm:planner",
+      "display_name": "Planner LLM",
+      "canonical_type": "llm",
+      "layer": "generation",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:planner-llm"],
+      "metadata": {}
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "edge:agent-to-tool",
+      "source": "component:agent:loop",
+      "target": "component:tool:search",
+      "relationship": "tool_call",
+      "status": "observed",
+      "evidence_ids": ["evidence:tool-binding"]
+    },
+    {
+      "edge_id": "edge:agent-to-llm",
+      "source": "component:agent:loop",
+      "target": "component:llm:planner",
+      "relationship": "invoke",
+      "status": "observed",
+      "evidence_ids": ["evidence:planner-llm"]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evidence:agent-loop",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/agent/loop.py",
+        "start_line": 15,
+        "end_line": 40,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "Agent loop with tool dispatch.",
+      "rule_id": "py.agent.loop"
+    },
+    {
+      "evidence_id": "evidence:tool-binding",
+      "artifact_type": "config",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "config/tools.json",
+        "start_line": null,
+        "end_line": null,
+        "json_pointer": "/tools/0/name",
+        "config_key": null
+      },
+      "extract_summary": "Search tool registered.",
+      "rule_id": "json.tool.registry"
+    },
+    {
+      "evidence_id": "evidence:planner-llm",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/agent/planner.py",
+        "start_line": 22,
+        "end_line": 22,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "Planner LLM invoke.",
+      "rule_id": "py.llm.invoke"
+    }
+  ],
+  "endpoints": [],
+  "risk_hints": [],
+  "unmapped_components": []
+}

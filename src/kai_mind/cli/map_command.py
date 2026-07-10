@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import typer
 
@@ -42,8 +42,18 @@ def map_command(
             help="Remove evidence snippets from the canonical map.",
         ),
     ] = False,
+    system_map_schema_version: Annotated[
+        Literal["ai-system-map/v1", "ai-system-map/v2"],
+        typer.Option(
+            "--system-map-schema-version",
+            help=(
+                "Requested map contract. Active artifact remains v1 until "
+                "Plan 13 cutover; v2 is opt-in normalized view only."
+            ),
+        ),
+    ] = "ai-system-map/v1",
 ) -> None:
-    """Build a validated ai-system-map/v1 artifact."""
+    """Build a validated ai-system-map artifact (active output remains v1)."""
 
     result = MapBuildService().build(
         MapBuildRequest(
@@ -51,6 +61,7 @@ def map_command(
             output=output,
             redact_root_path=redact_root_path,
             no_snippets=no_snippets,
+            system_map_schema_version=system_map_schema_version,
         )
     )
     if result.status == "error":
@@ -67,3 +78,7 @@ def map_command(
         typer.echo(str(result.map_json_path))
     if result.map_markdown_path is not None:
         typer.echo(str(result.map_markdown_path))
+    typer.echo(f"active_schema_version={result.active_schema_version}")
+    typer.echo(f"requested_schema_version={result.requested_schema_version}")
+    for warning in result.migration_warnings:
+        typer.echo(f"migration_warning={warning}")

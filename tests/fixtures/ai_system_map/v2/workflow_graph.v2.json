@@ -1,0 +1,98 @@
+{
+  "schema_version": "ai-system-map/v2",
+  "system_type": "ai_system",
+  "scan_id": "scan:workflow",
+  "build_id": "build:workflow",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:workflow",
+  "project": {
+    "project_id": "project:workflow",
+    "name": "workflow-graph",
+    "root_path": null,
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted"
+  },
+  "components": [
+    {
+      "component_id": "component:workflow:start",
+      "display_name": "Start",
+      "canonical_type": "workflow_node",
+      "layer": "control",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:workflow-nodes"],
+      "metadata": {"json_pointer": "/nodes/0"}
+    },
+    {
+      "component_id": "component:workflow:llm",
+      "display_name": "LLM Node",
+      "canonical_type": "workflow_node",
+      "layer": "generation",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:workflow-nodes"],
+      "metadata": {"json_pointer": "/nodes/1"}
+    },
+    {
+      "component_id": "component:workflow:end",
+      "display_name": "End",
+      "canonical_type": "workflow_node",
+      "layer": "control",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:workflow-nodes"],
+      "metadata": {"json_pointer": "/nodes/2"}
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "edge:start-to-llm",
+      "source": "component:workflow:start",
+      "target": "component:workflow:llm",
+      "relationship": "workflow_transition",
+      "status": "observed",
+      "evidence_ids": ["evidence:workflow-edges"]
+    },
+    {
+      "edge_id": "edge:llm-to-end",
+      "source": "component:workflow:llm",
+      "target": "component:workflow:end",
+      "relationship": "workflow_transition",
+      "status": "observed",
+      "evidence_ids": ["evidence:workflow-edges"]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evidence:workflow-nodes",
+      "artifact_type": "workflow_json",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "flows/main.json",
+        "start_line": null,
+        "end_line": null,
+        "json_pointer": "/nodes",
+        "config_key": null
+      },
+      "extract_summary": "Workflow nodes list validated.",
+      "rule_id": "workflow.nodes"
+    },
+    {
+      "evidence_id": "evidence:workflow-edges",
+      "artifact_type": "workflow_json",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "flows/main.json",
+        "start_line": null,
+        "end_line": null,
+        "json_pointer": "/edges",
+        "config_key": null
+      },
+      "extract_summary": "Workflow edges list validated.",
+      "rule_id": "workflow.edges"
+    }
+  ],
+  "endpoints": [],
+  "risk_hints": [],
+  "unmapped_components": []
+}

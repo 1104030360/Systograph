@@ -7,9 +7,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.errors import PreconditionError
 from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.models.viewer import ViewerLoadResult
+
+SystemMapSchemaSelection = Literal["ai-system-map/v1", "ai-system-map/v2"]
 
 
 class MapBuildModel(BaseModel):
@@ -23,6 +26,7 @@ class MapBuildRequest(MapBuildModel):
     output: Path = Path("outputs")
     redact_root_path: bool = True
     no_snippets: bool = False
+    system_map_schema_version: SystemMapSchemaSelection = "ai-system-map/v1"
 
 
 class MapBuildResult(MapBuildModel):
@@ -34,5 +38,9 @@ class MapBuildResult(MapBuildModel):
     map_error_path: Path | None = None
     viewer_load_result: ViewerLoadResult | None = None
     ai_system_map: RagSystemMap | None = None
+    normalized_ai_system_map: AiSystemMapV2 | None = None
+    active_schema_version: SystemMapSchemaSelection = "ai-system-map/v1"
+    requested_schema_version: SystemMapSchemaSelection = "ai-system-map/v1"
+    migration_warnings: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     error: PreconditionError | None = None

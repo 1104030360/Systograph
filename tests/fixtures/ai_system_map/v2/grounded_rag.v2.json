@@ -1,0 +1,121 @@
+{
+  "schema_version": "ai-system-map/v2",
+  "system_type": "ai_system",
+  "scan_id": "scan:grounded-rag",
+  "build_id": "build:grounded-rag",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:grounded-rag",
+  "project": {
+    "project_id": "project:grounded-rag",
+    "name": "grounded-rag",
+    "root_path": null,
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted"
+  },
+  "components": [
+    {
+      "component_id": "component:api:chat",
+      "display_name": "Chat API",
+      "canonical_type": "api_input",
+      "layer": "input_intent",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:api-route"],
+      "metadata": {"legacy_slot": "app_api_or_orchestrator"}
+    },
+    {
+      "component_id": "component:retriever:qdrant",
+      "display_name": "Qdrant Retriever",
+      "canonical_type": "retriever",
+      "layer": "retrieval",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:retriever"],
+      "metadata": {}
+    },
+    {
+      "component_id": "component:llm:openai",
+      "display_name": "OpenAI Chat",
+      "canonical_type": "llm",
+      "layer": "generation",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:llm"],
+      "metadata": {}
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "edge:api-to-retriever",
+      "source": "component:api:chat",
+      "target": "component:retriever:qdrant",
+      "relationship": "data_flow",
+      "status": "observed",
+      "evidence_ids": ["evidence:retriever"]
+    },
+    {
+      "edge_id": "edge:retriever-to-llm",
+      "source": "component:retriever:qdrant",
+      "target": "component:llm:openai",
+      "relationship": "context_flow",
+      "status": "observed",
+      "evidence_ids": ["evidence:llm"]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evidence:api-route",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/api/chat.py",
+        "start_line": 12,
+        "end_line": 12,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "FastAPI route detected.",
+      "rule_id": "py.fastapi.route"
+    },
+    {
+      "evidence_id": "evidence:retriever",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/rag/pipeline.py",
+        "start_line": 40,
+        "end_line": 42,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "Retriever call detected.",
+      "rule_id": "py.vectorstore.retriever"
+    },
+    {
+      "evidence_id": "evidence:llm",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/rag/pipeline.py",
+        "start_line": 70,
+        "end_line": 72,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "LLM invoke detected.",
+      "rule_id": "py.llm.invoke"
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "endpoint:chat",
+      "value": "/chat",
+      "endpoint_type": "local",
+      "method": "POST",
+      "component_id": "component:api:chat",
+      "evidence_ids": ["evidence:api-route"]
+    }
+  ],
+  "risk_hints": [],
+  "unmapped_components": []
+}
