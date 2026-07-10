@@ -112,6 +112,43 @@ def test_checked_in_v2_schema_matches_pydantic_generated_schema() -> None:
     assert load_schema() == build_ai_system_map_v2_schema()
 
 
+def test_v2_schema_requires_schema_version_and_system_type_badges() -> None:
+    required = set(load_schema()["required"])
+    assert {"schema_version", "system_type", "project"} <= required
+
+
+@pytest.mark.parametrize(
+    ("missing_field", "match"),
+    [
+        ("schema_version", "schema_version"),
+        ("system_type", "system_type"),
+    ],
+)
+def test_v2_schema_rejects_payload_missing_individual_badge(
+    missing_field: str,
+    match: str,
+) -> None:
+    data = load_fixture("grounded_rag.v2.json")
+    del data[missing_field]
+
+    with pytest.raises(Exception, match=match):
+        Draft202012Validator(load_schema()).validate(data)
+
+
+@pytest.mark.parametrize("missing_field", ["schema_version", "system_type"])
+def test_v2_validation_service_rejects_payload_missing_individual_badge(
+    missing_field: str,
+) -> None:
+    data = load_fixture("grounded_rag.v2.json")
+    del data[missing_field]
+
+    with pytest.raises(
+        (ValidationError, SystemMapV2ValidationError),
+        match=missing_field,
+    ):
+        SystemMapV2ValidationService().validate(data)
+
+
 def test_v2_schema_forbids_extra_and_rejects_confidence() -> None:
     data = load_fixture("grounded_rag.v2.json")
     data["confidence"] = 0.9

@@ -6,6 +6,8 @@ from typing import Final
 
 from kai_mind.core.models.ai_system_map_v2 import (
     DEFAULT_ENVIRONMENT_ID,
+    V2_SCHEMA_VERSION,
+    V2_SYSTEM_TYPE,
     AiSystemMapV2,
     AiSystemMapV2CompatibilityView,
     AssessmentEvidenceKind,
@@ -135,6 +137,8 @@ class SystemMapV1ToV2Adapter:
             warnings.append("absolute_root_path_redacted_for_canonical_v2")
 
         return AiSystemMapV2(
+            schema_version=V2_SCHEMA_VERSION,
+            system_type=V2_SYSTEM_TYPE,
             source_schema_version="ai-system-map/v1",
             environment_id=DEFAULT_ENVIRONMENT_ID,
             migration_warnings=warnings,

@@ -602,13 +602,11 @@
   "properties": {
     "schema_version": {
       "const": "ai-system-map/v2",
-      "default": "ai-system-map/v2",
       "title": "Schema Version",
       "type": "string"
     },
     "system_type": {
       "const": "ai_system",
-      "default": "ai_system",
       "title": "System Type",
       "type": "string"
     },
@@ -730,6 +728,8 @@
     }
   },
   "required": [
+    "schema_version",
+    "system_type",
     "project"
   ],
   "title": "AiSystemMapV2",

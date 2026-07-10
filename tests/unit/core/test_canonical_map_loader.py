@@ -66,3 +66,14 @@ def test_loader_rejects_confidence_in_either_schema() -> None:
 
     with pytest.raises(CanonicalMapLoadError, match="confidence"):
         CanonicalMapLoader().load(payload)
+
+
+@pytest.mark.parametrize("missing_field", ["schema_version", "system_type"])
+def test_loader_rejects_native_v2_payload_missing_individual_badge(
+    missing_field: str,
+) -> None:
+    payload = json.loads(V2_FIXTURE.read_text(encoding="utf-8"))
+    del payload[missing_field]
+
+    with pytest.raises(CanonicalMapLoadError):
+        CanonicalMapLoader().load(payload)

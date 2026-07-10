@@ -117,3 +117,15 @@ def test_accepts_undetermined_edge_without_evidence(
     data["edges"][0]["undetermined_reason"] = "edge_endpoint_unresolved"
 
     SystemMapV2ValidationService().validate(data)
+
+
+@pytest.mark.parametrize("missing_field", ["schema_version", "system_type"])
+def test_rejects_payload_missing_individual_badge(
+    minimal_v2: dict[str, Any],
+    missing_field: str,
+) -> None:
+    data = copy.deepcopy(minimal_v2)
+    del data[missing_field]
+
+    with pytest.raises(SystemMapV2ValidationError, match=missing_field):
+        SystemMapV2ValidationService().validate(data)

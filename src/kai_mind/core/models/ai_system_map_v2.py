@@ -404,8 +404,11 @@ class CanonicalCandidateFact(V2ContractModel):
 
 
 class AiSystemMapV2(V2ContractModel):
-    schema_version: V2SchemaVersion = V2_SCHEMA_VERSION
-    system_type: V2SystemType = V2_SYSTEM_TYPE
+    # Artifact badges must be explicit in JSON; defaults would omit them from
+    # generated JSON Schema `required` and let schema-only gates accept maps
+    # that CanonicalMapLoader cannot load.
+    schema_version: V2SchemaVersion
+    system_type: V2SystemType
     scan_id: str | None = None
     build_id: str | None = None
     environment_id: str = DEFAULT_ENVIRONMENT_ID
