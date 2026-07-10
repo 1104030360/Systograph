@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Final, cast
+from typing import Any, Final, Literal
 
 from pydantic import ValidationError
 
@@ -22,6 +23,24 @@ DEFAULT_TEMPLATE_DIR: Final = Path(__file__).resolve().parents[1] / "templates"
 
 class RagTemplateValidationError(ValueError):
     """Raised when a RAG reference template is invalid."""
+
+
+@dataclass(frozen=True, slots=True)
+class RagTemplateBoundaryMetadata:
+    template_id: str
+    template_input_kind: Literal["legacy_template_input"]
+    active_readiness_surface: bool
+    active_profile_status_surface: bool
+    active_frontend_summary_surface: bool
+
+
+RAG_CORE_V1_BOUNDARY_METADATA: Final = RagTemplateBoundaryMetadata(
+    template_id=BUILTIN_TEMPLATE_ID,
+    template_input_kind="legacy_template_input",
+    active_readiness_surface=False,
+    active_profile_status_surface=False,
+    active_frontend_summary_surface=False,
+)
 
 
 class RagTemplateService:
@@ -51,6 +70,17 @@ class RagTemplateService:
         return template
 
     @classmethod
+    def boundary_metadata(
+        cls,
+        template_id: str,
+    ) -> RagTemplateBoundaryMetadata:
+        if template_id != BUILTIN_TEMPLATE_ID:
+            raise RagTemplateValidationError(
+                f"Unknown template: {template_id}"
+            )
+        return RAG_CORE_V1_BOUNDARY_METADATA
+
+    @classmethod
     def _read_template(cls, template_path: Path) -> dict[str, Any]:
         if not template_path.exists():
             raise RagTemplateValidationError(
@@ -58,14 +88,17 @@ class RagTemplateService:
             )
 
         try:
-            return cast(
-                "dict[str, Any]",
-                json.loads(template_path.read_text(encoding="utf-8")),
-            )
+            loaded = json.loads(template_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             raise RagTemplateValidationError(
                 f"Invalid template JSON: {template_path.name}"
             ) from exc
+
+        if not isinstance(loaded, dict):
+            raise RagTemplateValidationError(
+                f"Template root must be an object: {template_path.name}"
+            )
+        return loaded
 
     @classmethod
     def _validate_template(

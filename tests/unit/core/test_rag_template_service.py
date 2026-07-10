@@ -42,6 +42,30 @@ def test_loads_builtin_rag_core_v1_template() -> None:
     assert template.allowed_statuses == EXPECTED_ALLOWED_STATUSES
 
 
+def test_builtin_rag_core_v1_is_marked_as_legacy_template_input() -> None:
+    metadata = RagTemplateService.boundary_metadata("rag-core-v1")
+
+    assert metadata.template_id == "rag-core-v1"
+    assert metadata.template_input_kind == "legacy_template_input"
+    assert metadata.active_readiness_surface is False
+    assert metadata.active_profile_status_surface is False
+    assert metadata.active_frontend_summary_surface is False
+
+
+def test_v1_slot_completeness_cannot_be_used_as_active_readiness_signal() -> (
+    None
+):
+    template = RagTemplateService.load("rag-core-v1")
+    metadata = RagTemplateService.boundary_metadata(template.id)
+    slot_count = len(template.slots)
+
+    assert slot_count == len(EXPECTED_SLOT_IDS)
+    assert metadata.template_input_kind == "legacy_template_input"
+    assert metadata.active_readiness_surface is False
+    assert metadata.active_profile_status_surface is False
+    assert metadata.active_frontend_summary_surface is False
+
+
 def test_template_flows_use_bare_ids_and_known_slots() -> None:
     template = RagTemplateService.load("rag-core-v1")
     slot_ids = {slot.id for slot in template.slots}

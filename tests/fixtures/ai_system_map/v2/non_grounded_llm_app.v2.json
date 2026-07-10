@@ -1,0 +1,89 @@
+{
+  "schema_version": "ai-system-map/v2",
+  "system_type": "ai_system",
+  "scan_id": "scan:llm-app",
+  "build_id": "build:llm-app",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:llm-app",
+  "project": {
+    "project_id": "project:llm-app",
+    "name": "plain-llm-app",
+    "root_path": null,
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted"
+  },
+  "components": [
+    {
+      "component_id": "component:api:generate",
+      "display_name": "Generate API",
+      "canonical_type": "api_input",
+      "layer": "input_intent",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:api"],
+      "metadata": {}
+    },
+    {
+      "component_id": "component:llm:local",
+      "display_name": "Local LLM",
+      "canonical_type": "llm",
+      "layer": "generation",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:llm"],
+      "metadata": {}
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "edge:api-to-llm",
+      "source": "component:api:generate",
+      "target": "component:llm:local",
+      "relationship": "invoke",
+      "status": "observed",
+      "evidence_ids": ["evidence:llm"]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evidence:api",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "app/main.py",
+        "start_line": 8,
+        "end_line": 8,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "Generate endpoint detected.",
+      "rule_id": "py.fastapi.route"
+    },
+    {
+      "evidence_id": "evidence:llm",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "app/generate.py",
+        "start_line": 20,
+        "end_line": 22,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "Direct LLM call without retrieval.",
+      "rule_id": "py.llm.invoke"
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "endpoint:generate",
+      "value": "/generate",
+      "endpoint_type": "local",
+      "method": "POST",
+      "component_id": "component:api:generate",
+      "evidence_ids": ["evidence:api"]
+    }
+  ],
+  "risk_hints": [],
+  "unmapped_components": []
+}

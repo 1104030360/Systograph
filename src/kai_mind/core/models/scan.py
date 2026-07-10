@@ -72,6 +72,7 @@ class ParseIssue(ScanModel):
         "dependency_manifest_parse",
         "code_pattern_scan",
         "project_scan",
+        "workflow_json_parse",
     ]
     file: str
     message: str

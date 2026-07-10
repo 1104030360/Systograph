@@ -1,4 +1,8 @@
-"""Runtime validation for ai-system-map/v1 cross-reference invariants."""
+"""Runtime validation for ai-system-map/v1 cross-reference invariants.
+
+00A keeps this service as the v1 validator. Native v2 validation lives in
+SystemMapV2ValidationService; schema branching belongs to CanonicalMapLoader.
+"""
 
 from __future__ import annotations
 
@@ -15,36 +19,8 @@ from kai_mind.core.services.secret_masking_service import SecretMaskingService
 from kai_mind.core.services.secret_validation_service import (
     SecretValidationService,
 )
-
-STRUCTURAL_SECRET_SCAN_KEYS = frozenset(
-    {
-        "component_instance_id",
-        "evidence_id",
-        "flow_id",
-        "from_slot",
-        "id",
-        "rule_id",
-        "slot",
-        "status",
-        "target",
-        "target_type",
-        "to_slot",
-        "type",
-    }
-)
-SECRET_CONTEXT_METADATA_KEYS = frozenset(
-    {
-        "description",
-        "fingerprint",
-        "is_present",
-        "key",
-        "last4",
-        "masked",
-        "present",
-        "provider",
-        "redacted",
-        "source",
-    }
+from kai_mind.core.services.system_map_secret_boundary import (
+    SystemMapSecretBoundary,
 )
 
 
@@ -60,16 +36,15 @@ class SystemMapValidationService:
         secret_masking_service: SecretMaskingService | None = None,
         secret_validation_service: SecretValidationService | None = None,
     ) -> None:
-        self._secret_masking_service = (
-            secret_masking_service or SecretMaskingService()
-        )
-        self._secret_validation_service = (
-            secret_validation_service or SecretValidationService()
+        self._secret_boundary = SystemMapSecretBoundary(
+            secret_masking_service=secret_masking_service,
+            secret_validation_service=secret_validation_service,
+            on_violation=SystemMapValidationError,
         )
 
     def validate(self, data: Mapping[str, Any]) -> RagSystemMap:
         self._reject_confidence(data)
-        self._reject_unmasked_secrets(data)
+        self._secret_boundary.reject_unmasked_secrets(data)
 
         try:
             system_map = RagSystemMap.model_validate(data)
@@ -103,83 +78,6 @@ class SystemMapValidationService:
         if isinstance(value, list):
             for index, child in enumerate(value):
                 self._reject_confidence(child, f"{path}[{index}]")
-
-    def _reject_unmasked_secrets(
-        self,
-        value: Any,
-        path: str = "$",
-        key_context: str | None = None,
-    ) -> None:
-        if isinstance(value, str):
-            if (
-                self._secret_validation_service.contains_unmasked_url_credentials(
-                    value
-                )
-                or self._contains_unmasked_secret(value, key=key_context)
-            ):
-                raise SystemMapValidationError(
-                    f"Unmasked secret-like value is not allowed at {path}"
-                )
-            return
-
-        if isinstance(value, Mapping):
-            sibling_key = value.get("key")
-            for key, child in value.items():
-                self._reject_unmasked_secrets(
-                    child,
-                    f"{path}.{key}",
-                    key_context=self._child_key_context(
-                        inherited_key_context=key_context,
-                        key=key,
-                        sibling_key=sibling_key,
-                    ),
-                )
-            return
-
-        if isinstance(value, list):
-            for index, child in enumerate(value):
-                self._reject_unmasked_secrets(
-                    child,
-                    f"{path}[{index}]",
-                    key_context=key_context,
-                )
-
-    def _contains_unmasked_secret(
-        self,
-        value: str,
-        *,
-        key: str | None,
-    ) -> bool:
-        return self._secret_masking_service.contains_unmasked_secret(
-            value,
-            key=key,
-            scan_key_value_pairs=key not in STRUCTURAL_SECRET_SCAN_KEYS,
-        )
-
-    def _child_key_context(
-        self,
-        *,
-        inherited_key_context: str | None,
-        key: Any,
-        sibling_key: Any,
-    ) -> str:
-        candidate = str(key)
-        if key == "value" and isinstance(sibling_key, str):
-            candidate = sibling_key
-
-        if self._secret_masking_service.is_secret_key_name(candidate):
-            return candidate
-
-        if (
-            self._secret_masking_service.is_secret_key_name(
-                inherited_key_context
-            )
-            and candidate not in SECRET_CONTEXT_METADATA_KEYS
-            and candidate not in STRUCTURAL_SECRET_SCAN_KEYS
-        ):
-            return str(inherited_key_context)
-
-        return candidate
 
     def _validate_unique_ids(self, system_map: RagSystemMap) -> None:
         self._reject_duplicate_ids(

@@ -8,14 +8,66 @@ non-baseline capability candidate，供 canonical v2 build 與 capability infere
 
 **架構：** User-facing UI 名稱改為 **Review scanner suggestions**
 （中文：**檢查 scanner 建議**）。`ManualMappingService` / `manual_mapping` 仍是
-durable user decision lifecycle 的內部名稱。使用者可以把
-ambiguous evidence 對應到 generic canonical component type/layer、對應到 conditional
-grounding dimension，或確認為 `non_baseline_capability_candidate`。新的正式命名不含
-`rag_variant`；舊 `new_extension_component` 與舊 candidate aliases 僅供 v1 records
-讀取。Candidate 本身不是 `detected` capability/profile，也不直接寫入 canonical map；
+durable user decision lifecycle 的內部名稱——產品 copy 與 domain 內部名刻意分離：
+UI 強調「複核 scanner 建議」，service 名強調「誰擁有可持久化決策」。
+
+使用者對 ambiguous evidence 只有三條正式出路（另可 skip / needs more information）：
+
+1. 對應到 **generic canonical component type/layer**（結構層，可進 map）
+2. 對應到 **conditional grounding dimension**（僅在 grounding applicable 時）
+3. 確認為 **`non_baseline_capability_candidate`**（確認有訊號，但**不是** map 拓樸節點；交給 capability / profile 路徑）
+
+新的正式命名不含 `rag_variant`；舊 `new_extension_component` 與舊 candidate
+aliases 僅供 v1 records 讀取，新 API / 新 proposal **不得**再 emit。
+
+Candidate 本身不是 `detected` capability/profile，也不直接寫入 canonical map；
 它必須先經 Plan 01A reference-node mapping 與 Plan 02 evidence assessment。
 
 **Tech Stack：** Python 3.11、Pydantic v2、FastAPI routes、pytest，以及現有的 `ComponentDetectionService`、`ManualMappingService`、`MappingProposalService`、`MapBuildService`。
+
+## 2026-07-10 Glossary：`non_baseline` 不是「還在用 rag-core-v1 baseline」
+
+本計畫契約字串仍使用 `non_baseline_capability_candidate`（相容與實作穩定），但
+**產品語意必須依下表解讀**，避免把「已退役的 RAG baseline」與「map 結構層」混為一談：
+
+| 用語 | 意思 | 不是什麼 |
+|---|---|---|
+| **UI：Review scanner suggestions / 檢查 scanner 建議** | Scanner 已掃過；使用者只複核 high-impact 模糊項 | 不是「請使用者從頭畫架構 / Manual Mapping 產品名」 |
+| **Internal：`manual_mapping` / `ManualMappingService`** | Durable user decision lifecycle 的技術擁有者 | 不是主要 UI 文案 |
+| **結構層 / map component（舊口語常叫 baseline component）** | 會進 canonical system map 的 generic component（或過渡期 legacy v1 slot） | 不是「產品仍以 `rag-core-v1` 當分類器」 |
+| **`non_baseline_capability_candidate`** | 使用者確認「這是真實訊號」，但**不屬於** canonical map 拓樸／grounding component；只當 capability overlay 輸入 | 不是 `detected` profile；不是 extension；不是 `rag_variant`；**不是**「我們還有一套 RAG baseline 產品」 |
+| **`rag-core-v1` baseline / hard slots** | Legacy-only template（Plan 00 凍結）；migration / compatibility input | Active product verdict、readiness lens、frontend summary |
+
+白話對照：
+
+```text
+non_baseline_capability_candidate
+  ≈ 「非 map 結構層的能力候選」
+  ≠ 「還在用舊 RAG baseline，這是 baseline 外的變體」
+```
+
+較貼近現在產品、但**本計畫不改契約字串**的同義說法（僅文件／對內溝通用）：
+`non_map_capability_candidate`、`capability_overlay_candidate`、
+`confirmed_capability_signal`（仍不是 `detected`）。
+
+決策分流（Phase2 active）：
+
+```text
+ambiguous evidence
+  -> 對到 generic component type/layer     # 進 canonical map（結構層）
+  -> 對到 conditional grounding dimension  # grounding applicable 時
+  -> non_baseline_capability_candidate     # 不進 map；給 Plan 02
+  -> needs more information / skip
+```
+
+所有權邊界：
+
+```text
+Plan 01（本計畫）  人怎麼確認、怎麼持久化 decision
+Plan 01A           對到哪個 reference node（能力地圖節點）
+Plan 02            evidence assessment → 五態 / profile（才可能 detected）
+Plan 03A           Apply / build lineage（不得在 proposal route 內重做）
+```
 
 ## Contract source of truth
 
@@ -35,12 +87,15 @@ grounding dimension，或確認為 `non_baseline_capability_candidate`。新的�
 
 ### 目標
 
-把「建立 extension」改成三個明確結果：對應 generic component taxonomy、對應
-grounding dimension，或確認為 non-baseline capability candidate。
+把「建立 extension」改成三個明確結果：對應 generic component taxonomy（結構層）、
+對應 grounding dimension，或確認為 non-baseline capability candidate（非 map 結構層
+的能力候選，見上方 glossary）。
 
 ### 背景
 
-現行 router/reranker proposal 會直接走 `NEW_EXTENSION`，使使用者確認、canonical map 與後續 capability inference 混成同一個產品概念。
+現行 router/reranker proposal 會直接走 `NEW_EXTENSION`，使使用者確認、canonical map
+與後續 capability inference 混成同一個產品概念。Phase2 要拆成：durable decision ≠
+map materialization ≠ capability assessment。
 
 ### 目前 code 狀態
 
@@ -62,32 +117,39 @@ grounding dimension，或確認為 non-baseline capability candidate。
 
 ### 驗收標準
 
-新 proposal 不再要求建立 extension；confirmed non-baseline decision 可穩定重播並輸入 profile inference；舊 `new_extension_component` records 仍可讀。
+新 proposal 不再要求建立 extension；confirmed non-baseline decision 可穩定重播並輸入
+profile inference（仍不是直接 `detected`）；舊 `new_extension_component` records 仍可讀。
 
 ### 風險與注意事項
 
-不得把 `capability_candidate` 解讀成互斥 RAG 類型或 canonical topology。
-Durable source of truth 仍是 manual decision lifecycle；sidecar 只是 build
-materialization，canonical component/edge 必須另有 deterministic evidence。
+- 不得把 `capability_candidate` / `non_baseline_capability_candidate` 解讀成互斥 RAG
+  類型、`rag_variant`、或 canonical topology 節點。
+- 不得把契約字串裡的 `non_baseline` 解讀成「產品仍以 `rag-core-v1` 當 baseline」；
+  見 **2026-07-10 Glossary**。
+- Durable source of truth 仍是 manual decision lifecycle；sidecar 只是 build
+  materialization，canonical component/edge 必須另有 deterministic evidence。
+- Frontend 不得用 review state（Confirmed / Skipped）推導 capability 五態。
 
 ## 2026-07-03 Generic AI System 對齊
 
 本節覆蓋本文任何仍以「legacy v1 slot / 非 v1 slot」作為唯一二分法
-的舊例子：
+的舊例子。**Active 二分法**是「是否屬於 canonical map 結構／grounding component」，
+不是「是否屬於 `rag-core-v1` slot」：
 
 ```text
 ambiguous evidence
-  -> generic component mapping
+  -> generic component mapping              # map 結構層
   -> optional grounding-dimension mapping
-  -> non-baseline capability candidate
+  -> non-baseline capability candidate      # 非 map 結構層；能力 overlay 輸入
   -> needs more information / skip
 ```
 
-正式 target contract：
+正式 target contract（字串穩定；語意見 glossary）：
 
 ```text
 ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE
 value = "non_baseline_capability_candidate"
+# 讀作：non-map / capability-overlay candidate；不是「RAG baseline 外變體」
 ```
 
 舊 variant-candidate enum/value 若已存在於外部 records，只能由 compatibility parser
@@ -95,12 +157,12 @@ value = "non_baseline_capability_candidate"
 
 Generic mapping 至少支援 component taxonomy layers：input、knowledge、retrieval、
 context、control、generation、ops。Profile inference 只 consume confirmed candidate
-與 validated facts；candidate confirmation 不等於 profile `detected`。
+與 validated facts；**candidate confirmation 不等於 profile `detected`**。
 
 ## 2026-07-04 UI 命名邊界
 
 本計畫不得把 **Manual Mapping** 當作主要使用者可見名稱，避免使用者誤解成 scanner
-沒有完成工作、必須靠人工重新判斷。
+沒有完成工作、必須靠人工重新判斷。語意對照見 **2026-07-10 Glossary**。
 
 | Surface | Name |
 |---|---|
@@ -111,6 +173,8 @@ context、control、generation、ops。Profile inference 只 consume confirmed c
 | Accepted decision | `Confirmed` |
 | Skipped decision | `Skipped` |
 | Internal persisted lifecycle | `manual_mapping` / `ManualMappingService` |
+| Candidate action（契約 label 可保留） | `Mark as non-baseline capability` |
+| Candidate action helper（必備白話） | 「確認這是能力訊號，但不是系統底圖上的結構元件」 |
 
 Review lifecycle copy（不要與五態 assessment 混用）：
 
@@ -192,21 +256,23 @@ Query-answer flow
 synthesis / composer 類 evidence；它不代表 citation / source mapping 是 active
 product hard requirement。來源可追溯性另由 readiness finding 表達。
 
-### 不屬於 legacy v1 slot 的 evidence（改走 capability candidate）
+### 不屬於 map 結構層的 evidence（改走 capability candidate）
 
 Phase2 不再把 legacy v1 slot completeness 當作 active product verdict。舊 template
-中不適合成為 generic component 的 evidence，應改走 capability candidate 或保留為
-unmapped evidence。歷史上常見的三類如下：
+中不適合成為 generic component（map 結構層）的 evidence，應改走 capability candidate
+或保留為 unmapped evidence——**即使歷史上它們曾掛在某個 v1 slot id 上**。
 
-| Slot id | 典型例子 | 本計畫處置 |
+下表的 Slot id 只是 **legacy 對照**（migration 時可能還看得到），不是 active 產品分類：
+
+| Legacy slot id（對照用） | 典型例子 | 本計畫處置 |
 |---|---|---|
-| `query_processing` | query rewrite、router、filter | 確認後 → `non_baseline_capability_candidate` |
+| `query_processing` | query rewrite、router、filter | 確認後 → `non_baseline_capability_candidate`（不進 map） |
 | `guardrails` | safety / policy / output filter | 同上 |
 | `observability` | trace、metrics、eval hook | 同上 |
 
 scanner 若看到 reranker、router 等類似訊號，**不得**再自動建成 `ExtensionComponent`；
-應留在 unmapped / capability candidate 路徑，等使用者或 Plan 02 profile inference
-處理。
+應留在 unmapped / capability candidate 路徑，等使用者確認後由 Plan 02 做 evidence
+assessment。確認 ≠ `detected`；也不等於寫入 canonical map。
 
 ### 與 extension 的關係（分階段退役）
 
@@ -251,10 +317,16 @@ scanner 若看到 reranker、router 等類似訊號，**不得**再自動建成 
 
 ```text
 unmapped / ambiguous component
-  -> user confirms whether it maps to a generic component or legacy v1 slot
-  -> if yes: existing_slot_mapping
-  -> if no: non_baseline_capability_candidate
-  -> profile inference classifies detected / partial / undetermined / not_detected / conflicted
+  -> user confirms:
+       (a) maps to generic component type/layer
+           （過渡期亦可對到 legacy v1 slot → existing_slot_mapping）
+       (b) maps to conditional grounding dimension（若 applicable）
+       (c) is NOT a map topology/grounding component
+           → non_baseline_capability_candidate
+  -> Plan 01 只持久化 decision；不寫 canonical map topology
+  -> Plan 01A / Plan 02 之後才做 reference-node mapping 與五態 assessment
+  -> profile inference 才可能得到 detected / partial / undetermined /
+     not_detected / conflicted（確認本身 ≠ detected）
 ```
 
 目前受影響的 backend call flow：
@@ -311,6 +383,8 @@ ProfileInferenceService.infer(...)
 ```text
 ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE
 value = "non_baseline_capability_candidate"
+# 語意：非 map 結構層的能力候選（見 2026-07-10 Glossary）
+# 本計畫不 rename 契約字串；文件／UI 說明必須帶白話對照
 ```
 
 新的 proposal candidate type：
@@ -324,9 +398,21 @@ value = "non_baseline_capability_candidate"
 
 ```text
 CapabilityCandidateComponent
+status = "confirmed_non_baseline"   # confirmed decision materialization，不是五態 detected
 ```
 
-這不會寫入 `ai_system_map.json`。它由 `ComponentDetectionResult` 攜帶，之後由 `02-implement-stackable-profile-inference.md` 的 `ProfileInferenceService` 寫入 `profile_signals.json.capability_candidate_components`。
+這不會寫入 `ai_system_map.json`。它由 `ComponentDetectionResult` 攜帶，之後由
+`02-implement-stackable-profile-inference.md` 的 `ProfileInferenceService` 寫入
+`profile_signals.json.capability_candidate_components`。
+
+分層契約（不得混成一步）：
+
+| 層 | 產出 | 擁有者 |
+|---|---|---|
+| Durable decision | confirmed / rejected / skip mapping record | Plan 01 / `ManualMappingService` |
+| Map topology | `components[]` / `edges[]`（需 deterministic evidence） | Step 4 bridge + normalize；generic mapping 才進 |
+| Capability overlay input | `capability_candidate_components` | Plan 01 materialize → Plan 02 consume |
+| Assessment 五態 / profile | `detected` / `partial` / … | Plan 01A + Plan 02；**不是** Plan 01 按確認就寫 |
 
 Legacy 行為：
 
@@ -454,7 +540,10 @@ def test_non_baseline_mapping_candidate_requires_variant_fields() -> None:
         proposed_capability_candidate_name="Reranker",
         proposed_capability_candidate_kind="reranker",
         label="Mark as non-baseline capability candidate",
-        rationale="Reranker-like evidence is outside the legacy v1 slot model.",
+        rationale=(
+            "Reranker-like evidence is not a canonical map topology/grounding "
+            "component; confirm as capability overlay candidate (not detected)."
+        ),
         evidence_ids=["evidence:reranker"],
         rank=1,
         recommendation_level="plausible_candidate",
@@ -1228,13 +1317,18 @@ durable manual mapping。
 ## 驗收標準
 
 - [ ] 新的 Phase2 confirmation 可持久化 `non_baseline_capability_candidate`。
+- [ ] 文件／實作註解／UI helper text 不得把 `non_baseline` 解釋成「仍使用
+  `rag-core-v1` baseline」；應解釋為「非 map 結構層的能力候選」。
 - [ ] 新 API 不再 emit 含 `rag_variant` 的 candidate type；舊 records 可透過
   compatibility alias 讀取。
 - [ ] Ambiguous components 可對應 generic canonical component type/layer，不要求
   repo 先被判定為 RAG。
 - [ ] Grounding mapping 只在 grounding applicable 時顯示與驗證。
 - [ ] Confirmed non-baseline decisions 會 replay 到 `ComponentDetectionResult.capability_candidate_components`。
-- [ ] Confirmed non-baseline decisions 不會建立 `ExtensionComponent`。
+- [ ] Confirmed non-baseline decisions 不會建立 `ExtensionComponent`，也不寫入
+  canonical `ai_system_map.json` topology。
+- [ ] Confirmed non-baseline decisions **不會**直接把 profile／reference-node 設成
+  `detected`（那是 Plan 01A / 02）。
 - [ ] `NEW_EXTENSION` 仍支援 legacy compatibility，但 deterministic proposal heuristics 不再輸出它。
 - [ ] Reranker/router-like evidence 以 unmapped / non-baseline confirmation 呈現，而非 new extension candidate。
 - [ ] Mapping proposal accept 會將 non-baseline candidates 轉換為新的 manual mapping type。
@@ -1248,9 +1342,13 @@ durable manual mapping。
 ## 後續備註
 
 - Frontend 應將 UI copy 從「Confirm as extension」改為
-  `Review scanner suggestions` / `檢查 scanner 建議`，候選 action 可使用
-  `Mark as non-baseline capability`。不得要求使用者先判斷 RAG taxonomy。
+  `Review scanner suggestions` / `檢查 scanner 建議`。候選 action 契約值仍可為
+  `Mark as non-baseline capability`，但 **helper / tooltip 必須白話說明**：
+  「確認這是能力訊號，但不是系統底圖上的結構元件」——不得暗示還在做 RAG
+  baseline 分類。不得要求使用者先判斷 RAG taxonomy。
 - 僅在舊 artifacts 與 clients 不再依賴 `ExtensionComponent` 後，才可在未來 breaking schema migration 中考慮移除它。
+- 若未來要 rename 契約字串（例如 `non_map_capability_candidate`），屬另開
+  compatibility migration；**不在本計畫範圍**。本計畫只鎖定語意與行為。
 - Confirmed decision 儲存後不得直接 mutate 目前載入的 map，也不得自動重新掃描
   repo。Plan `03A-implement-apply-build-lineage-and-local-json-persistence.md` 會提供
   「套用 N 項確認並建立新版本」流程：沿用原 `scan_id` snapshot，建立新的
@@ -1263,8 +1361,9 @@ durable manual mapping。
 
 Manual mapping 仍只處理 ambiguous evidence 的 durable decision，不直接確認 execution path：
 
-- 使用者可確認某段 evidence 是 generic component、legacy v1 slot 或
-  non-baseline capability candidate；這不等於「該 component 位於某次 query path」。
+- 使用者可確認某段 evidence 是 generic component、（過渡期）legacy v1 slot、或
+  non-baseline capability candidate（非 map 結構層）；這不等於「該 component 位於
+  某次 query path」，也不等於 capability `detected`。
 - dynamic `00` 的 call graph / dataflow / execution path recoverer 可以引用已確認的
   component ids 或 candidate refs 作 anchors，但必須保留 static-only limitations。
 - Mapping proposal 不新增「confirm execution step」或「confirm call edge」產品 action。

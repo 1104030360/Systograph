@@ -180,11 +180,11 @@ direct/indirect/explicit-negative evidence 與 field-specific conflict refs 用�
 
 ## Task 1：鎖定 v1 Characterization
 
-- [ ] 為 v1 minimal/rich/legacy-extension fixtures 補 schema、runtime validation、
+- [x] 為 v1 minimal/rich/legacy-extension fixtures 補 schema、runtime validation、
   viewer load、Markdown 與 mapping characterization tests。
-- [ ] 固定 components、flows、evidence、risk、endpoint 與 extension compatibility
+- [x] 固定 components、flows、evidence、risk、endpoint 與 extension compatibility
   的 semantic snapshot；不要只做整份 JSON 字串 snapshot。
-- [ ] 執行：
+- [x] 執行：
 
 ```bash
 .venv/bin/pytest tests/contracts/test_ai_system_map_schema.py \
@@ -196,71 +196,78 @@ Expected：現行 v1 tests 全部通過，作為 adapter regression baseline。
 
 ## Task 2：定義 Generic v2 Model 與 Schema
 
-- [ ] 先寫 failing contract tests，涵蓋 grounded RAG、non-grounded LLM app、
+- [x] 先寫 failing contract tests，涵蓋 grounded RAG、non-grounded LLM app、
   tool-using agent、workflow graph 四種 fixtures。
-- [ ] 新增 `CanonicalComponent`、`CanonicalEdge`、`CanonicalEvidenceLocation`、
+- [x] 新增 `CanonicalComponent`、`CanonicalEdge`、`CanonicalEvidenceLocation`、
   `GroundingReadiness` 與 `AiSystemMapV2`。
-- [ ] 新增五態 assessment、六態 activation、direct/indirect/explicit-negative evidence
+- [x] 新增五態 assessment、六態 activation、direct/indirect/explicit-negative evidence
   kind、field-specific conflict 與 build/snapshot/environment scope models。
-- [ ] Reference map schema 固定 10 planes / 52 nodes；repo overlay 只引用 reference node ids，不把
+- [x] Reference map schema 固定 10 planes / 52 nodes；repo overlay 只引用 reference node ids，不把
   reference nodes 複製成已偵測 repo components。
-- [ ] `not_detected` validation 要求 capability-specific coverage gate 通過；coverage 不足
+- [x] `not_detected` validation 要求 capability-specific coverage gate 通過；coverage 不足
   reject 或降為 `undetermined`。
-- [ ] `extra="forbid"`；遞迴拒絕 `confidence`。
-- [ ] 產生並驗證 `schemas/ai-system-map.v2.schema.json`。
-- [ ] 不在 v2 canonical model 放 profile rows、viewer node ids 或 runtime trace steps。
-- [ ] 新增 generic workflow JSON provider：只在 validated object shape 含明確 node
+- [x] `extra="forbid"`；遞迴拒絕 `confidence`。
+- [x] 產生並驗證 `schemas/ai-system-map.v2.schema.json`。
+- [x] 不在 v2 canonical model 放 profile rows、viewer node ids 或 runtime trace steps。
+- [x] 新增 generic workflow JSON provider：只在 validated object shape 含明確 node
   list與 edge endpoints 時 emit workflow components/edges；evidence location 使用 JSON
   pointer。不得用整份 JSON blob 的字串包含判斷平台或 component type。
-- [ ] Provider 不宣告 Langflow/Dify/Flowise 完整相容；平台專用欄位只保留為
+- [x] Provider 不宣告 Langflow/Dify/Flowise 完整相容；平台專用欄位只保留為
   project-relative evidence metadata。
 
 ## Task 3：實作 v1-to-v2 Adapter
 
-- [ ] 將 v1 slots/instances 轉成 generic components，保留原始 slot id 作
+- [x] 將 v1 slots/instances 轉成 generic components，保留原始 slot id 作
   compatibility metadata。
-- [ ] 將 v1 flows/edges 轉成 generic edges，保留 relationship 與 evidence ids。
-- [ ] 將 legacy extensions 轉成 `legacy_extension` compatibility components；不得
+- [x] 將 v1 flows/edges 轉成 generic edges，保留 relationship 與 evidence ids。
+- [x] 將 legacy extensions 轉成 `legacy_extension` compatibility components；不得
   自動宣告任何 capability profile detected。
-- [ ] 將 v1 unmapped、risk、endpoint 與 evidence 全量保留。
-- [ ] 將 `rag-core-v1` slots / flows 轉成 generic v2 components / edges / evidence
+- [x] 將 v1 unmapped、risk、endpoint 與 evidence 全量保留。
+- [x] 將 `rag-core-v1` slots / flows 轉成 generic v2 components / edges / evidence
   metadata；不得輸出 compatibility-derived product verdict。
-- [ ] Adapter 必須 pure/read-only，不讀 filesystem、不呼叫 LLM、不寫 artifact。
+- [x] Adapter 必須 pure/read-only，不讀 filesystem、不呼叫 LLM、不寫 artifact。
 
 ## Task 4：新增 Dual-read Loader 與 Opt-in v2 Build
 
-- [ ] `CanonicalMapLoader` 依 `schema_version` 驗證 v1/v2；v1 載入後透過 adapter
+- [x] `CanonicalMapLoader` 依 `schema_version` 驗證 v1/v2；v1 載入後透過 adapter
   提供 normalized v2 view。
-- [ ] Map build 新增 explicit opt-in contract selection；compatibility 階段預設仍為
+- [x] Map build 新增 explicit opt-in contract selection；compatibility 階段預設仍為
   v1，禁止 silent cutover。
 - [ ] Viewer、profile inference、readiness renderer 逐步改讀 normalized view，不在
   routes 各自判斷 schema version。
-- [ ] CLI/API 回傳實際 active schema version 與 migration warnings。
+  （00A 僅提供 loader / normalized map；Viewer / profile / readiness 仍直接吃 v1，
+  見 2026-07-10 REP 剩餘風險。不可當 Gate-0 已通過證據。）
+- [x] CLI/API 回傳實際 active schema version 與 migration warnings。
 
 ## Task 5：Compatibility Gate
 
-- [ ] v1 fixture 經 adapter 後，所有 evidence ids 與 project-relative locations
+- [x] v1 fixture 經 adapter 後，所有 evidence ids 與 project-relative locations
   可解析。
 - [ ] v1/v2 對同一 grounded fixture 的 generic components、edges、evidence 與
   readiness findings 可回溯且語意等價。
-- [ ] v2 的非 grounded fixtures 不被強迫填入 RAG slots。
-- [ ] v1 viewer/API clients 仍可使用既有 payload。
-- [ ] Windows/macOS path fixtures 都通過。
-- [ ] 完整 backend contract/unit/web tests、Ruff、Mypy 通過。
-- [ ] 產生 compatibility report，列出已等價、需降級、尚未遷移的 consumers。
+  （components/edges/evidence 等價已覆蓋；readiness findings equivalence 仍 deferred，
+  不在 00A 完成範圍。）
+- [x] v2 的非 grounded fixtures 不被強迫填入 RAG slots。
+- [x] v1 viewer/API clients 仍可使用既有 payload。
+- [x] Windows/macOS path fixtures 都通過。
+- [x] 完整 backend contract/unit/web tests、Ruff、Mypy 通過。
+  （2026-07-10 初版 REP 宣稱通過，但 review 發現 E501 / Literal.__args__ 未過；
+  已由 2026-07-10-00a-review-p1-fixes 補齊並重新驗證。）
+- [x] 產生 compatibility report，列出已等價、需降級、尚未遷移的 consumers。
 
 ## Acceptance Criteria
 
-- [ ] v1 remains readable and test-covered。
-- [ ] v2 schema 可表示四象限 AI systems 與 workflow artifacts。
-- [ ] v2 assessment 支援五態、六態 activation、field-specific conflict、三種 evidence
+- [x] v1 remains readable and test-covered。
+- [x] v2 schema 可表示四象限 AI systems 與 workflow artifacts。
+- [x] v2 assessment 支援五態、六態 activation、field-specific conflict、三種 evidence
   kind 與 build/snapshot/environment scope。
-- [ ] 固定 10-plane / 52-node reference map 與 per-repo overlay 可分開 validate。
-- [ ] v1-to-v2 adapter deterministic、read-only、無 evidence loss。
-- [ ] Dual-read loader 是 schema branching 的唯一 owner。
-- [ ] 未通過 compatibility gate 前，active output 不切換至 v2。
-- [ ] Plan 13 明確依賴本計畫的 compatibility report 與 gate。
+- [x] 固定 10-plane / 52-node reference map 與 per-repo overlay 可分開 validate。
+- [x] v1-to-v2 adapter deterministic、read-only、無 evidence loss。
+- [x] Dual-read loader 是 schema branching 的唯一 owner。
+- [x] 未通過 compatibility gate 前，active output 不切換至 v2。
+- [x] Plan 13 明確依賴本計畫的 compatibility report 與 gate。
 - [ ] Plan 14 同時驗證 v1 migration fixtures 與 final active v2 output。
+  （00A 已提供 fixtures / gate / report；實際 Plan 14 執行仍屬後續計畫）
 
 ## Out Of Scope
 

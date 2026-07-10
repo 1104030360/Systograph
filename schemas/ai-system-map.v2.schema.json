@@ -1,0 +1,739 @@
+{
+  "$defs": {
+    "CanonicalCandidateFact": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_fact_id": {
+          "title": "Candidate Fact Id",
+          "type": "string"
+        },
+        "candidate_kind": {
+          "const": "legacy_extension",
+          "title": "Candidate Kind",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "source_component_id": {
+          "title": "Source Component Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "metadata": {
+          "$ref": "#/$defs/CanonicalCandidateFactMetadata"
+        }
+      },
+      "required": [
+        "candidate_fact_id",
+        "candidate_kind",
+        "display_name",
+        "source_component_id",
+        "metadata"
+      ],
+      "title": "CanonicalCandidateFact",
+      "type": "object"
+    },
+    "CanonicalCandidateFactMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "source_extension_id": {
+          "title": "Source Extension Id",
+          "type": "string"
+        },
+        "confirmed_by_user": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confirmed By User"
+        },
+        "source_status": {
+          "title": "Source Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_extension_id",
+        "source_status"
+      ],
+      "title": "CanonicalCandidateFactMetadata",
+      "type": "object"
+    },
+    "CanonicalComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "component_id": {
+          "title": "Component Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "canonical_type": {
+          "title": "Canonical Type",
+          "type": "string"
+        },
+        "layer": {
+          "enum": [
+            "input_intent",
+            "control",
+            "ingestion_indexing",
+            "retrieval",
+            "extension_subsystems",
+            "evidence",
+            "generation",
+            "memory_state",
+            "governance_observability",
+            "deployment_topology",
+            "undetermined"
+          ],
+          "title": "Layer",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "detected",
+            "missing",
+            "not_configured",
+            "not_applicable",
+            "confirmed",
+            "partial",
+            "undetermined"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "activation": {
+          "enum": [
+            "enabled",
+            "disabled",
+            "conditional",
+            "unknown",
+            "conflicted",
+            "not_applicable"
+          ],
+          "title": "Activation",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "framework": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Framework"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "component_id",
+        "display_name",
+        "canonical_type",
+        "layer",
+        "status",
+        "activation"
+      ],
+      "title": "CanonicalComponent",
+      "type": "object"
+    },
+    "CanonicalEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "relationship": {
+          "title": "Relationship",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "observed",
+            "detected",
+            "undetermined"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "undetermined_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Undetermined Reason"
+        }
+      },
+      "required": [
+        "edge_id",
+        "source",
+        "target",
+        "relationship",
+        "status"
+      ],
+      "title": "CanonicalEdge",
+      "type": "object"
+    },
+    "CanonicalEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "endpoint_id": {
+          "title": "Endpoint Id",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "endpoint_type": {
+          "enum": [
+            "local",
+            "external"
+          ],
+          "title": "Endpoint Type",
+          "type": "string"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "component_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Id"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "endpoint_id",
+        "value",
+        "endpoint_type"
+      ],
+      "title": "CanonicalEndpoint",
+      "type": "object"
+    },
+    "CanonicalEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "artifact_type": {
+          "title": "Artifact Type",
+          "type": "string"
+        },
+        "evidence_kind": {
+          "enum": [
+            "direct",
+            "indirect",
+            "explicit_negative"
+          ],
+          "title": "Evidence Kind",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/CanonicalEvidenceLocation"
+        },
+        "extract_summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extract Summary"
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Id"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "artifact_type",
+        "evidence_kind",
+        "location"
+      ],
+      "title": "CanonicalEvidence",
+      "type": "object"
+    },
+    "CanonicalEvidenceLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "start_line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Line"
+        },
+        "end_line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Line"
+        },
+        "json_pointer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Json Pointer"
+        },
+        "config_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Config Key"
+        }
+      },
+      "title": "CanonicalEvidenceLocation",
+      "type": "object"
+    },
+    "CanonicalProject": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "root_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root Path"
+        },
+        "root_path_redacted": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root Path Redacted"
+        },
+        "path_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path Mode"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "CanonicalProject",
+      "type": "object"
+    },
+    "CanonicalRiskHint": {
+      "additionalProperties": false,
+      "properties": {
+        "risk_id": {
+          "title": "Risk Id",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "target_type": {
+          "enum": [
+            "component",
+            "endpoint",
+            "evidence",
+            "file"
+          ],
+          "title": "Target Type",
+          "type": "string"
+        },
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "uncertainty": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty"
+        },
+        "severity_hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Severity Hint"
+        }
+      },
+      "required": [
+        "risk_id",
+        "type",
+        "target",
+        "target_type",
+        "evidence_id",
+        "rule_id",
+        "rationale"
+      ],
+      "title": "CanonicalRiskHint",
+      "type": "object"
+    },
+    "CanonicalUnmappedComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "unmapped_id": {
+          "title": "Unmapped Id",
+          "type": "string"
+        },
+        "observed_kind": {
+          "title": "Observed Kind",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "source_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source File"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "suggested_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Suggested Actions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "unmapped_id",
+        "observed_kind",
+        "status",
+        "reason"
+      ],
+      "title": "CanonicalUnmappedComponent",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "ai-system-map/v2",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "system_type": {
+      "const": "ai_system",
+      "title": "System Type",
+      "type": "string"
+    },
+    "scan_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scan Id"
+    },
+    "build_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Build Id"
+    },
+    "environment_id": {
+      "default": "environment:default-static",
+      "title": "Environment Id",
+      "type": "string"
+    },
+    "generated_from_build_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Generated From Build Id"
+    },
+    "source_schema_version": {
+      "anyOf": [
+        {
+          "enum": [
+            "ai-system-map/v1",
+            "ai-system-map/v2"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Schema Version"
+    },
+    "migration_warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Migration Warnings",
+      "type": "array"
+    },
+    "project": {
+      "$ref": "#/$defs/CanonicalProject"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/$defs/CanonicalComponent"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/CanonicalEdge"
+      },
+      "title": "Edges",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/CanonicalEvidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "endpoints": {
+      "items": {
+        "$ref": "#/$defs/CanonicalEndpoint"
+      },
+      "title": "Endpoints",
+      "type": "array"
+    },
+    "risk_hints": {
+      "items": {
+        "$ref": "#/$defs/CanonicalRiskHint"
+      },
+      "title": "Risk Hints",
+      "type": "array"
+    },
+    "unmapped_components": {
+      "items": {
+        "$ref": "#/$defs/CanonicalUnmappedComponent"
+      },
+      "title": "Unmapped Components",
+      "type": "array"
+    },
+    "candidate_facts": {
+      "items": {
+        "$ref": "#/$defs/CanonicalCandidateFact"
+      },
+      "title": "Candidate Facts",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "system_type",
+    "project"
+  ],
+  "title": "AiSystemMapV2",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kai-mind.local/schemas/ai-system-map.v2.schema.json"
+}
