@@ -13,31 +13,40 @@ KAI-Mind 是開發者工具，不是醫療診斷、治療、臨床決策或醫�
 
 ## 目前能力與目標能力
 
-README 必須區分「目前程式碼已能執行」與「roadmap / Phase2 target」，避免把設計文件寫成
-已交付功能。
+README 必須區分「目前程式碼已能執行」與「roadmap / 尚未交付」，避免把設計文件寫成
+已完成產品功能。
 
-### 目前已實作
+### 目前已實作（含 Phase2 S1 pipeline-core 後端）
 
 - deterministic-first scanner：先以 filesystem、config、dependency、Docker 與 code pattern
-  providers 擷取結構化 facts / evidence。
-- `ai-system-map/v1` canonical artifact、Markdown summary 與 Viewer projection。
-- CLI、FastAPI local web API 與 frontend Viewer 共用同一套 core services。
-- scan boundary review、project-relative path、secret masking 與 snapshot safety checks。
-- sample projects、contract tests、scanner integration tests 與 frontend 基礎串接。
-- Project / latest Viewer state 目前仍是 process-local memory；backend restart 後不保留 history。
+  providers 擷取結構化 facts / evidence（Understand-Anything 結構主掃仍為後續 Phase）。
+- `ai-system-map/v1` 仍為 **active canonical** artifact；另有 v2 compatibility migration／
+  internal normalized v2（`active` 尚未切到 v2）。
+- 每次成功 build 可 atomic publish **10 public siblings**（map／Markdown／Mermaid、
+  `profile_signals.json`、`readiness_report.json`、static execution JSON 等）。
+- package-bundled **10-plane / 52-node** capability reference catalog 與 **15 MVP profiles**；
+  `ProfileInferenceService` 為確定性 Python 評估（與 mapping proposal 運行時分離）。
+- durable local JSON state：`${KAI_MIND_STATE_DIR:-~/.kai-mind}`，含 project／scan／build
+  lineage、manual mappings、latest pointer；支援 restart recovery。
+- Apply confirmations、map-builds query／history、Detail Scan child build、Trace build binding。
+- CLI（`kai-mind`）、FastAPI local web API 與 frontend Viewer 共用同一套 core services。
+- scan boundary review、path redaction、secret masking 與 snapshot safety checks。
+- sample projects、contract／unit／integration／web／e2e tests 與 frontend 基礎串接
+  （import → scans → map／SSE）。
 
-### Phase2 目標，尚未全部實作
+### 尚未全部實作／仍屬後續目標
 
-- `ai-system-map/v2` 與 `scan_id` / immutable `build_id` lineage。
-- local JSON persistence、Apply、restart recovery 與 project-scoped build history。
-- 10-plane / 52-node Capability Map、15 profiles 與 `profile_signals.json`。
-- `readiness_report.json`、evidence-backed findings，以及 backend-owned
-  `ready` / `needs_review` / `blocked` release verdict。
-- static call graph、dataflow hints、execution paths 與 evidence table。
-- frontend v2 cutover、Graph Studio 與 CI release gate。
+- 將 `ai-system-map/v2` 切成 **active** canonical（Plan 13／cutover）。
+- Understand-Anything 結構掃描升為主掃（Phase B／C）與舊 TOML 主掃退役。
+- frontend v2 cutover、Graph Studio、profile／readiness 完整 UI、Apply button 產品流。
+- CI／產品級 release gate，以及對外宣稱穩定的單一 `READY`／`RISKY`／`NOT READY` runtime
+  verdict UX（後端已有 `readiness_report.json` 與 evidence-backed findings；正式產品
+  verdict／CI gate 仍以後續 Epic／contract 為準）。
+- runtime component trace（deferred）與 AssessmentOrchestrator（不做／deferred）。
 
-因此，目前 UI、README 或 demo 不應把 `READY`、`RISKY`、`NOT READY` 描述成已完成的
-runtime verdict。正式 verdict 以 Phase2/Epic 6 contract 與對應實作完成後為準。
+因此，demo 或 UI 不應把「正式 release gate 已上線」寫成現況；請以
+[`docs/MODEL-CONTRACT.md`](docs/MODEL-CONTRACT.md) 與
+[`docs/API-GUIDE.md`](docs/API-GUIDE.md) 的 current 標記為準。
 
 這個專案不是 AI chatbot、RAG builder，也不是完整 observability 平台。它的核心邊界是：
 掃描一套已存在的 AI 系統，建立 canonical AI System Map，並用 evidence 支援後續 readiness
@@ -45,7 +54,8 @@ runtime verdict。正式 verdict 以 Phase2/Epic 6 contract 與對應實作完�
 
 ## 產品方向
 
-KAI-Mind 應該先以跨平台核心為主。Epic 1 目前優先支援 GUI / local web UI，但 scanner core 必須獨立，CLI、Web API、launcher 與 CI 都不可重複實作 core scanner logic。
+KAI-Mind 應該先以跨平台核心為主。Epic 1 目前優先支援 GUI / local web UI，但 scanner core
+必須獨立，CLI、Web API、launcher 與 CI 都不可重複實作 core scanner logic。
 
 ```text
 Core Engine
@@ -57,7 +67,8 @@ Core Engine
     +-- CI / GitHub Actions
 ```
 
-這樣可以避免做成只能在 Windows 開啟的 `.exe`，並讓核心 scanner 可以同時支援 Windows、macOS、Linux、本機開發與 CI。
+這樣可以避免做成只能在 Windows 開啟的 `.exe`，並讓核心 scanner 可以同時支援 Windows、
+macOS、Linux、本機開發與 CI。
 
 ## MVP 模組
 
@@ -72,33 +83,39 @@ Core Engine
 - [Epic 6：Release Report & CI Gate](https://github.com/1104030360/Local-AI-Health-Doctor/issues/7)
 - [Epic 7：Distribution & Integrations](https://github.com/1104030360/Local-AI-Health-Doctor/issues/8)
 
-建議從 Epic 1 開始開發。其他 Epic 先保留為 roadmap 層級的 Parent Issue，等 System Map Builder 能產出第一版可用的 `ai_system_map.json` 後，再往下一個模組推進。
+Epic 1 已能產出可用的 `ai_system_map.json` 與 Phase2 S1 後端契約；後續依 Phase2 static
+pipeline／各 Epic 子任務推進，不要把未合併的 design-only 文件當成已交付。
 
 ## 重要文件
 
-- [Epic 1 設計文件](docs/design/epic1.md)
-- [Epic 1 backend design](docs/work/Timmy/design/epic1-backend-design.md)
-- [Epic 1 scan pipeline research](docs/work/Timmy/design/epic1-scan-pipeline-research.md)
-- [Task 1：Python backend foundation](docs/work/Timmy/schedule/plan/finish/01-setup-python-backend-foundation.md)
+| 用途 | 文件 |
+|------|------|
+| HTTP 契約 | [`docs/API-GUIDE.md`](docs/API-GUIDE.md) |
+| Artifact／欄位語意 | [`docs/MODEL-CONTRACT.md`](docs/MODEL-CONTRACT.md) |
+| Phase2 設計基線 | [`docs/design/epic1-phase2.md`](docs/design/epic1-phase2.md) |
+| Epic 1 設計 | [`docs/design/epic1.md`](docs/design/epic1.md) |
+| Frontend JSON handoff | [`docs/work/Timmy/design/EPIC1/frontend-json-handoff/`](docs/work/Timmy/design/EPIC1/frontend-json-handoff/) |
+| Phase2 執行計畫 | [`docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/`](docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/) |
+| API trace scripts | [`scripts/trace_*.sh`](scripts/) |
 
-## 建議的第一階段開發流程
+## 建議的開發流程
 
-1. 選定 Epic 1：System Map Builder。
-2. 依照 Epic 1 sub-issues `#23` 到 `#46` 逐步開發。
-3. 每個 task issue 開一條 branch，例如 `chore/setup-uv-python-backend-foundation`。
-4. 開 PR 合併回 `main`。
-5. PR body 使用 `Closes #<issue-number>` 關聯對應 task issue。
-6. 合併前需要 human review 加上 Codex review。
-7. Epic 1 可用後，再開始拆 Epic 2。
+1. 從對應 Epic／Phase2 task issue 開 branch（一例：`feat/phase2/s1-pipeline-core`）。
+2. 每個 task issue 一條 branch；PR body 使用 `Closes #<issue-number>`（或 `Ref`）。
+3. 合併前需要 human review 加上 Codex review。
+4. 契約變更時同步 `docs/API-GUIDE.md` 與 `docs/MODEL-CONTRACT.md`。
+5. 本機 API 驗收可用 `scripts/trace_*.sh`；前後端一起跑用 `uv run python scripts/dev.py`。
 
 ## 工作原則
 
-- Scanner 預設必須是 read-only。
+- Scanner 預設必須是 read-only（對**被掃專案**）；寫入僅限明確的 state／output 目錄。
 - 產品預設採 local-first privacy。
 - 不顯示完整 secret value。
-- 報告要提供 evidence，不只給分數。
+- 報告要提供 evidence，不只給不透明總分。
 - Packaging 要和 core scanner 分離。
-- 先穩定 CLI 與 JSON report，再打磨 launcher。
+- **Two-Phase Analysis**：先確定性結構 facts，再視需要做語意分析；禁止把原始碼整包丟給 LLM
+  做黑箱架構發現。
+- Core engine 行為獨立於 platform launchers。
 
 ## Backend 結構
 
@@ -106,16 +123,24 @@ Core Engine
 
 ```text
 src/kai_mind/
-  core/   # 核心 scanner、services、models，不能依賴 CLI 或 Web adapter
-  web/    # local web API / FastAPI adapter
-  cli/    # command-line adapter
-tests/    # smoke tests 與後續 scanner fixtures / contract tests
+  core/       # services、models、providers、rules（不可依賴 web／cli）
+  web/        # FastAPI adapter（routes／schemas／Depends／session）
+  cli/        # Typer adapter（kai-mind）
+  storage/    # 薄 re-export；durable JSON 在 core/providers
+tests/        # unit／integration／contracts／web／cli／e2e／fixtures
 ```
 
 依賴方向固定：
 
 ```text
 Web / CLI adapters -> Core services -> Providers / Models
+```
+
+兩種持久化平面：
+
+```text
+~/.kai-mind（或 KAI_MIND_STATE_DIR）  → project／scan／build／mapping／latest
+專案 output_dir                       → 10 sibling artifacts（map／profile／…）
 ```
 
 ## Backend 開發命令（UV）
@@ -125,12 +150,6 @@ Web / CLI adapters -> Core services -> Providers / Models
 - `pyproject.toml`：宣告專案 metadata、runtime dependencies、dev dependencies。
 - `uv.lock`：固定 dev/CI 實際安裝版本。
 - `.venv/`：UV 依照 `uv.lock` 建立的本機虛擬環境，不需要 commit。
-
-VS Code interpreter 請選：
-
-```text
-/Users/linjunting/Local_AI_Health_Doctor/.venv/bin/python
-```
 
 ### 第一次設定
 
@@ -162,15 +181,20 @@ uv sync
 
 ```bash
 uv run pytest
-uv run ruff check .
+uv run ruff check src tests
+uv run mypy .
+uv run kai-mind --help
+# 或
 uv run python -m kai_mind.cli.main --help
 ```
 
-`uv run` 會在專案環境裡執行命令，不需要先手動啟用 `.venv`。
+`uv run` 會在專案環境裡執行命令，不需要先手動啟用 `.venv`。正式 lint gate 以
+`ruff check src tests` 為準（全 repo 裸 `ruff check .` 可能掃到參考樹）。
 
 ### 一鍵啟動前後端
 
-開發 Viewer / Mapping UI 時，可以在專案根目錄同時啟動後端 API 與前端 Vite dev server：
+開發 Viewer / Mapping UI 時，可以在專案根目錄同時啟動後端 API 與前端 Vite
+dev server：
 
 ```bash
 uv run python scripts/dev.py
@@ -178,7 +202,7 @@ uv run python scripts/dev.py
 
 預設啟動：
 
-- 後端 API：`http://127.0.0.1:8000`
+- 後端 API：`http://127.0.0.1:8000`（OpenAPI：`/docs`）
 - 前端：`http://127.0.0.1:5173`
 
 如果前端依賴還沒安裝，先執行：
@@ -187,7 +211,8 @@ uv run python scripts/dev.py
 corepack pnpm --dir frontend install
 ```
 
-`scripts/dev.py` 只負責啟動本機 dev server，不會自動安裝套件；按 `Ctrl+C` 會一起停止前後端。
+`scripts/dev.py` 只負責啟動本機 dev server，不會自動安裝套件；按 `Ctrl+C` 會一起停止
+前後端。前端 API base 預設 `http://127.0.0.1:8000`，可用 `VITE_API_BASE_URL` 覆寫。
 
 ### 修改依賴
 
@@ -215,4 +240,5 @@ uv lock
 uv lock --check
 ```
 
-原則：不要手動編輯 `uv.lock`；要改依賴就改 `pyproject.toml` 或使用 `uv add`，再讓 UV 重新產生 lock。
+原則：不要手動編輯 `uv.lock`；要改依賴就改 `pyproject.toml` 或使用 `uv add`，再讓 UV
+重新產生 lock。
