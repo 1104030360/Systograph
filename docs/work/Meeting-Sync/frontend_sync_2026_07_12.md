@@ -45,8 +45,9 @@
 
 ## 3. 前端待處理（依序）
 
-1. （進行中）接 build-scoped API：`GET /api/projects/{id}/map-builds/latest`
+1. （已完成 2026-07-12）接 build-scoped API：`GET /api/projects/{id}/map-builds/latest`
    為 API mode 主要載入路徑，`/api/map` 降為 fallback；lineage 與 warnings 上 UI。
+   已對真實 backend 走完 import → scan → latest 全流程驗證。
 2. Build history 切換：`GET /api/projects/{id}/map-builds` 清單 +
    `GET /api/map-builds/{build_id}` 載入歷史 build。
 3. Apply 流程：review queue UI + `POST /api/map-builds/{base}/apply`
