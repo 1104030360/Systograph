@@ -27,8 +27,13 @@ import { createProgressTargets, resolveProgressTargetId } from "./utils/graph";
 const EMPTY_GRAPH: GraphViewModel = {
   nodes: [],
   edges: [],
-  details: { evidence_by_id: {}, risk_hints_by_id: {} },
-  filters: { available: [] },
+  details: {
+    evidence_by_id: {},
+    risk_hints_by_id: {},
+    profile_findings_by_id: {},
+    capability_candidates_by_id: {},
+  },
+  filters: { available: [], lenses: [] },
 };
 
 const MAP_KEY: Array<[string, string]> = [

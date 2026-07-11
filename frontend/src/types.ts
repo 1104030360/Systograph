@@ -2,23 +2,54 @@ import { z } from "zod";
 
 const stringArray = z.array(z.string()).default([]);
 
+export const assessmentStatusSchema = z.enum([
+  "detected",
+  "partial",
+  "undetermined",
+  "not_detected",
+  "conflicted",
+]);
+
+export const activationStateSchema = z.enum([
+  "enabled",
+  "disabled",
+  "conditional",
+  "unknown",
+  "conflicted",
+  "not_applicable",
+]);
+
 export const graphNodeSchema = z.object({
   id: z.string(),
   source_id: z.string().optional(),
   type: z.string().optional(),
   slot: z.string().nullable().optional(),
   status: z.string().optional(),
+  activation: activationStateSchema.optional(),
+  semantic_kind: z.string().optional(),
+  plane_id: z.string().nullable().optional(),
+  reference_node_id: z.string().nullable().optional(),
   label: z.string(),
   subtitle: z.string().nullable().optional(),
   badges: stringArray,
   evidence_ids: stringArray,
+  direct_evidence_ids: stringArray,
+  indirect_evidence_ids: stringArray,
+  explicit_negative_evidence_ids: stringArray,
+  conflict_fields: stringArray,
   risk_hint_ids: stringArray,
+  profile_id: z.string().nullable().optional(),
+  primary_anchor_node_id: z.string().nullable().optional(),
+  anchor_node_ids: stringArray,
+  related_unmapped_component_ids: stringArray,
+  related_capability_candidate_component_ids: stringArray,
+  related_risk_hint_ids: stringArray,
 });
 
 export const graphEdgeSchema = z.object({
   id: z.string(),
   source_id: z.string().optional(),
-  flow_id: z.string().optional(),
+  flow_id: z.string().nullable().optional(),
   from: z.string(),
   to: z.string(),
   relationship: z.string().optional(),
@@ -56,6 +87,28 @@ export const graphFilterSchema = z.object({
   matches_edge_ids: stringArray,
 });
 
+export const graphLensSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  supported: z.boolean().default(true),
+  unavailable_reason: z.string().nullable().optional(),
+  matches_node_ids: stringArray,
+  matches_edge_ids: stringArray,
+});
+
+export const mappingCompletenessSchema = z.object({
+  numerator: z.number().nonnegative(),
+  denominator: z.number().positive(),
+  value: z.number().min(0).max(1),
+  weights: z.object({
+    detected: z.number(),
+    partial: z.number(),
+    undetermined: z.number(),
+    not_detected: z.number(),
+    conflicted: z.number(),
+  }),
+});
+
 export const scanSummarySchema = z
   .object({
     status: z.string().optional(),
@@ -75,6 +128,13 @@ export type ScanSummary = z.infer<typeof scanSummarySchema>;
 export const graphViewModelSchema = z.object({
   schema_version: z.string().optional(),
   source_schema_version: z.string().nullable().optional(),
+  project_id: z.string().optional(),
+  scan_id: z.string().optional(),
+  build_id: z.string().optional(),
+  environment_id: z.string().optional(),
+  generated_from_build_id: z.string().optional(),
+  reference_map_version: z.string().optional(),
+  mapping_completeness: mappingCompletenessSchema.optional(),
   map_json: z.string().nullable().optional(),
   summary: z.record(z.unknown()).nullable().optional(),
   nodes: z.array(graphNodeSchema),
@@ -82,14 +142,17 @@ export const graphViewModelSchema = z.object({
   details: z.object({
     evidence_by_id: z.record(evidenceDetailSchema).default({}),
     risk_hints_by_id: z.record(riskHintDetailSchema).default({}),
+    profile_findings_by_id: z.record(z.record(z.unknown())).default({}),
+    capability_candidates_by_id: z.record(z.record(z.unknown())).default({}),
   }),
   filters: z.object({
     available: z.array(graphFilterSchema).default([]),
+    lenses: z.array(graphLensSchema).default([]),
     behavior: z.string().nullable().optional(),
   }),
 });
 
-export const viewerPayloadSchema = z.object({
+export const legacyViewerPayloadSchema = z.object({
   sample_meta: z.record(z.unknown()).optional(),
   viewer_load_result: z.object({
     loaded: z.boolean(),
@@ -107,6 +170,62 @@ export const viewerPayloadSchema = z.object({
     ),
     graph_view_model: graphViewModelSchema,
   }),
+  trace_result_samples: z.record(z.record(z.unknown())).optional(),
+  detail_scan_result_sample: z.record(z.unknown()).optional(),
+  mapping_proposal_result_sample: z.record(z.unknown()).optional(),
+  invalid_map_error_sample: z.record(z.unknown()).optional(),
+});
+
+export const artifactRefSchema = z.object({
+  artifact_id: z.string(),
+  artifact_type: z.string(),
+  file_name: z
+    .string()
+    .min(1)
+    .refine((value) => !value.includes("/") && !value.includes("\\"), "file_name must be a basename"),
+  media_type: z.string(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/i),
+  size_bytes: z.number().int().nonnegative(),
+});
+
+export const frontendAiSystemMapSchema = z.record(z.unknown()).and(
+  z.object({
+    schema_version: z.string().optional(),
+    system_type: z.string().optional(),
+    scan_id: z.string().optional(),
+    build_id: z.string().optional(),
+    environment_id: z.string().optional(),
+    generated_from_build_id: z.string().optional(),
+    scan_depth: z.string().optional(),
+    scan_summary: scanSummarySchema.optional(),
+    query_trace_events: z.array(z.record(z.unknown())).optional(),
+    unmapped_components: z.array(z.record(z.unknown())).optional(),
+  }),
+);
+
+export const frontendViewerLoadResultSchema = z.object({
+  loaded: z.boolean(),
+  error_reason: z.string().nullable().optional(),
+  warnings: stringArray,
+  project_id: z.string().nullable(),
+  scan_id: z.string().nullable(),
+  build_id: z.string().nullable(),
+  environment_id: z.string().nullable(),
+  generated_from_build_id: z.string().nullable(),
+  based_on_build_id: z.string().nullable().optional(),
+  applied_mapping_ids: stringArray,
+  artifact_refs: z.array(artifactRefSchema).default([]),
+  map_json: z.string().nullable().optional(),
+  ai_system_map: frontendAiSystemMapSchema,
+  profile_inference_result: z.record(z.unknown()).nullable(),
+  readiness_report: z.record(z.unknown()).nullable(),
+  graph_view_model: graphViewModelSchema,
+});
+
+export const viewerPayloadSchema = z.object({
+  contract_source: z.enum(["legacy-v1", "phase2"]),
+  viewer_load_result: frontendViewerLoadResultSchema,
+  sample_meta: z.record(z.unknown()).optional(),
   trace_result_samples: z.record(z.record(z.unknown())).optional(),
   detail_scan_result_sample: z.record(z.unknown()).optional(),
   mapping_proposal_result_sample: z.record(z.unknown()).optional(),
@@ -135,6 +254,9 @@ export type GraphEdgeModel = z.infer<typeof graphEdgeSchema>;
 export type GraphFilterModel = z.infer<typeof graphFilterSchema>;
 export type GraphViewModel = z.infer<typeof graphViewModelSchema>;
 export type ViewerPayload = z.infer<typeof viewerPayloadSchema>;
+export type ArtifactRef = z.infer<typeof artifactRefSchema>;
+export type AssessmentStatus = z.infer<typeof assessmentStatusSchema>;
+export type ActivationState = z.infer<typeof activationStateSchema>;
 export type ScanProgressEvent = z.infer<typeof scanProgressEventSchema>;
 
 export type DataSourceMode = "sample" | "api";
