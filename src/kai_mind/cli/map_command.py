@@ -78,6 +78,8 @@ def map_command(
         typer.echo(str(result.map_json_path))
     if result.map_markdown_path is not None:
         typer.echo(str(result.map_markdown_path))
+    if result.profile_signals_path is not None:
+        typer.echo(str(result.profile_signals_path))
     typer.echo(f"active_schema_version={result.active_schema_version}")
     typer.echo(f"requested_schema_version={result.requested_schema_version}")
     for warning in result.migration_warnings:

@@ -215,7 +215,7 @@ def test_proposal_decision_edit_creates_manual_mapping(
     assert payload["manual_mapping"]["component_name"] == "Edited Chroma"
 
 
-def test_proposal_decision_skip_for_now_is_terminal(
+def test_proposal_decision_skip_for_now_returns_durable_mapping(
     tmp_path: Path,
 ) -> None:
     client = create_deterministic_test_app()
@@ -236,7 +236,10 @@ def test_proposal_decision_skip_for_now_is_terminal(
     assert response.status_code == 200
     payload = response.json()
     assert payload["proposal"]["status"] == "skipped"
-    assert payload["manual_mapping"] is None
+    assert payload["manual_mapping"]["decision"] == "skip_for_now"
+    assert payload["manual_mapping"]["audit_metadata"]["actor_surface"] == (
+        "mapping_proposal"
+    )
 
 
 def test_proposal_decision_missing_proposal_returns_404() -> None:

@@ -48,7 +48,7 @@ done
 kai_bootstrap_server
 
 if [[ -z "$PROJECT_ID" ]]; then
-  kai_section "Setup: import + scan + create one proposal"
+  kai_section "準備：匯入 + 掃描 + 先建一筆 proposal"
   PROJECT_ID="$(kai_import_project)"
   SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
   UNMAPPED_ID="$(kai_first_unmapped_id "$SCAN_JSON")"
@@ -58,7 +58,8 @@ if [[ -z "$PROJECT_ID" ]]; then
 fi
 
 ENCODED_ID="$(kai_urlencode "$PROJECT_ID")"
-kai_section "GET /api/mapping-proposals"
+kai_section "列出 proposals：GET /api/mapping-proposals"
+kai_progress "現在要列出此專案的 mapping proposals..."
 api_call GET "/api/mapping-proposals?project_id=$ENCODED_ID"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

@@ -82,95 +82,12 @@ V2_SCHEMA_VERSION: Final[V2SchemaVersion] = "ai-system-map/v2"
 V2_SYSTEM_TYPE: Final[V2SystemType] = "ai_system"
 DEFAULT_ENVIRONMENT_ID: Final[str] = "environment:default-static"
 REFERENCE_MAP_VERSION: Final[str] = "1"
+REFERENCE_PLANE_COUNT: Final[int] = 10
 REFERENCE_NODE_COUNT: Final[int] = 52
 JSON_SCHEMA_DRAFT: Final[str] = "https://json-schema.org/draft/2020-12/schema"
 V2_SCHEMA_ID: Final[str] = (
     "https://kai-mind.local/schemas/ai-system-map.v2.schema.json"
 )
-
-REFERENCE_PLANE_IDS: Final[tuple[str, ...]] = (
-    "input_intent",
-    "control",
-    "ingestion_indexing",
-    "retrieval",
-    "extension_subsystems",
-    "evidence",
-    "generation",
-    "memory_state",
-    "governance_observability",
-    "deployment_topology",
-)
-
-REFERENCE_NODES_BY_PLANE: Final[dict[str, tuple[str, ...]]] = {
-    "input_intent": ("user_input", "session_context", "query_classifier"),
-    "control": (
-        "planner",
-        "router",
-        "agent_loop",
-        "orchestrator",
-        "stop_policy",
-        "human_approval_gate",
-    ),
-    "ingestion_indexing": (
-        "document_loader",
-        "parser",
-        "chunker",
-        "metadata_extractor",
-        "embedder",
-        "index_builder",
-    ),
-    "retrieval": (
-        "dense_retriever",
-        "sparse_retriever",
-        "hybrid_retriever",
-        "graph_retriever",
-        "memory_retriever",
-        "web_retriever",
-    ),
-    "extension_subsystems": (
-        "graph_rag_system",
-        "rag_anything_system",
-        "infini_memory_system",
-        "corag_federated_system",
-    ),
-    "evidence": (
-        "reranker",
-        "conflict_checker",
-        "citation_mapper",
-        "evidence_pack",
-    ),
-    "generation": (
-        "context_composer",
-        "prompt_builder",
-        "llm_answerer",
-        "tool_using_generator",
-        "output_guardrail",
-    ),
-    "memory_state": (
-        "session_state",
-        "working_memory",
-        "long_term_memory",
-        "memory_reader",
-        "memory_writer",
-    ),
-    "governance_observability": (
-        "input_guardrail",
-        "permission_policy",
-        "human_approval",
-        "trace_store",
-        "eval_harness",
-        "cost_monitor",
-        "latency_monitor",
-    ),
-    "deployment_topology": (
-        "client_app",
-        "api_server",
-        "agent_runtime",
-        "worker_queue",
-        "tool_network",
-        "federated_clients",
-    ),
-}
 
 
 class V2ContractModel(BaseModel):
@@ -484,21 +401,28 @@ class ReferenceCapabilityOverlay(V2ContractModel):
 
 class ReferenceMapCatalog(V2ContractModel):
     version: str = REFERENCE_MAP_VERSION
-    plane_ids: tuple[str, ...] = REFERENCE_PLANE_IDS
+    plane_ids: tuple[str, ...] = ()
     nodes: tuple[ReferenceNode, ...] = ()
 
     @classmethod
     def default(cls) -> ReferenceMapCatalog:
-        nodes: list[ReferenceNode] = []
-        for plane_id, node_ids in REFERENCE_NODES_BY_PLANE.items():
-            for node_id in node_ids:
-                nodes.append(
-                    ReferenceNode(
-                        reference_node_id=node_id,
-                        plane_id=plane_id,
-                    )
+        from kai_mind.core.services.capability_reference_map_loader import (
+            CapabilityReferenceMapLoader,
+        )
+
+        catalog = CapabilityReferenceMapLoader().load()
+        return cls(
+            version=catalog.version,
+            plane_ids=catalog.plane_ids,
+            nodes=tuple(
+                ReferenceNode(
+                    reference_node_id=node.id,
+                    plane_id=node.plane_id,
+                    activation_applicable=node.activation_applicable,
                 )
-        return cls(nodes=tuple(nodes))
+                for node in catalog.nodes
+            ),
+        )
 
     @property
     def node_count(self) -> int:
@@ -506,23 +430,20 @@ class ReferenceMapCatalog(V2ContractModel):
 
     @model_validator(mode="after")
     def _validate_catalog_shape(self) -> ReferenceMapCatalog:
-        if list(self.plane_ids) != list(REFERENCE_PLANE_IDS):
-            raise ValueError(
-                "reference map plane ids must match fixed catalog"
-            )
+        if len(self.plane_ids) != REFERENCE_PLANE_COUNT:
+            raise ValueError("reference map must contain exactly 10 planes")
+        if len(self.plane_ids) != len(set(self.plane_ids)):
+            raise ValueError("reference map plane ids must be unique")
         if len(self.nodes) != REFERENCE_NODE_COUNT:
             raise ValueError(
                 f"reference map must contain exactly {REFERENCE_NODE_COUNT} "
                 "nodes"
             )
-        known = {node.reference_node_id for node in self.nodes}
-        expected = {
-            node_id
-            for node_ids in REFERENCE_NODES_BY_PLANE.values()
-            for node_id in node_ids
-        }
-        if known != expected:
-            raise ValueError("reference map node ids must match fixed catalog")
+        node_ids = {node.reference_node_id for node in self.nodes}
+        if len(node_ids) != len(self.nodes):
+            raise ValueError("reference map node ids must be unique")
+        if any(node.plane_id not in self.plane_ids for node in self.nodes):
+            raise ValueError("reference map node has an unknown plane_id")
         return self
 
     def validate_overlay(self, overlay: ReferenceCapabilityOverlay) -> None:

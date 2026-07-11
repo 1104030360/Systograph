@@ -444,7 +444,7 @@ def test_custom_router_goes_to_unmapped_not_retriever() -> None:
     assert result.unmapped_components[0].evidence_ids
 
 
-def test_reranker_fact_becomes_extension_candidate() -> None:
+def test_reranker_fact_becomes_non_baseline_confirmation_item() -> None:
     reranker_fact = fact_with_evidence(
         kind="config_value",
         file="config.yaml",
@@ -455,7 +455,8 @@ def test_reranker_fact_becomes_extension_candidate() -> None:
 
     result = detect([reranker_fact])
 
-    assert result.extensions
-    assert result.extensions[0].kind == "reranker"
-    assert result.extensions[0].status == "candidate"
-    assert result.extensions[0].evidence_ids
+    assert result.extensions == []
+    assert len(result.unmapped_components) == 1
+    assert result.unmapped_components[0].observed_kind == "reranker_candidate"
+    assert result.unmapped_components[0].status == "needs_confirmation"
+    assert result.unmapped_components[0].evidence_ids

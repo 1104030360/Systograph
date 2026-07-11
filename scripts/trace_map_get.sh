@@ -44,12 +44,13 @@ done
 kai_bootstrap_server
 
 if [[ "$NO_SETUP" -eq 0 ]]; then
-  kai_section "Setup: build a map so /api/map has content"
+  kai_section "準備：先掃描，讓 /api/map 有內容"
   PROJECT_ID="$(kai_import_project)"
   kai_run_scan "$PROJECT_ID" >/dev/null
 fi
 
-kai_section "GET /api/map"
+kai_section "讀取地圖：GET /api/map"
+kai_progress "現在要讀取最新 viewer map..."
 api_call GET "/api/map"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

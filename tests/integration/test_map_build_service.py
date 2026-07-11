@@ -6,11 +6,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import pytest
+from pydantic import BaseModel
 from tests.helpers.fixtures import rag_project_fixture_path
 
 from kai_mind.core.models.errors import PreconditionFailureReason
 from kai_mind.core.models.map_build import MapBuildRequest
-from kai_mind.core.models.scan import ProjectScanResult, ScanFact
+from kai_mind.core.models.scan import OutputRun, ProjectScanResult, ScanFact
 from kai_mind.core.models.system_map import (
     ComponentInstance,
     ComponentSlot,
@@ -119,6 +121,16 @@ class RecordingValidationService(SystemMapValidationService):
         return super().validate(data)
 
 
+class FailingSiblingProvider(OutputArtifactProvider):
+    def write_readiness_report(
+        self,
+        report: BaseModel,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        raise RuntimeError("forced sibling publish failure")
+
+
 def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     tmp_path: Path,
 ) -> None:
@@ -138,6 +150,25 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     assert result.map_json_path.is_file()
     assert result.map_markdown_path is not None
     assert result.map_markdown_path.is_file()
+    sibling_paths = (
+        result.profile_signals_path,
+        result.readiness_report_path,
+        result.call_graph_path,
+        result.dataflow_hints_path,
+        result.execution_paths_path,
+        result.evidence_table_path,
+        result.system_map_mermaid_path,
+        result.execution_map_mermaid_path,
+    )
+    assert all(path is not None and path.is_file() for path in sibling_paths)
+    assert result.profile_inference_result is not None
+    assert result.readiness_report is not None
+    assert result.profile_inference_result.build_id == (
+        result.readiness_report.build_id
+    )
+    assert result.profile_inference_result.scan_id == (
+        result.readiness_report.scan_id
+    )
     assert result.viewer_load_result is not None
     assert result.viewer_load_result.loaded
     assert result.viewer_load_result.graph_view_model.nodes
@@ -154,6 +185,27 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     assert markdown.startswith("# KAI-Mind System Map\n")
     assert "## Slot Coverage" in markdown
     assert "## Recommended Next Checks" in markdown
+
+
+def test_map_build_failure_removes_partial_public_siblings(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "outputs"
+    service = MapBuildService(
+        output_artifact_provider=FailingSiblingProvider()
+    )
+
+    with pytest.raises(RuntimeError, match="forced sibling publish failure"):
+        service.build(
+            MapBuildRequest(
+                project_path=rag_project_fixture_path(
+                    "basic_qdrant_ollama_rag"
+                ),
+                output=output_dir,
+            )
+        )
+
+    assert not output_dir.exists() or not any(output_dir.iterdir())
 
 
 def test_map_build_service_validates_after_request_options_by_default(
@@ -222,6 +274,8 @@ def test_map_build_service_missing_project_writes_map_error_only(
     assert result.map_error_path.is_file()
     assert not (tmp_path / "outputs" / "ai_system_map.json").exists()
     assert not (tmp_path / "outputs" / "ai_system_map.md").exists()
+    assert not (tmp_path / "outputs" / "profile_signals.json").exists()
+    assert not (tmp_path / "outputs" / "readiness_report.json").exists()
 
 
 def test_map_build_service_uses_timestamped_output_run_when_artifact_exists(

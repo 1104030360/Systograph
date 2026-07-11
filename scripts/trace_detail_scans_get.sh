@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 # Trace: GET /api/detail-scans/{detail_scan_id}
 #
-# Input  : detail_scan_id path param.
-# Output : DetailScanResponse {project_id, detail_scan, ai_system_map}
-#          404 detail_scan_not_found when the id is not in any loaded map.
-#
 # A detail scan must exist first, so this script imports + scans, creates a
-# detail scan, then reads it back by id (unless --detail-scan-id is supplied).
+# build-bound detail scan, then reads it back by id.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,27 +46,34 @@ done
 kai_bootstrap_server
 
 if [[ -z "$DETAIL_SCAN_ID" ]]; then
-  kai_section "Setup: import + scan + create a detail scan"
+  kai_section "準備：匯入 + 掃描 + 建立 detail scan"
   PROJECT_ID="$(kai_import_project)"
   SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
+  BUILD_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.lineage.build_id')"
   TARGET="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
+  [[ -n "$BUILD_ID" && "$BUILD_ID" != "null" ]] \
+    || kai_die "Scan response missing build_result.lineage.build_id"
   [[ -n "$TARGET" && "$TARGET" != "null" ]] \
     || kai_die "Could not derive a default target slot from the scan"
+  kai_progress "現在要建立 detail scan（之後再依 id 讀回）..."
   DETAIL_BODY="$(setup_post "/api/detail-scans" \
-    "$(jq -n --arg id "$PROJECT_ID" --arg tt "$TARGET_TYPE" --arg t "$TARGET" \
-      '{project_id:$id, target_type:$tt, target:$t, scan_depth:"component"}')")"
+    "$(jq -n --arg id "$PROJECT_ID" --arg build "$BUILD_ID" \
+      --arg tt "$TARGET_TYPE" --arg t "$TARGET" \
+      '{project_id:$id, build_id:$build, target_type:$tt, target:$t,
+        scan_depth:"component"}')")"
   DETAIL_SCAN_ID="$(echo "$DETAIL_BODY" | jq -r '.detail_scan.id')"
   [[ -n "$DETAIL_SCAN_ID" && "$DETAIL_SCAN_ID" != "null" ]] \
     || kai_die "Failed to create a detail scan"
-  echo "[setup] detail_scan_id=$DETAIL_SCAN_ID" >&2
+  kai_progress "已建立 detail_scan_id=$DETAIL_SCAN_ID"
 fi
 
 ENCODED_ID="$(kai_urlencode "$DETAIL_SCAN_ID")"
-kai_section "GET /api/detail-scans/{detail_scan_id}"
+kai_section "讀取 detail scan：GET /api/detail-scans/{id}"
+kai_progress "現在要依 id 讀回 detail scan..."
 api_call GET "/api/detail-scans/$ENCODED_ID"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Detail scan summary"
+kai_section "Detail scan 摘要"
 echo "$LAST_BODY" | jq '{
   project_id,
   detail_scan_id: .detail_scan.id,

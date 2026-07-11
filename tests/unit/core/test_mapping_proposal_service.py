@@ -298,6 +298,20 @@ def router_packet() -> MappingEvidencePacket:
     )
 
 
+def reranker_packet() -> MappingEvidencePacket:
+    return MappingEvidencePacket(
+        project_id="project:demo",
+        source_unmapped_id="unmapped:src_reranker_py:reranker",
+        source_file="src/reranker.py",
+        observed_kind="reranker_candidate",
+        reason="Detected reranker evidence.",
+        evidence_ids=["evidence:reranker"],
+        rule_ids=["code_pattern_reranker"],
+        masked_evidence_values=["rerank"],
+        available_slots=["retriever", "vector_store", "llm"],
+    )
+
+
 def service(
     *,
     provider: MappingProposalProvider | None = None,
@@ -322,6 +336,17 @@ def test_deterministic_proposal_uses_rank_not_confidence() -> None:
     assert proposal.candidates[0].target_slot == "vector_store"
     assert proposal.candidates[0].rank == 1
     assert "confidence" not in json.dumps(proposal.model_dump(mode="json"))
+
+
+def test_reranker_proposal_uses_non_baseline_capability_candidate() -> None:
+    proposal = service().create_proposal(reranker_packet())
+
+    candidate = proposal.candidates[0]
+    assert candidate.candidate_type == (
+        MappingCandidateType.NON_BASELINE_CAPABILITY_CANDIDATE
+    )
+    assert candidate.proposed_capability_candidate_kind == "reranker"
+    assert candidate.proposed_extension_id is None
 
 
 def test_invalid_provider_output_retries_once_then_falls_back() -> None:
@@ -489,6 +514,30 @@ def test_accept_candidate_creates_manual_mapping_draft() -> None:
     ]
 
 
+def test_accepting_nonbaseline_candidate_creates_manual_mapping() -> None:
+    manual_mapping_service = ManualMappingService(
+        repository=InMemoryManualMappingRepository(),
+    )
+    proposal_service = service(
+        manual_mapping_service=manual_mapping_service,
+    )
+    proposal = proposal_service.create_proposal(reranker_packet())
+
+    result = proposal_service.decide(
+        proposal.proposal_id,
+        MappingProposalDecisionRequest(
+            decision=MappingProposalDecisionAction.ACCEPT,
+            candidate_id=proposal.candidates[0].candidate_id,
+        ),
+    )
+
+    assert result.manual_mapping is not None
+    assert result.manual_mapping.mapping_type == (
+        ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE
+    )
+    assert result.manual_mapping.capability_candidate_kind == "reranker"
+
+
 def test_edit_decision_creates_manual_mapping_draft() -> None:
     manual_mapping_service = ManualMappingService(
         repository=InMemoryManualMappingRepository(),
@@ -596,7 +645,7 @@ def test_edit_decision_rejects_unknown_evidence() -> None:
         )
 
 
-def test_skip_decision_does_not_create_manual_mapping() -> None:
+def test_skip_decision_creates_durable_audit_mapping() -> None:
     manual_mapping_service = ManualMappingService(
         repository=InMemoryManualMappingRepository(),
         allowed_slots={"vector_store"},
@@ -615,8 +664,16 @@ def test_skip_decision_does_not_create_manual_mapping() -> None:
     )
 
     assert result.proposal.status == MappingProposalStatus.SKIPPED
-    assert result.manual_mapping is None
-    assert manual_mapping_service.list_for_project("project:demo") == []
+    assert result.manual_mapping is not None
+    assert result.manual_mapping.decision == ManualMappingDecision.SKIP_FOR_NOW
+    assert result.manual_mapping.reason == "Later."
+    assert result.manual_mapping.audit_metadata["actor_surface"] == (
+        "mapping_proposal"
+    )
+    assert result.manual_mapping.audit_metadata["acted_at"]
+    assert manual_mapping_service.list_for_project("project:demo") == [
+        result.manual_mapping
+    ]
 
 
 def test_unknown_candidate_decision_is_rejected() -> None:
@@ -740,7 +797,7 @@ def test_second_pending_accept_blocked_by_confirmed_mapping() -> None:
     assert len(manual_mapping_service.list_for_project("project:demo")) == 1
 
 
-def test_reject_decision_does_not_create_manual_mapping() -> None:
+def test_reject_decision_creates_durable_audit_mapping() -> None:
     manual_mapping_service = ManualMappingService(
         repository=InMemoryManualMappingRepository(),
         allowed_slots={"vector_store"},
@@ -759,8 +816,16 @@ def test_reject_decision_does_not_create_manual_mapping() -> None:
     )
 
     assert result.proposal.status == MappingProposalStatus.REJECTED
-    assert result.manual_mapping is None
-    assert manual_mapping_service.list_for_project("project:demo") == []
+    assert result.manual_mapping is not None
+    assert result.manual_mapping.decision == ManualMappingDecision.REJECTED
+    assert result.manual_mapping.reason == "Not part of the RAG path."
+    assert result.manual_mapping.proposal_id == proposal.proposal_id
+    assert result.manual_mapping.audit_metadata["actor_surface"] == (
+        "mapping_proposal"
+    )
+    assert manual_mapping_service.list_for_project("project:demo") == [
+        result.manual_mapping
+    ]
 
 
 def test_decision_result_rejects_accepted_without_manual_mapping() -> None:

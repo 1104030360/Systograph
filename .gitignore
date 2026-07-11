@@ -14,7 +14,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# Packaging lib/ at repo root only — do not ignore scripts/lib helpers.
+/lib/
 lib64/
 parts/
 sdist/

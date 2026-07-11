@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,6 +59,10 @@ class DetailScanValidationError(ValueError):
     """Raised when the updated system map fails contract validation."""
 
 
+class DetailScanSnapshotStaleError(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class DetailScanExecutionResult:
     detail_scan: DetailScanResult
@@ -101,6 +106,7 @@ class DetailScanService:
         target_type: str,
         target: str,
         scan_depth: ScanDepth = "component",
+        expected_file_fingerprints: dict[str, str] | None = None,
     ) -> DetailScanExecutionResult:
         if scan_depth not in {"component", "code_path"}:
             raise ValueError("scan_depth must be component or code_path")
@@ -110,6 +116,11 @@ class DetailScanService:
             system_map,
             target_type=normalized_target_type,
             target=target,
+        )
+        self._validate_fingerprints(
+            project_root,
+            target_ref.related_files,
+            expected_file_fingerprints,
         )
         updated = system_map.model_copy(deep=True)
         updated_target = self._resolve_target(
@@ -185,6 +196,28 @@ class DetailScanService:
             detail_scan=detail_scan,
             system_map=validated,
         )
+
+    @staticmethod
+    def _validate_fingerprints(
+        project_root: Path,
+        relative_files: Sequence[str],
+        expected: dict[str, str] | None,
+    ) -> None:
+        if expected is None:
+            return
+        for relative_file in relative_files:
+            expected_digest = expected.get(relative_file)
+            path = project_root / relative_file
+            try:
+                actual_digest = (
+                    "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+                )
+            except OSError as exc:
+                raise DetailScanSnapshotStaleError(
+                    "scan_snapshot_stale"
+                ) from exc
+            if expected_digest is None or actual_digest != expected_digest:
+                raise DetailScanSnapshotStaleError("scan_snapshot_stale")
 
     def _normalize_target_type(self, target_type: str) -> DetailScanTargetType:
         normalized = TARGET_TYPE_ALIASES.get(target_type)

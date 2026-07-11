@@ -48,14 +48,15 @@ done
 kai_bootstrap_server
 
 if [[ -z "$PROJECT_ID" ]]; then
-  kai_section "Setup: import + scan + create one mapping"
+  kai_section "準備：匯入 + 掃描 + 先建一筆 mapping"
   PROJECT_ID="$(kai_import_project)"
   SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
   kai_create_demo_mapping "$PROJECT_ID" "$SCAN_JSON" >/dev/null
 fi
 
 ENCODED_ID="$(kai_urlencode "$PROJECT_ID")"
-kai_section "GET /api/mappings"
+kai_section "列出 mappings：GET /api/mappings"
+kai_progress "現在要列出此專案的 manual mappings..."
 api_call GET "/api/mappings?project_id=$ENCODED_ID"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

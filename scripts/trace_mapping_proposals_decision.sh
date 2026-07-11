@@ -71,7 +71,7 @@ esac
 kai_bootstrap_server
 
 if [[ -z "$PROPOSAL_ID" ]]; then
-  kai_section "Setup: import + scan + create a pending proposal"
+  kai_section "準備：匯入 + 掃描 + 建立 pending proposal"
   PROJECT_ID="$(kai_import_project)"
   SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
   UNMAPPED_ID="$(kai_first_unmapped_id "$SCAN_JSON")"
@@ -81,7 +81,7 @@ if [[ -z "$PROPOSAL_ID" ]]; then
   PROPOSAL_ID="$(echo "$PROPOSAL_JSON" | jq -r '.proposal_id')"
   [[ -n "$PROPOSAL_ID" && "$PROPOSAL_ID" != "null" ]] \
     || kai_die "Failed to create a proposal"
-  echo "[setup] proposal_id=$PROPOSAL_ID" >&2
+  kai_progress "已建立 proposal_id=$PROPOSAL_ID"
   if [[ "$DECISION" == "accept" && -z "$CANDIDATE_ID" ]]; then
     CANDIDATE_ID="$(echo "$PROPOSAL_JSON" | jq -r '
       [.candidates[]
@@ -90,7 +90,7 @@ if [[ -z "$PROPOSAL_ID" ]]; then
        | .candidate_id][0] // empty')"
     [[ -n "$CANDIDATE_ID" ]] \
       || kai_die "No acceptable candidate to auto-select; use --decision skip_for_now or pass --candidate-id"
-    echo "[setup] auto-selected candidate_id=$CANDIDATE_ID" >&2
+    kai_progress "自動選取 candidate_id=$CANDIDATE_ID"
   fi
 fi
 
@@ -98,7 +98,7 @@ if [[ "$DECISION" == "accept" && -z "$CANDIDATE_ID" ]]; then
   kai_die "accept requires --candidate-id"
 fi
 
-kai_section "POST /api/mapping-proposals/{proposal_id}/decision"
+kai_section "送出決策：POST /api/mapping-proposals/{id}/decision"
 REQUEST_BODY="$(jq -n \
   --arg decision "$DECISION" \
   --arg candidate_id "$CANDIDATE_ID" \
@@ -107,6 +107,7 @@ REQUEST_BODY="$(jq -n \
    + (if $candidate_id == "" then {} else {candidate_id:$candidate_id} end)
    + (if $reason == "" then {} else {reason:$reason} end)')"
 ENCODED_ID="$(kai_urlencode "$PROPOSAL_ID")"
+kai_progress "現在要對 proposal 送出決策（decision=$DECISION）..."
 api_call POST "/api/mapping-proposals/$ENCODED_ID/decision" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

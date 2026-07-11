@@ -26,7 +26,7 @@ from kai_mind.web.schemas import (
     MappingProposalDecisionRequest,
     MappingProposalListResponse,
 )
-from kai_mind.web.session_store import InMemorySessionStore
+from kai_mind.web.session_store import SessionStore
 
 router = APIRouter(tags=["mapping-proposals"])
 
@@ -59,7 +59,7 @@ def create_mapping_proposal(
         MappingProposalService,
         Depends(mapping_proposal_service),
     ],
-    store: Annotated[InMemorySessionStore, Depends(session_store)],
+    store: Annotated[SessionStore, Depends(session_store)],
 ) -> MappingProposal:
     """Create a pending proposal from the latest masked map evidence."""
     if store.project(payload.project_id) is None:
@@ -118,7 +118,7 @@ def decide_mapping_proposal(
 
 
 def _system_map_for_project(
-    store: InMemorySessionStore,
+    store: SessionStore,
     project_id: str,
 ) -> RagSystemMap | None:
     result = store.build_result(project_id)

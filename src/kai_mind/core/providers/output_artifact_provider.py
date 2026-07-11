@@ -4,24 +4,16 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Callable
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final
 
-from kai_mind.core.models.errors import (
-    PreconditionError,
-    PreconditionFailureReason,
-)
+from pydantic import BaseModel
+
+from kai_mind.core.models.errors import PreconditionError
 from kai_mind.core.models.scan import OutputRun, PreconditionResult
 from kai_mind.core.models.system_map import RagSystemMap
-
-Clock = Callable[[], datetime]
-
-ARTIFACT_FILENAMES: Final = (
-    "ai_system_map.json",
-    "ai_system_map.md",
-    "map-error.md",
+from kai_mind.core.providers.output_artifact_policy import (
+    Clock,
+    OutputArtifactPolicy,
 )
 
 
@@ -29,7 +21,7 @@ class OutputArtifactProvider:
     """Own output artifact policy for map builds."""
 
     def __init__(self, clock: Clock | None = None) -> None:
-        self._clock = clock or self._default_clock
+        self._policy = OutputArtifactPolicy(clock)
 
     def check_preconditions(
         self,
@@ -37,36 +29,16 @@ class OutputArtifactProvider:
         project_path: Path,
         output_dir: Path,
     ) -> PreconditionResult:
-        output_error = self._validate_output_dir(output_dir)
-        if output_error is not None:
-            return PreconditionResult(ok=False, error=output_error)
-
-        output_run = self.prepare_output_run(output_dir)
-        project_error = self._validate_project_path(project_path)
-        if project_error is not None:
-            return PreconditionResult(
-                ok=False,
-                output_run=output_run,
-                error=project_error,
-            )
-
-        return PreconditionResult(
-            ok=True,
-            project_root=project_path.resolve(),
-            output_run=output_run,
+        return self._policy.check_preconditions(
+            project_path=project_path,
+            output_dir=output_dir,
         )
 
     def prepare_output_run(self, output_dir: Path) -> OutputRun:
-        return OutputRun(root_dir=self.prepare_output_run_dir(output_dir))
+        return self._policy.prepare_output_run(output_dir)
 
     def prepare_output_run_dir(self, output_dir: Path) -> Path:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        if not self._has_existing_artifact(output_dir):
-            return output_dir.resolve()
-
-        run_dir = self._unique_timestamped_run_dir(output_dir)
-        run_dir.mkdir(parents=True, exist_ok=True)
-        return run_dir.resolve()
+        return self._policy.prepare_output_run_dir(output_dir)
 
     def write_map_error(
         self,
@@ -76,8 +48,10 @@ class OutputArtifactProvider:
     ) -> Path:
         output_run.root_dir.mkdir(parents=True, exist_ok=True)
         error_path = output_run.map_error_path
-        error_path.write_text(self._render_map_error(error), encoding="utf-8")
-        return error_path
+        return self._write_text_atomic(
+            error_path,
+            self._render_map_error(error),
+        )
 
     def write_json(
         self,
@@ -87,17 +61,16 @@ class OutputArtifactProvider:
     ) -> Path:
         output_run.root_dir.mkdir(parents=True, exist_ok=True)
         artifact_path = output_run.map_json_path
-        artifact_path.write_text(
+        serialized = (
             json.dumps(
                 system_map.model_dump(mode="json"),
                 ensure_ascii=False,
                 indent=2,
                 sort_keys=True,
             )
-            + "\n",
-            encoding="utf-8",
+            + "\n"
         )
-        return artifact_path
+        return self._write_text_atomic(artifact_path, serialized)
 
     def write_markdown(
         self,
@@ -107,75 +80,114 @@ class OutputArtifactProvider:
     ) -> Path:
         output_run.root_dir.mkdir(parents=True, exist_ok=True)
         artifact_path = output_run.map_markdown_path
-        artifact_path.write_text(markdown, encoding="utf-8")
-        return artifact_path
+        return self._write_text_atomic(artifact_path, markdown)
 
-    def _validate_project_path(
-        self, project_path: Path
-    ) -> PreconditionError | None:
-        if not project_path.exists():
-            return self._project_error(
-                project_path,
-                PreconditionFailureReason.PROJECT_PATH_NOT_FOUND,
-            )
-        if not project_path.is_dir():
-            return self._project_error(
-                project_path,
-                PreconditionFailureReason.PROJECT_PATH_NOT_DIRECTORY,
-            )
-        if not os.access(project_path, os.R_OK | os.X_OK):
-            return self._project_error(
-                project_path,
-                PreconditionFailureReason.PROJECT_PATH_NOT_READABLE,
-            )
-        return None
-
-    def _validate_output_dir(
-        self, output_dir: Path
-    ) -> PreconditionError | None:
-        try:
-            output_dir.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            return self._project_error(
-                output_dir,
-                PreconditionFailureReason.OUTPUT_DIRECTORY_NOT_WRITABLE,
-            )
-
-        if not os.access(output_dir, os.W_OK | os.X_OK):
-            return self._project_error(
-                output_dir,
-                PreconditionFailureReason.OUTPUT_DIRECTORY_NOT_WRITABLE,
-            )
-        return None
-
-    def _project_error(
+    def write_profile_signals(
         self,
-        path: Path,
-        reason: PreconditionFailureReason,
-    ) -> PreconditionError:
-        return PreconditionError(
-            project_path=str(path),
-            failure_reason=reason,
+        result: BaseModel,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        return self._write_model_json(
+            result,
+            output_run.profile_signals_path,
         )
 
-    def _has_existing_artifact(self, output_dir: Path) -> bool:
-        return any((output_dir / name).exists() for name in ARTIFACT_FILENAMES)
+    def write_readiness_report(
+        self,
+        report: BaseModel,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        return self._write_model_json(
+            report,
+            output_run.readiness_report_path,
+        )
 
-    def _unique_timestamped_run_dir(self, output_dir: Path) -> Path:
-        timestamp = self._timestamp()
-        run_dir = output_dir / timestamp
-        if not run_dir.exists():
-            return run_dir
+    def write_call_graph(
+        self,
+        artifact: BaseModel,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        return self._write_model_json(artifact, output_run.call_graph_path)
 
-        suffix = 1
-        while True:
-            suffixed_run_dir = output_dir / f"{timestamp}-{suffix}"
-            if not suffixed_run_dir.exists():
-                return suffixed_run_dir
-            suffix += 1
+    def write_dataflow_hints(
+        self,
+        artifact: BaseModel,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        return self._write_model_json(
+            artifact,
+            output_run.dataflow_hints_path,
+        )
 
-    def _timestamp(self) -> str:
-        return self._clock().strftime("%Y%m%dT%H%M%S")
+    def write_execution_paths(
+        self,
+        artifact: BaseModel,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        return self._write_model_json(
+            artifact,
+            output_run.execution_paths_path,
+        )
+
+    def write_evidence_table(
+        self,
+        artifact: BaseModel,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        return self._write_model_json(
+            artifact,
+            output_run.evidence_table_path,
+        )
+
+    def write_system_map_mermaid(
+        self,
+        mermaid: str,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        return self._write_text_atomic(
+            output_run.system_map_mermaid_path,
+            mermaid,
+        )
+
+    def write_execution_map_mermaid(
+        self,
+        mermaid: str,
+        *,
+        output_run: OutputRun,
+    ) -> Path:
+        return self._write_text_atomic(
+            output_run.execution_map_mermaid_path,
+            mermaid,
+        )
+
+    def _write_model_json(self, model: BaseModel, path: Path) -> Path:
+        serialized = (
+            json.dumps(
+                model.model_dump(mode="json"),
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        )
+        return self._write_text_atomic(path, serialized)
+
+    def _write_text_atomic(self, path: Path, content: str) -> Path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.tmp")
+        with temporary.open("w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        return path
 
     def _render_map_error(self, error: PreconditionError) -> str:
         return "\n".join(
@@ -188,6 +200,3 @@ class OutputArtifactProvider:
                 "",
             ]
         )
-
-    def _default_clock(self) -> datetime:
-        return datetime.now(UTC)

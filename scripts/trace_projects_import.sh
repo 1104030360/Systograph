@@ -31,9 +31,10 @@ kai_parse_common_args "$@"
 [[ -d "$PROJECT_PATH" ]] || kai_die "Project path does not exist: $PROJECT_PATH"
 kai_bootstrap_server
 
-kai_section "POST /api/projects/import"
+kai_section "匯入專案：POST /api/projects/import"
 REQUEST_BODY="$(jq -n --arg p "$PROJECT_PATH" \
   '{source_type:"local_path", project_path:$p}')"
+kai_progress "現在要匯入專案：$PROJECT_PATH"
 api_call POST "/api/projects/import" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

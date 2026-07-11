@@ -8,6 +8,10 @@ from typing import Any, Final
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from kai_mind.core.providers.local_json_state_errors import (
+    InvalidStateIdError,
+    ProjectStateBusyError,
+)
 from kai_mind.core.services.logging_service import safe_log_event
 
 DEFAULT_MAX_REQUEST_BODY_BYTES: Final = 1_000_000
@@ -78,6 +82,26 @@ class SafeUnhandledExceptionMiddleware:
     ) -> None:
         try:
             await self.app(scope, receive, send)
+        except InvalidStateIdError:
+            if scope["type"] != "http":
+                raise
+            await _json_response(
+                {"detail": "resource_not_found"},
+                status_code=404,
+                scope=scope,
+                receive=receive,
+                send=send,
+            )
+        except ProjectStateBusyError:
+            if scope["type"] != "http":
+                raise
+            await _json_response(
+                {"detail": "project_state_busy"},
+                status_code=503,
+                scope=scope,
+                receive=receive,
+                send=send,
+            )
         except Exception as exc:  # noqa: BLE001
             safe_log_event(
                 logger,

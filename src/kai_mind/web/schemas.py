@@ -6,8 +6,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kai_mind.core.models.analysis_history import MapBuildManifest
+from kai_mind.core.models.apply_confirmations import ApplyConfirmationsResult
 from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
 from kai_mind.core.models.mapping import (
     ManualMapping,
@@ -18,13 +20,15 @@ from kai_mind.core.models.mapping import (
     MappingProposalDecisionRequest,
     MappingProposalDecisionResult,
 )
+from kai_mind.core.models.profile_signal import ProfileInferenceResult
+from kai_mind.core.models.readiness_report import ReadinessReport
 from kai_mind.core.models.scan_boundary import (
     ScanBoundaryDecisionAction,
     ScanBoundaryDecisionRequest,
     ScanBoundaryProposal,
 )
 from kai_mind.core.models.system_map import DetailScanResult, RagSystemMap
-from kai_mind.core.models.viewer import ViewerPayload
+from kai_mind.core.models.viewer import ViewerLoadResult, ViewerPayload
 
 
 class WebSchema(BaseModel):
@@ -67,6 +71,137 @@ class ProjectImportResponse(WebSchema):
     source_type: Literal["local_path"]
     project_name: str
     project_path: str
+    reused: bool = False
+
+
+class ProjectResponse(WebSchema):
+    project_id: str
+    source_type: Literal["local_path"]
+    project_name: str
+
+
+class Phase2MapBuildResult(WebSchema):
+    status: Literal["ok", "error"]
+    project_name: str
+    active_schema_version: Literal["ai-system-map/v1", "ai-system-map/v2"]
+    requested_schema_version: Literal["ai-system-map/v1", "ai-system-map/v2"]
+    migration_warnings: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    profile_signals_available: bool
+    readiness_report_available: bool
+    profile_inference_result: ProfileInferenceResult | None
+    readiness_report: ReadinessReport | None
+
+    @classmethod
+    def from_core(cls, result: MapBuildResult) -> Phase2MapBuildResult:
+        return cls(
+            status=result.status,
+            project_name=result.project_name,
+            active_schema_version=result.active_schema_version,
+            requested_schema_version=result.requested_schema_version,
+            migration_warnings=result.migration_warnings,
+            warnings=result.warnings,
+            profile_signals_available=(
+                result.profile_inference_result is not None
+            ),
+            readiness_report_available=result.readiness_report is not None,
+            profile_inference_result=result.profile_inference_result,
+            readiness_report=result.readiness_report,
+        )
+
+
+class ApplyConfirmationsRequest(WebSchema):
+    mapping_ids: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_unique_ids(self) -> ApplyConfirmationsRequest:
+        if len(self.mapping_ids) != len(set(self.mapping_ids)):
+            raise ValueError("mapping_ids must be unique")
+        return self
+
+
+class MapBuildScopedResponse(WebSchema):
+    project_id: str
+    scan_id: str
+    build_id: str
+    based_on_build_id: str | None
+    build_reason: Literal["initial_scan", "apply_confirmations", "detail_scan"]
+    applied_mapping_ids: list[str]
+    build_result: Phase2MapBuildResult
+    viewer_load_result: ViewerLoadResult
+
+    @classmethod
+    def from_core(cls, result: MapBuildResult) -> MapBuildScopedResponse:
+        lineage = result.lineage
+        viewer = result.viewer_load_result
+        if lineage is None or viewer is None:
+            raise ValueError(
+                "build response requires lineage and viewer result"
+            )
+        return cls(
+            project_id=lineage.project_id,
+            scan_id=lineage.scan_id,
+            build_id=lineage.build_id,
+            based_on_build_id=lineage.based_on_build_id,
+            build_reason=lineage.build_reason,
+            applied_mapping_ids=list(lineage.applied_mapping_ids),
+            build_result=Phase2MapBuildResult.from_core(result),
+            viewer_load_result=viewer,
+        )
+
+
+class ApplyConfirmationsResponse(MapBuildScopedResponse):
+    build_reason: Literal["apply_confirmations"]
+    based_on_build_id: str
+
+    @classmethod
+    def from_domain(
+        cls,
+        result: ApplyConfirmationsResult,
+    ) -> ApplyConfirmationsResponse:
+        return cls(
+            project_id=result.project_id,
+            scan_id=result.scan_id,
+            build_id=result.build_id,
+            based_on_build_id=result.based_on_build_id,
+            build_reason="apply_confirmations",
+            applied_mapping_ids=list(result.applied_mapping_ids),
+            build_result=Phase2MapBuildResult.from_core(result.build_result),
+            viewer_load_result=result.viewer_load_result,
+        )
+
+
+class MapBuildHistorySummary(WebSchema):
+    project_id: str
+    scan_id: str
+    build_id: str
+    based_on_build_id: str | None
+    build_reason: Literal["initial_scan", "apply_confirmations", "detail_scan"]
+    applied_mapping_ids: list[str]
+    generated_at: str
+
+    @classmethod
+    def from_manifest(
+        cls,
+        manifest: MapBuildManifest,
+    ) -> MapBuildHistorySummary:
+        lineage = manifest.lineage
+        return cls(
+            project_id=lineage.project_id,
+            scan_id=lineage.scan_id,
+            build_id=lineage.build_id,
+            based_on_build_id=lineage.based_on_build_id,
+            build_reason=lineage.build_reason,
+            applied_mapping_ids=list(lineage.applied_mapping_ids),
+            generated_at=lineage.generated_at.isoformat().replace(
+                "+00:00", "Z"
+            ),
+        )
+
+
+class MapBuildHistoryResponse(WebSchema):
+    project_id: str
+    builds: list[MapBuildHistorySummary]
 
 
 class ScanCreateRequest(WebSchema):
@@ -85,7 +220,10 @@ class ScanCreateRequest(WebSchema):
 
 
 class ScanCreateResponse(WebSchema):
-    scan_id: str
+    scan_id: str | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     project_id: str
     status: Literal["completed", "error", "requires_boundary_decision"]
     build_result: MapBuildResult | None = None
@@ -122,6 +260,7 @@ class ScanProgressEvent(WebSchema):
 
 class DetailScanCreateRequest(WebSchema):
     project_id: str
+    build_id: str | None = None
     target_type: str
     target: str
     scan_depth: Literal["component", "code_path"] = "component"
@@ -131,10 +270,16 @@ class DetailScanResponse(WebSchema):
     project_id: str
     detail_scan: DetailScanResult
     ai_system_map: RagSystemMap
+    source_build_id: str | None = None
+    build_id: str | None = None
+    scan_id: str | None = None
+    viewer_load_result: ViewerLoadResult | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class TraceCreateRequest(WebSchema):
     project_id: str
+    build_id: str | None = None
     endpoint_id: str
     query: str
     timeout_seconds: float = Field(default=30.0, gt=0, le=120)

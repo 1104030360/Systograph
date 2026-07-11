@@ -97,7 +97,23 @@ class ProjectScanService:
     ) -> ProjectScanResult:
         """Run providers and return raw facts without final mapping."""
 
-        inventory = self._filesystem_provider.build_inventory(project_root)
+        inventory = self.build_inventory(project_root)
+        return self.scan_inventory(
+            project_root,
+            inventory=inventory,
+            inventory_policy=inventory_policy,
+        )
+
+    def build_inventory(self, project_root: Path) -> FileInventory:
+        return self._filesystem_provider.build_inventory(project_root)
+
+    def scan_inventory(
+        self,
+        project_root: Path,
+        *,
+        inventory: FileInventory,
+        inventory_policy: InventoryPolicyOverlay | None = None,
+    ) -> ProjectScanResult:
         if inventory_policy is not None:
             inventory = inventory_policy.apply(
                 project_root=project_root,

@@ -53,19 +53,20 @@ done
 kai_bootstrap_server
 
 if [[ -z "$MAPPING_ID" ]]; then
-  kai_section "Setup: import + scan + create a mapping to update"
+  kai_section "準備：匯入 + 掃描 + 先建一筆 mapping"
   PROJECT_ID="$(kai_import_project)"
   SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
   CREATED="$(kai_create_demo_mapping "$PROJECT_ID" "$SCAN_JSON")"
   MAPPING_ID="$(echo "$CREATED" | jq -r '.mapping_id')"
   [[ -n "$MAPPING_ID" && "$MAPPING_ID" != "null" ]] \
     || kai_die "Failed to create a mapping to update"
-  echo "[setup] mapping_id=$MAPPING_ID" >&2
+  kai_progress "已建立 mapping_id=$MAPPING_ID"
 fi
 
 ENCODED_ID="$(kai_urlencode "$MAPPING_ID")"
-kai_section "PATCH /api/mappings/{mapping_id}"
+kai_section "更新 mapping：PATCH /api/mappings/{id}"
 REQUEST_BODY="$(jq -n --arg reason "$NEW_REASON" '{reason:$reason}')"
+kai_progress "現在要更新 mapping 的 reason..."
 api_call PATCH "/api/mappings/$ENCODED_ID" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

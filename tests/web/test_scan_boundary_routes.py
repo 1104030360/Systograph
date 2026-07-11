@@ -5,6 +5,9 @@ from typing import Any, cast
 
 from fastapi.testclient import TestClient
 
+from kai_mind.core.providers.local_json_state_provider import (
+    LocalJsonStateProvider,
+)
 from kai_mind.web.app import create_app
 
 
@@ -48,13 +51,15 @@ def test_scan_requires_boundary_decision_before_building_map(
         encoding="utf-8",
     )
     (project_root / "app.py").write_text("print('hello')\n", encoding="utf-8")
-    client = TestClient(create_app())
+    state_dir = tmp_path / "state"
+    client = TestClient(create_app(state_dir=state_dir))
     project_id = import_project(client, project_root)
     before_map = client.get("/api/map").json()
 
     pending = scan_project(client, project_id, tmp_path / "outputs")
 
     assert pending["status"] == "requires_boundary_decision"
+    assert "scan_id" not in pending
     assert pending["build_result"] is None
     assert pending["available_boundary_actions"] == [
         "scan_this_run",
@@ -69,6 +74,9 @@ def test_scan_requires_boundary_decision_before_building_map(
     assert "sk-live-secret-value" not in str(pending)
     assert str(tmp_path) not in str(pending)
     assert client.get("/api/map").json() == before_map
+    state = LocalJsonStateProvider(state_dir)
+    assert state.list_build_manifests(project_id) == ()
+    assert state.get_latest_pointer(project_id) is None
 
 
 def test_scan_this_run_decision_builds_map_for_current_scan_only(

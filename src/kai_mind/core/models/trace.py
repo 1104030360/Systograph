@@ -27,6 +27,8 @@ class TraceRunResult(TraceModel):
     status: TraceRunStatus
     query_sent: bool
     endpoint_id: str
+    source_scan_id: str | None = None
+    source_build_id: str | None = None
     events: list[QueryTraceEvent] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     error_reason: str | None = None

@@ -43,7 +43,8 @@ while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
 done
 kai_bootstrap_server
 
-kai_section "GET /api/scan/events (text/event-stream)"
+kai_section "訂閱掃描進度：GET /api/scan/events (SSE)"
+kai_progress "現在要訂閱 scan 進度事件串流..."
 echo "-------------------- REQUEST --------------------"
 echo "GET $API_BASE_URL/api/scan/events"
 echo "Accept: text/event-stream"
