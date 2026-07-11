@@ -1,52 +1,44 @@
 import { Handle, Position, type NodeProps } from "reactflow";
-import { AlertTriangle, CheckCircle2, CircleDashed } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleDashed,
+  CircleDotDashed,
+  CircleHelp,
+  CircleOff,
+} from "lucide-react";
 import type { FlowNodeData } from "../utils/graph";
+import { hasNodeLevelRisk, nodeStatusKey, nodeStatusLabel, type NodeStatusKey } from "../utils/assessment";
 
-type NodeStatusKey =
-  | "risk"
-  | "needs_confirmation"
-  | "not_applicable"
-  | "not_configured"
-  | "missing"
-  | "confirmed"
-  | "detected";
+function StatusIcon({ status }: { status: NodeStatusKey }) {
+  const Icon =
+    status === "partial"
+      ? CircleDotDashed
+      : status === "undetermined"
+        ? CircleHelp
+        : status === "not_detected" || status === "not_applicable" || status === "not_configured"
+          ? CircleOff
+          : status === "needs_review" || status === "needs_confirmation"
+            ? CircleDashed
+            : status === "risk" || status === "missing" || status === "conflicted"
+              ? AlertTriangle
+              : CheckCircle2;
 
-const MISSING_REQUIRED_SLOT_RISK_PREFIX = "risk:missing_required_slot:";
-
-function hasNodeLevelRisk(data: Pick<FlowNodeData, "risk_hint_ids">) {
-  return data.risk_hint_ids.some((riskId) => !riskId.startsWith(MISSING_REQUIRED_SLOT_RISK_PREFIX));
-}
-
-/**
- * Visual status key.
- *
- * Missing-slot hints describe the map's overall completeness, not a detected
- * node defect. Keep them available in details, but do not let them override the
- * node's own status color.
- */
-function statusKey(data: Pick<FlowNodeData, "risk_hint_ids" | "status">): NodeStatusKey {
-  if (hasNodeLevelRisk(data)) return "risk";
-  if (data.status === "needs_confirmation") return "needs_confirmation";
-  if (data.status === "not_applicable") return "not_applicable";
-  if (data.status === "not_configured") return "not_configured";
-  if (data.status === "missing") return "missing";
-  if (data.status === "confirmed") return "confirmed";
-  return "detected";
-}
-
-function StatusIcon({ statusKey: key }: { statusKey: NodeStatusKey }) {
-  if (key === "risk") return <AlertTriangle size={15} style={{ color: "var(--risk)" }} />;
-  if (key === "missing") return <AlertTriangle size={15} style={{ color: "var(--risk)" }} />;
-  if (key === "needs_confirmation") return <CircleDashed size={15} style={{ color: "var(--unmapped)" }} />;
-  if (key === "confirmed") return <CheckCircle2 size={15} style={{ color: "var(--accent-strong)" }} />;
-  return null;
+  return (
+    <span className={`node-status s-${status}`} title={`Assessment: ${nodeStatusLabel(status)}`}>
+      <Icon aria-hidden="true" size={13} />
+      <span>{nodeStatusLabel(status)}</span>
+    </span>
+  );
 }
 
 export function SystemNode({ data }: NodeProps<FlowNodeData>) {
-  const key = statusKey(data);
+  const key = nodeStatusKey(data);
   const className = [
     "node",
     `s-${key}`,
+    data.semantic_kind ? `k-${data.semantic_kind}` : "",
+    hasNodeLevelRisk(data) ? "has-risk" : "",
     data.isSelected ? "is-selected" : "",
     data.isFocused && !data.isSelected ? "is-focused" : "",
     data.isDimmed ? "is-dimmed" : "",
@@ -56,22 +48,31 @@ export function SystemNode({ data }: NodeProps<FlowNodeData>) {
     .join(" ");
 
   return (
-    <div className={className} title={data.id}>
+    <div className={className} title={data.id} data-semantic-kind={data.semantic_kind}>
       <Handle className="node-handle" position={Position.Left} type="target" />
       <div className="node-top">
         <span className="node-slot">{data.subtitle ?? data.slot ?? data.type}</span>
-        <span className="node-status-ico">
-          <StatusIcon statusKey={key} />
-        </span>
+        <StatusIcon status={key} />
       </div>
       <div className="node-title">{data.label}</div>
       {data.badges.length > 0 ? (
         <div className="node-badges">
-          {data.badges.slice(0, 3).map((badge) => (
+          {data.badges.slice(0, data.activation ? 2 : 3).map((badge) => (
             <span className="node-badge" key={badge}>
               {badge}
             </span>
           ))}
+          {data.activation ? (
+            <span className={`node-activation a-${data.activation}`} title="Activation is independent from assessment status">
+              {data.activation}
+            </span>
+          ) : null}
+        </div>
+      ) : data.activation ? (
+        <div className="node-badges">
+          <span className={`node-activation a-${data.activation}`} title="Activation is independent from assessment status">
+            {data.activation}
+          </span>
         </div>
       ) : null}
       <Handle className="node-handle" position={Position.Right} type="source" />

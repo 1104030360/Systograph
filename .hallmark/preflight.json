@@ -1,0 +1,14 @@
+{
+  "scanned_at": "2026-07-11",
+  "framework": "React 18 + Vite 6",
+  "font_stack": "system sans with JetBrains Mono fallback",
+  "palette": "existing light/dark CSS custom properties; color reserved for system state",
+  "motion": "motion-cut; no animation library",
+  "spacing": "existing 4px-based density scale",
+  "preserve": [
+    "frontend/src/styles.css tokens",
+    "React Flow and ELK graph engine",
+    "existing light and dark themes",
+    "reduced-motion behavior"
+  ]
+}
