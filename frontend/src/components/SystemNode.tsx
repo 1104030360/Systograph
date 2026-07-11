@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from "reactflow";
 import {
   AlertTriangle,
+  Anchor,
   CheckCircle2,
   CircleDashed,
   CircleDotDashed,
@@ -8,6 +9,7 @@ import {
   CircleOff,
 } from "lucide-react";
 import type { FlowNodeData } from "../utils/graph";
+import { compactId } from "../utils/format";
 import { hasNodeLevelRisk, nodeStatusKey, nodeStatusLabel, type NodeStatusKey } from "../utils/assessment";
 
 function StatusIcon({ status }: { status: NodeStatusKey }) {
@@ -52,6 +54,11 @@ export function SystemNode({ data }: NodeProps<FlowNodeData>) {
       <Handle className="node-handle" position={Position.Left} type="target" />
       <div className="node-top">
         <span className="node-slot">{data.subtitle ?? data.slot ?? data.type}</span>
+        {data.semantic_kind === "profile_attachment" && data.primary_anchor_node_id ? (
+          <span className="node-anchor" title={`Anchored to ${compactId(data.primary_anchor_node_id)}`}>
+            <Anchor aria-hidden="true" size={11} />
+          </span>
+        ) : null}
         <StatusIcon status={key} />
       </div>
       <div className="node-title">{data.label}</div>

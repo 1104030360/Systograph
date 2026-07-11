@@ -96,7 +96,23 @@ const profileInferenceResultSchema = z
   })
   .passthrough();
 
-const readinessReportSchema = z
+const readinessFindingSchema = z
+  .object({
+    finding_id: z.string(),
+    category: z.string(),
+    title: z.string().optional(),
+    severity: z.string(),
+    status: assessmentStatusSchema,
+    description: z.string().optional(),
+    affected_component_ids: z.array(z.string()).default([]),
+    evidence_ids: z.array(z.string()),
+    evidence_gap: z.string().optional(),
+    recommended_next_checks: z.array(z.string()).default([]),
+    limitations: z.array(z.string()).default([]),
+  })
+  .passthrough();
+
+export const readinessReportSchema = z
   .object({
     schema_version: z.literal("readiness-report/v1"),
     source_schema_version: z.literal("ai-system-map/v2"),
@@ -111,22 +127,15 @@ const readinessReportSchema = z
       .object({
         status: assessmentStatusSchema,
         runtime_verified: z.literal(false),
+        evidence_scope: z.array(z.string()).default([]),
       })
       .passthrough(),
-    findings: z.array(
-      z
-        .object({
-          finding_id: z.string(),
-          category: z.string(),
-          severity: z.string(),
-          status: assessmentStatusSchema,
-          evidence_ids: z.array(z.string()),
-          limitations: z.array(z.string()).default([]),
-        })
-        .passthrough(),
-    ),
+    findings: z.array(readinessFindingSchema),
   })
   .passthrough();
+
+export type ReadinessReport = z.infer<typeof readinessReportSchema>;
+export type ReadinessFinding = z.infer<typeof readinessFindingSchema>;
 
 export const phase2ViewerLoadResultSchema = frontendViewerLoadResultSchema
   .extend({
