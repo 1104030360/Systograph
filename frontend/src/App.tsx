@@ -5,6 +5,7 @@ import { ChatPanel } from "./components/ChatPanel";
 import { BoundaryDecisionModal, decisionsForBoundary } from "./components/BoundaryDecisionModal";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
+import { MappingCompletenessPanel } from "./components/MappingCompletenessPanel";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { ReplayTimeline } from "./components/ReplayTimeline";
 import { SampleDataIndicator } from "./components/SampleDataIndicator";
@@ -22,6 +23,7 @@ import { importProject, startProjectScan } from "./services/projectScanApi";
 import { loadApiViewerPayload } from "./services/viewerApi";
 import { useViewerStore } from "./store/viewerStore";
 import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal } from "./types";
+import { PHASE2_STATUS_LEGEND } from "./utils/assessment";
 import { createProgressTargets, resolveProgressTargetId } from "./utils/graph";
 
 const EMPTY_GRAPH: GraphViewModel = {
@@ -36,12 +38,12 @@ const EMPTY_GRAPH: GraphViewModel = {
   filters: { available: [], lenses: [] },
 };
 
-const MAP_KEY: Array<[string, string]> = [
-  ["var(--accent)", "Detected"],
-  ["var(--accent-strong)", "Confirmed"],
-  ["var(--risk)", "Risk"],
-  ["var(--unmapped)", "Review"],
-  ["var(--text-faint)", "Missing"],
+const LEGACY_MAP_KEY = [
+  { key: "detected", label: "Detected" },
+  { key: "confirmed", label: "Confirmed" },
+  { key: "risk", label: "Risk" },
+  { key: "needs_confirmation", label: "Review" },
+  { key: "missing", label: "Missing" },
 ];
 
 export default function App() {
@@ -70,6 +72,7 @@ export default function App() {
   const showOverlay = appState !== "loaded";
 
   const payload = dataSourceMode === "sample" ? sampleViewerPayload : data;
+  const isPhase2 = payload?.contract_source === "phase2";
   const graph = dataAvailable && payload ? payload.viewer_load_result.graph_view_model : EMPTY_GRAPH;
   const aiSystemMap = dataAvailable ? payload?.viewer_load_result.ai_system_map : undefined;
   const scanSummary = aiSystemMap?.scan_summary;
@@ -422,7 +425,15 @@ export default function App() {
           </details>
         </header>
 
-        <div className={graphInteracting ? "graph-frame is-interacting" : "graph-frame"}>
+        <div
+          className={[
+            "graph-frame",
+            graphInteracting ? "is-interacting" : "",
+            selected ? "has-inspector" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           {!showOverlay ? (
             <ProgressStrip
               isRunning={isProgressRunning}
@@ -456,12 +467,20 @@ export default function App() {
             onInteractingChange={setGraphInteracting}
           />
 
+          {!showOverlay && isPhase2 && payload ? (
+            <MappingCompletenessPanel
+              completeness={graph.mapping_completeness}
+              buildId={payload.viewer_load_result.build_id}
+              warningCount={payload.viewer_load_result.warnings.length}
+            />
+          ) : null}
+
           <SampleDataIndicator visible={dataSourceMode === "sample"} />
 
-          <div className="map-key-float" aria-label="Map color key">
-            {MAP_KEY.map(([color, label]) => (
-              <span className="legend-chip" key={label}>
-                <span className="swatch" style={{ background: color }} />
+          <div className="map-key-float" aria-label={isPhase2 ? "Assessment status key" : "Legacy map color key"}>
+            {(isPhase2 ? PHASE2_STATUS_LEGEND : LEGACY_MAP_KEY).map(({ key, label }) => (
+              <span className="legend-chip" key={key}>
+                <span className={`swatch s-${key}`} aria-hidden="true" />
                 {label}
               </span>
             ))}

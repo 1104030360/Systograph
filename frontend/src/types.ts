@@ -257,6 +257,7 @@ export type ViewerPayload = z.infer<typeof viewerPayloadSchema>;
 export type ArtifactRef = z.infer<typeof artifactRefSchema>;
 export type AssessmentStatus = z.infer<typeof assessmentStatusSchema>;
 export type ActivationState = z.infer<typeof activationStateSchema>;
+export type MappingCompleteness = z.infer<typeof mappingCompletenessSchema>;
 export type ScanProgressEvent = z.infer<typeof scanProgressEventSchema>;
 
 export type DataSourceMode = "sample" | "api";

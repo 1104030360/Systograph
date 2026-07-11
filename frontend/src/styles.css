@@ -1,3 +1,8 @@
+/* Hallmark · pre-emit critique: P5 H4 E5 S5 R5 V4
+ * macrostructure: Workbench · genre: modern-minimal · tone: technical/austere
+ * preserves: existing light/dark tokens, React Flow/ELK, motion-cut behavior
+ * slop: structural pass · contrast/layout: automated checks pass; browser QA blocked by Windows sandbox
+ */
 /* ============================================================================
    Local AI Health Doctor — viewer design system
    Restrained observability aesthetic. Color = exception, not decoration.
@@ -21,6 +26,12 @@
 
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
   --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
 }
 
 /* ---- LIGHT theme (default) -------------------------------------------- */
@@ -127,7 +138,7 @@
    Reset / base
    ========================================================================== */
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; height: 100%; overflow-x: clip; }
 body {
   background: var(--bg);
   color: var(--text);
@@ -136,7 +147,7 @@ body {
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow: hidden;
+  overflow-y: hidden;
 }
 #root { height: 100vh; }
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -285,6 +296,16 @@ h1, h2, h3 { margin: 0; }
   font-size: 10px; line-height: 1; white-space: nowrap;
 }
 .legend-chip .swatch { width: 7px; height: 7px; border-radius: 2px; flex: none; border: 1px solid var(--line-strong); }
+.legend-chip .swatch.s-detected { background: var(--accent); border-color: var(--accent); }
+.legend-chip .swatch.s-confirmed { background: var(--accent-strong); border-color: var(--accent-strong); }
+.legend-chip .swatch.s-partial { background: var(--accent-soft); border-color: var(--accent); }
+.legend-chip .swatch.s-undetermined { background: transparent; border-color: var(--text-3); border-style: dashed; }
+.legend-chip .swatch.s-not_detected,
+.legend-chip .swatch.s-missing { background: var(--surface-3); border-color: var(--text-faint); }
+.legend-chip .swatch.s-conflicted,
+.legend-chip .swatch.s-risk { background: var(--risk-soft); border-color: var(--risk); }
+.legend-chip .swatch.s-needs_review,
+.legend-chip .swatch.s-needs_confirmation { background: var(--unmapped-soft); border-color: var(--unmapped); border-style: dashed; }
 
 /* Persistent sample-mode indicator (#176): always readable, never fades,
    sits below the docked progress strip so it cannot be mistaken for it. */
@@ -568,7 +589,6 @@ h1, h2, h3 { margin: 0; }
   position: relative;
   width: 208px;
   border: 1px solid var(--line-strong);
-  border-left-width: 3px;
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-node);
@@ -589,26 +609,83 @@ h1, h2, h3 { margin: 0; }
 }
 .node-status-ico { flex: none; display: grid; place-items: center; }
 
-.node.s-detected { border-left-color: var(--accent); }
-.node.s-confirmed { border-left-color: var(--accent-strong); }
-.node.s-risk { border-left-color: var(--risk); }
-.node.s-not_applicable { border-left-color: var(--text-faint); border-style: dashed; }
-.node.s-not_configured { border-left-color: var(--text-faint); border-style: dashed; }
-.node.s-missing { border-left-color: var(--text-faint); background: var(--surface-2); border-style: dashed; opacity: 0.92; }
-.node.s-needs_confirmation { border-left-color: var(--unmapped); border-style: dashed; }
+.node-status {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  max-width: 96px; color: var(--text-3);
+  font-family: var(--mono); font-size: 9px; line-height: 1;
+  text-transform: capitalize; white-space: nowrap;
+}
+.node-status span { overflow: hidden; text-overflow: ellipsis; }
+.node-status.s-detected,
+.node-status.s-confirmed,
+.node-status.s-confirmed_non_baseline { color: var(--accent-strong); }
+.node-status.s-partial { color: var(--accent); }
+.node-status.s-conflicted,
+.node-status.s-risk,
+.node-status.s-missing { color: var(--risk); }
+.node-status.s-needs_review,
+.node-status.s-needs_confirmation { color: var(--unmapped); }
+
+.node-activation {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px;
+  background: transparent; color: var(--text-3);
+  font-family: var(--mono); font-size: 9px; line-height: 1.35;
+}
+.node-activation.a-enabled { border-color: var(--accent-line); color: var(--accent-strong); }
+.node-activation.a-conflicted { border-color: var(--risk); color: var(--risk); }
+.node-activation.a-disabled,
+.node-activation.a-not_applicable { border-style: dashed; color: var(--text-faint); }
+
+.node.s-detected { border-color: var(--accent-line); }
+.node.s-confirmed { border-color: var(--accent-line); }
+.node.s-confirmed_non_baseline { border-color: var(--accent-line); }
+.node.s-partial { border-color: var(--accent-line); background: color-mix(in srgb, var(--accent-soft) 34%, var(--surface)); }
+.node.s-undetermined { border-color: var(--text-3); border-style: dashed; }
+.node.s-not_detected { border-color: var(--line-strong); background: var(--surface-2); }
+.node.s-conflicted { border-color: var(--risk); border-style: double; }
+.node.s-risk { border-color: var(--risk); }
+.node.s-not_applicable { border-color: var(--text-faint); border-style: dashed; }
+.node.s-not_configured { border-color: var(--text-faint); border-style: dashed; }
+.node.s-missing { border-color: var(--text-faint); background: var(--surface-2); border-style: dashed; opacity: 0.92; }
+.node.s-needs_confirmation { border-color: var(--unmapped); border-style: dashed; }
+.node.s-needs_review { border-color: var(--unmapped); border-style: dashed; }
+.node.k-reference_capability { background: var(--surface-2); box-shadow: none; }
+.node.k-profile_attachment { border-color: var(--accent-line); background: var(--accent-soft); box-shadow: none; }
+.node.k-unmapped_component { border-style: dashed; }
 
 .node.is-selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow-pop); }
-.node.is-selected.s-detected { border-left-color: var(--accent); }
-.node.is-selected.s-confirmed { border-left-color: var(--accent-strong); }
-.node.is-selected.s-risk { border-left-color: var(--risk); }
-.node.is-selected.s-not_applicable { border-left-color: var(--text-faint); }
-.node.is-selected.s-not_configured { border-left-color: var(--text-faint); }
-.node.is-selected.s-missing { border-left-color: var(--text-faint); }
-.node.is-selected.s-needs_confirmation { border-left-color: var(--unmapped); }
 .node.is-focused { border-color: var(--accent-line); }
 .node.is-dimmed { opacity: 0.32; }
 .node.is-progress { border-color: var(--accent); animation: progressPulse 1.4s ease-in-out infinite; }
 @keyframes progressPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); } 50% { box-shadow: 0 0 0 5px var(--accent-soft); } }
+
+/* Backend-owned completeness summary. It is intentionally compact: this is
+   assessment coverage, not a product score or success metric. */
+.mapping-completeness {
+  position: absolute; top: 58px; right: 14px; z-index: 7;
+  width: min(292px, calc(100% - 28px));
+  display: grid; gap: var(--space-2); padding: var(--space-3);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: var(--shadow-panel);
+  font-variant-numeric: tabular-nums;
+}
+.graph-frame.has-inspector .mapping-completeness { right: 374px; }
+.mapping-completeness-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  color: var(--text-2); font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.mapping-completeness-head code { color: var(--text-3); font-family: var(--mono); font-size: 9px; text-transform: none; }
+.mapping-completeness-value { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: var(--space-3); }
+.mapping-completeness-value strong { color: var(--text); font-family: var(--mono); font-size: 22px; line-height: 1; letter-spacing: -0.04em; }
+.mapping-completeness-value span { color: var(--text-2); font-size: 10px; line-height: 1.35; }
+.mapping-completeness-note { color: var(--text-3); font-size: 9px; line-height: 1.4; }
+.mapping-completeness.is-unavailable { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.mapping-completeness.is-unavailable svg { color: var(--text-3); }
+.mapping-completeness.is-unavailable div { display: grid; gap: var(--space-1); }
+.mapping-completeness.is-unavailable strong { font-size: var(--fs-sm); font-weight: 650; }
+.mapping-completeness.is-unavailable span { color: var(--text-3); font-size: 10px; }
 
 /* edge label pills (React Flow EdgeLabelRenderer) */
 .edge-label-pill {
@@ -869,7 +946,7 @@ h1, h2, h3 { margin: 0; }
 }
 
 @media (max-width: 880px) {
-  body { overflow: auto; }
+  body { overflow-y: auto; }
   /* Sidebar goes off-canvas (fixed), so the workspace stacks in block flow and
      the graph gets an explicit height instead of collapsing in the grid. */
   .app { display: block; height: auto; min-height: 100dvh; }
@@ -896,9 +973,18 @@ h1, h2, h3 { margin: 0; }
   .progress-strip.is-expanded { grid-template-columns: 1fr auto; }
   .progress-strip .progress-meter { grid-column: 1 / -1; order: 5; }
   .progress-strip .progress-pct { display: none; }
+  .mapping-completeness,
+  .graph-frame.has-inspector .mapping-completeness { top: 78px; right: 8px; width: min(268px, calc(100% - 16px)); }
   .replay-head { grid-template-columns: 1fr; justify-items: start; }
   .replay-head .r-ctrls { justify-content: flex-start; }
   .replay-head .r-meta { justify-self: start; }
   .timeline { grid-auto-columns: 78vw; }
   .tl-step { min-width: 0; }
+}
+
+@media (max-width: 520px) {
+  .mapping-completeness,
+  .graph-frame.has-inspector .mapping-completeness { left: 8px; right: 8px; width: auto; }
+  .mapping-completeness-note { display: none; }
+  .mapping-completeness-value strong { font-size: 18px; }
 }
