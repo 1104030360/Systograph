@@ -249,7 +249,36 @@ export function createFlowElements(
   return { nodes, edges };
 }
 
+const ATTACHMENT_STACK_GAP = 26;
+const ATTACHMENT_X_OFFSET = 18;
+
+function resolveAttachmentAnchorId(data: FlowNodeData, layoutNodeIds: Set<string>): string | null {
+  if (data.primary_anchor_node_id && layoutNodeIds.has(data.primary_anchor_node_id)) {
+    return data.primary_anchor_node_id;
+  }
+  return data.anchor_node_ids.find((id) => layoutNodeIds.has(id)) ?? null;
+}
+
 export async function layoutGraph(nodes: Node<FlowNodeData>[], edges: Edge<FlowEdgeData>[]) {
+  // Profile attachments are backend-anchored overlays, not flow participants:
+  // they stay out of the layered layout and sit beside their anchor node. An
+  // attachment whose anchor cannot be resolved degrades into the main layout
+  // so it never disappears.
+  const layoutNodeIds = new Set(
+    nodes.filter((node) => node.data.semantic_kind !== "profile_attachment").map((node) => node.id),
+  );
+  const anchorByAttachmentId = new Map<string, string>();
+  nodes.forEach((node) => {
+    if (node.data.semantic_kind !== "profile_attachment") return;
+    const anchorId = resolveAttachmentAnchorId(node.data, layoutNodeIds);
+    if (anchorId) anchorByAttachmentId.set(node.id, anchorId);
+  });
+
+  const layoutNodes = nodes.filter((node) => !anchorByAttachmentId.has(node.id));
+  const layoutEdges = edges.filter(
+    (edge) => !anchorByAttachmentId.has(edge.source) && !anchorByAttachmentId.has(edge.target),
+  );
+
   const elkGraph = {
     id: "root",
     layoutOptions: {
@@ -259,12 +288,12 @@ export async function layoutGraph(nodes: Node<FlowNodeData>[], edges: Edge<FlowE
       "elk.layered.spacing.nodeNodeBetweenLayers": "118",
       "elk.edgeRouting": "ORTHOGONAL",
     },
-    children: nodes.map((node) => ({
+    children: layoutNodes.map((node) => ({
       id: node.id,
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
     })),
-    edges: edges.map((edge) => ({
+    edges: layoutEdges.map((edge) => ({
       id: edge.id,
       sources: [edge.source],
       targets: [edge.target],
@@ -273,6 +302,18 @@ export async function layoutGraph(nodes: Node<FlowNodeData>[], edges: Edge<FlowE
 
   const layout = await elk.layout(elkGraph);
   const positions = new Map(layout.children?.map((node) => [node.id, { x: node.x ?? 0, y: node.y ?? 0 }]) ?? []);
+
+  const stackSizeByAnchorId = new Map<string, number>();
+  anchorByAttachmentId.forEach((anchorId, attachmentId) => {
+    const anchorPosition = positions.get(anchorId);
+    if (!anchorPosition) return;
+    const stackIndex = stackSizeByAnchorId.get(anchorId) ?? 0;
+    stackSizeByAnchorId.set(anchorId, stackIndex + 1);
+    positions.set(attachmentId, {
+      x: anchorPosition.x + ATTACHMENT_X_OFFSET,
+      y: anchorPosition.y - (NODE_HEIGHT + ATTACHMENT_STACK_GAP) * (stackIndex + 1),
+    });
+  });
 
   return nodes.map((node) => ({
     ...node,

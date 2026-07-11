@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Crosshair, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
+import { ClipboardCheck, Crosshair, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
 import { BoundaryDecisionModal, decisionsForBoundary } from "./components/BoundaryDecisionModal";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
 import { MappingCompletenessPanel } from "./components/MappingCompletenessPanel";
 import { ProgressStrip } from "./components/ProgressStrip";
+import { ReadinessPanel } from "./components/ReadinessPanel";
 import { ReplayTimeline } from "./components/ReplayTimeline";
 import { SampleDataIndicator } from "./components/SampleDataIndicator";
 import { Sidebar } from "./components/Sidebar";
@@ -118,6 +119,13 @@ export default function App() {
   // the page runs on the scanTemplateApi mock seam.
   const [view, setView] = useState<"viewer" | "scan-template">("viewer");
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
+  const [readinessOpen, setReadinessOpen] = useState(false);
+
+  // The node/edge inspector and the readiness drawer share the right rail, so
+  // making a selection (including readiness component drilldown) closes the drawer.
+  useEffect(() => {
+    if (selected) setReadinessOpen(false);
+  }, [selected]);
 
   const activeTraceEvent = traceEvents[activeTraceIndex];
   const progressTarget = progressTargets[progressIndex];
@@ -416,6 +424,18 @@ export default function App() {
             Scan Template
           </button>
 
+          <button
+            className={readinessOpen ? "btn is-active" : "btn"}
+            type="button"
+            aria-pressed={readinessOpen}
+            disabled={!dataAvailable}
+            onClick={() => setReadinessOpen(!readinessOpen)}
+            title="Backend readiness findings"
+          >
+            <ClipboardCheck size={14} />
+            Readiness
+          </button>
+
           <DataSourceControl
             mode={dataSourceMode}
             apiBaseUrl={apiBaseUrl}
@@ -523,6 +543,15 @@ export default function App() {
               </span>
             ))}
           </div>
+
+          {readinessOpen && !selected && !showOverlay && payload ? (
+            <ReadinessPanel
+              report={payload.viewer_load_result.readiness_report}
+              graph={graph}
+              onSelectComponent={(nodeId) => setSelected({ kind: "node", id: nodeId })}
+              onClose={() => setReadinessOpen(false)}
+            />
+          ) : null}
 
           {selected && !showOverlay && payload ? (
             <div className="inspector">

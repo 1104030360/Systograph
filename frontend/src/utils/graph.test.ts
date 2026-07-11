@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { graphViewModelSchema } from "../types";
-import { createFlowElements } from "./graph";
+import { createFlowElements, layoutGraph } from "./graph";
 
 const graph = graphViewModelSchema.parse({
   nodes: [
@@ -72,5 +72,67 @@ describe("createFlowElements lens behavior", () => {
     nodes.forEach((node) => {
       expect(node.data.isDimmed).toBe(false);
     });
+  });
+});
+
+describe("layoutGraph profile attachment overlay", () => {
+  const overlayGraph = graphViewModelSchema.parse({
+    nodes: [
+      { id: "node:a", label: "A" },
+      { id: "node:b", label: "B" },
+      {
+        id: "node:attach",
+        label: "RAG grounding",
+        semantic_kind: "profile_attachment",
+        primary_anchor_node_id: "node:a",
+        anchor_node_ids: ["node:a", "node:b"],
+      },
+      {
+        id: "node:attach-2",
+        label: "Reranking",
+        semantic_kind: "profile_attachment",
+        primary_anchor_node_id: "node:a",
+        anchor_node_ids: ["node:a"],
+      },
+      {
+        id: "node:attach-orphan",
+        label: "Orphaned overlay",
+        semantic_kind: "profile_attachment",
+        anchor_node_ids: ["node:not-in-projection"],
+      },
+    ],
+    edges: [{ id: "edge:ab", from: "node:a", to: "node:b" }],
+    details: {
+      evidence_by_id: {},
+      risk_hints_by_id: {},
+      profile_findings_by_id: {},
+      capability_candidates_by_id: {},
+    },
+    filters: { available: [], lenses: [] },
+  });
+
+  it("stacks anchored attachments above their anchor instead of the layered layout", async () => {
+    const elements = createFlowElements(overlayGraph, { activeFilterIds: [] });
+    const layouted = await layoutGraph(elements.nodes, elements.edges);
+    const byId = new Map(layouted.map((node) => [node.id, node.position]));
+
+    const anchor = byId.get("node:a");
+    const first = byId.get("node:attach");
+    const second = byId.get("node:attach-2");
+    if (!anchor || !first || !second) throw new Error("missing layout positions");
+
+    expect(first.x).toBeGreaterThan(anchor.x);
+    expect(first.y).toBeLessThan(anchor.y);
+    expect(second.y).toBeLessThan(first.y);
+  });
+
+  it("keeps an attachment without a resolvable anchor visible in the main layout", async () => {
+    const elements = createFlowElements(overlayGraph, { activeFilterIds: [] });
+    const layouted = await layoutGraph(elements.nodes, elements.edges);
+    const orphan = layouted.find((node) => node.id === "node:attach-orphan");
+
+    expect(orphan).toBeDefined();
+    // ELK assigns non-negative coordinates to layouted nodes; anchored overlays sit above (negative y).
+    expect(orphan?.position.y).toBeGreaterThanOrEqual(0);
   });
 });

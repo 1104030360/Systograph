@@ -856,6 +856,74 @@ h1, h2, h3 { margin: 0; }
   overflow: hidden;
 }
 
+.readiness-drawer {
+  position: absolute; top: 64px; right: 14px; bottom: 14px; z-index: 9;
+  width: 360px; max-width: calc(100% - 28px);
+  display: grid; grid-template-rows: auto 1fr;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-lg);
+  background: var(--panel); box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+.readiness-head {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--pad-panel); border-bottom: 1px solid var(--line);
+}
+.readiness-head .icon-btn { margin-left: auto; }
+.readiness-verdict {
+  font-size: 10px; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 4px; background: var(--surface-3); color: var(--text-2);
+}
+.readiness-verdict.v-ready { background: var(--accent-soft); color: var(--accent-strong); }
+.readiness-verdict.v-needs_review { background: var(--unmapped-soft); color: var(--unmapped); }
+.readiness-verdict.v-blocked { background: var(--risk-soft); color: var(--risk); }
+.readiness-body { overflow-y: auto; padding: var(--pad-panel); display: grid; gap: var(--space-3); align-content: start; }
+.readiness-summary { display: flex; align-items: center; gap: var(--space-2); }
+.readiness-static-note { font-size: var(--fs-sm); color: var(--text-3); }
+.readiness-empty {
+  display: flex; gap: var(--space-2); align-items: flex-start;
+  padding: var(--pad-panel); color: var(--text-3); font-size: var(--fs-sm); line-height: 1.5;
+}
+.readiness-empty p { margin: 0; }
+.readiness-finding {
+  display: grid; gap: var(--space-2);
+  padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface);
+}
+.readiness-finding p { margin: 0; font-size: var(--fs-sm); line-height: 1.5; color: var(--text-2); }
+.readiness-finding-head { display: flex; align-items: baseline; gap: var(--space-2); }
+.readiness-finding-head strong { font-size: var(--fs-sm); color: var(--text); }
+.readiness-severity {
+  margin-left: auto; flex: none;
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+.readiness-severity.sev-high, .readiness-severity.sev-critical { color: var(--risk); }
+.readiness-finding-meta { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.readiness-chip {
+  font-size: 10px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 4px; border: 1px solid var(--line-strong);
+  background: var(--surface-2); color: var(--text-2);
+}
+.readiness-chip.s-detected { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
+.readiness-chip.s-partial { border-color: var(--accent-line); color: var(--accent-strong); }
+.readiness-chip.s-undetermined { border-style: dashed; color: var(--text-3); }
+.readiness-chip.s-not_detected { color: var(--text-3); }
+.readiness-chip.s-conflicted { border-color: var(--risk); color: var(--risk); background: var(--risk-soft); }
+.readiness-category { font-size: 11px; color: var(--text-3); }
+.readiness-gap { color: var(--text-3); }
+.readiness-refs { display: grid; gap: var(--space-1); }
+.readiness-ref-list { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.readiness-ref {
+  font-family: var(--mono); font-size: 10.5px; padding: 2px 7px;
+  border: 1px solid var(--line); border-radius: 4px;
+  background: var(--surface-2); color: var(--text-2);
+}
+button.readiness-ref { cursor: pointer; }
+button.readiness-ref:hover { border-color: var(--accent-line); color: var(--text); background: var(--accent-soft); }
+.readiness-ref.is-unresolved { color: var(--text-faint); border-style: dashed; }
+.readiness-checks { margin: 0; padding-left: 18px; font-size: var(--fs-sm); color: var(--text-2); display: grid; gap: 3px; }
+.readiness-limitations { font-size: 11px; color: var(--text-faint); font-style: italic; }
+
 .inspector-head { padding: var(--pad-panel); border-bottom: 1px solid var(--line); }
 .inspector-kind { display: flex; align-items: center; justify-content: space-between; }
 .kind-tag {
