@@ -225,6 +225,7 @@ frontend/.vite/
 *.tsbuildinfo
 npm-debug.log*
 pnpm-debug.log*
+.pnpm-store/
 
 # Marimo
 marimo/_static/
