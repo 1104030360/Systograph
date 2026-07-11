@@ -514,6 +514,7 @@ export default function App() {
 
           <SystemGraph
             graph={graph}
+            layoutMode={isPhase2 ? "planes" : "auto"}
             activeFilterIds={activeFilterIds}
             activeLensId={activeLensId}
             selected={selected}
