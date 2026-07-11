@@ -252,6 +252,7 @@ export const scanProgressEventSchema = z.object({
 export type GraphNodeModel = z.infer<typeof graphNodeSchema>;
 export type GraphEdgeModel = z.infer<typeof graphEdgeSchema>;
 export type GraphFilterModel = z.infer<typeof graphFilterSchema>;
+export type GraphLensModel = z.infer<typeof graphLensSchema>;
 export type GraphViewModel = z.infer<typeof graphViewModelSchema>;
 export type ViewerPayload = z.infer<typeof viewerPayloadSchema>;
 export type ArtifactRef = z.infer<typeof artifactRefSchema>;

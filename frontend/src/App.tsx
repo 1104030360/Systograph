@@ -82,6 +82,7 @@ export default function App() {
 
   const selected = useViewerStore((state) => state.selected);
   const activeFilterIds = useViewerStore((state) => state.activeFilterIds);
+  const activeLensId = useViewerStore((state) => state.activeLensId);
   const activeTraceIndex = useViewerStore((state) => state.activeTraceIndex);
   const isReplayRunning = useViewerStore((state) => state.isReplayRunning);
   const isProgressRunning = useViewerStore((state) => state.isProgressRunning);
@@ -91,6 +92,7 @@ export default function App() {
   const detailMode = useViewerStore((state) => state.detailMode);
   const setSelected = useViewerStore((state) => state.setSelected);
   const toggleFilter = useViewerStore((state) => state.toggleFilter);
+  const toggleLens = useViewerStore((state) => state.toggleLens);
   const clearFilters = useViewerStore((state) => state.clearFilters);
   const setActiveTraceIndex = useViewerStore((state) => state.setActiveTraceIndex);
   const setReplayRunning = useViewerStore((state) => state.setReplayRunning);
@@ -315,9 +317,12 @@ export default function App() {
         scanDepth={aiSystemMap?.scan_depth}
         dataAvailable={dataAvailable}
         filters={graph.filters.available}
+        lenses={graph.filters.lenses}
         activeFilterIds={activeFilterIds}
+        activeLensId={activeLensId}
         isOpen={menuOpen}
         onToggleFilter={toggleFilter}
+        onToggleLens={toggleLens}
         onClearFilters={clearFilters}
       />
 
@@ -349,6 +354,38 @@ export default function App() {
                 </span>
                 <span>projection</span>
               </div>
+              {isPhase2 && payload ? (
+                <dl className="build-lineage" aria-label="Build lineage">
+                  <div>
+                    <dt>scan</dt>
+                    <dd>
+                      <code title={payload.viewer_load_result.scan_id ?? undefined}>{payload.viewer_load_result.scan_id}</code>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>build</dt>
+                    <dd>
+                      <code title={payload.viewer_load_result.build_id ?? undefined}>{payload.viewer_load_result.build_id}</code>
+                    </dd>
+                  </div>
+                  {payload.viewer_load_result.based_on_build_id ? (
+                    <div>
+                      <dt>based on</dt>
+                      <dd>
+                        <code title={payload.viewer_load_result.based_on_build_id}>{payload.viewer_load_result.based_on_build_id}</code>
+                      </dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt>environment</dt>
+                    <dd>
+                      <code title={payload.viewer_load_result.environment_id ?? undefined}>
+                        {payload.viewer_load_result.environment_id}
+                      </code>
+                    </dd>
+                  </div>
+                </dl>
+              ) : null}
             </div>
           </div>
           <div className="tb-metrics is-hidden">
@@ -458,6 +495,7 @@ export default function App() {
           <SystemGraph
             graph={graph}
             activeFilterIds={activeFilterIds}
+            activeLensId={activeLensId}
             selected={selected}
             traceEvent={activeTraceEvent}
             progressTargetId={progressTargetId}

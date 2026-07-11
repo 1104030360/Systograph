@@ -182,6 +182,7 @@ function resolveFollowNodeId({
 type Props = {
   graph: GraphViewModel;
   activeFilterIds: string[];
+  activeLensId: string | null;
   selected: Selection;
   traceEvent?: TraceEvent;
   progressTargetId?: string;
@@ -194,6 +195,7 @@ type Props = {
 function GraphCanvas({
   graph,
   activeFilterIds,
+  activeLensId,
   selected,
   traceEvent,
   progressTargetId,
@@ -226,12 +228,13 @@ function GraphCanvas({
     () =>
       createFlowElements(graph, {
         activeFilterIds,
+        activeLensId,
         selectedId,
         selectedKind,
         traceEvent,
         progressTargetId,
       }),
-    [activeFilterIds, graph, progressTargetId, selectedId, selectedKind, traceEvent],
+    [activeFilterIds, activeLensId, graph, progressTargetId, selectedId, selectedKind, traceEvent],
   );
 
   useEffect(() => {
