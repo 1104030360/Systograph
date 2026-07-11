@@ -1,0 +1,491 @@
+catalog_id = "ai-system-capability-reference-map"
+version = "1"
+display_name = "AI System Capability Reference Map"
+description = "Fixed reference coordinates for backend capability overlays."
+
+[[planes]]
+id = "input_intent"
+label = "Input & Intent Plane"
+description = "Understand requests, tasks, and context."
+display_order = 10
+visual_group = "input"
+
+[[planes]]
+id = "control"
+label = "Control Plane"
+description = "Plan, route, approve, and stop work."
+display_order = 20
+visual_group = "control"
+
+[[planes]]
+id = "ingestion_indexing"
+label = "Ingestion & Indexing Plane"
+description = "Load, parse, enrich, embed, and index source material."
+display_order = 30
+visual_group = "knowledge"
+
+[[planes]]
+id = "retrieval"
+label = "Retrieval Plane"
+description = "Fetch and select relevant information."
+display_order = 40
+visual_group = "knowledge"
+
+[[planes]]
+id = "extension_subsystems"
+label = "Extension Subsystems Plane"
+description = "Group graph, multimodal, memory, and federated subsystems."
+display_order = 50
+visual_group = "subsystems"
+
+[[planes]]
+id = "evidence"
+label = "Evidence Plane"
+description = "Rank, validate, and preserve evidence."
+display_order = 60
+visual_group = "evidence"
+
+[[planes]]
+id = "generation"
+label = "Generation Plane"
+description = "Compose context and generate guarded output."
+display_order = 70
+visual_group = "generation"
+
+[[planes]]
+id = "memory_state"
+label = "Memory & State Plane"
+description = "Represent session, working, and long-term memory state."
+display_order = 80
+visual_group = "state"
+
+[[planes]]
+id = "governance_observability"
+label = "Governance & Observability Plane"
+description = "Represent policies, approvals, traces, evaluations, cost, and latency."
+display_order = 90
+visual_group = "governance"
+
+[[planes]]
+id = "deployment_topology"
+label = "Deployment Topology Plane"
+description = "Represent process, service, tool-network, and federated boundaries."
+display_order = 100
+visual_group = "deployment"
+
+[[nodes]]
+id = "user_input"
+plane_id = "input_intent"
+label = "User Input"
+description = "Accepts a user request."
+display_order = 10
+activation_applicable = false
+
+[[nodes]]
+id = "session_context"
+plane_id = "input_intent"
+label = "Session Context"
+description = "Provides context associated with a user session."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "query_classifier"
+plane_id = "input_intent"
+label = "Query Classifier"
+description = "Classifies a request before later processing."
+display_order = 30
+activation_applicable = true
+
+[[nodes]]
+id = "planner"
+plane_id = "control"
+label = "Planner"
+description = "Plans a sequence of work."
+display_order = 10
+activation_applicable = true
+
+[[nodes]]
+id = "router"
+plane_id = "control"
+label = "Router"
+description = "Routes work to a selected path."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "agent_loop"
+plane_id = "control"
+label = "Agent Loop"
+description = "Repeats an agent control cycle."
+display_order = 30
+activation_applicable = true
+
+[[nodes]]
+id = "orchestrator"
+plane_id = "control"
+label = "Orchestrator"
+description = "Coordinates multiple work steps."
+display_order = 40
+activation_applicable = true
+
+[[nodes]]
+id = "stop_policy"
+plane_id = "control"
+label = "Stop Policy"
+description = "Defines when controlled work must stop."
+display_order = 50
+activation_applicable = true
+
+[[nodes]]
+id = "human_approval_gate"
+plane_id = "control"
+label = "Human Approval Gate"
+description = "Requires human confirmation before work continues."
+display_order = 60
+activation_applicable = true
+
+[[nodes]]
+id = "document_loader"
+plane_id = "ingestion_indexing"
+label = "Document Loader"
+description = "Loads source material for ingestion."
+display_order = 10
+activation_applicable = true
+
+[[nodes]]
+id = "parser"
+plane_id = "ingestion_indexing"
+label = "Parser"
+description = "Parses source material into usable content."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "chunker"
+plane_id = "ingestion_indexing"
+label = "Chunker"
+description = "Splits source material into chunks."
+display_order = 30
+activation_applicable = true
+
+[[nodes]]
+id = "metadata_extractor"
+plane_id = "ingestion_indexing"
+label = "Metadata Extractor"
+description = "Extracts metadata from source material."
+display_order = 40
+activation_applicable = true
+
+[[nodes]]
+id = "embedder"
+plane_id = "ingestion_indexing"
+label = "Embedder"
+description = "Creates vector representations for content."
+display_order = 50
+activation_applicable = true
+
+[[nodes]]
+id = "index_builder"
+plane_id = "ingestion_indexing"
+label = "Index Builder"
+description = "Builds an index for later retrieval."
+display_order = 60
+activation_applicable = true
+
+[[nodes]]
+id = "dense_retriever"
+plane_id = "retrieval"
+label = "Dense Retriever"
+description = "Retrieves information using dense representations."
+display_order = 10
+activation_applicable = true
+
+[[nodes]]
+id = "sparse_retriever"
+plane_id = "retrieval"
+label = "Sparse Retriever"
+description = "Retrieves information using sparse matching."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "hybrid_retriever"
+plane_id = "retrieval"
+label = "Hybrid Retriever"
+description = "Retrieves candidate evidence from one or more sources."
+display_order = 30
+aliases = ["semantic_retriever", "vector_retriever"]
+activation_applicable = true
+
+[[nodes]]
+id = "graph_retriever"
+plane_id = "retrieval"
+label = "Graph Retriever"
+description = "Retrieves information through graph relationships."
+display_order = 40
+activation_applicable = true
+
+[[nodes]]
+id = "memory_retriever"
+plane_id = "retrieval"
+label = "Memory Retriever"
+description = "Retrieves information from memory state."
+display_order = 50
+activation_applicable = true
+
+[[nodes]]
+id = "web_retriever"
+plane_id = "retrieval"
+label = "Web Retriever"
+description = "Retrieves information from web-connected sources."
+display_order = 60
+activation_applicable = true
+
+[[nodes]]
+id = "graph_rag_system"
+plane_id = "extension_subsystems"
+label = "GraphRAG Subsystem"
+description = "Represents a graph-oriented retrieval subsystem."
+display_order = 10
+activation_applicable = true
+
+[[nodes]]
+id = "rag_anything_system"
+plane_id = "extension_subsystems"
+label = "RAG-Anything / Multimodal Subsystem"
+description = "Represents a multimodal retrieval subsystem."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "infini_memory_system"
+plane_id = "extension_subsystems"
+label = "Infini Memory / Long-term Memory Subsystem"
+description = "Represents a long-term memory subsystem."
+display_order = 30
+activation_applicable = true
+
+[[nodes]]
+id = "corag_federated_system"
+plane_id = "extension_subsystems"
+label = "CoRAG / Federated Subsystem"
+description = "Represents a federated retrieval subsystem."
+display_order = 40
+activation_applicable = true
+
+[[nodes]]
+id = "reranker"
+plane_id = "evidence"
+label = "Reranker"
+description = "Reranks candidate evidence."
+display_order = 10
+activation_applicable = true
+
+[[nodes]]
+id = "conflict_checker"
+plane_id = "evidence"
+label = "Conflict Checker"
+description = "Checks evidence for contradictions."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "citation_mapper"
+plane_id = "evidence"
+label = "Citation Mapper"
+description = "Maps claims to cited evidence."
+display_order = 30
+activation_applicable = true
+
+[[nodes]]
+id = "evidence_pack"
+plane_id = "evidence"
+label = "Evidence Pack"
+description = "Packages evidence for later use."
+display_order = 40
+activation_applicable = true
+
+[[nodes]]
+id = "context_composer"
+plane_id = "generation"
+label = "Context Composer"
+description = "Combines selected context for generation."
+display_order = 10
+activation_applicable = true
+
+[[nodes]]
+id = "prompt_builder"
+plane_id = "generation"
+label = "Prompt Builder"
+description = "Builds prompts for a generator."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "llm_answerer"
+plane_id = "generation"
+label = "LLM Answerer"
+description = "Generates an answer with a language model."
+display_order = 30
+activation_applicable = true
+
+[[nodes]]
+id = "tool_using_generator"
+plane_id = "generation"
+label = "Tool-Using Generator"
+description = "Generates output while using external tools."
+display_order = 40
+activation_applicable = true
+
+[[nodes]]
+id = "output_guardrail"
+plane_id = "generation"
+label = "Output Guardrail"
+description = "Applies controls to generated output."
+display_order = 50
+activation_applicable = true
+
+[[nodes]]
+id = "session_state"
+plane_id = "memory_state"
+label = "Session State"
+description = "Stores state associated with a session."
+display_order = 10
+activation_applicable = true
+
+[[nodes]]
+id = "working_memory"
+plane_id = "memory_state"
+label = "Working Memory"
+description = "Stores short-lived working context."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "long_term_memory"
+plane_id = "memory_state"
+label = "Long-term Memory"
+description = "Stores persistent memory."
+display_order = 30
+activation_applicable = true
+
+[[nodes]]
+id = "memory_reader"
+plane_id = "memory_state"
+label = "Memory Reader"
+description = "Reads stored memory."
+display_order = 40
+activation_applicable = true
+
+[[nodes]]
+id = "memory_writer"
+plane_id = "memory_state"
+label = "Memory Writer"
+description = "Writes stored memory."
+display_order = 50
+activation_applicable = true
+
+[[nodes]]
+id = "input_guardrail"
+plane_id = "governance_observability"
+label = "Input Guardrail"
+description = "Applies controls to incoming requests."
+display_order = 10
+activation_applicable = true
+
+[[nodes]]
+id = "permission_policy"
+plane_id = "governance_observability"
+label = "Permission Policy"
+description = "Defines permission controls."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "human_approval"
+plane_id = "governance_observability"
+label = "Human Approval"
+description = "Records a human approval control."
+display_order = 30
+activation_applicable = true
+
+[[nodes]]
+id = "trace_store"
+plane_id = "governance_observability"
+label = "Trace Store"
+description = "Stores execution traces."
+display_order = 40
+activation_applicable = true
+
+[[nodes]]
+id = "eval_harness"
+plane_id = "governance_observability"
+label = "Eval Harness"
+description = "Runs evaluation workflows."
+display_order = 50
+activation_applicable = true
+
+[[nodes]]
+id = "cost_monitor"
+plane_id = "governance_observability"
+label = "Cost Monitor"
+description = "Monitors resource cost."
+display_order = 60
+activation_applicable = true
+
+[[nodes]]
+id = "latency_monitor"
+plane_id = "governance_observability"
+label = "Latency Monitor"
+description = "Monitors latency."
+display_order = 70
+activation_applicable = true
+
+[[nodes]]
+id = "client_app"
+plane_id = "deployment_topology"
+label = "Client App"
+description = "Represents a client application boundary."
+display_order = 10
+activation_applicable = false
+
+[[nodes]]
+id = "api_server"
+plane_id = "deployment_topology"
+label = "API Server"
+description = "Represents an API service boundary."
+display_order = 20
+activation_applicable = true
+
+[[nodes]]
+id = "agent_runtime"
+plane_id = "deployment_topology"
+label = "Agent Runtime"
+description = "Represents an agent execution boundary."
+display_order = 30
+activation_applicable = true
+
+[[nodes]]
+id = "worker_queue"
+plane_id = "deployment_topology"
+label = "Worker / Queue"
+description = "Represents asynchronous worker or queue boundaries."
+display_order = 40
+activation_applicable = true
+
+[[nodes]]
+id = "tool_network"
+plane_id = "deployment_topology"
+label = "Tool Network"
+description = "Represents connected tool boundaries."
+display_order = 50
+activation_applicable = true
+
+[[nodes]]
+id = "federated_clients"
+plane_id = "deployment_topology"
+label = "Federated Clients"
+description = "Represents federated client boundaries."
+display_order = 60
+activation_applicable = true

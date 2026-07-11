@@ -1,24 +1,27 @@
-"""Orchestrate project folder scans into canonical map artifacts."""
-
 from __future__ import annotations
 
-from pathlib import Path
+from datetime import UTC, datetime
+from uuid import uuid4
 
-from kai_mind.core.models.errors import PreconditionError
-from kai_mind.core.models.map_build import (
-    MapBuildRequest,
-    MapBuildResult,
-    SystemMapSchemaSelection,
+from kai_mind.core.models.analysis_history import (
+    BuildReason,
+    MapBuildLineage,
+    ScanSnapshot,
 )
-from kai_mind.core.models.scan import OutputRun, ProjectScanResult
-from kai_mind.core.models.system_map import Evidence, Project, RagSystemMap
-from kai_mind.core.models.template import RagTemplate
+from kai_mind.core.models.capability_candidate import (
+    CapabilityCandidateComponent,
+)
+from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
+from kai_mind.core.models.scan import OutputRun
+from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
+from kai_mind.core.services.build_artifact_publisher import (
+    BuildArtifactPublisher,
+)
 from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
 from kai_mind.core.services.component_detection_service import (
-    ComponentDetectionResult,
     ComponentDetectionService,
 )
 from kai_mind.core.services.endpoint_detection_service import (
@@ -27,18 +30,32 @@ from kai_mind.core.services.endpoint_detection_service import (
 from kai_mind.core.services.flow_derivation_service import (
     FlowDerivationService,
 )
-from kai_mind.core.services.manual_mapping_service import (
-    ManualMappingService,
+from kai_mind.core.services.manual_mapping_service import ManualMappingService
+from kai_mind.core.services.map_build_orchestration import (
+    precondition_error_result,
+    scan_project,
 )
+from kai_mind.core.services.map_build_pipeline import MapBuildPipeline
 from kai_mind.core.services.markdown_summary_service import (
     MarkdownSummaryService,
+)
+from kai_mind.core.services.profile_inference_service import (
+    ProfileInferenceService,
 )
 from kai_mind.core.services.project_scan_service import (
     InventoryPolicyOverlay,
     ProjectScanService,
 )
-from kai_mind.core.services.rag_template_service import RagTemplateService
+from kai_mind.core.services.readiness_report_service import (
+    ReadinessReportService,
+)
 from kai_mind.core.services.risk_hint_service import RiskHintService
+from kai_mind.core.services.static_execution_artifact_service import (
+    StaticExecutionArtifactService,
+)
+from kai_mind.core.services.system_map_materialization_service import (
+    SystemMapMaterializationService,
+)
 from kai_mind.core.services.system_map_normalize_service import (
     SystemMapNormalizeService,
 )
@@ -49,8 +66,6 @@ from kai_mind.core.services.viewer_session_service import ViewerSessionService
 
 
 class MapBuildService:
-    """Build validated map artifacts through the shared core pipeline."""
-
     def __init__(
         self,
         *,
@@ -66,36 +81,42 @@ class MapBuildService:
         projection_service: ViewerSessionService | None = None,
         validation_service: SystemMapValidationService | None = None,
         canonical_map_loader: CanonicalMapLoader | None = None,
+        profile_inference_service: ProfileInferenceService | None = None,
+        readiness_report_service: ReadinessReportService | None = None,
+        static_execution_artifact_service: (
+            StaticExecutionArtifactService | None
+        ) = None,
+        materialization_service: SystemMapMaterializationService | None = None,
+        artifact_publisher: BuildArtifactPublisher | None = None,
     ) -> None:
-        self._output_artifact_provider = (
-            output_artifact_provider or OutputArtifactProvider()
+        output_provider = output_artifact_provider or OutputArtifactProvider()
+        materializer = (
+            materialization_service
+            or SystemMapMaterializationService(
+                component_detection_service=component_detection_service,
+                endpoint_detection_service=endpoint_detection_service,
+                risk_hint_service=risk_hint_service,
+                flow_derivation_service=flow_derivation_service,
+                manual_mapping_service=manual_mapping_service,
+                normalize_service=normalize_service,
+                validation_service=validation_service,
+            )
         )
-        self._project_scan_service = (
-            project_scan_service or ProjectScanService()
-        )
-        self._component_detection_service = (
-            component_detection_service or ComponentDetectionService()
-        )
-        self._endpoint_detection_service = (
-            endpoint_detection_service or EndpointDetectionService()
-        )
-        self._risk_hint_service = risk_hint_service or RiskHintService()
-        self._flow_derivation_service = (
-            flow_derivation_service or FlowDerivationService()
+        publisher = artifact_publisher or BuildArtifactPublisher(
+            output_artifact_provider=output_provider,
+            markdown_summary_service=markdown_summary_service,
+            projection_service=projection_service,
         )
         self._manual_mapping_service = manual_mapping_service
-        self._normalize_service = (
-            normalize_service or SystemMapNormalizeService()
-        )
-        self._markdown_summary_service = (
-            markdown_summary_service or MarkdownSummaryService()
-        )
-        self._projection_service = projection_service or ViewerSessionService()
-        self._validation_service = (
-            validation_service or SystemMapValidationService()
-        )
-        self._canonical_map_loader = (
-            canonical_map_loader or CanonicalMapLoader()
+        self._scanner = project_scan_service or ProjectScanService()
+        self._output_provider = publisher.output_provider
+        self._pipeline = MapBuildPipeline(
+            materialization_service=materializer,
+            artifact_publisher=publisher,
+            canonical_map_loader=canonical_map_loader,
+            profile_inference_service=profile_inference_service,
+            readiness_report_service=readiness_report_service,
+            static_execution_artifact_service=static_execution_artifact_service,
         )
 
     def build(
@@ -105,222 +126,127 @@ class MapBuildService:
         project_id: str | None = None,
         inventory_policy: InventoryPolicyOverlay | None = None,
     ) -> MapBuildResult:
-        """Build map artifacts and a frontend viewer payload."""
-
-        precondition = self._output_artifact_provider.check_preconditions(
+        precondition = self._output_provider.check_preconditions(
             project_path=request.project_path,
             output_dir=request.output,
         )
         project_name = request.project_path.name or "project"
         if not precondition.ok:
-            return self._precondition_error_result(
+            return precondition_error_result(
+                output_provider=self._output_provider,
                 project_name=project_name,
                 error=precondition.error,
                 output_run=precondition.output_run,
                 warnings=precondition.warnings,
                 requested_schema_version=request.system_map_schema_version,
             )
-
         if (
             precondition.project_root is None
             or precondition.output_run is None
         ):
             raise ValueError("Precondition result is missing resolved paths")
-
-        system_map = self._build_system_map(
+        raw_scan = scan_project(
+            self._scanner,
+            precondition.project_root,
+            inventory_policy=inventory_policy,
+        )
+        scan_id = f"scan:{uuid4()}"
+        build_id = f"build:{uuid4()}"
+        lineage = (
+            MapBuildLineage(
+                project_id=project_id,
+                scan_id=scan_id,
+                build_id=build_id,
+                build_reason="initial_scan",
+                generated_at=datetime.now(UTC),
+            )
+            if project_id is not None
+            else None
+        )
+        return self._pipeline.materialize(
+            raw_scan=raw_scan,
+            request=request,
+            output_run=precondition.output_run,
+            project_name=precondition.project_root.name,
             project_root=precondition.project_root,
-            project_name=precondition.project_root.name,
-            request=request,
             project_id=project_id,
-            inventory_policy=inventory_policy,
-        )
-        map_json_path = self._output_artifact_provider.write_json(
-            system_map,
-            output_run=precondition.output_run,
-        )
-        markdown = self._markdown_summary_service.render(system_map)
-        map_markdown_path = self._output_artifact_provider.write_markdown(
-            markdown,
-            output_run=precondition.output_run,
-        )
-        viewer_load_result = self._projection_service.build(
-            system_map,
-            map_json_path=map_json_path,
-        )
-        load_result = self._canonical_map_loader.load(
-            system_map.model_dump(mode="json")
-        )
-        migration_warnings = list(load_result.migration_warnings)
-        if request.system_map_schema_version == "ai-system-map/v2":
-            migration_warnings.append(
-                "requested_v2_opt_in_but_active_output_remains_v1_until_plan_13"
-            )
-
-        return MapBuildResult(
-            status="ok",
-            project_name=precondition.project_root.name,
-            output_run_dir=precondition.output_run.root_dir,
-            map_json_path=map_json_path,
-            map_markdown_path=map_markdown_path,
-            map_error_path=None,
-            viewer_load_result=viewer_load_result,
-            ai_system_map=system_map,
-            normalized_ai_system_map=load_result.normalized,
-            active_schema_version="ai-system-map/v1",
-            requested_schema_version=request.system_map_schema_version,
-            migration_warnings=migration_warnings,
+            scan_id=scan_id,
+            build_id=build_id,
+            lineage=lineage,
             warnings=precondition.warnings,
-            error=None,
         )
 
-    def _precondition_error_result(
+    def build_from_snapshot(
         self,
+        snapshot: ScanSnapshot,
         *,
-        project_name: str,
-        error: PreconditionError | None,
-        output_run: OutputRun | None,
-        warnings: list[str],
-        requested_schema_version: SystemMapSchemaSelection,
-    ) -> MapBuildResult:
-        map_error_path: Path | None = None
-        if error is not None and output_run is not None:
-            map_error_path = self._output_artifact_provider.write_map_error(
-                error,
-                output_run=output_run,
-            )
-
-        return MapBuildResult(
-            status="error",
-            project_name=project_name,
-            output_run_dir=output_run.root_dir if output_run else None,
-            map_json_path=None,
-            map_markdown_path=None,
-            map_error_path=map_error_path,
-            viewer_load_result=None,
-            ai_system_map=None,
-            normalized_ai_system_map=None,
-            active_schema_version="ai-system-map/v1",
-            requested_schema_version=requested_schema_version,
-            migration_warnings=[],
-            warnings=warnings,
-            error=error,
-        )
-
-    def _build_system_map(
-        self,
-        *,
-        project_root: Path,
-        project_name: str,
         request: MapBuildRequest,
-        project_id: str | None,
-        inventory_policy: InventoryPolicyOverlay | None,
-    ) -> RagSystemMap:
-        raw_scan = self._scan_project(
-            project_root=project_root,
-            inventory_policy=inventory_policy,
+        output_run: OutputRun,
+        build_reason: BuildReason,
+        build_id: str | None = None,
+        based_on_build_id: str | None = None,
+        mapping_ids: tuple[str, ...] = (),
+    ) -> MapBuildResult:
+        active_build_id = build_id or f"build:{uuid4()}"
+        lineage = MapBuildLineage(
+            project_id=snapshot.project_id,
+            scan_id=snapshot.scan_id,
+            build_id=active_build_id,
+            based_on_build_id=based_on_build_id,
+            build_reason=build_reason,
+            applied_mapping_ids=tuple(sorted(mapping_ids)),
+            generated_at=datetime.now(UTC),
         )
-        template = RagTemplateService.load("rag-core-v1")
-        components = self._detect_components(
-            raw_scan=raw_scan,
-            template=template,
-            project_id=project_id,
-        )
-        endpoints = self._endpoint_detection_service.detect(
-            facts=raw_scan.facts,
-            evidence=raw_scan.evidence,
-            components=components,
-        )
-        risk_hints = self._risk_hint_service.derive(
-            facts=raw_scan.facts,
-            evidence=raw_scan.evidence,
-            issues=raw_scan.issues,
-            components=components,
-            endpoints=endpoints,
-        )
-        flows = self._flow_derivation_service.derive(
-            template=template,
-            components=components,
-        )
-        system_map = self._normalize_service.assemble(
-            project_name=project_name,
-            raw_scan=raw_scan,
-            template=template,
-            components=components,
-            endpoints=endpoints,
-            flows=flows,
-            risk_hints=risk_hints,
-        )
-        adjusted = self._apply_request_options(
-            system_map=system_map,
-            project_root=project_root,
+        return self._pipeline.materialize(
+            raw_scan=snapshot.scan_result,
             request=request,
-        )
-        return self._validation_service.validate(
-            adjusted.model_dump(mode="json")
+            output_run=output_run,
+            project_name=request.project_path.name or "project",
+            project_root=request.project_path,
+            project_id=snapshot.project_id,
+            scan_id=snapshot.scan_id,
+            build_id=active_build_id,
+            lineage=lineage,
         )
 
-    def _scan_project(
+    def build_from_enriched_map(
         self,
-        *,
-        project_root: Path,
-        inventory_policy: InventoryPolicyOverlay | None,
-    ) -> ProjectScanResult:
-        if inventory_policy is None:
-            return self._project_scan_service.scan(project_root)
-
-        return self._project_scan_service.scan(
-            project_root,
-            inventory_policy=inventory_policy,
-        )
-
-    def _detect_components(
-        self,
-        *,
-        raw_scan: ProjectScanResult,
-        template: RagTemplate,
-        project_id: str | None,
-    ) -> ComponentDetectionResult:
-        result = self._component_detection_service.detect(
-            template=template,
-            facts=raw_scan.facts,
-            evidence=raw_scan.evidence,
-        )
-        if project_id is not None and self._manual_mapping_service is not None:
-            return self._manual_mapping_service.for_project(project_id).apply(
-                result
-            )
-        return result
-
-    def _apply_request_options(
-        self,
+        snapshot: ScanSnapshot,
         *,
         system_map: RagSystemMap,
-        project_root: Path,
+        capability_candidates: tuple[CapabilityCandidateComponent, ...],
         request: MapBuildRequest,
-    ) -> RagSystemMap:
-        project = system_map.project
-        if not request.redact_root_path:
-            project = Project(
-                name=project.name,
-                root_path=str(project_root),
-                root_path_redacted=None,
-                path_mode="absolute",
-                system_map_schema_version=project.system_map_schema_version,
-            )
-
-        evidence = system_map.evidence
-        if request.no_snippets:
-            evidence = [
-                Evidence(**item.model_dump(mode="python", exclude={"snippet"}))
-                for item in evidence
-            ]
-
-        if project is system_map.project and evidence is system_map.evidence:
-            return system_map
-
-        return system_map.model_copy(
-            update={
-                "project": project,
-                "evidence": evidence,
-            }
+        output_run: OutputRun,
+        based_on_build_id: str,
+        applied_mapping_ids: tuple[str, ...] = (),
+        build_id: str | None = None,
+    ) -> MapBuildResult:
+        active_build_id = build_id or f"build:{uuid4()}"
+        lineage = MapBuildLineage(
+            project_id=snapshot.project_id,
+            scan_id=snapshot.scan_id,
+            build_id=active_build_id,
+            based_on_build_id=based_on_build_id,
+            build_reason="detail_scan",
+            applied_mapping_ids=applied_mapping_ids,
+            generated_at=datetime.now(UTC),
+        )
+        return self._pipeline.materialize_existing_map(
+            system_map=system_map,
+            capability_candidates=capability_candidates,
+            request=request,
+            output_run=output_run,
+            project_name=request.project_path.name or "project",
+            scan_id=snapshot.scan_id,
+            build_id=active_build_id,
+            lineage=lineage,
+            manual_mappings=(
+                tuple(
+                    self._manual_mapping_service.list_for_project(
+                        snapshot.project_id
+                    )
+                )
+                if self._manual_mapping_service is not None
+                else ()
+            ),
         )

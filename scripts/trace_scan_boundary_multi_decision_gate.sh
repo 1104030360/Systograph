@@ -80,13 +80,15 @@ if [[ ${#KAI_EXTRA_ARGS[@]} -gt 0 ]]; then
 fi
 kai_bootstrap_server
 
-kai_section "Setup: import demo project with two boundary targets"
+kai_section "準備：匯入含兩個 boundary 目標的 demo 專案"
 DEMO_PROJECT_DIR="$(make_demo_project)"
 PROJECT_ID="$(kai_import_project "$DEMO_PROJECT_DIR")"
+kai_progress "先讀取目前 /api/map 作為 baseline..."
 BEFORE_MAP="$(setup_get "/api/map")"
 
-kai_section "First scan: collect all pending boundary proposals at once"
+kai_section "第一次掃描：一次收集所有 pending boundary proposals"
 FIRST_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
+kai_progress "現在要建立 scan（預期回 requires_boundary_decision）..."
 api_call POST "/api/scans" "$FIRST_BODY"
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected first scan HTTP: $LAST_STATUS"
 FIRST_SCAN="$LAST_BODY"
@@ -111,12 +113,13 @@ if grep -Fq "$DEMO_PROJECT_DIR" <<<"$FIRST_SCAN"; then
   kai_die "Local absolute path leaked in first scan response"
 fi
 
+kai_progress "確認 pending 期間 /api/map 沒有被更新..."
 AFTER_PENDING_MAP="$(setup_get "/api/map")"
 if [[ "$(normalized_json "$BEFORE_MAP")" != "$(normalized_json "$AFTER_PENDING_MAP")" ]]; then
   kai_die "Pending boundary decision unexpectedly updated /api/map"
 fi
 
-kai_section "Second scan: submit every boundary decision in one request"
+kai_section "第二次掃描：一次送回全部 boundary decisions"
 ENV_FINGERPRINT="$(proposal_value "$PROPOSALS_JSON" ".env" '.target.fingerprint')"
 VECTOR_FINGERPRINT="$(proposal_value \
   "$PROPOSALS_JSON" \
@@ -142,6 +145,7 @@ DECISIONS="$(jq -n \
     }
   ]')"
 SECOND_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR" "$DECISIONS")"
+kai_progress "接著一次送回全部 boundary_decisions..."
 api_call POST "/api/scans" "$SECOND_BODY"
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected second scan HTTP: $LAST_STATUS"
 SECOND_SCAN="$LAST_BODY"
@@ -178,12 +182,14 @@ if grep -Fq "$DEMO_PROJECT_DIR" "$SECOND_MAP_JSON_PATH"; then
   kai_die "Local absolute path leaked in stored ai_system_map.json"
 fi
 
+kai_progress "確認完成掃描後 /api/map 已更新..."
 AFTER_COMPLETED_MAP="$(setup_get "/api/map")"
 [[ "$(jq_get "$AFTER_COMPLETED_MAP" '.viewer_load_result.loaded')" == "true" ]] \
   || kai_die "Completed scan did not update /api/map"
 
-kai_section "Third scan: same-run decisions are not remembered"
+kai_section "第三次掃描：same-run decisions 不會被記住"
 THIRD_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
+kai_progress "再次建立 scan（預期又要求兩筆 boundary decision）..."
 api_call POST "/api/scans" "$THIRD_BODY"
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected third scan HTTP: $LAST_STATUS"
 THIRD_STATUS="$(jq_get "$LAST_BODY" '.status')"

@@ -51,22 +51,24 @@ done
 kai_bootstrap_server
 
 if [[ -z "$PROJECT_ID" ]]; then
-  kai_section "Setup: import project to obtain a project_id"
+  kai_section "準備：先匯入專案取得 project_id"
   PROJECT_ID="$(kai_import_project)"
 fi
 
-kai_section "POST /api/scans"
+kai_section "建立掃描：POST /api/scans"
 REQUEST_BODY="$(jq -n --arg id "$PROJECT_ID" --arg out "$OUTPUT_DIR" \
   '{project_id:$id, scan_depth:"system", output:$out, redact_root_path:true, no_snippets:false}')"
+kai_progress "現在要建立 scan（系統掃描）..."
 api_call POST "/api/scans" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Scan summary"
+kai_section "Scan 摘要"
 echo "$LAST_BODY" | jq '{
   scan_id,
   project_id,
   status,
   build_status: .build_result.status,
+  build_id: .build_result.lineage.build_id,
   map_json_path: .build_result.map_json_path,
   unmapped_count: (.build_result.ai_system_map.unmapped_components | length)
 }'

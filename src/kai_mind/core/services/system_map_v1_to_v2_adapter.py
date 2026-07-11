@@ -353,7 +353,13 @@ class SystemMapV1ToV2Adapter:
             layer=_layer_for_slot(slot.slot),
             status=slot.status,
             activation=_activation_for_status(slot.status),
-            evidence_ids=[],
+            evidence_ids=sorted(
+                {
+                    evidence_id
+                    for instance in slot.instances
+                    for evidence_id in instance.evidence_ids
+                }
+            ),
             metadata=GenericComponentMetadata(
                 legacy_slot=slot.slot,
                 source_component_id=None,

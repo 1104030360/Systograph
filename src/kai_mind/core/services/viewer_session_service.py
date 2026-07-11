@@ -81,7 +81,11 @@ class ViewerSessionService:
         return ViewerLoadResult(
             loaded=True,
             error_reason=None,
-            map_json=json.dumps(system_map_data, ensure_ascii=False),
+            map_json=json.dumps(
+                system_map_data,
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
             ai_system_map=system_map_data,
             graph_view_model=graph,
         )
@@ -194,8 +198,10 @@ class _GraphNodeBuilder:
 
     def build_nodes(self, system_map: RagSystemMap) -> list[GraphNodeModel]:
         nodes: list[GraphNodeModel] = []
-        for slot in system_map.components_by_slot.values():
-            nodes.extend(self._nodes_for_slot(slot))
+        for slot_id in sorted(system_map.components_by_slot):
+            nodes.extend(
+                self._nodes_for_slot(system_map.components_by_slot[slot_id])
+            )
         nodes.extend(
             self._node_for_extension(extension, system_map.risk_hints)
             for extension in system_map.extensions

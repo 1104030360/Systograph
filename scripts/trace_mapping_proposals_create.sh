@@ -57,17 +57,17 @@ while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
 done
 kai_bootstrap_server
 
-kai_section "Setup: import + scan to obtain an unmapped component"
+kai_section "準備：匯入 + 掃描，取得 unmapped component"
 PROJECT_ID="$(kai_import_project)"
 SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
 if [[ -z "$UNMAPPED_ID" ]]; then
   UNMAPPED_ID="$(kai_first_unmapped_id "$SCAN_JSON")"
   [[ -n "$UNMAPPED_ID" ]] \
     || kai_die "Scan produced no unmapped component; try --project-path with one"
-  echo "[setup] unmapped_id=$UNMAPPED_ID" >&2
+  kai_progress "將對 unmapped_id=$UNMAPPED_ID 建立 proposal"
 fi
 
-kai_section "POST /api/mapping-proposals"
+kai_section "建立 proposal：POST /api/mapping-proposals"
 if [[ -n "$USER_DESCRIPTION" ]]; then
   REQUEST_BODY="$(jq -n --arg id "$PROJECT_ID" --arg u "$UNMAPPED_ID" --arg d "$USER_DESCRIPTION" \
     '{project_id:$id, source_unmapped_id:$u, user_description:$d}')"
@@ -75,6 +75,7 @@ else
   REQUEST_BODY="$(jq -n --arg id "$PROJECT_ID" --arg u "$UNMAPPED_ID" \
     '{project_id:$id, source_unmapped_id:$u}')"
 fi
+kai_progress "接著呼叫 mapping proposal..."
 api_call POST "/api/mapping-proposals" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

@@ -1,5 +1,10 @@
 # AI System Capability Map Reference Catalog 實作計畫
 
+> **2026-07-11 backend execution status：** package-bundled 10-plane/52-node catalog、
+> strict loader、forbidden-key/dependency guards 與 backend overlay boundary 已完成並測試。
+> Frontend projection 實作不在本次 backend-only 範圍；完成證據見
+> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:test-driven-development` to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
@@ -337,7 +342,7 @@ activation_applicable = true
 
 **Files:**
 - Modify: `docs/MODEL-CONTRACT.md`
-- Modify: `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/06-deepen-graph-projection-module.md`
+- Modify: `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-a-index-projection/06-deepen-graph-projection-module.md`
 - Test: `tests/unit/core/test_capability_reference_map_loader.py`
 
 - [ ] 定義 reference node 與 backend `GraphViewModel` repo overlay 的 id mapping boundary。

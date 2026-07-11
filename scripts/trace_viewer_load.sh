@@ -51,18 +51,20 @@ done
 kai_bootstrap_server
 
 if [[ -z "$MAP_JSON_PATH" ]]; then
-  kai_section "Setup: build a map to obtain a map_json_path"
+  kai_section "準備：先建圖取得 map_json_path"
+  kai_progress "現在要先呼叫 map/build 取得地圖檔路徑..."
   BUILD_JSON="$(setup_post "/api/map/build" \
     "$(jq -n --arg p "$PROJECT_PATH" --arg out "$OUTPUT_DIR" \
       '{project_path:$p, output:$out, redact_root_path:true, no_snippets:false}')")"
   MAP_JSON_PATH="$(echo "$BUILD_JSON" | jq -r '.map_json_path')"
   [[ -n "$MAP_JSON_PATH" && "$MAP_JSON_PATH" != "null" ]] \
     || kai_die "Build did not return a map_json_path"
-  echo "[setup] map_json_path=$MAP_JSON_PATH" >&2
+  kai_progress "已取得 map_json_path=$MAP_JSON_PATH"
 fi
 
-kai_section "POST /api/viewer/load"
+kai_section "載入 Viewer：POST /api/viewer/load"
 REQUEST_BODY="$(jq -n --arg path "$MAP_JSON_PATH" '{map_json_path:$path}')"
+kai_progress "現在要從磁碟載入 ai_system_map.json 到 viewer..."
 api_call POST "/api/viewer/load" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

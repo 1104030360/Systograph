@@ -12,7 +12,6 @@ from pydantic import ValidationError
 
 from kai_mind.core.models.ai_system_map_v2 import (
     REFERENCE_NODE_COUNT,
-    REFERENCE_PLANE_IDS,
     AiSystemMapV2,
     AssessmentStatus,
     CapabilityAssessment,
@@ -20,6 +19,9 @@ from kai_mind.core.models.ai_system_map_v2 import (
     ReferenceCapabilityOverlay,
     ReferenceMapCatalog,
     build_ai_system_map_v2_schema,
+)
+from kai_mind.core.services.capability_reference_map_loader import (
+    CapabilityReferenceMapLoader,
 )
 from kai_mind.core.services.system_map_v2_validation_service import (
     SystemMapV2ValidationError,
@@ -161,10 +163,22 @@ def test_reference_map_catalog_is_fixed_ten_planes_and_fifty_two_nodes() -> (
     None
 ):
     catalog = ReferenceMapCatalog.default()
+    packaged_catalog = CapabilityReferenceMapLoader().load()
 
-    assert list(catalog.plane_ids) == list(REFERENCE_PLANE_IDS)
+    assert catalog.plane_ids == packaged_catalog.plane_ids
     assert catalog.node_count == REFERENCE_NODE_COUNT == 52
     assert len(catalog.nodes) == 52
+    assert tuple(
+        (
+            node.reference_node_id,
+            node.plane_id,
+            node.activation_applicable,
+        )
+        for node in catalog.nodes
+    ) == tuple(
+        (node.id, node.plane_id, node.activation_applicable)
+        for node in packaged_catalog.nodes
+    )
 
 
 def test_reference_overlay_rejects_copied_reference_node_ids() -> None:

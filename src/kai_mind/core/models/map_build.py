@@ -8,7 +8,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
+from kai_mind.core.models.analysis_history import MapBuildLineage
 from kai_mind.core.models.errors import PreconditionError
+from kai_mind.core.models.profile_signal import ProfileInferenceResult
+from kai_mind.core.models.readiness_report import ReadinessReport
 from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.models.viewer import ViewerLoadResult
 
@@ -36,9 +39,20 @@ class MapBuildResult(MapBuildModel):
     map_json_path: Path | None = None
     map_markdown_path: Path | None = None
     map_error_path: Path | None = None
+    profile_signals_path: Path | None = None
+    readiness_report_path: Path | None = None
+    call_graph_path: Path | None = None
+    dataflow_hints_path: Path | None = None
+    execution_paths_path: Path | None = None
+    evidence_table_path: Path | None = None
+    system_map_mermaid_path: Path | None = None
+    execution_map_mermaid_path: Path | None = None
     viewer_load_result: ViewerLoadResult | None = None
     ai_system_map: RagSystemMap | None = None
     normalized_ai_system_map: AiSystemMapV2 | None = None
+    profile_inference_result: ProfileInferenceResult | None = None
+    readiness_report: ReadinessReport | None = None
+    lineage: MapBuildLineage | None = None
     active_schema_version: SystemMapSchemaSelection = "ai-system-map/v1"
     requested_schema_version: SystemMapSchemaSelection = "ai-system-map/v1"
     migration_warnings: list[str] = Field(default_factory=list)

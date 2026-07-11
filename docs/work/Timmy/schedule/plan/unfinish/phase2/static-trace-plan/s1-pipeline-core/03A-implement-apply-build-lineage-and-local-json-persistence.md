@@ -1,5 +1,11 @@
 # Apply Confirmations、Build Lineage 與 Local JSON Persistence Implementation Plan
 
+> **2026-07-11 backend execution status：** project/scan/build identity、immutable
+> snapshot、atomic local JSON、project locks、CAS latest、Apply replay、restart/history、Detail
+> child 與 Trace binding 已完成並測試。Task 6 frontend Apply/version UI 已依使用者要求還原，
+> frontend-only checkboxes 保持未完成；後端證據見
+> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 將一次 repo scan 與其後多次 map build 分開，讓使用者可在不重新掃描 repo 的情況下套用 confirmed mappings、建立可追溯的新分析版本，並以 Phase2 local JSON persistence 保存 project、scan snapshot、build lineage 與 manual mappings。

@@ -6,10 +6,21 @@ from typing import cast
 
 from fastapi import Request
 
+from kai_mind.core.providers.local_json_state_provider import (
+    LocalJsonStateProvider,
+)
+from kai_mind.core.services.apply_confirmations_service import (
+    ApplyConfirmationsService,
+)
+from kai_mind.core.services.build_manifest_service import BuildManifestService
+from kai_mind.core.services.detail_scan_build_service import (
+    DetailScanBuildService,
+)
 from kai_mind.core.services.detail_scan_service import DetailScanService
 from kai_mind.core.services.manual_mapping_service import (
     ManualMappingService,
 )
+from kai_mind.core.services.map_build_query_service import MapBuildQueryService
 from kai_mind.core.services.map_build_service import MapBuildService
 from kai_mind.core.services.mapping_proposal_service import (
     MappingProposalService,
@@ -18,8 +29,35 @@ from kai_mind.core.services.query_trace_service import QueryTraceService
 from kai_mind.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
+from kai_mind.core.services.scan_snapshot_service import ScanSnapshotService
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
-from kai_mind.web.session_store import InMemorySessionStore
+from kai_mind.web.session_store import SessionStore
+
+
+def apply_confirmations_service(request: Request) -> ApplyConfirmationsService:
+    return cast(
+        ApplyConfirmationsService,
+        request.app.state.apply_confirmations_service,
+    )
+
+
+def map_build_query_service(request: Request) -> MapBuildQueryService:
+    return cast(
+        MapBuildQueryService,
+        request.app.state.map_build_query_service,
+    )
+
+
+def build_manifest_service(request: Request) -> BuildManifestService:
+    return cast(BuildManifestService, request.app.state.build_manifest_service)
+
+
+def scan_snapshot_service(request: Request) -> ScanSnapshotService:
+    return cast(ScanSnapshotService, request.app.state.scan_snapshot_service)
+
+
+def state_repository(request: Request) -> LocalJsonStateProvider:
+    return cast(LocalJsonStateProvider, request.app.state.state_repository)
 
 
 def map_build_service(request: Request) -> MapBuildService:
@@ -39,6 +77,13 @@ def mapping_proposal_service(request: Request) -> MappingProposalService:
 
 def detail_scan_service(request: Request) -> DetailScanService:
     return cast(DetailScanService, request.app.state.detail_scan_service)
+
+
+def detail_scan_build_service(request: Request) -> DetailScanBuildService:
+    return cast(
+        DetailScanBuildService,
+        request.app.state.detail_scan_build_service,
+    )
 
 
 def query_trace_service(request: Request) -> QueryTraceService:
@@ -61,5 +106,5 @@ def viewer_session_service(request: Request) -> ViewerSessionService:
     )
 
 
-def session_store(request: Request) -> InMemorySessionStore:
-    return cast(InMemorySessionStore, request.app.state.session_store)
+def session_store(request: Request) -> SessionStore:
+    return cast(SessionStore, request.app.state.session_store)

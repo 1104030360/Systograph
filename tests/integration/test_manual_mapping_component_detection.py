@@ -218,3 +218,47 @@ def test_confirmed_extension_mapping_replays_unmapped_candidate() -> None:
     assert result.extensions[0].id == "extension:query_router"
     assert result.extensions[0].status == "confirmed"
     assert result.extensions[0].confirmed_by_user is True
+
+
+def test_confirmed_non_baseline_mapping_replays_as_capability_candidate() -> (
+    None
+):
+    fact, evidence = router_unmapped_candidate()
+    manual_mapping_service = ManualMappingService(
+        repository=InMemoryManualMappingRepository(),
+        project_id="project:demo",
+    )
+    manual_mapping_service.create_mapping(
+        ManualMappingCreate(
+            project_id="project:demo",
+            mapping_type=(ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE),
+            decision=ManualMappingDecision.CONFIRMED,
+            source_unmapped_id=(
+                "unmapped:src_query_router_py:"
+                "queryrouter_route:code_pattern_custom_router"
+            ),
+            source_file="src/query_router.py",
+            observed_kind="routing_orchestration",
+            evidence_ids=[evidence.id],
+            capability_candidate_id="capability-candidate:query_router",
+            capability_candidate_name="Query Router",
+            capability_candidate_kind="routing_orchestration",
+        )
+    )
+
+    result = ComponentDetectionService(
+        manual_mapping_hook=manual_mapping_service,
+    ).detect(
+        template=RagTemplateService.load("rag-core-v1"),
+        facts=[fact],
+        evidence=[evidence],
+    )
+
+    assert result.unmapped_components == []
+    assert result.extensions == []
+    assert result.capability_candidate_components[0].id == (
+        "capability-candidate:query_router"
+    )
+    assert result.capability_candidate_components[0].status == (
+        "confirmed_non_baseline"
+    )

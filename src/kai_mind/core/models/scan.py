@@ -34,6 +34,38 @@ class OutputRun(ScanModel):
     def map_markdown_path(self) -> Path:
         return self.root_dir / "ai_system_map.md"
 
+    @property
+    def profile_signals_path(self) -> Path:
+        return self.root_dir / "profile_signals.json"
+
+    @property
+    def readiness_report_path(self) -> Path:
+        return self.root_dir / "readiness_report.json"
+
+    @property
+    def call_graph_path(self) -> Path:
+        return self.root_dir / "call_graph.json"
+
+    @property
+    def dataflow_hints_path(self) -> Path:
+        return self.root_dir / "dataflow_hints.json"
+
+    @property
+    def execution_paths_path(self) -> Path:
+        return self.root_dir / "execution_paths.json"
+
+    @property
+    def evidence_table_path(self) -> Path:
+        return self.root_dir / "evidence_table.json"
+
+    @property
+    def system_map_mermaid_path(self) -> Path:
+        return self.root_dir / "system_map.mmd"
+
+    @property
+    def execution_map_mermaid_path(self) -> Path:
+        return self.root_dir / "execution_map.mmd"
+
 
 class PreconditionResult(ScanModel):
     """Result of Stage 1 checks before any provider reads project files."""

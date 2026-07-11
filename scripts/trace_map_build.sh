@@ -35,13 +35,14 @@ kai_parse_common_args "$@"
 [[ -d "$PROJECT_PATH" ]] || kai_die "Project path does not exist: $PROJECT_PATH"
 kai_bootstrap_server
 
-kai_section "POST /api/map/build"
+kai_section "Demo 建圖：POST /api/map/build"
 REQUEST_BODY="$(jq -n --arg p "$PROJECT_PATH" --arg out "$OUTPUT_DIR" \
   '{project_path:$p, output:$out, redact_root_path:true, no_snippets:false}')"
+kai_progress "現在要用 path 一次掃描並建圖（demo 流程）..."
 api_call POST "/api/map/build" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Result summary"
+kai_section "結果摘要"
 echo "$LAST_BODY" | jq '{
   status,
   project_name,

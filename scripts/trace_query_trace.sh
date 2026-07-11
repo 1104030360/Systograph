@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Trace: POST /api/trace
 #
-# Input  : {project_id, endpoint_id, query, timeout_seconds}
-# Output : TraceRunResult {trace_id, status, query_sent, endpoint_id, events}
-#
 # Safe default uses endpoint:missing so the smoke test validates the route
 # contract without calling a real RAG endpoint. Pass --endpoint-id to opt in to
 # a detected endpoint from the loaded map.
+#
+# Phase2 S1: request must bind a build_id; response includes source_scan_id /
+# source_build_id lineage fields.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,26 +56,34 @@ while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
 done
 kai_bootstrap_server
 
-kai_section "Setup: import + scan to obtain a loaded map"
+kai_section "準備：匯入專案並掃描，取得 build_id"
 PROJECT_ID="$(kai_import_project)"
-kai_run_scan "$PROJECT_ID" >/dev/null
+SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
+BUILD_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.lineage.build_id')"
+[[ -n "$BUILD_ID" && "$BUILD_ID" != "null" ]] \
+  || kai_die "Scan response missing build_result.lineage.build_id"
 
-kai_section "POST /api/trace"
+kai_section "執行 query trace：POST /api/trace"
 REQUEST_BODY="$(jq -n \
   --arg id "$PROJECT_ID" \
+  --arg build "$BUILD_ID" \
   --arg endpoint "$ENDPOINT_ID" \
   --arg query "$QUERY" \
   --arg timeout "$TIMEOUT_SECONDS" \
-  '{project_id:$id, endpoint_id:$endpoint, query:$query, timeout_seconds:($timeout|tonumber)}')"
+  '{project_id:$id, build_id:$build, endpoint_id:$endpoint, query:$query,
+    timeout_seconds:($timeout|tonumber)}')"
+kai_progress "現在要對 build 執行 query trace（endpoint=$ENDPOINT_ID）..."
 api_call POST "/api/trace" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Trace summary"
+kai_section "Trace 摘要"
 echo "$LAST_BODY" | jq '{
   trace_id,
   status,
   query_sent,
   endpoint_id,
+  source_scan_id,
+  source_build_id,
   event_types: [.events[].event_type],
   warning_count: (.warnings | length),
   error_reason

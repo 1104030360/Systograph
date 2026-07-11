@@ -68,6 +68,7 @@ SCRIPTS=(
   "POST /api/mapping-proposals|trace_mapping_proposals_create.sh"
   "GET /api/mapping-proposals|trace_mapping_proposals_list.sh"
   "POST /api/mapping-proposals/{id}/decision|trace_mapping_proposals_decision.sh"
+  "POST /api/map-builds/{id}/apply + lineage|trace_apply_confirmations_build_lineage.sh"
   "Scan boundary same-run gate|trace_scan_boundary_policy_overlay.sh"
   "Scan boundary multi-decision gate|trace_scan_boundary_multi_decision_gate.sh"
 )
@@ -75,10 +76,13 @@ SCRIPTS=(
 RESULTS=()
 FAIL_COUNT=0
 
+kai_progress "開始依序跑全部 endpoint smoke tests..."
+
 for entry in "${SCRIPTS[@]}"; do
   label="${entry%%|*}"
   script="${entry##*|}"
-  kai_section "RUN $label  ($script)"
+  kai_section "執行 $label  ($script)"
+  kai_progress "接著跑 $script ..."
 
   log="$(mktemp)"
   if bash "$SCRIPT_DIR/$script" "${COMMON_CHILD_ARGS[@]}" >"$log" 2>&1; then

@@ -1,8 +1,10 @@
 # frontend-json-sample.json 欄位說明
 
-`ViewerLoadResult` — Phase2 primary API 為
+本 sample 是 Plan 06 richer `ViewerLoadResult` target。Current S1 primary API 為
 `GET /api/projects/{project_id}/map-builds/latest` 或
-`GET /api/map-builds/{build_id}` 的 viewer payload。
+`GET /api/map-builds/{build_id}`，但實際 response 是 `MapBuildScopedResponse`：
+`profile_inference_result` / `readiness_report` 位於 `build_result`，core
+`viewer_load_result` 只含 base map 與 base graph。
 **第一次 build 完成即可顯示**，不等待 Step 9 review。
 
 Process-wide `GET /api/map` 只保留為單專案 demo / legacy compatibility path，不可作為
@@ -16,7 +18,8 @@ Pipeline 在磁碟上仍會寫出 **10 個 public sibling 檔**（7 JSON + 3 ren
 `MODEL-CONTRACT.md`）。`GraphViewModel` 為 **+1 ephemeral API projection**，非磁碟 sibling。
 `snapshot.json`、manual mapping 在 project state store，**不**計入 7 JSON。
 
-`ViewerLoadResult` 是 **給 Viewer 第一次載入用的 API 聚合**，把「畫面立刻需要」的內容 inline，其餘只給安全的 `ArtifactRef` 供之後 lazy load。
+下表描述 Plan 06 target aggregation。Current S1 尚未提供 `artifact_refs`；static artifacts
+已寫入同 build，但不 inline 到 build-scoped response。
 
 | 來源步驟 | 磁碟 artifact | 在 sample 裡怎麼出現 |
 |----------|---------------|---------------------|
@@ -41,7 +44,7 @@ call_graph / dataflow / paths ──► artifact_refs[]       [safe reference]
 *.md / *.mmd              ──────► artifact_refs[]       [safe reference]
 ```
 
-**重點：**
+**Plan 06 target 重點：**
 
 - `graph_view_model` 是 backend **從 map + profile 等投影出來**的，不是把 Step 6 sidecar 原樣 merge。
 - handoff sample 為方便前端開發 **選擇 inline 四塊**；正式載入仍必須以 response 的

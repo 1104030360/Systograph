@@ -182,6 +182,18 @@ def test_adapter_preserves_multiple_instances_in_one_slot() -> None:
     assert adapted_by_id[secondary_instance["id"]].evidence_ids == [
         "evidence:dependency:redis"
     ]
+    placeholder = adapted_by_id["component:slot_placeholder:vector_store"]
+    assert placeholder.status == "detected"
+    assert placeholder.evidence_ids == sorted(
+        {
+            evidence_id
+            for instance in system_map.components_by_slot[
+                "vector_store"
+            ].instances
+            for evidence_id in instance.evidence_ids
+        }
+    )
+    assert SystemMapV1ToV2Adapter().adapt_to_canonical(system_map)
 
     edge_by_id = {edge.edge_id: edge for edge in adapted.edges}
     assert edge_by_id[target_edge["id"]].target == secondary_instance["id"]

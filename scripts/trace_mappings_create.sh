@@ -36,7 +36,7 @@ kai_parse_common_args "$@"
 [[ ${#KAI_EXTRA_ARGS[@]} -eq 0 ]] || kai_die "Unknown option: ${KAI_EXTRA_ARGS[*]}"
 kai_bootstrap_server
 
-kai_section "Setup: import + scan to obtain a real slot and evidence id"
+kai_section "準備：匯入 + 掃描，取得 slot 與 evidence"
 PROJECT_ID="$(kai_import_project)"
 SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
 SLOT="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
@@ -44,13 +44,14 @@ EVIDENCE_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.evidence[0
 [[ -n "$SLOT" && "$SLOT" != "null" ]] || kai_die "Could not derive a target slot"
 [[ -n "$EVIDENCE_ID" ]] || kai_die "Could not derive an evidence id"
 
-kai_section "POST /api/mappings"
+kai_section "建立 mapping：POST /api/mappings"
 REQUEST_BODY="$(jq -n \
   --arg id "$PROJECT_ID" \
   --arg slot "$SLOT" \
   --arg ev "$EVIDENCE_ID" \
   '{project_id:$id, mapping_type:"existing_slot_mapping", decision:"confirmed",
     target_slot:$slot, component_name:"TraceDemoComponent", evidence_ids:[$ev]}')"
+kai_progress "現在要建立 confirmed manual mapping（slot=$SLOT）..."
 api_call POST "/api/mappings" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

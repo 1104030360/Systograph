@@ -46,7 +46,8 @@ done
 kai_bootstrap_server
 
 if [[ "$NO_SETUP" -eq 0 ]]; then
-  kai_section "Setup: build a map so a markdown report exists"
+  kai_section "準備：先建圖，讓 markdown report 存在"
+  kai_progress "現在要先呼叫 map/build 產生報告..."
   setup_post "/api/map/build" \
     "$(jq -n --arg p "$PROJECT_PATH" --arg out "$OUTPUT_DIR" \
       '{project_path:$p, output:$out, redact_root_path:true, no_snippets:false}')" \
@@ -56,7 +57,8 @@ fi
 ENDPOINT="/api/map/report"
 [[ "$DOWNLOAD" -eq 1 ]] && ENDPOINT="/api/map/report?download=true"
 
-kai_section "GET $ENDPOINT"
+kai_section "讀取報告：GET $ENDPOINT"
+kai_progress "現在要下載 / 讀取 map markdown 報告..."
 echo "-------------------- REQUEST --------------------"
 echo "GET $API_BASE_URL$ENDPOINT"
 echo "-------------------- RESPONSE -------------------"

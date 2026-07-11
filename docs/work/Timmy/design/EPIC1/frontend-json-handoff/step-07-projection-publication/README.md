@@ -1,13 +1,15 @@
 # Step 7 — 投影 + 發布
 
-Build 完成後的 **API 索引** 與 **canvas 投影**。Frontend 只 render backend 投影，不自行推 status。
+Build 完成後的 **Plan 06 target API 索引** 與 **richer canvas 投影**。Frontend 只
+render backend 投影，不自行推 status。這兩份 sample 不是 current S1 OpenAPI shape。
 
 ---
 
 ## frontend-map-build-result-sample.json
 
-`MapBuildResult` — Phase2 target `POST /api/scans` 建立 initial build，Apply endpoint 建立
-child build。Current `POST /api/map/build` 僅是 demo / compatibility route。
+Later `MapBuildResult` + `ArtifactRef` target。Current S1 `POST /api/scans` 建 initial build、
+Apply endpoint 建 child build，但 response 使用 `MapBuildScopedResponse`：lineage 在外層、
+profile/readiness 在 `build_result`、base graph 在 `viewer_load_result`，尚無 `artifacts[]`。
 
 | 欄位 | 白話 |
 |------|------|

@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from kai_mind.core.models.scan import OutputRun
 from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.providers.output_artifact_provider import (
@@ -51,3 +53,57 @@ def test_write_markdown_writes_summary_artifact(tmp_path: Path) -> None:
     assert artifact_path.read_text(encoding="utf-8") == (
         "# KAI-Mind System Map\n"
     )
+
+
+def test_output_run_exposes_phase2_sibling_paths(tmp_path: Path) -> None:
+    output_run = OutputRun(root_dir=tmp_path)
+
+    assert output_run.profile_signals_path == tmp_path / "profile_signals.json"
+    assert (
+        output_run.readiness_report_path == tmp_path / "readiness_report.json"
+    )
+    assert output_run.system_map_mermaid_path == tmp_path / "system_map.mmd"
+
+
+def test_profile_sidecar_collision_creates_timestamped_run(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    (output_dir / "profile_signals.json").write_text("{}", encoding="utf-8")
+
+    run = OutputArtifactProvider().prepare_output_run(output_dir)
+
+    assert run.root_dir != output_dir
+    assert run.root_dir.parent == output_dir
+
+
+def test_public_map_writers_use_atomic_replace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    system_map = SystemMapValidationService().validate(
+        json.loads(
+            Path(
+                "tests/fixtures/ai_system_map/valid_minimal.v1.json"
+            ).read_text(encoding="utf-8")
+        )
+    )
+
+    def reject_direct_write(
+        _path: Path,
+        _data: str,
+        *args: object,
+        **kwargs: object,
+    ) -> int:
+        raise AssertionError("public artifact used Path.write_text directly")
+
+    monkeypatch.setattr(Path, "write_text", reject_direct_write)
+    provider = OutputArtifactProvider()
+    output_run = OutputRun(root_dir=tmp_path)
+
+    provider.write_json(system_map, output_run=output_run)
+    provider.write_markdown("# Summary\n", output_run=output_run)
+
+    assert output_run.map_json_path.is_file()
+    assert output_run.map_markdown_path.is_file()

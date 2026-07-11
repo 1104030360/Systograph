@@ -65,11 +65,12 @@ if [[ ${#KAI_EXTRA_ARGS[@]} -gt 0 ]]; then
 fi
 kai_bootstrap_server
 
-kai_section "Setup: import demo project with .env"
+kai_section "準備：匯入含 .env 的 demo 專案"
 PROJECT_ID="$(kai_import_project "$(make_demo_project)")"
 
-kai_section "First scan: unresolved .env requires a decision"
+kai_section "第一次掃描：未確認 .env，應要求 boundary decision"
 FIRST_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
+kai_progress "現在要建立 scan（預期回 requires_boundary_decision）..."
 api_call POST "/api/scans" "$FIRST_BODY"
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected first scan HTTP: $LAST_STATUS"
 FIRST_SCAN="$LAST_BODY"
@@ -85,12 +86,13 @@ if grep -q 'sk-live-secret-value' <<<"$FIRST_SCAN"; then
   kai_die "Raw secret leaked in first scan response"
 fi
 
-kai_section "Second scan: scan_this_run completes the current scan"
+kai_section "第二次掃描：送出 scan_this_run 完成本次掃描"
 DECISIONS="$(jq -n \
   --arg path "$TARGET_PATH" \
   --arg fingerprint "$FINGERPRINT" \
   '[{target_path:$path, fingerprint:$fingerprint, decision:"scan_this_run"}]')"
 SECOND_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR" "$DECISIONS")"
+kai_progress "接著帶 boundary_decisions 再呼叫 scan..."
 api_call POST "/api/scans" "$SECOND_BODY"
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected second scan HTTP: $LAST_STATUS"
 SECOND_SCAN="$LAST_BODY"
@@ -112,8 +114,9 @@ if grep -q 'sk-live-secret-value' "$SECOND_MAP_JSON_PATH"; then
   kai_die "Raw secret leaked in stored ai_system_map.json"
 fi
 
-kai_section "Third scan: decision was not remembered"
+kai_section "第三次掃描：確認 decision 不會被記住"
 THIRD_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
+kai_progress "再次建立 scan（預期又要求 boundary decision）..."
 api_call POST "/api/scans" "$THIRD_BODY"
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected third scan HTTP: $LAST_STATUS"
 THIRD_STATUS="$(jq_get "$LAST_BODY" '.status')"

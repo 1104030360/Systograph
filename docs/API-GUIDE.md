@@ -25,7 +25,7 @@
 | 未知欄位 | 寫入類 endpoint `extra="forbid"` |
 | 錯誤格式 | `{ "detail": string }`；422 時 `detail` 為陣列 |
 | 安全錯誤 | 413/500 不回 raw secret、exception string、absolute path |
-| Session | **Current runtime** 狀態在記憶體；重啟後需重新 `import` |
+| State | Project workflow 使用 `${KAI_MIND_STATE_DIR:-~/.kai-mind}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復。Demo `/api/map` 仍保留 process-latest compatibility |
 
 ### 兩種流程
 
@@ -34,7 +34,7 @@
 | **Project session** | `import` → `scans` → … | 正式 workflow；detail scan / mapping / proposals 必走此路 |
 | **Viewer demo** | `map/build` → `GET /api/map` | 快速載圖；**無** `project_id`，不能接 project-scoped API |
 
-> **Phase2 標記：** 標 `[phase2]` 的 endpoint / 欄位為 target contract，current runtime 可能尚未實作。Pipeline、UA rollout、artifact 清單見 MODEL-CONTRACT；架構分層見 `epic1-phase2.md` §6。
+> **標記：** `current` 是目前 OpenAPI 已實作；`[phase2-later]` 是後續 target。Pipeline、UA rollout、artifact 清單見 MODEL-CONTRACT；架構分層見 `epic1-phase2.md` §6。
 
 ### Phase2 重點（API 視角）
 
@@ -62,12 +62,12 @@
 | POST | `/api/trace` | project | current | 4 |
 | GET/POST/PATCH | `/api/mappings`… | project | current | 5 |
 | GET/POST | `/api/mapping-proposals`… | project | current | 6 |
-| GET | `/api/projects/{id}/map-builds` | build | **[phase2]** | 2 |
-| GET | `/api/projects/{id}/map-builds/latest` | build | **[phase2]** | 2 |
-| GET | `/api/map-builds/{build_id}` | build | **[phase2]** | 2 |
-| POST | `/api/map-builds/{base_build_id}/apply` | build | **[phase2]** | 2 |
-| POST | `/api/map-builds/{build_id}/detail-scans` | build | **[phase2]** | 2 |
-| POST | `/api/map-builds/{build_id}/trace` | build | **[phase2]** | 2 |
+| GET | `/api/projects/{id}/map-builds` | build | current | 2 |
+| GET | `/api/projects/{id}/map-builds/latest` | build | current | 2 |
+| GET | `/api/map-builds/{build_id}` | build | current | 2 |
+| POST | `/api/map-builds/{base_build_id}/apply` | build | current | 2 |
+| POST | `/api/map-builds/{build_id}/detail-scans` | build | **[phase2-later]** | 2 |
+| POST | `/api/map-builds/{build_id}/trace` | build | **[phase2-later]** | 2 |
 
 ## 快速開始
 
@@ -113,22 +113,24 @@ Response `200`：
   "project_id": "project:<uuid>",
   "source_type": "local_path",
   "project_name": "custom_router_rag",
-  "project_path": "/abs/path/to/project"
+  "project_path": "/abs/path/to/project",
+  "reused": false
 }
 ```
 
 `project_path` 是 current runtime compatibility 欄位，可能包含 server-local absolute path。
-Phase2 target response **不得**回傳 raw absolute path；project identity 應只暴露
-`project_id`、safe display metadata，以及可用於重用 project 的 `canonical_path_digest`。
+相同 canonical path 再 import 會回相同 `project_id` 與 `reused:true`。Project metadata
+持久化於 local JSON state；後端重啟不需要重新建立 identity。後續 safe-response target
+不得回傳 raw absolute path，project identity 應只暴露 `project_id` 與 safe display metadata。
 
-Phase2 target response：
+後續 safe-response target：
 
 ```ts
 {
   project_id: string;
   source_type: "local_path";
   project_name: string;
-  canonical_path_digest: string;
+  reused: boolean;
 }
 ```
 
@@ -136,7 +138,7 @@ Phase2 target response：
 
 用已 import 的 `project_id` 執行 L1 系統掃描（同步）。正式掃描前會先做 scan boundary preflight；若有 `.env`、secret-like config、vector persistence path 等需要使用者確認的 target，response 會先回 `requires_boundary_decision`，不產生 map、不寫 artifact、不更新 `/api/map`。使用者在同一個 endpoint 帶本次 `boundary_decisions` 後，才會正式掃描並更新 `/api/map`。
 
-> **Phase2 target：** project-scoped scan/build 應產生持久化 `scan_id` + `build_id`，並透過
+> **Current S1：** project-scoped scan/build 產生持久化 `scan_id` + `build_id`，並透過
 > `GET /api/projects/{project_id}/map-builds/latest` 或 `GET /api/map-builds/{build_id}` 讀取；
 > **不得**再依賴更新 process-wide `/api/map` 作為正式讀取入口。Boundary preflight
 > 尚未完成時不得建立 domain `scan_id`、Build 或 artifacts；若 transport 需要追蹤 id，
@@ -174,24 +176,11 @@ POST /api/scans
 }
 ```
 
-若需要使用者先決定本次掃不掃，Response `200`：
+若需要使用者先決定本次掃不掃，Response `200`。此 pending response 不含
+`scan_id`；boundary 完成前也不建立 persisted snapshot、build、artifact 或 latest pointer：
 
 ```ts
 {
-  scan_id: string;
-  project_id: string;
-  status: "requires_boundary_decision";
-  build_result: null;
-  boundary_proposals: ScanBoundaryProposal[];
-  available_boundary_actions: ["scan_this_run", "skip_this_run"];
-}
-```
-
-上方是 current compatibility shape。Phase2 target pending response 不含 `scan_id`：
-
-```ts
-{
-  preflight_request_id?: string;
   project_id: string;
   status: "requires_boundary_decision";
   build_result: null;
@@ -238,7 +227,7 @@ Trace scripts：`scripts/trace_scan_boundary_policy_overlay.sh`、`scripts/trace
 
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |
-| `Project not found` | 404 | `project_id` 未 import 或後端已重啟 |
+| `Project not found` | 404 | `project_id` 未曾 import、state root 不同或 state record 不存在 |
 | 驗證失敗 | 422 | `boundary_decisions` action/path/fingerprint payload 不合法 |
 
 ### GET /api/scan/events
@@ -292,17 +281,33 @@ Current runtime response `200`（`MapBuildResult`）：
   map_json_path: string | null;
   map_markdown_path: string | null;
   map_error_path: string | null;
+  profile_signals_path: string | null;
+  readiness_report_path: string | null;
+  call_graph_path: string | null;
+  dataflow_hints_path: string | null;
+  execution_paths_path: string | null;
+  evidence_table_path: string | null;
+  system_map_mermaid_path: string | null;
+  execution_map_mermaid_path: string | null;
   viewer_load_result: ViewerLoadResult; // 見 GET /api/map
-  ai_system_map: object;                // canonical 掃描事實；Phase2 target: ai-system-map/v2
+  ai_system_map: object;                // active public canonical v1
+  normalized_ai_system_map: object;     // internal v2 assessment view
+  profile_inference_result: ProfileInferenceResult;
+  readiness_report: ReadinessReport;
+  active_schema_version: "ai-system-map/v1";
+  requested_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+  migration_warnings: string[];
   warnings: string[];
-  error: string | null;
+  error: object | null;
 }
 ```
 
 > Current runtime 的 `output_run_dir` 與 `*_path` 可能是 server-local absolute path，
 > 僅屬 compatibility contract。Phase2 target response 不得新增或延續 absolute-path 欄位。
 
-Phase2 target 以兩層 identity 與 safe artifact refs 回傳：
+正式 project workflow 不使用這個 demo response 當 history contract；它透過下節的
+`MapBuildScopedResponse` 回傳 scan/build lineage，且不暴露上述 absolute paths。
+Plan 06 後續才加入 safe lazy artifact refs：
 
 ```ts
 type ArtifactRef = {
@@ -314,36 +319,24 @@ type ArtifactRef = {
   size_bytes: number;
 };
 
-type Phase2MapBuildResult = {
-  status: "ok" | "error";
-  scan_id: string;  // immutable read-only scan snapshot
-  build_id: string; // one materialization from that scan
-  environment_id: string;
-  generated_from_build_id: string; // equals build_id for same-build publish
-  artifacts: ArtifactRef[];
-  viewer_load_result: ViewerLoadResult | null;
-  ai_system_map: object | null;
-  warnings: string[];
-  error: string | null;
-};
 ```
 
-Phase2 active target 不另設 `snapshot_id`；同一 `scan_id` 可產生 initial、Apply 或
+Phase2 active contract 不另設 `snapshot_id`；同一 `scan_id` 可產生 initial、Apply 或
 Detail Scan 等多個 immutable `build_id`。
 
 ---
 
 ## 2. 地圖讀取（Viewer）
 
-### Current runtime 與 Phase2 target
+### Current runtime 與 later target
 
-| Contract | Current runtime | Phase2 target |
+| Contract | Current S1 | Later target |
 |---|---|---|
-| Read surface | process-wide `GET /api/map` | project latest 或指定 `build_id` |
-| Response wrapper | `ViewerPayload` | build-scoped `ViewerLoadResult` |
-| Persistence | `InMemorySessionStore` latest only | project/scan/build local JSON repositories |
-| Identity | 無持久化 build identity | `scan_id` + `build_id` |
-| Artifacts | server-local `*_path` compatibility fields | safe `artifact_refs` |
+| Read surface | project latest / 指定 `build_id`；另保留 demo `/api/map` | 同左 |
+| Response wrapper | `MapBuildScopedResponse` + legacy `ViewerLoadResult` | richer Graph projection + safe refs |
+| Persistence | project/scan/build/mapping local JSON repositories | 可替換 database adapter |
+| Identity | persisted `scan_id` + `build_id` | 同左 |
+| Artifacts | build-scoped response 不回 path；demo 保留 `*_path` | safe `artifact_refs` |
 
 Phase2 primary endpoints（完整 surface，對齊 `epic1-phase2.md` §16）：
 
@@ -354,87 +347,96 @@ GET  /api/projects/{project_id}/map-builds
 GET  /api/projects/{project_id}/map-builds/latest
 GET  /api/map-builds/{build_id}
 POST /api/map-builds/{base_build_id}/apply
-POST /api/map-builds/{build_id}/detail-scans
-POST /api/map-builds/{build_id}/trace
+POST /api/detail-scans  // optional build_id in body
+POST /api/trace         // optional build_id in body
 ```
 
-下列 build-scoped endpoint **尚未存在於 current OpenAPI**；`GET /api/map` 與 `GET /map`
-在 Phase2 僅保留 demo / legacy compatibility。Current runtime 仍使用
-`POST /api/detail-scans`（`project_id`）與 `POST /api/trace`（`project_id`）；Phase2 遷移後
-改為上表 build-scoped 路徑，且 detail scan 產生 **immutable child `build_id`**，不 overwrite parent。
+`GET /api/map` 與 `GET /map` 僅保留 demo / legacy compatibility。Current detail scan
+與 trace 使用 request body 的 optional `build_id`；省略時採 latest fallback 並回 warning。
+Path-scoped `/api/map-builds/{build_id}/detail-scans|trace` 是 later alias target，尚未存在。
 
-### GET /api/projects/{project_id}/map-builds（Phase2 target）
+### GET /api/projects/{project_id}/map-builds（current）
 
-列出 project 的 immutable build history。預設排序：`generated_at DESC`，tie-break `build_id DESC`。
+列出 project 的 immutable build history。排序為 `generated_at ASC`，tie-break `build_id ASC`，
+讓 lineage 依建立順序呈現。
 
 ```ts
-type MapBuildListItem = {
+{
   project_id: string;
-  scan_id: string;
-  build_id: string;
-  environment_id: string; // Phase2 fixed: "environment:default-static"
-  generated_from_build_id: string;
-  build_reason: "initial_scan" | "apply_confirmations" | "detail_scan";
-  based_on_build_id?: string | null;
-  generated_at: string;
-  is_latest: boolean;
+  builds: Array<{
+    project_id: string;
+    scan_id: string;
+    build_id: string;
+    based_on_build_id: string | null;
+    build_reason: "initial_scan" | "apply_confirmations" | "detail_scan";
+    applied_mapping_ids: string[];
+    generated_at: string;
+  }>;
 };
 ```
 
-### GET /api/projects/{project_id}/map-builds/latest（Phase2 target）
+### GET /api/projects/{project_id}/map-builds/latest（current）
 
 取得指定 project 的 latest immutable build，不讀 process-wide latest。
 
-### GET /api/map-builds/{build_id}（Phase2 target）
+### GET /api/map-builds/{build_id}（current）
 
-取得指定歷史 build。Response 直接包含 build-scoped `ViewerLoadResult`（對齊
-`MODEL-CONTRACT.md` `ViewerLoadResult`）：
+取得指定歷史 build。Response 的 lineage 在外層，validated profile/readiness 在
+`build_result`，legacy base graph 在 `viewer_load_result`：
 
 ```ts
-type ViewerLoadResult = {
-  loaded: boolean;
-  error_reason?: string | null;
-  warnings: string[];
+type MapBuildScopedResponse = {
   project_id: string;
   scan_id: string;
   build_id: string;
-  environment_id: string; // Phase2 fixed: "environment:default-static"
-  generated_from_build_id: string;
-  based_on_build_id?: string | null;
+  based_on_build_id: string | null;
+  build_reason: "initial_scan" | "apply_confirmations" | "detail_scan";
   applied_mapping_ids: string[];
-  artifact_refs: ArtifactRef[];
-  ai_system_map: object;
-  profile_inference_result: ProfileInferenceResult | null; // ≡ validated profile_signals.json
-  readiness_report: ReadinessReport | null;
-  graph_view_model: GraphViewModel; // ephemeral projection; not a persisted sibling JSON file
+  build_result: {
+    status: "ok" | "error";
+    project_name: string;
+    active_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+    requested_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+    migration_warnings: string[];
+    warnings: string[];
+    profile_signals_available: boolean;
+    readiness_report_available: boolean;
+    profile_inference_result: ProfileInferenceResult | null;
+    readiness_report: ReadinessReport | null;
+  };
+  viewer_load_result: ViewerLoadResult;
 };
 ```
 
-`profile_inference_result` 缺失或 invalid 時：`profile_inference_result: null`，`warnings`
-含 `profile_signals_missing` 或 `profile_signals_invalid`；canonical map 仍可 load（degraded mode）。
+`profile_inference_result` 缺失或 invalid 時：`build_result.profile_inference_result:null`，
+`build_result.warnings` 含 `profile_signals_missing_or_invalid`；canonical map 仍可 load。
+Readiness 對應 warning 為 `readiness_report_missing_or_invalid`。
+Manifest 會保存 `active_schema_version`、`requested_schema_version` 與
+`migration_warnings`；同一 `build_id` 在 restart 前後不得改寫這三個欄位。
 
-`artifact_refs` 不包含 server-local absolute path；frontend 只能依 stable artifact id/type
-與受控下載／讀取 API 使用 artifact。
+Current build-scoped response 不包含 server-local absolute path，也尚未包含
+`artifact_refs`。Plan 06 加入 refs 後，frontend 只能依 stable artifact id/type 與受控 API
+讀取 artifact。
 
 #### ViewerLoadResult 載入策略
 
 | 來源 artifact | API 欄位 | 載入 |
 |---------------|----------|------|
 | `ai_system_map.json` | `ai_system_map` | inline |
-| `profile_signals.json` | `profile_inference_result` | inline |
-| `readiness_report.json` | `readiness_report` | inline |
-| Step 7 投影 | `graph_view_model` | inline（ephemeral；**非**磁碟 sibling） |
-| static execution 三件套 | — | `artifact_refs[]` lazy load |
-| `evidence_table.json` | — | `artifact_refs[]` lazy load |
-| `*.md` / `*.mmd` render | — | `artifact_refs[]` lazy load |
+| `profile_signals.json` | `build_result.profile_inference_result` | inline |
+| `readiness_report.json` | `build_result.readiness_report` | inline |
+| current base projection | `viewer_load_result.graph_view_model` | inline（ephemeral） |
+| static execution 四件套 | — | current 不 inline；Plan 06 `artifact_refs[]` lazy load |
+| `*.md` / `*.mmd` render | — | current 不 inline；Plan 06 `artifact_refs[]` lazy load |
 
-**主畫布 ≠ merge 六份 Step 6 JSON**；只有 6-1 Profile Inference 經 Step 7 進 canvas。
+**主畫布 ≠ merge 六份 Step 6 JSON**。Current canvas 是 v1 base projection；Plan 06 才把
+6-1 Profile Inference 透過 `GraphProjectionService` 投影進 canvas。
 Build 磁碟上 atomic publish **10** public siblings（7 JSON + 3 render）；`snapshot.json`、
 manual mapping 屬 project state，**不**計入 7 JSON。見 MODEL-CONTRACT §3、§7.0、§9.1。
 
 Frontend **不得**重算五態、activation、Mapping Completeness。Sidecar 缺失 → degraded load + warnings。完整型別與 enum 見 [`MODEL-CONTRACT.md`](MODEL-CONTRACT.md) § `ViewerLoadResult`、`GraphViewModel`、`readiness-report/v1`；handoff 見 `frontend-json-handoff/step-08-viewer/`。
 
-### POST /api/map-builds/{base_build_id}/apply（Phase2 target）
+### POST /api/map-builds/{base_build_id}/apply（current）
 
 套用已確認 manual mappings，沿用 base build 的同一 `scan_id`，跳過 Step 3 並從
 **Step 4-1 bridge replay + Step 4-2 confirmed-mapping replay** 重跑 Step 4～7，建立新的
@@ -464,13 +466,14 @@ Frontend **不得**重算五態、activation、Mapping Completeness。Sidecar �
 ```
 
 Apply publish 失敗時：**不得**切換 `latest_build_id`；pending confirmations 保留。
+Child build 沿用 parent 的 `requested_schema_version`，不因 Apply 回到預設 v1。
 
-### POST /api/map-builds/{build_id}/detail-scans（Phase2 target）
+### POST /api/map-builds/{build_id}/detail-scans（later alias，未實作）
 
 對指定 immutable build 執行 detail scan，產生 **child build**（新 `build_id`、同一 `scan_id`），
 不 overwrite parent map artifact。Current runtime 等價路徑為 `POST /api/detail-scans`（`project_id`）。
 
-### POST /api/map-builds/{build_id}/trace（Phase2 target）
+### POST /api/map-builds/{build_id}/trace（later alias，未實作）
 
 對指定 build 執行 opt-in query trace overlay。Current runtime 等價路徑為 `POST /api/trace`（`project_id`）。
 Trace overlay 不得寫回 canonical map / profile artifacts。
@@ -554,11 +557,10 @@ Response `200`：`Content-Type: text/markdown; charset=utf-8`（純文字）。
 
 ## 3. Detail Scan（L2 / L3 漸進式掃描）
 
-Current runtime 對單一目標做有界深掃，結果會以 append-only 方式追加到目前
-in-memory canonical map 後再回傳。Phase2 target 改由 build-scoped
-`POST /api/map-builds/{build_id}/detail-scans` 產生 immutable child `build_id`；
-不得 overwrite parent build。**需先完成 project session**（`import` → `scans`）；
-只用 `map/build` 不足以滿足 `map_not_loaded` 檢查。
+Current runtime 對單一目標做有界深掃，綁定指定 build，並產生同 `scan_id` 的
+immutable child `build_id`；不得 overwrite parent。**需先完成 project session**
+（`import` → `scans`）；只用 `map/build` 不足以滿足 `map_not_loaded` 檢查。
+若省略 `build_id`，後端使用該 project latest 並回 `latest_build_fallback` warning。
 
 ### POST /api/detail-scans
 
@@ -569,6 +571,7 @@ POST /api/detail-scans
 ```json
 {
   "project_id": "project:<uuid>",
+  "build_id": "build:<uuid>",
   "target_type": "component_slot",
   "target": "app_api_or_orchestrator",
   "scan_depth": "component"
@@ -587,7 +590,12 @@ Response `200`：
 {
   project_id: string;
   detail_scan: DetailScanResult; // id, target_type, target, scan_depth, status, findings[], code_path[], warnings[]
-  ai_system_map: object;          // 已追加新 evidence 並通過 validation 的整份 map
+  ai_system_map: object;          // child build 的 validated canonical map
+  source_build_id: string;
+  build_id: string;               // immutable child build
+  scan_id: string;
+  viewer_load_result: ViewerLoadResult;
+  warnings: string[];
 }
 ```
 
@@ -596,6 +604,9 @@ Response `200`：
 | `project_not_found` | 404 | `project_id` 不存在 |
 | `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
 | `target_not_found` | 422 | `target` 在 map 中不存在 |
+| `base_build_not_latest` | 409 | 指定 build 已不是 latest，避免 lineage fork |
+| `scan_snapshot_stale` | 409 | 目標檔案 fingerprint 已變更，需 explicit rescan |
+| `profile_sidecar_unavailable` | 409 | parent profile sidecar 缺失或 invalid；base graph 仍可讀，但不得發布語意不完整的 child build |
 
 ### GET /api/detail-scans/{detail_scan_id}
 
@@ -656,6 +667,7 @@ POST /api/trace
 ```json
 {
   "project_id": "project:<uuid>",
+  "build_id": "build:<uuid>",
   "endpoint_id": "endpoint:<id>",
   "query": "raw query sent once to the endpoint",
   "timeout_seconds": 30
@@ -670,6 +682,8 @@ Response `200`：
   status: "completed" | "partial" | "endpoint_not_found" | "error";
   query_sent: boolean;
   endpoint_id: string;
+  source_scan_id: string | null;
+  source_build_id: string | null;
   events: QueryTraceEvent[]; // request_sent / response_received / error / endpoint_not_found
   warnings: string[];
   error_reason: string | null;
@@ -680,6 +694,7 @@ Response `200`：
 
 - `query`、response、chunks 進 event 前遮蔽/摘要化
 - `endpoint_id` 須存在於 map；否則 `endpoint_not_found`，不送 HTTP
+- `build_id` 指定 trace source；省略時使用 latest 並回 `latest_build_fallback` warning
 - 預設阻擋 non-global / private / metadata 位址；egress 被擋 → `partial` + `egress_policy_blocked`
 - 不跟隨 redirect；預設不讀 proxy env
 - `[tool.kai-mind.trace]` 只控制 chunk keys；local-dev allowlist 由 operator 注入
@@ -865,16 +880,20 @@ POST /api/mapping-proposals/{proposal_id}/decision
 
 - `accept`：需 `candidate_id`，不可帶 `edited_mapping`
 - `edit`：需 `edited_mapping`（`ManualMappingCreate` 形狀），不可帶 `candidate_id`
-- `reject` / `skip_for_now`：兩者皆不帶
+- `reject` / `skip_for_now`：兩者皆不帶 candidate payload；後端仍建立 durable audit mapping
 
 Response `200`：
 
 ```ts
 {
   proposal: MappingProposal;          // status 變為 accepted / edited / rejected / skipped
-  manual_mapping: ManualMapping | null; // accept / edit 時必有
+  manual_mapping: ManualMapping;      // 四種 decision 都持久化；reject/skip 不會 materialize
 }
 ```
+
+`reject` 會寫 `decision:"rejected"`；`skip_for_now` 會寫
+`decision:"skip_for_now"`。兩者都保存 `proposal_id`、evidence 與 audit metadata，但不會
+進入 Apply 的 `applied_mapping_ids`。
 
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |
@@ -888,10 +907,12 @@ Response `200`：
 | 狀態 | 意義 | 常見 `detail` |
 | --- | --- | --- |
 | 200 | 成功（含「map 無效」這類明確的 loaded:false 狀態） | — |
-| 404 | 目標不存在 | `project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
-| 409 | 狀態衝突（Phase2 target） | `base_build_not_latest`（Apply stale base build） |
+| 404 | 目標不存在 | `resource_not_found`（malformed typed state id）、`project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
+| 409 | 狀態衝突 | `base_build_not_latest`、`latest_build_changed`、`scan_snapshot_stale`、`profile_sidecar_unavailable` |
 | 413 | request body 超過本機 API resource limit | `request_too_large` |
 | 422 | 輸入不合法 / 驗證失敗 | `target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、validation 陣列 |
 | 500 | 未預期後端錯誤，回應會遮蔽 raw path / secret | `internal_server_error` |
+| 503 | project state lock timeout | `project_state_busy` |
 
-> 後端重啟會清空記憶體 session。出現 404 `project_not_found` / `map_not_loaded` 時，請重新 `import` 並 `scan`。
+> Project workflow 會跨重啟恢復。若重啟後出現 404，先確認啟動前後使用相同
+> `KAI_MIND_STATE_DIR`；只有 state record 不存在時才需要重新 import / scan。
