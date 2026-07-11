@@ -2,14 +2,12 @@ import { CircleSlash2, ClipboardCheck, X } from "lucide-react";
 import { readinessReportSchema, type ReadinessFinding } from "../contracts/viewer";
 import type { GraphViewModel } from "../types";
 import { titleCase } from "../utils/format";
-import { makeGraphIndexes } from "../utils/graph";
 
 type Props = {
   /** Raw backend readiness report — parsed here so a missing or unsupported
       report renders a degraded explanation instead of fabricated findings. */
   report: Record<string, unknown> | null;
   graph: GraphViewModel;
-  onSelectComponent: (nodeId: string) => void;
   onClose: () => void;
 };
 
@@ -17,54 +15,17 @@ function StatusChip({ status }: { status: string }) {
   return <span className={`readiness-chip s-${status}`}>{titleCase(status)}</span>;
 }
 
-function FindingCard({
-  finding,
-  graph,
-  onSelectComponent,
-}: {
-  finding: ReadinessFinding;
-  graph: GraphViewModel;
-  onSelectComponent: (nodeId: string) => void;
-}) {
-  const { nodeIdBySource } = makeGraphIndexes(graph);
-
+function FindingCard({ finding, graph }: { finding: ReadinessFinding; graph: GraphViewModel }) {
   return (
-    <article className="readiness-finding" aria-label={finding.title ?? finding.finding_id}>
+    <article className="readiness-finding" aria-label={finding.title}>
       <header className="readiness-finding-head">
-        <strong>{finding.title ?? titleCase(finding.finding_id.replace(/^finding:/, ""))}</strong>
-        <span className={`readiness-severity sev-${finding.severity}`}>{finding.severity}</span>
+        <strong>{finding.title}</strong>
       </header>
       <div className="readiness-finding-meta">
         <StatusChip status={finding.status} />
         <span className="readiness-category">{titleCase(finding.category)}</span>
       </div>
-      {finding.description ? <p>{finding.description}</p> : null}
-      {finding.evidence_gap ? <p className="readiness-gap">{finding.evidence_gap}</p> : null}
-
-      {finding.affected_component_ids.length > 0 ? (
-        <div className="readiness-refs">
-          <span className="eyebrow">Affected components</span>
-          <div className="readiness-ref-list">
-            {finding.affected_component_ids.map((componentId) => {
-              const nodeId = nodeIdBySource.get(componentId);
-              return nodeId ? (
-                <button
-                  key={componentId}
-                  className="readiness-ref"
-                  type="button"
-                  onClick={() => onSelectComponent(nodeId)}
-                >
-                  {componentId}
-                </button>
-              ) : (
-                <span key={componentId} className="readiness-ref is-unresolved" title="Not present in this projection">
-                  {componentId}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+      <p>{finding.reason}</p>
 
       {finding.evidence_ids.length > 0 ? (
         <div className="readiness-refs">
@@ -89,15 +50,11 @@ function FindingCard({
           </ul>
         </div>
       ) : null}
-
-      {finding.limitations.length > 0 ? (
-        <p className="readiness-limitations">{finding.limitations.join(" ")}</p>
-      ) : null}
     </article>
   );
 }
 
-export function ReadinessPanel({ report, graph, onSelectComponent, onClose }: Props) {
+export function ReadinessPanel({ report, graph, onClose }: Props) {
   const parsed = report == null ? null : readinessReportSchema.safeParse(report);
 
   return (
@@ -107,11 +64,7 @@ export function ReadinessPanel({ report, graph, onSelectComponent, onClose }: Pr
           <ClipboardCheck aria-hidden="true" size={12} />
           Readiness
         </span>
-        {parsed?.success ? (
-          <span className={`readiness-verdict v-${parsed.data.release_verdict}`}>
-            {titleCase(parsed.data.release_verdict)}
-          </span>
-        ) : null}
+        {parsed?.success ? <StatusChip status={parsed.data.grounding.status} /> : null}
         <button className="icon-btn" type="button" aria-label="Close readiness panel" onClick={onClose}>
           <X size={14} />
         </button>
@@ -130,21 +83,38 @@ export function ReadinessPanel({ report, graph, onSelectComponent, onClose }: Pr
       ) : (
         <div className="readiness-body">
           <div className="readiness-summary">
-            <StatusChip status={parsed.data.summary.status} />
-            <span className="readiness-static-note">Static analysis · not runtime verified</span>
+            <span className="readiness-static-note">
+              Grounding {titleCase(parsed.data.grounding.applicability)}
+              {parsed.data.primary_map_type ? ` · ${titleCase(parsed.data.primary_map_type)}` : ""} · static
+              analysis
+            </span>
           </div>
+          {parsed.data.grounding.reason ? (
+            <p className="readiness-static-note">{parsed.data.grounding.reason}</p>
+          ) : null}
+
           {parsed.data.findings.length === 0 ? (
             <p className="readiness-static-note">No findings for this build.</p>
           ) : (
             parsed.data.findings.map((finding) => (
-              <FindingCard
-                key={finding.finding_id}
-                finding={finding}
-                graph={graph}
-                onSelectComponent={onSelectComponent}
-              />
+              <FindingCard key={finding.finding_id} finding={finding} graph={graph} />
             ))
           )}
+
+          {parsed.data.recommended_next_checks.length > 0 ? (
+            <div className="readiness-refs">
+              <span className="eyebrow">Report next checks</span>
+              <ul className="readiness-checks">
+                {parsed.data.recommended_next_checks.map((check) => (
+                  <li key={check}>{check}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {parsed.data.limitations.length > 0 ? (
+            <p className="readiness-limitations">{parsed.data.limitations.join(" ")}</p>
+          ) : null}
         </div>
       )}
     </aside>
