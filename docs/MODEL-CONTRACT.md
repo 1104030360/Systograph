@@ -1,8 +1,8 @@
 # KAI-Mind Phase 2 Model Contract
 
-**Status:** Phase 2 static-readiness target contract（runtime query trace deferred）
+**Status:** Phase 2 S1 implemented contract + later projection/cutover targets（runtime query trace deferred）
 **Audience:** frontend / viewer implementers
-**Last updated:** 2026-07-08
+**Last updated:** 2026-07-11
 
 HTTP endpoint 契約見 [`API-GUIDE.md`](API-GUIDE.md)。本文件定義欄位語意、artifact lifecycle、GraphViewModel 規則。實作以 `src/kai_mind/core/models/` 為準；本文件描述 **target contract**，不代表每欄位已在 current runtime 落地。
 
@@ -34,7 +34,7 @@ HTTP endpoint 契約見 [`API-GUIDE.md`](API-GUIDE.md)。本文件定義欄位�
 | 項目 | 規則 |
 |------|------|
 | 輸入 | AI system repo / workflow artifact；**不**假設一定是 RAG |
-| Active schema | `ai-system-map/v2`；v1 僅 legacy-readable（00A adapter） |
+| Active public schema | `ai-system-map/v1`（Gate-1 compatibility）；內部正規化與 Step 6 assessment 使用 `ai-system-map/v2`；Plan 13 才切 public active output |
 | Scope 三元組 | `scan_id`（immutable snapshot）+ `build_id`（一次 materialization）+ `environment_id` |
 | `environment_id` | Phase2 固定 `environment:default-static` |
 | **禁止** | 獨立 `snapshot_id`；數值 `confidence` |
@@ -100,13 +100,15 @@ Step 9 `MappingProposalService` 為 Phase2 active（deterministic 為主；LLM o
 
 **Current implementation source of truth：**
 
-- `src/kai_mind/core/models/system_map.py`、`viewer.py`、`mapping.py`
+- `src/kai_mind/core/models/system_map.py`、`ai_system_map_v2.py`、`viewer.py`、`mapping.py`
+- `src/kai_mind/core/models/profile_signal.py`、`readiness_report.py`、`analysis_history.py`
+- `src/kai_mind/core/services/component_bridge_registry.py`、`profile_inference_service.py`
+- `src/kai_mind/core/services/map_build_pipeline.py`、`apply_confirmations_service.py`
+- `src/kai_mind/core/rules/capability_reference_map.toml`
 - `src/kai_mind/core/templates/rag-core-v1.json`
 
-**Phase2 planned target modules（尚未全部存在）：**
+**Later target module（尚未存在）：**
 
-- `src/kai_mind/core/services/component_bridge_registry.py`
-- `src/kai_mind/core/services/profile_inference_service.py`（Step 6-1）
 - `src/kai_mind/core/services/graph_projection_service.py`（Step 7）
 
 ---
@@ -128,7 +130,7 @@ ai-system-map/v2          ← canonical
 |----|------------------|:----------:|---------------|
 | Canonical map | `ai_system_map.json` | Yes | components, edges, evidence, endpoints |
 | Profile sidecar | `profile_signals.json` | No | 52 格五態、15 profiles、candidates |
-| Readiness | `readiness_report.json` | No | findings, verdict, next checks |
+| Readiness | `readiness_report.json` | No | findings, readiness summaries, next checks |
 | Evidence table | `evidence_table.json` | No | 扁平 evidence rows（debug / join） |
 | Static execution | `call_graph.json` 等 | No | static inferred path（**非** runtime proof） |
 | Viewer | `GraphViewModel` | No | canvas nodes/edges/filters |
@@ -173,8 +175,11 @@ Render（3）— export / report；不參與 scoring；Viewer 主畫布不依賴
 | `mappings/{mapping_id}.json` | 9 | `mapping_id` | 使用者 confirmed manual mapping；**下次 build 輸入**，非 sidecar 輸出 |
 | `project.json`、`builds/.../manifest.json` | 1 / 7 | project / build | state metadata；非 public artifact set |
 
-同一 build 的 **10 siblings** 共享 `scan_id`、`build_id`、`environment_id`、
-`generated_from_build_id`（同 build 時 **MUST** `generated_from_build_id === build_id`）。
+Gate-1 active output 中，6 個 derived JSON siblings（profile、readiness、4 個 static
+execution）共享 `scan_id`、`build_id`、`environment_id`、`generated_from_build_id`
+（同 build 時 **MUST** `generated_from_build_id === build_id`）。Canonical
+`ai_system_map.json` 暫時維持 v1 shape，不為了 lineage 偷加欄位；其 identity 由同目錄
+`manifest.json` 綁定。Plan 13 切 v2 後，7 個 JSON siblings 才全部自帶相同 scope header。
 Parent lineage 用 `based_on_build_id`。Apply 重用同一 `snapshot.json`、新 `build_id`、
 新一套 10 siblings。
 
@@ -225,6 +230,7 @@ type AssessmentEvidenceKind = "direct" | "indirect" | "explicit_negative";
 **Repo overlay 規則：**
 
 - Reference node =「可存在什麼」；repo component =「此 repo 有什麼」
+- `reference_node_id` 與 repo `component_id` 是不同 identity；只接受 backend bridge / assessment 關聯，不以相同 label 或字串相等推定對應
 - Frontend **不得**把 reference node 當成 detected repo component
 - Backend 發射 **全部** reference nodes（含 `partial` / `undetermined` / `not_detected` / `conflicted`）；非 detected-only
 - `reference_capability` 與 `repo_component` 為不同 `semantic_kind`
@@ -283,7 +289,7 @@ Frontend：**不得** hard-code label / count / order。Profiles 為 **一層**�
 | 5 | `workflow-orchestration` | Workflow Orchestration | `workflow_orchestration` |
 | 6 | `hybrid-retrieval` | Hybrid Retrieval | `retrieval_strategy` |
 | 7 | `reranking` | Reranking | `retrieval_strategy` |
-| 8 | `corrective-retrieval` | Corrective Retrieval | `retrieval_strategy` |
+| 8 | `corrective-retrieval` | Corrective Retrieval | `agent_control` |
 | 9 | `self-reflection` | Self Reflection | `agent_control` |
 | 10 | `graph-retrieval` | Graph Retrieval | `knowledge_structure` |
 | 11 | `hierarchical-retrieval` | Hierarchical Retrieval | `knowledge_structure` |
@@ -315,14 +321,14 @@ Legacy alias（`advanced-rag` 等）僅 fixture / 討論用；active output 前�
 | `profile_signals.json` | 磁碟 sibling 檔名 |
 | `profile_inference_result` | `ViewerLoadResult` API 欄位（同 build 已驗證 sidecar） |
 
-Metadata catalogs（TOML only，executable rules 在 Python）：
+Catalog / rule ownership：
 
 - `capability_reference_map.toml` — 52 node 座標、labels、activation_applicable
-- `profile_registry.toml` — 15 profile presentation metadata
+- `profile_registry.py` — Gate-1 的 15 profile metadata、required nodes 與 wiring gate；Plan 11 才把 presentation metadata 搬到 TOML
 
 ### 6.3 profile-signals/v1
 
-Read-only sidecar。Build validation / CI strict mode 可 fail-closed；**viewer load** 缺/invalid sidecar 仍載 canonical map + warning（`profile_signals_missing` / `profile_signals_invalid`）。
+Read-only sidecar。Build validation / CI strict mode可 fail-closed；**viewer load** 缺/invalid sidecar仍載 canonical map + 單一穩定 warning：`profile_signals_missing_or_invalid`。
 
 | 區塊 | 規則 |
 |------|------|
@@ -339,17 +345,22 @@ Read-only sidecar。Build validation / CI strict mode 可 fail-closed；**viewer
 - `conflicted` → 非空 `conflict_fields` + 兩側 evidence
 - **禁止** `confidence`；`implementation_depth_level` 是 observed scope，不是 confidence
 - Deterministic、local-only；**不**呼叫 mapping proposal / LLM
+- Gate-1 明確 absence convention：`explicit_negative` evidence 的 `rule_id` 使用 `coverage.reference.<reference_node_id>`；沒有這種 capability-specific coverage evidence 時只能是 `undetermined`
+- 高特異性 profile 除 required nodes 外還要通過 registry 的 relationship gate；只有節點、沒有 wiring 時最高為 `partial`
 
 ### 6.4 readiness-report/v1
 
 | 欄位 | 說明 |
 |------|------|
-| `release_verdict` | `ready` / `needs_review` / `blocked` — backend 定案，frontend 只顯示 |
-| `findings[]` | `finding_id`, `category`, `severity`, `status`（五態）, `evidence_ids`, `recommended_next_checks` |
+| Scope | `schema_version`, `source_schema_version`, `scan_id`, `build_id`, `environment_id`, `generated_from_build_id` |
+| `mapping_completeness` | 與 profile sidecar 相同的 52 格摘要 |
+| `grounding` | applicability、status、dimensions、evidence 與 reason |
+| `capability_summaries[]` | `profile_id`, `status`, `activation`, `evidence_ids` |
+| `findings[]` | `finding_id`, `category`, `status`（五態）, `title`, `reason`, `evidence_ids`, `recommended_next_checks` |
+| `recommended_next_checks[]` / `limitations[]` | 後續驗證與靜態分析限制 |
 | `primary_map_type` | optional derived summary；**非** canonical |
-| Registry | `finding_registry_version: "readiness-finding-registry/v1"` |
 
-**禁止** naming：`confidence`、`quality`、`accuracy`、score、pass/fail。
+Gate-1 不輸出 `release_verdict`、`severity` 或 `finding_registry_version`。**禁止** naming：`confidence`、`quality`、`accuracy`、score、pass/fail。
 
 ---
 
@@ -392,23 +403,38 @@ type ArtifactRef = {
 };
 ```
 
-### 7.2 Build / Viewer 模型
+### 7.2 Current S1 Build / Viewer 模型
 
 ```ts
-type MapBuildResult = {
-  status: string;
+type MapBuildScopedResponse = {
+  project_id: string;
   scan_id: string;
   build_id: string;
-  environment_id: string;
-  generated_from_build_id: string;
-  artifacts: ArtifactRef[];
-  viewer_load_result?: ViewerLoadResult | null;
-  warnings: string[];
-  error?: string | null;
+  based_on_build_id: string | null;
+  build_reason: "initial_scan" | "apply_confirmations" | "detail_scan";
+  applied_mapping_ids: string[];
+  build_result: {
+    status: "ok" | "error";
+    project_name: string;
+    active_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+    requested_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+    migration_warnings: string[];
+    warnings: string[];
+    profile_signals_available: boolean;
+    readiness_report_available: boolean;
+    profile_inference_result: ProfileInferenceResult | null;
+    readiness_report: ReadinessReport | null;
+  };
+  viewer_load_result: ViewerLoadResult;
 };
 ```
 
-Viewer **不得**在 load 時重算 profile inference。Sidecar 缺/invalid → base graph + warning。
+這個 build-scoped S1 envelope 不暴露 `output_run_dir` 或 `*_path`。`ArtifactRef[]` 是
+Plan 06 後續 safe lazy-load contract，尚未放進 current response。Viewer **不得**在 load
+時重算 profile inference。Sidecar 缺/invalid → base graph + `build_result.warnings`。
+Manifest 持久化 schema selection 與 migration warnings；restart、Apply、Detail Scan 都必須
+保留 parent 的 `requested_schema_version`。Detail Scan 若讀不到 parent profile sidecar，
+回 `409 profile_sidecar_unavailable`，不可把未知 candidates 靜默當成空集合發布 child。
 
 `evidence_table.json` 與 `ai_system_map.json.evidence[]` 目的不同：前者為 flattened query-friendly table。
 
@@ -416,16 +442,19 @@ Viewer **不得**在 load 時重算 profile inference。Sidecar 缺/invalid → 
 
 ## 8. Static Execution Artifacts
 
-Owner：dynamic Plan `00`。Phase2 P0 必填。**永遠** `runtime_verified: false`。
+Owner：Gate-1 `StaticExecutionArtifactService`。Phase2 P0 必填，內容語意固定為
+deterministic static inference，**不是** runtime proof。
 
-共用 header（`StaticArtifactHeader`）：`schema_version`, `scan_id`, `build_id`, `environment_id`, `generated_from_build_id`, `runtime_verified: false`, `limitations[]`
+共用 scope（`ScopedExecutionArtifact`）：`schema_version`, `scan_id`, `build_id`,
+`environment_id`, `generated_from_build_id`。Gate-1 schema 沒有 `runtime_verified` 或
+`limitations` 欄位；不得由欄位缺席反推 runtime 已驗證。
 
 | 檔案 | 內容 |
 |------|------|
-| `call_graph.json` | `StaticCallEdge[]` — static inferred call edges |
-| `dataflow_hints.json` | `DataflowHint[]` — shallow dataflow |
-| `execution_paths.json` | `ExecutionPath[]` — ordered static paths |
-| `evidence_table.json` | `EvidenceTableRow[]` — flattened evidence |
+| `call_graph.json` | `nodes[]` + `edges[]` — static inferred call graph |
+| `dataflow_hints.json` | `hints[]` — shallow dataflow edges |
+| `execution_paths.json` | `paths[][]` — ordered static component ids |
+| `evidence_table.json` | `rows[]` — flattened evidence + durable `review_state` |
 | `execution_map.mmd` | Mermaid render |
 
 Frontend 用語：**「static evidence suggests」** / **「appears to flow」** — **禁止**「executed」/「traversed」。
@@ -434,54 +463,44 @@ Frontend 用語：**「static evidence suggests」** / **「appears to flow」**
 
 ## 9. GraphViewModel · ViewerLoadResult
 
-**Render-only** projection。`GraphProjectionService.project(system_map, profile_result=...)` 從 **validated in-memory build results** 建構 — **不是** viewer load 時 merge sibling JSON。
+`GraphViewModel` 是 **ephemeral API projection**，不是 atomic-publish sibling 檔案。
+Gate-1 仍由 `ViewerSessionService` 從 canonical v1 map 建構 base graph；Plan 06 才由
+`GraphProjectionService.project(system_map, profile_result=...)` 將 52-node reference map 與
+repo overlay 投影進主 canvas。兩者都不得在 viewer load 時任意 merge sibling JSON。
 
-`GraphViewModel` 為 **ephemeral API projection**；**不是** atomic-publish sibling 檔案。
-
-### 9.1 ViewerLoadResult 要欄位
+### 9.1 Current Gate-1 response boundary
 
 | 欄位 | 說明 |
 |------|------|
-| `loaded`, `error_reason`, `warnings` | 載入狀態 |
-| `scan_id`, `build_id`, `environment_id`, `generated_from_build_id`, `based_on_build_id` | lineage |
-| `applied_mapping_ids` | Apply 後已套用 mapping |
-| `artifact_refs` | safe refs（lazy-load 用；不含 absolute path） |
-| `ai_system_map` | canonical map object |
-| `graph_view_model` | canvas projection（ephemeral；**非**磁碟 sibling） |
-| `profile_inference_result` | nullable；≡ 同 build `profile_signals.json` |
-| `readiness_report` | nullable sidecar |
+| `MapBuildScopedResponse` | project / scan / build lineage、`applied_mapping_ids` |
+| `build_result` | warnings、schema state、inline `profile_inference_result` 與 `readiness_report` |
+| `viewer_load_result.loaded`, `error_reason` | base map 載入狀態 |
+| `viewer_load_result.map_json`, `ai_system_map` | canonical v1 compatibility payload |
+| `viewer_load_result.graph_view_model` | current base canvas projection |
 
-**載入策略（Phase2 target）：**
+Sidecar 缺失或 invalid 時，`viewer_load_result` 仍可 loaded，warning 位於
+`build_result.warnings`。`profile_inference_result` 與 `readiness_report` 不在 core
+`ViewerLoadResult` 內，避免破壞 legacy viewer contract。
 
-| 來源 | `ViewerLoadResult` 欄位 | 載入 |
-|------|-------------------------|------|
-| `ai_system_map.json` | `ai_system_map` | **inline** |
-| `profile_signals.json` | `profile_inference_result` | **inline** |
-| `readiness_report.json` | `readiness_report` | **inline** |
-| Step 7 投影 | `graph_view_model` | **inline**（非磁碟檔） |
-| static execution 三件套 | — | **`artifact_refs` lazy** |
-| `evidence_table.json` | — | **`artifact_refs` lazy** |
-| `*.md` / `*.mmd` render | — | **`artifact_refs` lazy** |
-
-**主畫布 ≠ merge 六份 Step 6 JSON。** 只有 **6-1 Profile Inference**（經 Step 7
-`GraphProjectionService`）進主 canvas；`readiness_report` 供 report 面板；static execution
-與 `evidence_table` 供 Inspector / debug lazy surface。
-
-### 9.2 GraphNodeModel 重點
+### 9.2 Current GraphNodeModel 與 Plan 06 target
 
 | 欄位群 | 說明 |
 |--------|------|
-| Identity | `id`, `source_id`, `type`, `slot`, `label`, `subtitle`, `badges` |
-| Assessment | `status`, `activation`, `semantic_kind`, `plane_id`, `reference_node_id` |
-| Evidence | `evidence_ids`, `direct_evidence_ids`, `indirect_evidence_ids`, `explicit_negative_evidence_ids`, `conflict_fields` |
-| Profile | `profile_id`, `primary_anchor_node_id`, `anchor_node_ids`, related candidate/unmapped ids |
+| Current identity | `id`, `source_id`, `type`, `slot`, `label`, `subtitle`, `badges` |
+| Current evidence | `evidence_ids`, `risk_hint_ids` |
+| Plan 06 assessment | `status`, `activation`, `semantic_kind`, `plane_id`, `reference_node_id` |
+| Plan 06 profile | `profile_id`, `primary_anchor_node_id`, `anchor_node_ids`, related candidate/unmapped ids |
 | Risk | `risk_hint_ids` |
 
-`semantic_kind` 含：`reference_capability`, `repo_component`, `canonical_component`, `grounding_component`, `slot_placeholder`, `unmapped_component`, `capability_candidate`, `profile_attachment` 等。
+Plan 06 `semantic_kind` 將包含：`reference_capability`, `repo_component`,
+`canonical_component`, `grounding_component`, `slot_placeholder`,
+`unmapped_component`, `capability_candidate`, `profile_attachment` 等。
 
 ### 9.3 Filters · Lenses
 
-**Owner：** `GraphProjectionService` 獨占填充 `filters.available[]` 與 `filters.lenses[]`。Frontend 只做 highlight/dim — **不得**從 label / topology / filename 推 membership。
+**Plan 06 owner：** `GraphProjectionService` 獨占填充 `filters.available[]` 與
+`filters.lenses[]`。Current Gate-1 只有 `filters.available[]` 與 optional `behavior`；
+frontend 只做 highlight/dim，不得從 label / topology / filename 推 membership。
 
 | 控制 | 規則 |
 |------|------|
@@ -517,6 +536,9 @@ Unsupported lens：`supported=false` + `unavailable_reason` — frontend 顯示 
 | `decision` | `confirmed` / `rejected` / `skip_for_now` / `not_applicable` |
 
 Phase2 **無** profile-level manual mapping UI。Reject/skip 須 durable audit（Plan 01）。
+`evidence_table.json.rows[].review_state` 使用 `confirmed` / `rejected` /
+`needs_confirmation` / `not_required`；`skip_for_now` 保留
+`needs_confirmation`，`not_applicable` 對應 `not_required`。
 
 ### 10.2 capability_candidate_components
 
@@ -572,7 +594,7 @@ Planned `TraceComponentRef` / `QueryTraceEvent` 擴充見 deferred Plan 12。Cur
 
 | # | 規則 |
 |---|------|
-| 1 | Canonical **system map** = `ai_system_map.json` v2；readiness verdict 在 `readiness_report.json` |
+| 1 | Gate-1 canonical `ai_system_map.json` 仍是 v1；Step 6 用內部 v2 normalized view；Plan 13 才切 public v2 |
 | 2 | `profile_signals.json` = read-only enrichment；缺 sidecar 仍可 render base graph |
 | 3 | Canvas 來自 `GraphViewModel`；**禁止** frontend 推 topology / 五態 |
 | 4 | 顯示 backend 提供的五態 + 六 activation + evidence kind legend |
@@ -594,20 +616,29 @@ JSON 範例與 step-by-step handoff：`docs/work/Timmy/design/EPIC1/frontend-jso
 ```ts
 type ReferenceCapabilityAssessment = {
   reference_node_id: string;
+  plane_id: string;
   status: AssessmentStatus;
   activation: ActivationState;
+  semantic_kind: "reference_capability";
+  evidence_ids: string[];
   direct_evidence_ids: string[];
   indirect_evidence_ids: string[];
   explicit_negative_evidence_ids: string[];
-  conflict_fields: string[];
-  conflict_evidence_ids: string[];
+  conflict_fields: { field: string; evidence_ids: string[] }[];
   not_detected_coverage_gate_passed: boolean;
+  related_component_ids: string[];
+  related_unmapped_component_ids: string[];
+  related_capability_candidate_component_ids: string[];
+  build_id: string;
+  scan_id: string;
+  environment_id: string;
 };
 
 type MappingCompleteness = {
   numerator: number;
   denominator: number; // 52
   value: number;
+  status_counts: { detected: number; partial: number; undetermined: number; not_detected: number; conflicted: number };
   weights: { detected: 1; partial: 0.5; undetermined: 0; not_detected: 1; conflicted: 0 };
 };
 
@@ -631,11 +662,12 @@ type ProfileFinding = {
 
 type CapabilityCandidateComponent = {
   id: string;
-  name: string;
+  name: string | null;
   observed_kind: string;
   status: "confirmed_non_baseline";
   evidence_ids: string[];
   source_unmapped_component_id?: string | null;
+  source_file?: string | null;
   proposal_id?: string | null;
   decision_source?: string | null;
 };
@@ -643,13 +675,14 @@ type CapabilityCandidateComponent = {
 type ReadinessFinding = {
   finding_id: string;
   category: string;
-  severity: "blocker" | "high" | "medium" | "low" | "info";
   status: AssessmentStatus;
+  title: string;
+  reason: string;
   evidence_ids: string[];
   recommended_next_checks: string[];
-  limitations: string[];
 };
 
+// Plan 06 target；current Gate-1 GraphViewModel 只有 base graph 欄位。
 type GraphViewModel = {
   scan_id: string;
   build_id: string;

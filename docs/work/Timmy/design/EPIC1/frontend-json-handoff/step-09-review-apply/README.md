@@ -1,6 +1,6 @@
 # Step 9 — Review / Apply（可選）
 
-Last updated: 2026-07-07（UA 整合決策對齊）
+Last updated: 2026-07-11（current durable decision / Apply contract）
 
 ambiguous evidence 的 review 流程。**不阻塞**第一次 scan 顯示；decision 在 **下次 Apply / rescan** 套用。
 
@@ -34,7 +34,7 @@ Proposal **不能**直接改 profile status；Apply 才會把 confirmed mapping 
 |------|------|
 | `proposal_id` | 這次 review 提案 ID |
 | `source_unmapped_id` | 來自 map 的哪個 unmapped |
-| `status` | 如 `needs_review` |
+| `status` | current pending enum：`pending_user_confirmation` |
 | `evidence_packet` | 給使用者看的 evidence 摘要包 |
 | `candidates[]` | **可選方案**（確認為 capability candidate、skip…） |
 | `candidate_type` | 如 `non_baseline_capability_candidate`、`skip_for_now` |
@@ -57,3 +57,7 @@ Proposal **不能**直接改 profile status；Apply 才會把 confirmed mapping 
 
 Apply 時 backend 重用同一 `ScanSnapshot` 建 **B2**，不重掃 repo、也不重跑 UA sidecar。見
 `docs/work/Meeting-Sync/meeting_sync_2026_07_05/rescan-vs-apply.md`。
+
+Reject / skip 也會建立 durable `ManualMapping` audit record；兩者不 materialize、不能放進
+`applied_mapping_ids`。Apply 只接受 non-empty、unique、同 project 的 confirmed mappings，
+且 base build 必須仍是 latest。

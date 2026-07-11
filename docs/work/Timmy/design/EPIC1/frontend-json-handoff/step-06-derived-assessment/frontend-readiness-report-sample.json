@@ -1,73 +1,355 @@
 {
-  "schema_version": "readiness-report/v1",
-  "source_schema_version": "ai-system-map/v2",
-  "project_id": "project:sample-ai-health-rag",
-  "scan_id": "scan:sample-s1",
-  "build_id": "build:sample-b2",
-  "environment_id": "environment:default-static",
-  "generated_from_build_id": "build:sample-b2",
-  "finding_registry_version": "readiness-finding-registry/v1",
-  "release_verdict": "needs_review",
-  "primary_map_type": "linear_grounding_pipeline",
-  "summary": {
-    "status": "partial",
-    "runtime_verified": false,
-    "evidence_scope": [
-      "capability:retrieval",
-      "capability:grounding",
-      "capability:generation"
-    ],
-    "evidence_ids": [
-      "evidence:retriever-call",
-      "evidence:prompt-context",
-      "evidence:llm-call"
-    ]
-  },
-  "findings": [
+  "build_id": "build:sample-b1",
+  "capability_summaries": [
     {
-      "finding_id": "finding:source-traceability-not-detected",
-      "category": "source_traceability",
-      "title": "Source traceability not detected",
-      "severity": "medium",
-      "status": "not_detected",
-      "description": "Static scan did not find evidence that retrieved context is mapped back to source documents in the final answer.",
-      "affected_component_ids": [
-        "component:retriever:qdrant",
-        "component:llm:openai-chat"
+      "activation": "enabled",
+      "evidence_ids": [
+        "evidence:planner-llm"
       ],
-      "evidence_ids": ["evidence:prompt-context"],
-      "evidence_gap": "No final answer output field such as citations, sources, references, source_documents, or metadata was detected.",
-      "recommended_next_checks": [
-        "Check whether retriever output preserves source metadata.",
-        "Check whether the final answer or API response exposes sources/citations."
-      ],
-      "limitations": [
-        "Static analysis cannot prove whether citations are added by a runtime-only response formatter."
-      ]
+      "profile_id": "rag-grounding",
+      "status": "undetermined"
     },
     {
-      "finding_id": "finding:context-assembly-undetermined",
-      "category": "grounding_context_assembly",
-      "title": "Context assembly path is not fully proven",
-      "severity": "low",
-      "status": "undetermined",
-      "description": "Static evidence suggests retrieved documents are used in a prompt, but the complete data path is not strong enough to mark as detected.",
-      "affected_component_ids": [
-        "component:retriever:qdrant",
-        "component:llm:openai-chat"
+      "activation": "enabled",
+      "evidence_ids": [
+        "evidence:agent-loop",
+        "evidence:planner-llm"
       ],
-      "evidence_ids": ["evidence:prompt-context"],
-      "recommended_next_checks": [
-        "Review the prompt builder and document formatting function."
+      "profile_id": "agentic-control",
+      "status": "detected"
+    },
+    {
+      "activation": "conditional",
+      "evidence_ids": [
+        "evidence:agent-loop",
+        "evidence:tool-binding"
       ],
-      "limitations": [
-        "The complete runtime data path was not observed."
-      ]
+      "profile_id": "tool-calling",
+      "status": "detected"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "memory",
+      "status": "undetermined"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "workflow-orchestration",
+      "status": "undetermined"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "hybrid-retrieval",
+      "status": "undetermined"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [
+        "evidence:tool-binding"
+      ],
+      "profile_id": "reranking",
+      "status": "partial"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "corrective-retrieval",
+      "status": "undetermined"
+    },
+    {
+      "activation": "enabled",
+      "evidence_ids": [
+        "evidence:agent-loop"
+      ],
+      "profile_id": "self-reflection",
+      "status": "undetermined"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "graph-retrieval",
+      "status": "undetermined"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "hierarchical-retrieval",
+      "status": "undetermined"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "contextual-retrieval",
+      "status": "undetermined"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "multimodal-grounding",
+      "status": "undetermined"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "modular-composition",
+      "status": "undetermined"
+    },
+    {
+      "activation": "unknown",
+      "evidence_ids": [],
+      "profile_id": "multi-query-retrieval",
+      "status": "undetermined"
     }
   ],
-  "ui_hints": {
-    "runtime_verified": false,
-    "review_scanner_suggestions_required_to_show_results": false,
-    "review_scanner_suggestions_item_count": 1
-  }
+  "environment_id": "environment:default-static",
+  "findings": [
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [
+        "evidence:planner-llm"
+      ],
+      "finding_id": "readiness:profile:rag-grounding",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: rag-grounding"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [
+        "evidence:agent-loop",
+        "evidence:planner-llm"
+      ],
+      "finding_id": "readiness:profile:agentic-control",
+      "reason": "Deterministic capability gate passed.",
+      "recommended_next_checks": [],
+      "status": "detected",
+      "title": "Capability readiness: agentic-control"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [
+        "evidence:agent-loop",
+        "evidence:tool-binding"
+      ],
+      "finding_id": "readiness:profile:tool-calling",
+      "reason": "Deterministic capability gate passed.",
+      "recommended_next_checks": [],
+      "status": "detected",
+      "title": "Capability readiness: tool-calling"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:memory",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: memory"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:workflow-orchestration",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: workflow-orchestration"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:hybrid-retrieval",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: hybrid-retrieval"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [
+        "evidence:tool-binding"
+      ],
+      "finding_id": "readiness:profile:reranking",
+      "reason": "Required deterministic signals or wiring are incomplete.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "partial",
+      "title": "Capability readiness: reranking"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:corrective-retrieval",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: corrective-retrieval"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [
+        "evidence:agent-loop"
+      ],
+      "finding_id": "readiness:profile:self-reflection",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: self-reflection"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:graph-retrieval",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: graph-retrieval"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:hierarchical-retrieval",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: hierarchical-retrieval"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:contextual-retrieval",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: contextual-retrieval"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:multimodal-grounding",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: multimodal-grounding"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:modular-composition",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: modular-composition"
+    },
+    {
+      "category": "capability_readiness",
+      "evidence_ids": [],
+      "finding_id": "readiness:profile:multi-query-retrieval",
+      "reason": "Scanner coverage is insufficient to prove absence.",
+      "recommended_next_checks": [
+        "Review the missing deterministic capability signals."
+      ],
+      "status": "undetermined",
+      "title": "Capability readiness: multi-query-retrieval"
+    },
+    {
+      "category": "source_traceability",
+      "evidence_ids": [],
+      "finding_id": "readiness:source-traceability",
+      "reason": "Citation mapping coverage is not proven.",
+      "recommended_next_checks": [
+        "Verify answer-to-source citation mapping."
+      ],
+      "status": "undetermined",
+      "title": "Source traceability"
+    }
+  ],
+  "generated_from_build_id": "build:sample-b1",
+  "grounding": {
+    "applicability": "undetermined",
+    "dimensions": [
+      {
+        "dimension_id": "retrieval",
+        "evidence_ids": [],
+        "reason": "Deterministic evidence is incomplete.",
+        "status": "undetermined"
+      },
+      {
+        "dimension_id": "generation",
+        "evidence_ids": [
+          "evidence:planner-llm"
+        ],
+        "reason": null,
+        "status": "detected"
+      },
+      {
+        "dimension_id": "traceability",
+        "evidence_ids": [],
+        "reason": "Deterministic evidence is incomplete.",
+        "status": "undetermined"
+      }
+    ],
+    "evidence_ids": [
+      "evidence:planner-llm"
+    ],
+    "reason": "Scanner coverage is insufficient to prove absence.",
+    "status": "undetermined"
+  },
+  "limitations": [
+    "Static analysis does not prove runtime behavior.",
+    "Undetermined does not mean the capability is absent."
+  ],
+  "mapping_completeness": {
+    "denominator": 52,
+    "numerator": 5.5,
+    "status_counts": {
+      "conflicted": 0,
+      "detected": 5,
+      "not_detected": 0,
+      "partial": 1,
+      "undetermined": 46
+    },
+    "value": 0.10576923076923077,
+    "weights": {
+      "conflicted": 0.0,
+      "detected": 1.0,
+      "not_detected": 1.0,
+      "partial": 0.5,
+      "undetermined": 0.0
+    }
+  },
+  "primary_map_type": "agentic_ai_system",
+  "recommended_next_checks": [
+    "Review the missing deterministic capability signals."
+  ],
+  "scan_id": "scan:sample-s1",
+  "schema_version": "readiness-report/v1",
+  "source_schema_version": "ai-system-map/v2"
 }

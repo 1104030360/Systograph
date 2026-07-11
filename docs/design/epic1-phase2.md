@@ -697,7 +697,7 @@ Build invariants：
 - `detail_scan`：creates child build; does not overwrite parent。
 - `generated_from_build_id` equals current `build_id` for Build/Artifact/CanonicalMap。
 - `based_on_build_id` is the only parent lineage pointer。
-- Build history default order is newest first: `generated_at DESC`, tie-break by `build_id DESC`。
+- Build history default order is lineage-friendly oldest first: `generated_at ASC`, tie-break by `build_id ASC`。
 
 Apply semantics：
 
@@ -1159,18 +1159,18 @@ Current vs target matrix：
 |---|---|---|---|
 | Canonical schema | `ai-system-map/v1`, `system_type="rag"` | generic `ai-system-map/v2`, `system_type="ai_system"` | Planned |
 | Project import | process-local `project_id`, raw path response | stable digest-backed project registry, no raw path in artifacts | Partially implemented |
-| Scan identity | process-local API `scan_id`, no durable scan record | `scan_id` is the immutable scan snapshot identity | Planned |
-| Build identity | `MapBuildResult`, no durable `build_id` | immutable `Build` + latest pointer | Planned |
-| Persistence | `InMemorySessionStore`（重啟即失） | 儲存介面 + 本機 JSON（`~/.kai-mind/`，atomic 寫入；將來可換 DB adapter） | Planned |
-| Mapping repository | in-memory protocols exist | durable decisions with confirmed/rejected/skipped audit | Partially implemented |
+| Scan identity | durable `scan_id` + immutable local snapshot | `scan_id` is the immutable scan snapshot identity | Implemented |
+| Build identity | immutable `build_id` + lineage + latest revision pointer | immutable `Build` + latest pointer | Implemented |
+| Persistence | repository protocols + atomic local JSON（`${KAI_MIND_STATE_DIR:-~/.kai-mind}`） | 本機 JSON；將來可換 DB adapter | Implemented |
+| Mapping repository | durable confirmed/rejected/skipped/not-applicable decisions | durable decisions with review audit | Implemented |
 | Proposal | bounded packet and candidate lifecycle exists | source-build scoped proposal + stable Apply integration | Partially implemented |
-| Detail scan | mutates current in-memory map | immutable child build | Planned migration |
-| Query Trace | transient runtime probe by `project_id` / endpoint | build-scoped transient overlay | Partially implemented |
-| Profile sidecar | not produced | `profile_signals.json` | Planned |
-| Readiness report | recommended checks/risk hints only | `readiness_report.json` + release verdict | Planned |
-| Static execution | no P0 artifacts | call graph, dataflow hints, execution paths, evidence table | Planned |
+| Detail scan | optional body `build_id`，產生 immutable child build | path-scoped alias 可後續補上 | Implemented core |
+| Query Trace | optional body `build_id` 的 transient runtime probe | path-scoped alias 可後續補上 | Implemented core |
+| Profile sidecar | `profile_signals.json`（52 assessments / 15 profiles） | richer graph projection 由 Plan 06 承接 | Implemented backend |
+| Readiness report | evidence-backed `readiness_report.json`，不輸出不透明總分 | 後續 presentation / policy gate | Implemented backend |
+| Static execution | call graph、dataflow hints、execution paths、evidence table | safe artifact refs 由 Plan 06 承接 | Implemented backend |
 | Frontend | current v1 viewer payload zod types; target mocks separate | backend v2 projection; no UI recomputation | Partially implemented |
-| Security/path | many tests already exist | same safety extended to all new artifacts/state | Partially implemented |
+| Security/path | secret/path masking、typed ID、snapshot/state/artifact tests | 同安全邊界延續到後續 adapters | Implemented for S1 |
 | Database | none | future adapter after Phase2 | Deferred |
 | Runtime component trace | query trace only | explicit telemetry runtime trace | Deferred |
 | Legacy RAG feature files | deleted/non-active | not used for active design | Superseded |

@@ -41,6 +41,11 @@ Projection semantic kinds 至少區分 `reference_capability` 與 `repo_componen
 node 固定存在不代表 repo 已實作；repo component 可對位多個 reference node，無可靠 mapping
 時保留 unmapped。Frontend 不得從 label/topology 重新推論 mapping。
 
+Identity boundary：`reference_node_id` 是固定 catalog coordinate，`component_id` 是 repo
+scan identity，兩者不得因字串或 label 相同而視為同一 id。Step 6 / Step 7 只能使用 backend
+明確產生的 `related_component_ids` 與 projection relationship table 建立 overlay；一個 repo
+component 可對位多個 reference nodes，無 explicit relation 時不得猜測或補畫。
+
 Viewer legend/minimal contract 必須顯示五態 status、六態 activation、direct/indirect/
 explicit-negative evidence、reference/repo node 差異、static/runtime 差異、assessment scope，
 以及 Mapping Completeness numerator/denominator/status counts 與非 confidence 說明。

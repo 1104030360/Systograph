@@ -1,72 +1,41 @@
 {
-  "schema_version": "static-call-graph/v1",
-  "source_schema_version": "ai-system-map/v2",
-  "project_id": "project:sample-ai-health-rag",
-  "scan_id": "scan:sample-s1",
-  "build_id": "build:sample-b2",
-  "environment_id": "environment:default-static",
-  "generated_from_build_id": "build:sample-b2",
-  "runtime_verified": false,
-  "limitations": [
-    "Static analysis cannot prove that every detected call executes at runtime."
-  ],
-  "analysis_kind": "static_inferred",
-  "nodes": [
-    {
-      "node_id": "call:src.api.chat.chat",
-      "symbol": "src.api.chat.chat",
-      "kind": "function",
-      "path": "src/api/chat.py",
-      "start_line": 15,
-      "component_id": "component:input:api",
-      "evidence_ids": ["evidence:api-route"]
-    },
-    {
-      "node_id": "call:src.rag.pipeline.answer",
-      "symbol": "src.rag.pipeline.answer",
-      "kind": "function",
-      "path": "src/rag/pipeline.py",
-      "start_line": 30,
-      "component_id": null,
-      "evidence_ids": ["evidence:retriever-call"]
-    },
-    {
-      "node_id": "call:src.rag.pipeline.rerank",
-      "symbol": "src.rag.pipeline.rerank",
-      "kind": "call",
-      "path": "src/rag/pipeline.py",
-      "start_line": 58,
-      "component_id": null,
-      "evidence_ids": ["evidence:reranker-call"]
-    }
-  ],
+  "build_id": "build:sample-b1",
   "edges": [
     {
-      "edge_id": "call-edge:chat-to-answer",
-      "source_ref": "call:src.api.chat.chat",
-      "target_ref": "call:src.rag.pipeline.answer",
-      "call_kind": "function_call",
-      "status": "detected",
-      "inference_kind": "static_inferred",
-      "analysis_depth": "function_call_pattern",
-      "evidence_strength": "static_multiple_signals",
-      "evidence_ids": ["evidence:api-route", "evidence:retriever-call"],
-      "limitations": ["Static call graph does not prove runtime execution."]
+      "edge_id": "edge:agent-to-tool",
+      "evidence_ids": [
+        "evidence:tool-binding"
+      ],
+      "relationship": "tool_call",
+      "source": "component:agent:loop",
+      "target": "component:tool:search"
     },
     {
-      "edge_id": "call-edge:answer-to-rerank",
-      "source_ref": "call:src.rag.pipeline.answer",
-      "target_ref": "call:src.rag.pipeline.rerank",
-      "call_kind": "function_call",
-      "status": "undetermined",
-      "inference_kind": "static_inferred",
-      "analysis_depth": "call_pattern_only",
-      "evidence_strength": "weak_or_ambiguous_signal",
-      "evidence_ids": ["evidence:reranker-call"],
-      "limitations": ["Static evidence does not prove this call is on the active answer path."]
+      "edge_id": "edge:agent-to-llm",
+      "evidence_ids": [
+        "evidence:planner-llm"
+      ],
+      "relationship": "invoke",
+      "source": "component:agent:loop",
+      "target": "component:llm:planner"
     }
   ],
-  "warnings": [
-    "Static call graph does not prove runtime execution."
-  ]
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:sample-b1",
+  "nodes": [
+    {
+      "kind": "agent_loop",
+      "node_id": "component:agent:loop"
+    },
+    {
+      "kind": "tool",
+      "node_id": "component:tool:search"
+    },
+    {
+      "kind": "llm",
+      "node_id": "component:llm:planner"
+    }
+  ],
+  "scan_id": "scan:sample-s1",
+  "schema_version": "call-graph/v1"
 }
