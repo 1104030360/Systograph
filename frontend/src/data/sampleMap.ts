@@ -1,7 +1,8 @@
 import rawSample from "./frontend-json-sample.json";
-import { traceEventSchema, viewerPayloadSchema, type TraceEvent, type ViewerPayload } from "../types";
+import { parseViewerPayload } from "../contracts/viewer";
+import { traceEventSchema, type TraceEvent, type ViewerPayload } from "../types";
 
-export const viewerPayload: ViewerPayload = viewerPayloadSchema.parse(rawSample);
+export const viewerPayload: ViewerPayload = parseViewerPayload(rawSample);
 
 export const graphViewModel = viewerPayload.viewer_load_result.graph_view_model;
 

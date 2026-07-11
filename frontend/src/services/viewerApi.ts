@@ -1,4 +1,5 @@
-import { scanProgressEventSchema, viewerPayloadSchema, type ScanProgressEvent, type ViewerPayload } from "../types";
+import { parseViewerPayload } from "../contracts/viewer";
+import { scanProgressEventSchema, type ScanProgressEvent, type ViewerPayload } from "../types";
 import { viewerPayload as sampleViewerPayload } from "../data/sampleMap";
 import { fetchJson, normalizeBaseUrl } from "./http";
 
@@ -17,7 +18,7 @@ export async function loadApiViewerPayload(baseUrl: string, signal?: AbortSignal
 
     try {
       const payload = await fetchJson(url, { signal });
-      return viewerPayloadSchema.parse(payload);
+      return parseViewerPayload(payload);
     } catch (error) {
       errors.push(`${endpoint}: ${error instanceof Error ? error.message : String(error)}`);
       // A cancelled request must not fall through to the next endpoint.
