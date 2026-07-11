@@ -223,7 +223,9 @@ export const frontendViewerLoadResultSchema = z.object({
 });
 
 export const viewerPayloadSchema = z.object({
-  contract_source: z.enum(["legacy-v1", "phase2"]),
+  // "phase2-build": current MapBuildScopedResponse — phase2 lineage/sidecars
+  // wrapped around the v1 base graph projection (API-GUIDE §map-builds).
+  contract_source: z.enum(["legacy-v1", "phase2", "phase2-build"]),
   viewer_load_result: frontendViewerLoadResultSchema,
   sample_meta: z.record(z.unknown()).optional(),
   trace_result_samples: z.record(z.record(z.unknown())).optional(),

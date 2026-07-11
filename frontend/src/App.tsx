@@ -20,6 +20,7 @@ import { getTraceEvents, viewerPayload as sampleViewerPayload } from "./data/sam
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
 import { useViewerPayload } from "./hooks/useViewerPayload";
+import { extractMappingCompleteness } from "./contracts/viewer";
 import { importProject, startProjectScan } from "./services/projectScanApi";
 import { loadApiViewerPayload } from "./services/viewerApi";
 import { useViewerStore } from "./store/viewerStore";
@@ -53,9 +54,11 @@ export default function App() {
 
   const dataSourceMode = useViewerStore((state) => state.dataSourceMode);
   const apiBaseUrl = useViewerStore((state) => state.apiBaseUrl);
+  const activeProjectId = useViewerStore((state) => state.activeProjectId);
   const setDataSourceMode = useViewerStore((state) => state.setDataSourceMode);
   const setApiBaseUrl = useViewerStore((state) => state.setApiBaseUrl);
-  const payloadQuery = useViewerPayload(dataSourceMode, apiBaseUrl);
+  const setActiveProjectId = useViewerStore((state) => state.setActiveProjectId);
+  const payloadQuery = useViewerPayload(dataSourceMode, apiBaseUrl, activeProjectId);
   const data = payloadQuery.data;
 
   // ---- state matrix (explicit and honest) --------------------------------
@@ -73,7 +76,12 @@ export default function App() {
   const showOverlay = appState !== "loaded";
 
   const payload = dataSourceMode === "sample" ? sampleViewerPayload : data;
-  const isPhase2 = payload?.contract_source === "phase2";
+  // Presentation follows the data shape, not one blanket contract flag: the
+  // plane layout and five-state legend need the v2 target projection, while
+  // lineage and completeness only need a build-scoped payload.
+  const graphIsV2 =
+    payload?.viewer_load_result.graph_view_model.source_schema_version === "ai-system-map/v2";
+  const hasBuildLineage = payload?.viewer_load_result.build_id != null;
   const graph = dataAvailable && payload ? payload.viewer_load_result.graph_view_model : EMPTY_GRAPH;
   const aiSystemMap = dataAvailable ? payload?.viewer_load_result.ai_system_map : undefined;
   const scanSummary = aiSystemMap?.scan_summary;
@@ -195,19 +203,23 @@ export default function App() {
     setFitSignal((value) => value + 1);
   }, [resetFocus]);
 
-  const completeScanFlow = useCallback(async () => {
-    const freshPayload = await loadApiViewerPayload(apiBaseUrl);
-    queryClient.setQueryData(["viewer-load-result", "api", apiBaseUrl], freshPayload);
-    setDataSourceMode("api");
-    setProgressRunning(false);
-    setLiveProgressEvent({
-      event: "scan_progress",
-      status: "completed",
-      stage: "map",
-      message: "Scan completed. Loading map.",
-      percent: 100,
-    });
-  }, [apiBaseUrl, queryClient, setDataSourceMode, setLiveProgressEvent, setProgressRunning]);
+  const completeScanFlow = useCallback(
+    async (projectId: string) => {
+      const freshPayload = await loadApiViewerPayload(apiBaseUrl, undefined, projectId);
+      queryClient.setQueryData(["viewer-load-result", "api", apiBaseUrl, projectId], freshPayload);
+      setActiveProjectId(projectId);
+      setDataSourceMode("api");
+      setProgressRunning(false);
+      setLiveProgressEvent({
+        event: "scan_progress",
+        status: "completed",
+        stage: "map",
+        message: "Scan completed. Loading map.",
+        percent: 100,
+      });
+    },
+    [apiBaseUrl, queryClient, setActiveProjectId, setDataSourceMode, setLiveProgressEvent, setProgressRunning],
+  );
 
   const runScan = useCallback(
     async (session: ProjectImportResponse, decisions: ReturnType<typeof decisionsForBoundary> = []) => {
@@ -255,7 +267,7 @@ export default function App() {
 
         setPendingBoundary([]);
         setBoundaryDecisions({});
-        await completeScanFlow();
+        await completeScanFlow(session.project_id);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setScanFlowError(message);
@@ -362,7 +374,7 @@ export default function App() {
                 </span>
                 <span>projection</span>
               </div>
-              {isPhase2 && payload ? (
+              {hasBuildLineage && payload ? (
                 <dl className="build-lineage" aria-label="Build lineage">
                   <div>
                     <dt>scan</dt>
@@ -514,7 +526,7 @@ export default function App() {
 
           <SystemGraph
             graph={graph}
-            layoutMode={isPhase2 ? "planes" : "auto"}
+            layoutMode={graphIsV2 ? "planes" : "auto"}
             activeFilterIds={activeFilterIds}
             activeLensId={activeLensId}
             selected={selected}
@@ -526,9 +538,9 @@ export default function App() {
             onInteractingChange={setGraphInteracting}
           />
 
-          {!showOverlay && isPhase2 && payload ? (
+          {!showOverlay && payload && (hasBuildLineage || graphIsV2) ? (
             <MappingCompletenessPanel
-              completeness={graph.mapping_completeness}
+              completeness={extractMappingCompleteness(payload)}
               buildId={payload.viewer_load_result.build_id}
               warningCount={payload.viewer_load_result.warnings.length}
             />
@@ -536,8 +548,8 @@ export default function App() {
 
           <SampleDataIndicator visible={dataSourceMode === "sample"} />
 
-          <div className="map-key-float" aria-label={isPhase2 ? "Assessment status key" : "Legacy map color key"}>
-            {(isPhase2 ? PHASE2_STATUS_LEGEND : LEGACY_MAP_KEY).map(({ key, label }) => (
+          <div className="map-key-float" aria-label={graphIsV2 ? "Assessment status key" : "Legacy map color key"}>
+            {(graphIsV2 ? PHASE2_STATUS_LEGEND : LEGACY_MAP_KEY).map(({ key, label }) => (
               <span className="legend-chip" key={key}>
                 <span className={`swatch s-${key}`} aria-hidden="true" />
                 {label}

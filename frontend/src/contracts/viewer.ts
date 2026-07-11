@@ -220,11 +220,129 @@ export const phase2ViewerLoadResultSchema = frontendViewerLoadResultSchema
     }
   });
 
+/* Mirrors kai_mind.web.schemas.MapBuildScopedResponse: phase2 lineage and
+   validated sidecars around the current v1 base graph projection. */
+const phase2MapBuildResultSchema = z
+  .object({
+    status: z.enum(["ok", "error"]),
+    project_name: z.string(),
+    active_schema_version: z.enum(["ai-system-map/v1", "ai-system-map/v2"]),
+    requested_schema_version: z.enum(["ai-system-map/v1", "ai-system-map/v2"]),
+    migration_warnings: z.array(z.string()).default([]),
+    warnings: z.array(z.string()).default([]),
+    profile_signals_available: z.boolean(),
+    readiness_report_available: z.boolean(),
+    profile_inference_result: profileInferenceResultSchema.nullable(),
+    readiness_report: readinessReportSchema.nullable(),
+  })
+  .passthrough();
+
+export const mapBuildScopedResponseSchema = z
+  .object({
+    project_id: z.string(),
+    scan_id: z.string(),
+    build_id: z.string(),
+    based_on_build_id: z.string().nullable(),
+    build_reason: z.enum(["initial_scan", "apply_confirmations", "detail_scan"]),
+    applied_mapping_ids: z.array(z.string()).default([]),
+    build_result: phase2MapBuildResultSchema,
+    viewer_load_result: z
+      .object({
+        loaded: z.boolean(),
+        error_reason: z.string().nullable().optional(),
+        map_json: z.string().nullable().optional(),
+        ai_system_map: z.record(z.unknown()),
+        graph_view_model: graphViewModelSchema,
+      })
+      .passthrough(),
+  })
+  .superRefine((value, context) => {
+    const sidecars = [
+      ["profile_inference_result", value.build_result.profile_inference_result],
+      ["readiness_report", value.build_result.readiness_report],
+    ] as const;
+    for (const [label, sidecar] of sidecars) {
+      if (!sidecar) continue;
+      for (const identity of ["scan_id", "build_id"] as const) {
+        if (sidecar[identity] !== value[identity]) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["build_result", label, identity],
+            message: `${label}.${identity} must match build ${identity}`,
+          });
+        }
+      }
+      if (sidecar.generated_from_build_id !== value.build_id) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["build_result", label, "generated_from_build_id"],
+          message: `${label}.generated_from_build_id must equal build_id`,
+        });
+      }
+    }
+  });
+
 export class ViewerContractError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ViewerContractError";
   }
+}
+
+/* Backend-computed completeness only: the target projection carries it on the
+   graph view model; the current build-scoped response carries it inside the
+   profile sidecar. Absent in both → undefined, and the UI shows "unavailable"
+   rather than a fabricated percentage. */
+export function extractMappingCompleteness(payload: ViewerPayload) {
+  const graphCompleteness = payload.viewer_load_result.graph_view_model.mapping_completeness;
+  if (graphCompleteness) return graphCompleteness;
+
+  const sidecar = payload.viewer_load_result.profile_inference_result;
+  if (!sidecar) return undefined;
+  const parsed = mappingCompletenessSchema.safeParse(
+    (sidecar as Record<string, unknown>).mapping_completeness,
+  );
+  return parsed.success ? parsed.data : undefined;
+}
+
+export function parseMapBuildPayload(raw: unknown): ViewerPayload {
+  const parsed = mapBuildScopedResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new ViewerContractError(
+      `Unsupported map build payload. ${issue?.path.join(".") ?? ""}: ${issue?.message ?? "invalid"}`,
+    );
+  }
+
+  const build = parsed.data;
+  const buildResult = build.build_result;
+  const environmentId =
+    buildResult.profile_inference_result?.environment_id ??
+    buildResult.readiness_report?.environment_id ??
+    null;
+
+  return viewerPayloadSchema.parse({
+    contract_source: "phase2-build",
+    viewer_load_result: {
+      loaded: build.viewer_load_result.loaded && buildResult.status === "ok",
+      error_reason: build.viewer_load_result.error_reason ?? null,
+      warnings: [...buildResult.warnings, ...buildResult.migration_warnings],
+      project_id: build.project_id,
+      scan_id: build.scan_id,
+      build_id: build.build_id,
+      environment_id: environmentId,
+      generated_from_build_id: build.build_id,
+      based_on_build_id: build.based_on_build_id,
+      applied_mapping_ids: build.applied_mapping_ids,
+      // Current build-scoped responses publish no artifact refs (Plan 06).
+      artifact_refs: [],
+      map_json: build.viewer_load_result.map_json ?? null,
+      ai_system_map: build.viewer_load_result.ai_system_map,
+      profile_inference_result: buildResult.profile_inference_result,
+      readiness_report: buildResult.readiness_report,
+      graph_view_model: build.viewer_load_result.graph_view_model,
+    },
+  });
 }
 
 function legacyProjectId(aiSystemMap: Record<string, unknown>): string | null {

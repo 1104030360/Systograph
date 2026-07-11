@@ -4,6 +4,8 @@ import type { DataSourceMode, ScanProgressEvent, ScanTarget, Selection, TraceEve
 type ViewerState = {
   dataSourceMode: DataSourceMode;
   apiBaseUrl: string;
+  /** Imported project driving build-scoped API reads; null before any import. */
+  activeProjectId: string | null;
   selected: Selection;
   activeFilterIds: string[];
   activeLensId: string | null;
@@ -16,6 +18,7 @@ type ViewerState = {
   detailMode: "overview" | "component" | "code_path";
   setDataSourceMode: (mode: DataSourceMode) => void;
   setApiBaseUrl: (baseUrl: string) => void;
+  setActiveProjectId: (projectId: string | null) => void;
   setSelected: (selected: Selection) => void;
   toggleFilter: (id: string) => void;
   toggleLens: (id: string) => void;
@@ -36,6 +39,7 @@ const defaultApiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1
 export const useViewerStore = create<ViewerState>((set) => ({
   dataSourceMode: "sample",
   apiBaseUrl: defaultApiBaseUrl,
+  activeProjectId: null,
   selected: null,
   activeFilterIds: ["filter:flow:query_answer"],
   activeLensId: null,
@@ -48,6 +52,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   detailMode: "overview",
   setDataSourceMode: (dataSourceMode) => set({ dataSourceMode, liveProgressEvent: null }),
   setApiBaseUrl: (apiBaseUrl) => set({ apiBaseUrl }),
+  setActiveProjectId: (activeProjectId) => set({ activeProjectId }),
   setSelected: (selected) => set({ selected, detailMode: "overview" }),
   toggleFilter: (id) =>
     set((state) => ({
