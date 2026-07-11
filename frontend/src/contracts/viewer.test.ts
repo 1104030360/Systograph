@@ -16,7 +16,9 @@ describe("viewer contract parsing", () => {
     expect(normalized.viewer_load_result.graph_view_model.nodes[0].semantic_kind).toBe("canonical_component");
     expect(parsed.profile_inference_result?.reference_capability_assessments).toHaveLength(52);
     expect(parsed.profile_inference_result?.profiles).toHaveLength(15);
-    expect(parsed.readiness_report?.release_verdict).toBe("needs_review");
+    expect(parsed.profile_inference_result?.reference_capability_assessments[0].plane_id).toBe("input_intent");
+    expect(parsed.readiness_report?.grounding.applicability).toBe("undetermined");
+    expect(parsed.readiness_report?.findings.length).toBeGreaterThan(0);
   });
 
   it("adapts the current legacy ViewerPayload to the same frontend shape", () => {

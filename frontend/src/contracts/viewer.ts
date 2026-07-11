@@ -61,6 +61,7 @@ const phase2AiSystemMapSchema = z
 const referenceAssessmentSchema = z
   .object({
     reference_node_id: z.string(),
+    plane_id: z.string(),
     status: assessmentStatusSchema,
     activation: activationStateSchema,
     direct_evidence_ids: z.array(z.string()),
@@ -82,13 +83,12 @@ const profileFindingSchema = z
 const profileInferenceResultSchema = z
   .object({
     schema_version: z.literal("profile-signals/v1"),
-    source_schema_version: z.literal("ai-system-map/v2"),
-    project_id: z.string(),
+    source_schema_version: z.enum(["ai-system-map/v1", "ai-system-map/v2"]),
     scan_id: z.string(),
     build_id: z.string(),
     environment_id: z.string(),
     generated_from_build_id: z.string(),
-    reference_map_version: z.string(),
+    reference_catalog_version: z.string(),
     reference_capability_assessments: z.array(referenceAssessmentSchema).length(52),
     mapping_completeness: mappingCompletenessSchema,
     profiles: z.array(profileFindingSchema).length(15),
@@ -96,41 +96,63 @@ const profileInferenceResultSchema = z
   })
   .passthrough();
 
+/* Mirrors kai_mind.core.models.readiness_report — the backend owns this shape;
+   the frontend renders it and degrades when parsing fails. */
 const readinessFindingSchema = z
   .object({
     finding_id: z.string(),
     category: z.string(),
-    title: z.string().optional(),
-    severity: z.string(),
     status: assessmentStatusSchema,
-    description: z.string().optional(),
-    affected_component_ids: z.array(z.string()).default([]),
-    evidence_ids: z.array(z.string()),
-    evidence_gap: z.string().optional(),
+    title: z.string(),
+    reason: z.string(),
+    evidence_ids: z.array(z.string()).default([]),
     recommended_next_checks: z.array(z.string()).default([]),
-    limitations: z.array(z.string()).default([]),
+  })
+  .passthrough();
+
+const readinessDimensionSchema = z
+  .object({
+    dimension_id: z.string(),
+    status: assessmentStatusSchema,
+    evidence_ids: z.array(z.string()).default([]),
+    reason: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+const groundingReadinessSummarySchema = z
+  .object({
+    applicability: z.enum(["applicable", "undetermined", "not_applicable"]),
+    status: assessmentStatusSchema,
+    dimensions: z.array(readinessDimensionSchema).default([]),
+    evidence_ids: z.array(z.string()).default([]),
+    reason: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+const capabilityReadinessSummarySchema = z
+  .object({
+    profile_id: z.string(),
+    status: assessmentStatusSchema,
+    activation: activationStateSchema,
+    evidence_ids: z.array(z.string()).default([]),
   })
   .passthrough();
 
 export const readinessReportSchema = z
   .object({
     schema_version: z.literal("readiness-report/v1"),
-    source_schema_version: z.literal("ai-system-map/v2"),
-    project_id: z.string(),
+    source_schema_version: z.enum(["ai-system-map/v1", "ai-system-map/v2"]),
     scan_id: z.string(),
     build_id: z.string(),
     environment_id: z.string(),
     generated_from_build_id: z.string(),
-    finding_registry_version: z.string(),
-    release_verdict: z.enum(["ready", "needs_review", "blocked"]),
-    summary: z
-      .object({
-        status: assessmentStatusSchema,
-        runtime_verified: z.literal(false),
-        evidence_scope: z.array(z.string()).default([]),
-      })
-      .passthrough(),
+    mapping_completeness: mappingCompletenessSchema,
+    grounding: groundingReadinessSummarySchema,
+    capability_summaries: z.array(capabilityReadinessSummarySchema).default([]),
     findings: z.array(readinessFindingSchema),
+    recommended_next_checks: z.array(z.string()).default([]),
+    limitations: z.array(z.string()).default([]),
+    primary_map_type: z.string().nullable().optional(),
   })
   .passthrough();
 
@@ -168,6 +190,14 @@ export const phase2ViewerLoadResultSchema = frontendViewerLoadResultSchema
     for (const [label, artifact] of scopedArtifacts) {
       if (!artifact) continue;
       for (const identity of ["project_id", "scan_id", "build_id", "environment_id"] as const) {
+        // The profile/readiness sidecars are build-scoped only; they carry no
+        // project_id (kai_mind.core.models.profile_signal / readiness_report).
+        if (
+          identity === "project_id" &&
+          (label === "profile_inference_result" || label === "readiness_report")
+        ) {
+          continue;
+        }
         const artifactIdentity =
           label === "ai_system_map" && identity === "project_id"
             ? value.ai_system_map.project.project_id

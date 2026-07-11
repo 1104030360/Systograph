@@ -548,7 +548,6 @@ export default function App() {
             <ReadinessPanel
               report={payload.viewer_load_result.readiness_report}
               graph={graph}
-              onSelectComponent={(nodeId) => setSelected({ kind: "node", id: nodeId })}
               onClose={() => setReadinessOpen(false)}
             />
           ) : null}
