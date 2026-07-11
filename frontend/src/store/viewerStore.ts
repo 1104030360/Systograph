@@ -6,6 +6,7 @@ type ViewerState = {
   apiBaseUrl: string;
   selected: Selection;
   activeFilterIds: string[];
+  activeLensId: string | null;
   activeTraceIndex: number;
   isReplayRunning: boolean;
   progressIndex: number;
@@ -17,6 +18,7 @@ type ViewerState = {
   setApiBaseUrl: (baseUrl: string) => void;
   setSelected: (selected: Selection) => void;
   toggleFilter: (id: string) => void;
+  toggleLens: (id: string) => void;
   clearFilters: () => void;
   setActiveTraceIndex: (index: number) => void;
   setReplayRunning: (running: boolean) => void;
@@ -36,6 +38,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   apiBaseUrl: defaultApiBaseUrl,
   selected: null,
   activeFilterIds: ["filter:flow:query_answer"],
+  activeLensId: null,
   activeTraceIndex: 0,
   isReplayRunning: false,
   progressIndex: 0,
@@ -52,7 +55,11 @@ export const useViewerStore = create<ViewerState>((set) => ({
         ? state.activeFilterIds.filter((filterId) => filterId !== id)
         : [...state.activeFilterIds, id],
     })),
-  clearFilters: () => set({ activeFilterIds: [] }),
+  toggleLens: (id) =>
+    set((state) => ({
+      activeLensId: state.activeLensId === id ? null : id,
+    })),
+  clearFilters: () => set({ activeFilterIds: [], activeLensId: null }),
   setActiveTraceIndex: (activeTraceIndex) => set({ activeTraceIndex }),
   setReplayRunning: (isReplayRunning) => set({ isReplayRunning }),
   setProgressRunning: (isProgressRunning) => set({ isProgressRunning }),

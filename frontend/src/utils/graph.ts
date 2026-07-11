@@ -1,6 +1,7 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import { MarkerType, type Edge, type Node } from "reactflow";
 import type { GraphEdgeModel, GraphFilterModel, GraphNodeModel, GraphViewModel, ScanProgressEvent, TraceEvent } from "../types";
+import { getLensMatches } from "./lenses";
 
 export type FlowNodeData = GraphNodeModel & {
   isFocused: boolean;
@@ -149,6 +150,7 @@ export function createFlowElements(
   graph: GraphViewModel,
   options: {
     activeFilterIds: string[];
+    activeLensId?: string | null;
     selectedId?: string;
     selectedKind?: "node" | "edge";
     traceEvent?: TraceEvent;
@@ -156,8 +158,11 @@ export function createFlowElements(
   },
 ) {
   const filterMatches = getFilterMatches(graph.filters.available, options.activeFilterIds);
+  // Lenses highlight and dim only — every canonical node and edge stays mounted.
+  const lensMatches = getLensMatches(graph.filters.lenses, options.activeLensId ?? null);
   const traceFocus = getTraceFocus(options.traceEvent, graph);
   const hasTraceFocus = traceFocus.focusedNodeIds.size > 0 || traceFocus.focusedEdgeIds.size > 0;
+  const hasHighlightScope = filterMatches.hasFilters || lensMatches.hasLens || hasTraceFocus;
   const sourceRouteOffsets = getSourceRouteOffsets(graph.edges);
   const labelOffsets = getLabelOffsets(graph.edges);
   const sourceYOffsets = getLaneOffsets(graph.edges, "from");
@@ -166,10 +171,11 @@ export function createFlowElements(
   const nodes: Node<FlowNodeData>[] = graph.nodes.map((node) => {
     const selected = options.selectedKind === "node" && options.selectedId === node.id;
     const filterFocused = filterMatches.nodeIds.has(node.id);
+    const lensFocused = lensMatches.nodeIds.has(node.id);
     const traceFocused = traceFocus.focusedNodeIds.has(node.id);
     const progressFocused = options.progressTargetId === node.id;
-    const focused = selected || filterFocused || traceFocused || progressFocused;
-    const dimmed = (filterMatches.hasFilters || hasTraceFocus) && !focused;
+    const focused = selected || filterFocused || lensFocused || traceFocused || progressFocused;
+    const dimmed = hasHighlightScope && !focused;
 
     return {
       id: node.id,
@@ -188,10 +194,11 @@ export function createFlowElements(
   const edges: Edge<FlowEdgeData>[] = graph.edges.map((edge) => {
     const selected = options.selectedKind === "edge" && options.selectedId === edge.id;
     const filterFocused = filterMatches.edgeIds.has(edge.id);
+    const lensFocused = lensMatches.edgeIds.has(edge.id);
     const traceFocused = traceFocus.focusedEdgeIds.has(edge.id);
     const progressFocused = options.progressTargetId === edge.id;
-    const focused = selected || filterFocused || traceFocused || progressFocused;
-    const dimmed = (filterMatches.hasFilters || hasTraceFocus) && !focused;
+    const focused = selected || filterFocused || lensFocused || traceFocused || progressFocused;
+    const dimmed = hasHighlightScope && !focused;
     const labelOffset = labelOffsets.get(edge.id);
     const isRisk = edge.risk_hint_ids.length > 0;
     const isUnmapped = edge.status === "needs_confirmation";
