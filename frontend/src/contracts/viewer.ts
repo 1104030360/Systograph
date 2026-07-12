@@ -282,6 +282,29 @@ export const mapBuildScopedResponseSchema = z
     }
   });
 
+/* Mirrors kai_mind.web.schemas.MapBuildHistorySummary / MapBuildHistoryResponse.
+   The API returns builds sorted generated_at ASC (lineage order). */
+export const mapBuildHistorySummarySchema = z
+  .object({
+    project_id: z.string(),
+    scan_id: z.string(),
+    build_id: z.string(),
+    based_on_build_id: z.string().nullable(),
+    build_reason: z.enum(["initial_scan", "apply_confirmations", "detail_scan"]),
+    applied_mapping_ids: z.array(z.string()).default([]),
+    generated_at: z.string(),
+  })
+  .passthrough();
+
+export const mapBuildHistoryResponseSchema = z
+  .object({
+    project_id: z.string(),
+    builds: z.array(mapBuildHistorySummarySchema).default([]),
+  })
+  .passthrough();
+
+export type MapBuildHistorySummary = z.infer<typeof mapBuildHistorySummarySchema>;
+
 export class ViewerContractError extends Error {
   constructor(message: string) {
     super(message);

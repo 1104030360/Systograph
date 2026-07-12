@@ -6,6 +6,8 @@ type ViewerState = {
   apiBaseUrl: string;
   /** Imported project driving build-scoped API reads; null before any import. */
   activeProjectId: string | null;
+  /** Selected historical build; null means "follow the project's latest build". */
+  activeBuildId: string | null;
   selected: Selection;
   activeFilterIds: string[];
   activeLensId: string | null;
@@ -19,6 +21,7 @@ type ViewerState = {
   setDataSourceMode: (mode: DataSourceMode) => void;
   setApiBaseUrl: (baseUrl: string) => void;
   setActiveProjectId: (projectId: string | null) => void;
+  setActiveBuildId: (buildId: string | null) => void;
   setSelected: (selected: Selection) => void;
   toggleFilter: (id: string) => void;
   toggleLens: (id: string) => void;
@@ -40,6 +43,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   dataSourceMode: "sample",
   apiBaseUrl: defaultApiBaseUrl,
   activeProjectId: null,
+  activeBuildId: null,
   selected: null,
   activeFilterIds: ["filter:flow:query_answer"],
   activeLensId: null,
@@ -52,7 +56,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   detailMode: "overview",
   setDataSourceMode: (dataSourceMode) => set({ dataSourceMode, liveProgressEvent: null }),
   setApiBaseUrl: (apiBaseUrl) => set({ apiBaseUrl }),
-  setActiveProjectId: (activeProjectId) => set({ activeProjectId }),
+  // Switching projects always leaves historical-build viewing.
+  setActiveProjectId: (activeProjectId) => set({ activeProjectId, activeBuildId: null }),
+  setActiveBuildId: (activeBuildId) => set({ activeBuildId }),
   setSelected: (selected) => set({ selected, detailMode: "overview" }),
   toggleFilter: (id) =>
     set((state) => ({

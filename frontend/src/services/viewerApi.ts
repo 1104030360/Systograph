@@ -1,4 +1,9 @@
-import { parseMapBuildPayload, parseViewerPayload } from "../contracts/viewer";
+import {
+  mapBuildHistoryResponseSchema,
+  parseMapBuildPayload,
+  parseViewerPayload,
+  type MapBuildHistorySummary,
+} from "../contracts/viewer";
 import { scanProgressEventSchema, type ScanProgressEvent, type ViewerPayload } from "../types";
 import { viewerPayload as sampleViewerPayload } from "../data/sampleMap";
 import { fetchJson, normalizeBaseUrl } from "./http";
@@ -46,6 +51,26 @@ export async function loadApiViewerPayload(
   }
 
   throw new Error(`Unable to load viewer payload from ${normalizedBaseUrl}. Tried ${errors.join("; ")}`);
+}
+
+export async function listMapBuilds(
+  baseUrl: string,
+  projectId: string,
+  signal?: AbortSignal,
+): Promise<MapBuildHistorySummary[]> {
+  const url = `${normalizeBaseUrl(baseUrl)}/api/projects/${encodeURIComponent(projectId)}/map-builds`;
+  const payload = await fetchJson(url, { signal });
+  return mapBuildHistoryResponseSchema.parse(payload).builds;
+}
+
+export async function loadMapBuildViewerPayload(
+  baseUrl: string,
+  buildId: string,
+  signal?: AbortSignal,
+): Promise<ViewerPayload> {
+  const url = `${normalizeBaseUrl(baseUrl)}/api/map-builds/${encodeURIComponent(buildId)}`;
+  const payload = await fetchJson(url, { signal });
+  return parseMapBuildPayload(payload);
 }
 
 export function createScanEventSource(baseUrl: string): EventSource {

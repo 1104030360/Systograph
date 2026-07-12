@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ClipboardCheck, Crosshair, Folder, Layers3, Maximize, Menu, MessageCircle, Moon, MoreHorizontal, Share2, Sun } from "lucide-react";
 import { ChatPanel } from "./components/ChatPanel";
 import { BoundaryDecisionModal, decisionsForBoundary } from "./components/BoundaryDecisionModal";
+import { BuildHistoryMenu } from "./components/BuildHistoryMenu";
+import { HistoricalBuildIndicator } from "./components/HistoricalBuildIndicator";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
 import { MappingCompletenessPanel } from "./components/MappingCompletenessPanel";
@@ -17,6 +19,7 @@ import { ScanTemplatePage } from "./pages/ScanTemplatePage";
 import { ProposalModal, type ProposalTarget } from "./components/proposal/ProposalModal";
 import { WordingProvider } from "./wording";
 import { getTraceEvents, viewerPayload as sampleViewerPayload } from "./data/sampleMap";
+import { useMapBuilds } from "./hooks/useMapBuilds";
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
 import { useViewerPayload } from "./hooks/useViewerPayload";
@@ -55,10 +58,13 @@ export default function App() {
   const dataSourceMode = useViewerStore((state) => state.dataSourceMode);
   const apiBaseUrl = useViewerStore((state) => state.apiBaseUrl);
   const activeProjectId = useViewerStore((state) => state.activeProjectId);
+  const activeBuildId = useViewerStore((state) => state.activeBuildId);
   const setDataSourceMode = useViewerStore((state) => state.setDataSourceMode);
   const setApiBaseUrl = useViewerStore((state) => state.setApiBaseUrl);
   const setActiveProjectId = useViewerStore((state) => state.setActiveProjectId);
-  const payloadQuery = useViewerPayload(dataSourceMode, apiBaseUrl, activeProjectId);
+  const setActiveBuildId = useViewerStore((state) => state.setActiveBuildId);
+  const payloadQuery = useViewerPayload(dataSourceMode, apiBaseUrl, activeProjectId, activeBuildId);
+  const buildsQuery = useMapBuilds(dataSourceMode, apiBaseUrl, activeProjectId);
   const data = payloadQuery.data;
 
   // ---- state matrix (explicit and honest) --------------------------------
@@ -206,8 +212,10 @@ export default function App() {
   const completeScanFlow = useCallback(
     async (projectId: string) => {
       const freshPayload = await loadApiViewerPayload(apiBaseUrl, undefined, projectId);
-      queryClient.setQueryData(["viewer-load-result", "api", apiBaseUrl, projectId], freshPayload);
+      queryClient.setQueryData(["viewer-load-result", "api", apiBaseUrl, projectId, null], freshPayload);
+      void queryClient.invalidateQueries({ queryKey: ["map-builds"] });
       setActiveProjectId(projectId);
+      setActiveBuildId(null);
       setDataSourceMode("api");
       setProgressRunning(false);
       setLiveProgressEvent({
@@ -218,7 +226,7 @@ export default function App() {
         percent: 100,
       });
     },
-    [apiBaseUrl, queryClient, setActiveProjectId, setDataSourceMode, setLiveProgressEvent, setProgressRunning],
+    [apiBaseUrl, queryClient, setActiveBuildId, setActiveProjectId, setDataSourceMode, setLiveProgressEvent, setProgressRunning],
   );
 
   const runScan = useCallback(
@@ -448,6 +456,14 @@ export default function App() {
             Readiness
           </button>
 
+          {dataSourceMode === "api" ? (
+            <BuildHistoryMenu
+              builds={buildsQuery.data ?? []}
+              activeBuildId={activeBuildId}
+              onSelect={setActiveBuildId}
+            />
+          ) : null}
+
           <DataSourceControl
             mode={dataSourceMode}
             apiBaseUrl={apiBaseUrl}
@@ -547,6 +563,10 @@ export default function App() {
           ) : null}
 
           <SampleDataIndicator visible={dataSourceMode === "sample"} />
+
+          {!showOverlay ? (
+            <HistoricalBuildIndicator buildId={activeBuildId} onBackToLatest={() => setActiveBuildId(null)} />
+          ) : null}
 
           <div className="map-key-float" aria-label={graphIsV2 ? "Assessment status key" : "Legacy map color key"}>
             {(graphIsV2 ? PHASE2_STATUS_LEGEND : LEGACY_MAP_KEY).map(({ key, label }) => (
