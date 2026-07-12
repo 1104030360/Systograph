@@ -48,8 +48,9 @@
 1. （已完成 2026-07-12）接 build-scoped API：`GET /api/projects/{id}/map-builds/latest`
    為 API mode 主要載入路徑，`/api/map` 降為 fallback；lineage 與 warnings 上 UI。
    已對真實 backend 走完 import → scan → latest 全流程驗證。
-2. Build history 切換：`GET /api/projects/{id}/map-builds` 清單 +
-   `GET /api/map-builds/{build_id}` 載入歷史 build。
+2. （已完成 2026-07-12）Build history 切換：`GET /api/projects/{id}/map-builds` 清單 +
+   `GET /api/map-builds/{build_id}` 載入歷史 build；檢視歷史 build 時顯示常駐
+   「Historical build」提示與 Back to latest。已對真實 backend 驗證切換往返。
 3. Apply 流程：review queue UI + `POST /api/map-builds/{base}/apply`
    （409 `base_build_not_latest` → 提示 reload latest）。
 4. `artifact_refs` lazy-load（等 Plan 06 發布 refs）。
