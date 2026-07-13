@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { graphViewModelSchema } from "../types";
 import { createFlowElements } from "./graph";
-import { UNASSIGNED_PLANE_ID, layoutPlaneBands } from "./planes";
+import { UNASSIGNED_PLANE_ID, hasBackendPlaneProjection, layoutPlaneBands } from "./planes";
 
 function flowNodes(rawNodes: Array<Record<string, unknown>>) {
   const graph = graphViewModelSchema.parse({
@@ -19,6 +19,43 @@ function flowNodes(rawNodes: Array<Record<string, unknown>>) {
 }
 
 describe("layoutPlaneBands", () => {
+  it("recognizes a backend reference projection even when its canonical source was v1", () => {
+    const graph = graphViewModelSchema.parse({
+      source_schema_version: "ai-system-map/v1",
+      reference_map_version: "1",
+      nodes: [{ id: "reference:planner", label: "Planner", plane_id: "control" }],
+      edges: [],
+      details: {
+        evidence_by_id: {},
+        risk_hints_by_id: {},
+        reference_assessments_by_id: {},
+        profile_findings_by_id: {},
+        capability_candidates_by_id: {},
+      },
+      filters: { available: [], lenses: [] },
+    });
+
+    expect(hasBackendPlaneProjection(graph)).toBe(true);
+  });
+
+  it("keeps a legacy graph without backend plane metadata on auto layout", () => {
+    const graph = graphViewModelSchema.parse({
+      source_schema_version: "ai-system-map/v1",
+      nodes: [{ id: "node:legacy", label: "Legacy" }],
+      edges: [],
+      details: {
+        evidence_by_id: {},
+        risk_hints_by_id: {},
+        reference_assessments_by_id: {},
+        profile_findings_by_id: {},
+        capability_candidates_by_id: {},
+      },
+      filters: { available: [], lenses: [] },
+    });
+
+    expect(hasBackendPlaneProjection(graph)).toBe(false);
+  });
+
   it("orders bands by the canonical plane order with unassigned last", () => {
     const { bands } = layoutPlaneBands(
       flowNodes([

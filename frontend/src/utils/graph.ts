@@ -94,6 +94,7 @@ export function makeGraphIndexes(graph: GraphViewModel) {
   graph.nodes.forEach((node) => {
     nodeIdBySource.set(node.id, node.id);
     if (node.source_id) nodeIdBySource.set(node.source_id, node.id);
+    if (node.component_id) nodeIdBySource.set(node.component_id, node.id);
   });
 
   graph.edges.forEach((edge) => {

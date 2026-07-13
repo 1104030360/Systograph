@@ -1,4 +1,5 @@
 import type { Node } from "reactflow";
+import type { GraphViewModel } from "../types";
 import type { FlowNodeData } from "./graph";
 
 /* Plane membership belongs to the backend (node.plane_id, catalog plan 01A).
@@ -33,6 +34,13 @@ const PLANE_LABELS: Record<string, string> = {
 };
 
 export const UNASSIGNED_PLANE_ID = "__unassigned__";
+
+/* PR #250 can project the fixed reference map from a v1 canonical artifact via
+   the normalized v2 adapter. Presentation therefore keys off backend-published
+   reference/plane metadata, not source_schema_version. */
+export function hasBackendPlaneProjection(graph: GraphViewModel): boolean {
+  return graph.reference_map_version != null && graph.nodes.some((node) => node.plane_id != null);
+}
 
 export type PlaneBandModel = {
   id: string;

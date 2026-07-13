@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const stringArray = z.array(z.string()).default([]);
+const nullableString = z.string().nullable().optional();
 
 export const assessmentStatusSchema = z.enum([
   "detected",
@@ -19,44 +20,92 @@ export const activationStateSchema = z.enum([
   "not_applicable",
 ]);
 
+export const graphAssessmentScopeSchema = z.object({
+  build_id: z.string(),
+  scan_id: z.string(),
+  environment_id: z.string(),
+});
+
 export const graphNodeSchema = z.object({
   id: z.string(),
-  source_id: z.string().optional(),
-  type: z.string().optional(),
-  slot: z.string().nullable().optional(),
-  status: z.string().optional(),
-  activation: activationStateSchema.optional(),
-  semantic_kind: z.string().optional(),
-  plane_id: z.string().nullable().optional(),
-  reference_node_id: z.string().nullable().optional(),
+  source_id: nullableString,
+  reference_node_id: nullableString,
+  component_id: nullableString,
+  profile_id: nullableString,
+  plane_id: nullableString,
+  type: nullableString,
+  semantic_kind: nullableString,
+  slot: nullableString,
+  status: nullableString,
+  activation: activationStateSchema.nullable().optional(),
   label: z.string(),
-  subtitle: z.string().nullable().optional(),
+  subtitle: nullableString,
   badges: stringArray,
   evidence_ids: stringArray,
   direct_evidence_ids: stringArray,
   indirect_evidence_ids: stringArray,
   explicit_negative_evidence_ids: stringArray,
-  conflict_fields: stringArray,
-  risk_hint_ids: stringArray,
-  profile_id: z.string().nullable().optional(),
-  primary_anchor_node_id: z.string().nullable().optional(),
+  conflict_fields: z.array(z.record(z.unknown())).default([]),
+  not_detected_coverage_gate_passed: z.boolean().nullable().optional(),
+  assessment_scope: graphAssessmentScopeSchema.nullable().optional(),
+  primary_anchor_node_id: nullableString,
   anchor_node_ids: stringArray,
+  related_component_ids: stringArray,
   related_unmapped_component_ids: stringArray,
   related_capability_candidate_component_ids: stringArray,
   related_risk_hint_ids: stringArray,
+  description: nullableString,
+  implementation_depth_level: z.number().int().nullable().optional(),
+  implementation_depth_reason: nullableString,
+  evidence_strength: nullableString,
+  uncertainty: nullableString,
+  recommended_next_checks: stringArray,
+  risk_hint_ids: stringArray,
 });
 
 export const graphEdgeSchema = z.object({
   id: z.string(),
-  source_id: z.string().optional(),
-  flow_id: z.string().nullable().optional(),
+  source_id: nullableString,
+  flow_id: nullableString,
   from: z.string(),
   to: z.string(),
-  relationship: z.string().optional(),
-  label: z.string().nullable().optional(),
-  status: z.string().nullable().optional(),
+  relationship: nullableString,
+  label: nullableString,
+  // Compatibility field used by legacy projections only.
+  status: nullableString,
   evidence_ids: stringArray,
   risk_hint_ids: stringArray,
+});
+
+export const graphRelationshipSchema = z.object({
+  id: z.string(),
+  kind: z.enum([
+    "reference_component_mapping",
+    "reference_unmapped_mapping",
+    "reference_candidate_mapping",
+    "profile_anchor",
+    "candidate_source",
+  ]),
+  source_node_id: z.string(),
+  target_node_id: z.string(),
+  evidence_ids: stringArray,
+});
+
+export const graphEndpointSchema = z.object({
+  endpoint_id: z.string(),
+  value: z.string(),
+  endpoint_type: z.enum(["local", "external"]),
+  method: nullableString,
+  component_id: nullableString,
+  slot: nullableString,
+});
+
+export const graphRecommendedNextCheckSchema = z.object({
+  id: z.string(),
+  target_type: z.string(),
+  target: z.string(),
+  reason: z.string(),
+  action: z.string(),
 });
 
 export const evidenceDetailSchema = z
@@ -83,6 +132,7 @@ export const graphFilterSchema = z.object({
   id: z.string(),
   label: z.string(),
   kind: z.string(),
+  active: z.boolean().default(false),
   matches_node_ids: stringArray,
   matches_edge_ids: stringArray,
 });
@@ -126,22 +176,26 @@ export const scanSummarySchema = z
 export type ScanSummary = z.infer<typeof scanSummarySchema>;
 
 export const graphViewModelSchema = z.object({
-  schema_version: z.string().optional(),
-  source_schema_version: z.string().nullable().optional(),
-  project_id: z.string().optional(),
-  scan_id: z.string().optional(),
-  build_id: z.string().optional(),
-  environment_id: z.string().optional(),
-  generated_from_build_id: z.string().optional(),
-  reference_map_version: z.string().optional(),
-  mapping_completeness: mappingCompletenessSchema.optional(),
-  map_json: z.string().nullable().optional(),
+  schema_version: nullableString,
+  source_schema_version: nullableString,
+  project_id: nullableString,
+  scan_id: nullableString,
+  build_id: nullableString,
+  environment_id: nullableString,
+  generated_from_build_id: nullableString,
+  reference_map_version: nullableString,
+  mapping_completeness: mappingCompletenessSchema.nullable().optional(),
+  map_json: nullableString,
   summary: z.record(z.unknown()).nullable().optional(),
   nodes: z.array(graphNodeSchema),
   edges: z.array(graphEdgeSchema),
+  relationships: z.array(graphRelationshipSchema).default([]),
+  endpoints: z.array(graphEndpointSchema).default([]),
+  recommended_next_checks: z.array(graphRecommendedNextCheckSchema).default([]),
   details: z.object({
     evidence_by_id: z.record(evidenceDetailSchema).default({}),
     risk_hints_by_id: z.record(riskHintDetailSchema).default({}),
+    reference_assessments_by_id: z.record(z.record(z.unknown())).default({}),
     profile_findings_by_id: z.record(z.record(z.unknown())).default({}),
     capability_candidates_by_id: z.record(z.record(z.unknown())).default({}),
   }),
@@ -253,6 +307,7 @@ export const scanProgressEventSchema = z.object({
 
 export type GraphNodeModel = z.infer<typeof graphNodeSchema>;
 export type GraphEdgeModel = z.infer<typeof graphEdgeSchema>;
+export type GraphRelationshipModel = z.infer<typeof graphRelationshipSchema>;
 export type GraphFilterModel = z.infer<typeof graphFilterSchema>;
 export type GraphLensModel = z.infer<typeof graphLensSchema>;
 export type GraphViewModel = z.infer<typeof graphViewModelSchema>;

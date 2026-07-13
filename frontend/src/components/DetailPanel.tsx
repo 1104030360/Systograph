@@ -18,6 +18,14 @@ type Props = {
 
 function KeyValue({ label, value, tag }: { label: string; value: unknown; tag?: boolean }) {
   if (value === undefined || value === null || value === "") return null;
+  if (Array.isArray(value) && value.length === 0) return null;
+  if (
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.keys(value as Record<string, unknown>).length === 0
+  ) {
+    return null;
+  }
   return (
     <div className="kv">
       <div className="k">{label}</div>
@@ -148,12 +156,27 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
   const node = isNode ? (selectedItem as GraphNodeModel) : null;
   const edge = !isNode ? (selectedItem as GraphEdgeModel) : null;
   const title = isNode ? node?.label : (edge?.label ?? edge?.relationship ?? "Edge");
-  const sub = isNode ? node?.source_id : (edge?.source_id ?? edge?.id);
+  const sub = isNode
+    ? (node?.component_id ?? node?.reference_node_id ?? node?.source_id)
+    : (edge?.source_id ?? edge?.id);
   const evidenceIds = isNode ? (node?.evidence_ids ?? []) : (edge?.evidence_ids ?? []);
   const riskIds = isNode ? (node?.risk_hint_ids ?? []) : (edge?.risk_hint_ids ?? []);
-  const targetIds = [selected.id, isNode ? node?.source_id : edge?.source_id].filter(
+  const targetIds = [
+    selected.id,
+    isNode ? node?.component_id : undefined,
+    isNode ? node?.source_id : edge?.source_id,
+  ].filter(
     (value): value is string => typeof value === "string",
   );
+  const projectionRelationshipCount = graph.relationships.filter(
+    (relationship) => relationship.source_node_id === selected.id || relationship.target_node_id === selected.id,
+  ).length;
+  const coverageGate =
+    node?.not_detected_coverage_gate_passed == null
+      ? undefined
+      : node.not_detected_coverage_gate_passed
+        ? "passed"
+        : "not passed";
 
   const tabs: Array<[DetailMode, string]> = [
     ["overview", "Overview"],
@@ -204,8 +227,26 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
               <>
                 <KeyValue label="id" value={compactId(selected.id)} />
                 <KeyValue label="status" value={node?.status} tag />
+                <KeyValue label="activation" value={node?.activation} tag />
+                <KeyValue label="kind" value={node?.semantic_kind ? titleCase(node.semantic_kind) : undefined} tag />
                 <KeyValue label="type" value={node?.type} tag />
                 <KeyValue label="slot" value={node?.slot} tag />
+                <KeyValue label="reference" value={node?.reference_node_id} />
+                <KeyValue label="component" value={node?.component_id} />
+                <KeyValue label="assessment scope" value={node?.assessment_scope} />
+                <KeyValue label="coverage gate" value={coverageGate} tag />
+                <KeyValue label="implementation depth" value={node?.implementation_depth_level} />
+                <KeyValue label="depth reason" value={node?.implementation_depth_reason} />
+                <KeyValue label="evidence strength" value={node?.evidence_strength} tag />
+                <KeyValue label="description" value={node?.description} />
+                <KeyValue label="uncertainty" value={node?.uncertainty} />
+                <KeyValue label="direct evidence" value={node?.direct_evidence_ids} />
+                <KeyValue label="indirect evidence" value={node?.indirect_evidence_ids} />
+                <KeyValue label="explicit negative evidence" value={node?.explicit_negative_evidence_ids} />
+                <KeyValue label="conflicts" value={node?.conflict_fields} />
+                <KeyValue label="related components" value={node?.related_component_ids} />
+                <KeyValue label="recommended next checks" value={node?.recommended_next_checks} />
+                <KeyValue label="projection relationships" value={projectionRelationshipCount || undefined} />
               </>
             ) : (
               <>

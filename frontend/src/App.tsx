@@ -30,13 +30,18 @@ import { useViewerStore } from "./store/viewerStore";
 import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal } from "./types";
 import { PHASE2_STATUS_LEGEND } from "./utils/assessment";
 import { createProgressTargets, resolveProgressTargetId } from "./utils/graph";
+import { hasBackendPlaneProjection } from "./utils/planes";
 
 const EMPTY_GRAPH: GraphViewModel = {
   nodes: [],
   edges: [],
+  relationships: [],
+  endpoints: [],
+  recommended_next_checks: [],
   details: {
     evidence_by_id: {},
     risk_hints_by_id: {},
+    reference_assessments_by_id: {},
     profile_findings_by_id: {},
     capability_candidates_by_id: {},
   },
@@ -49,6 +54,11 @@ const LEGACY_MAP_KEY = [
   { key: "risk", label: "Risk" },
   { key: "needs_confirmation", label: "Review" },
   { key: "missing", label: "Missing" },
+];
+
+const PHASE2_NODE_KIND_LEGEND = [
+  { key: "reference_capability", label: "Reference capability" },
+  { key: "repo_component", label: "Repo component" },
 ];
 
 export default function App() {
@@ -82,13 +92,17 @@ export default function App() {
   const showOverlay = appState !== "loaded";
 
   const payload = dataSourceMode === "sample" ? sampleViewerPayload : data;
-  // Presentation follows the data shape, not one blanket contract flag: the
-  // plane layout and five-state legend need the v2 target projection, while
-  // lineage and completeness only need a build-scoped payload.
-  const graphIsV2 =
-    payload?.viewer_load_result.graph_view_model.source_schema_version === "ai-system-map/v2";
+  // PR #250 may publish a backend-owned reference/plane projection while its
+  // canonical source artifact is still v1. Use explicit projection metadata
+  // instead of treating source_schema_version as a presentation capability.
+  const graphHasPlanes = payload
+    ? hasBackendPlaneProjection(payload.viewer_load_result.graph_view_model)
+    : false;
   const hasBuildLineage = payload?.viewer_load_result.build_id != null;
   const graph = dataAvailable && payload ? payload.viewer_load_result.graph_view_model : EMPTY_GRAPH;
+  const graphLegend = graphHasPlanes
+    ? [...PHASE2_STATUS_LEGEND, ...PHASE2_NODE_KIND_LEGEND]
+    : LEGACY_MAP_KEY;
   const aiSystemMap = dataAvailable ? payload?.viewer_load_result.ai_system_map : undefined;
   const scanSummary = aiSystemMap?.scan_summary;
 
@@ -542,7 +556,7 @@ export default function App() {
 
           <SystemGraph
             graph={graph}
-            layoutMode={graphIsV2 ? "planes" : "auto"}
+            layoutMode={graphHasPlanes ? "planes" : "auto"}
             activeFilterIds={activeFilterIds}
             activeLensId={activeLensId}
             selected={selected}
@@ -554,7 +568,7 @@ export default function App() {
             onInteractingChange={setGraphInteracting}
           />
 
-          {!showOverlay && payload && (hasBuildLineage || graphIsV2) ? (
+          {!showOverlay && payload && (hasBuildLineage || graphHasPlanes) ? (
             <MappingCompletenessPanel
               completeness={extractMappingCompleteness(payload)}
               buildId={payload.viewer_load_result.build_id}
@@ -568,8 +582,11 @@ export default function App() {
             <HistoricalBuildIndicator buildId={activeBuildId} onBackToLatest={() => setActiveBuildId(null)} />
           ) : null}
 
-          <div className="map-key-float" aria-label={graphIsV2 ? "Assessment status key" : "Legacy map color key"}>
-            {(graphIsV2 ? PHASE2_STATUS_LEGEND : LEGACY_MAP_KEY).map(({ key, label }) => (
+          <div
+            className="map-key-float"
+            aria-label={graphHasPlanes ? "Assessment and node kind key" : "Legacy map color key"}
+          >
+            {graphLegend.map(({ key, label }) => (
               <span className="legend-chip" key={key}>
                 <span className={`swatch s-${key}`} aria-hidden="true" />
                 {label}

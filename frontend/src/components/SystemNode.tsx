@@ -36,6 +36,7 @@ function StatusIcon({ status }: { status: NodeStatusKey }) {
 
 export function SystemNode({ data }: NodeProps<FlowNodeData>) {
   const key = nodeStatusKey(data);
+  const badges = [...new Set(data.badges)];
   const className = [
     "node",
     `s-${key}`,
@@ -62,9 +63,9 @@ export function SystemNode({ data }: NodeProps<FlowNodeData>) {
         <StatusIcon status={key} />
       </div>
       <div className="node-title">{data.label}</div>
-      {data.badges.length > 0 ? (
+      {badges.length > 0 ? (
         <div className="node-badges">
-          {data.badges.slice(0, data.activation ? 2 : 3).map((badge) => (
+          {badges.slice(0, data.activation ? 2 : 3).map((badge) => (
             <span className="node-badge" key={badge}>
               {badge}
             </span>

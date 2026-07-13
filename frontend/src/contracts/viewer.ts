@@ -280,6 +280,25 @@ export const mapBuildScopedResponseSchema = z
         });
       }
     }
+
+    const graph = value.viewer_load_result.graph_view_model;
+    for (const identity of ["project_id", "scan_id", "build_id"] as const) {
+      const graphIdentity = graph[identity];
+      if (graphIdentity != null && graphIdentity !== value[identity]) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["viewer_load_result", "graph_view_model", identity],
+          message: `graph_view_model.${identity} must match build ${identity}`,
+        });
+      }
+    }
+    if (graph.generated_from_build_id != null && graph.generated_from_build_id !== value.build_id) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["viewer_load_result", "graph_view_model", "generated_from_build_id"],
+        message: "graph_view_model.generated_from_build_id must equal build_id",
+      });
+    }
   });
 
 /* Mirrors kai_mind.web.schemas.MapBuildHistorySummary / MapBuildHistoryResponse.
@@ -340,6 +359,7 @@ export function parseMapBuildPayload(raw: unknown): ViewerPayload {
   const build = parsed.data;
   const buildResult = build.build_result;
   const environmentId =
+    build.viewer_load_result.graph_view_model.environment_id ??
     buildResult.profile_inference_result?.environment_id ??
     buildResult.readiness_report?.environment_id ??
     null;
@@ -389,17 +409,19 @@ export function parseViewerPayload(raw: unknown): ViewerPayload {
   const legacy = legacyViewerPayloadSchema.safeParse(raw);
   if (legacy.success) {
     const loadResult = legacy.data.viewer_load_result;
+    const graph = loadResult.graph_view_model;
+    const hasReferenceProjection = graph.reference_map_version != null;
     return viewerPayloadSchema.parse({
       ...legacy.data,
-      contract_source: "legacy-v1",
+      contract_source: hasReferenceProjection ? "phase2" : "legacy-v1",
       viewer_load_result: {
         ...loadResult,
         warnings: [],
-        project_id: legacyProjectId(loadResult.ai_system_map),
-        scan_id: null,
-        build_id: null,
-        environment_id: null,
-        generated_from_build_id: null,
+        project_id: graph.project_id ?? legacyProjectId(loadResult.ai_system_map),
+        scan_id: graph.scan_id ?? null,
+        build_id: graph.build_id ?? null,
+        environment_id: graph.environment_id ?? null,
+        generated_from_build_id: graph.generated_from_build_id ?? null,
         based_on_build_id: null,
         applied_mapping_ids: [],
         artifact_refs: [],

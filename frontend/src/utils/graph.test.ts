@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { graphViewModelSchema } from "../types";
-import { createFlowElements, layoutGraph } from "./graph";
+import { createFlowElements, layoutGraph, makeGraphIndexes } from "./graph";
 
 const graph = graphViewModelSchema.parse({
   nodes: [
@@ -72,6 +72,32 @@ describe("createFlowElements lens behavior", () => {
     nodes.forEach((node) => {
       expect(node.data.isDimmed).toBe(false);
     });
+  });
+});
+
+describe("makeGraphIndexes", () => {
+  it("indexes the backend component identity published by the Plan 06 projection", () => {
+    const projected = graphViewModelSchema.parse({
+      nodes: [
+        {
+          id: "node:repo:agent",
+          source_id: "canonical:agent",
+          component_id: "component:agent",
+          label: "Agent",
+        },
+      ],
+      edges: [],
+      details: {
+        evidence_by_id: {},
+        risk_hints_by_id: {},
+        reference_assessments_by_id: {},
+        profile_findings_by_id: {},
+        capability_candidates_by_id: {},
+      },
+      filters: { available: [], lenses: [] },
+    });
+
+    expect(makeGraphIndexes(projected).nodeIdBySource.get("component:agent")).toBe("node:repo:agent");
   });
 });
 
