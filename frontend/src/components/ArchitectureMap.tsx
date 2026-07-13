@@ -142,6 +142,7 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
           const PlaneIcon = getPlaneIcon(planeId);
           return (
             <section className={`dr-plane dr-plane-${planeId}`} key={planeId} data-plane-id={planeId}>
+              <span className="dr-plane-connector" aria-hidden="true" />
               <header className="dr-plane-heading">
                 <span className="dr-plane-index">{String(index + 1).padStart(2, "0")}</span>
                 <span className="dr-plane-icon" aria-hidden="true">
@@ -176,6 +177,7 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
 
         {(nodesByPlane.get("__unassigned__")?.length ?? 0) > 0 ? (
           <section className="dr-plane dr-plane-unassigned" data-plane-id="__unassigned__">
+            <span className="dr-plane-connector" aria-hidden="true" />
             <header className="dr-plane-heading">
               <span className="dr-plane-index">—</span>
               <span className="dr-plane-icon" aria-hidden="true">

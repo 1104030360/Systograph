@@ -76,6 +76,7 @@ export function ArchitectureViewNav({ views, activeViewId, search, onSelect, onS
               key={view.id}
               className={[
                 "dr-filter-button",
+                `dr-view-${view.id}`,
                 active ? "is-active" : "",
                 view.id === "risk" || view.id === "unmapped" ? "is-warning" : "",
               ]

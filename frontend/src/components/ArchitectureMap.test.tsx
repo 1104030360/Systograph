@@ -70,6 +70,7 @@ describe("ArchitectureMap", () => {
 
     expect(screen.getByLabelText("AI Agent System, ten architecture planes")).toBeInTheDocument();
     expect(container.querySelectorAll("[data-plane-id]")).toHaveLength(10);
+    expect(container.querySelectorAll(".dr-plane-connector[aria-hidden='true']")).toHaveLength(10);
     expect(screen.getByText("Input & Intent")).toBeInTheDocument();
     expect(screen.getByText("Deployment Topology")).toBeInTheDocument();
 
