@@ -25,6 +25,18 @@ describe("LensPanel", () => {
     expect(screen.getByRole("note")).toHaveTextContent("does not include lens membership");
   });
 
+  it("renders a distinct decorative icon per fixed lens", () => {
+    const { container } = render(<LensPanel lenses={[]} activeLensId={null} onToggleLens={() => {}} />);
+
+    const icons = [...container.querySelectorAll("button .lens-ico")];
+    expect(icons).toHaveLength(6);
+    icons.forEach((icon) => {
+      expect(icon).toHaveAttribute("aria-hidden", "true");
+    });
+    const glyphClasses = new Set(icons.map((icon) => icon.getAttribute("class")));
+    expect(glyphClasses.size).toBe(6);
+  });
+
   it("toggles a supported lens and marks it pressed", () => {
     const onToggleLens = vi.fn();
     render(

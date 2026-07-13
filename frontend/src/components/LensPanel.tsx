@@ -1,5 +1,5 @@
-import { Telescope } from "lucide-react";
 import type { GraphLensModel } from "../types";
+import { getLensIcon } from "../icons/registry";
 import { resolveLensSlots } from "../utils/lenses";
 
 type Props = {
@@ -24,6 +24,7 @@ export function LensPanel({ lenses, activeLensId, onToggleLens }: Props) {
         {slots.map((slot) => {
           const disabled = slot.availability !== "available";
           const active = !disabled && slot.id != null && slot.id === activeLensId;
+          const LensIcon = getLensIcon(slot.key);
           return (
             <button
               key={slot.key}
@@ -43,7 +44,7 @@ export function LensPanel({ lenses, activeLensId, onToggleLens }: Props) {
                 if (slot.id != null) onToggleLens(slot.id);
               }}
             >
-              <Telescope className="lens-ico" size={13} aria-hidden="true" />
+              <LensIcon className="lens-ico" size={13} aria-hidden="true" />
               {slot.label}
               <span className="fcount">{disabled ? "n/a" : slot.matchCount}</span>
             </button>

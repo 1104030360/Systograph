@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { CheckCircle2, FileCode2, Info, Route, X } from "lucide-react";
 import type { GraphEdgeModel, GraphNodeModel, GraphViewModel, Selection, ViewerPayload } from "../types";
+import { getPlaneIcon } from "../icons/registry";
 import { compactId, formatValue, titleCase } from "../utils/format";
+import { planeLabel } from "../utils/planes";
 
 type DetailMode = "overview" | "component" | "code_path";
 
@@ -159,11 +161,20 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
     ["code_path", "L3 Code Path"],
   ];
 
+  // Plane chip renders only when the backend published plane_id; no inference.
+  const PlaneIcon = getPlaneIcon(node?.plane_id);
+
   return (
     <>
       <div className="inspector-head">
         <div className="inspector-kind">
           <span className={isNode ? "kind-tag node" : "kind-tag edge"}>{isNode ? "Node" : "Edge"}</span>
+          {node?.plane_id ? (
+            <span className="plane-chip" title="Backend-declared plane">
+              {PlaneIcon ? <PlaneIcon size={12} aria-hidden="true" /> : null}
+              {planeLabel(node.plane_id)}
+            </span>
+          ) : null}
           <button className="icon-btn" type="button" onClick={onClose} title="Close" aria-label="Close detail">
             <X size={15} />
           </button>

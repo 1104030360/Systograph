@@ -1,5 +1,6 @@
-import { ChevronDown, Info, RotateCcw, Sparkles } from "lucide-react";
+import { ChevronDown, Info, RotateCcw } from "lucide-react";
 import type { GraphFilterModel, GraphLensModel, ScanSummary } from "../types";
+import { BrandMark } from "../icons/BrandMark";
 import { LensPanel } from "./LensPanel";
 
 type Props = {
@@ -53,7 +54,7 @@ export function Sidebar({
     <aside className={isOpen ? "sidebar is-open" : "sidebar"}>
       <div className="brand">
         <div className="brand-mark">
-          <Sparkles size={17} />
+          <BrandMark size={18} />
         </div>
         <div className="brand-text">
           <strong>Health Doctor</strong>

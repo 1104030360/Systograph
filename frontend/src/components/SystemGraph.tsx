@@ -283,7 +283,7 @@ function GraphCanvas({
       focusable: false,
       zIndex: -1,
       style: { width: band.width, height: band.height, pointerEvents: "none" },
-      data: { label: band.label, sublabel: band.sublabel, count: band.count },
+      data: { planeId: band.id, label: band.label, sublabel: band.sublabel, count: band.count },
     }));
     setNodes([
       ...bandNodes,

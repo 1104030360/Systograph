@@ -57,7 +57,7 @@ const CARD_GAP_Y = 30;
 const ATTACHMENT_STACK_GAP = 22;
 const ATTACHMENT_X_OFFSET = 18;
 
-function planeLabel(planeId: string): string {
+export function planeLabel(planeId: string): string {
   if (planeId === UNASSIGNED_PLANE_ID) return "Unassigned components";
   return (
     PLANE_LABELS[planeId] ??
