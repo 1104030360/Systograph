@@ -1,5 +1,8 @@
 # 深化 Graph Projection Module 計畫
 
+> **狀態：backend scope 已完成（2026-07-12）。** Frontend integration依最新分工延後，
+> 不屬本次交付。
+
 > **執行者注意：** 逐 task 實作本計畫。步驟使用 checkbox（`- [ ]`）語法以便追蹤進度。
 
 **來源：** `architecture-review-20260627T143554.html`
@@ -8,6 +11,32 @@
 backend 同一投影模型產生 JSON graph、Markdown 與 Mermaid，再讓 frontend render
 該 contract；不得讓 UI 成為唯一可見輸出。
 
+## 2026-07-12 Backend-only scope correction
+
+- 本次 Plan 05–09 由 backend owner 執行；不得修改 `frontend/` 程式碼、測試、依賴或
+  layout。2026-07-11 草案中的 frontend implementation 已撤回。
+- Plan 06 本次完成條件收斂為 backend `GraphViewModel`、build-scoped API envelope、
+  Mermaid、Markdown、CLI/API compatibility 與 valid/missing/invalid profile sidecar
+  regression 全部通過。
+- Frontend 日後只需消費這份 additive backend contract；Zod/TypeScript parser、node
+  renderer、legend、filters、detail panel 與 browser visual QA 另由 frontend owner承接，
+  不阻擋本次 backend plan 完成。
+
+## 2026-07-11 Live-state correction
+
+- `CanonicalMapLoader`、normalized `AiSystemMapV2`、10-plane/52-node catalog、
+  `ProfileInferenceResult`、Mapping Completeness、readiness sidecar 與 degraded manifest
+  load 已完成；不得重做這些 prerequisites。
+- Runtime 仍有三套 topology owner：`ViewerSessionService` 投影 v1 API graph、
+  `StaticExecutionArtifactService` 直接投影 normalized-v2 `system_map.mmd`、
+  `MarkdownSummaryService` 投影 v1 `ai_system_map.md`。本計畫必須收斂成一套 graph
+  projection，不能再新增第四套 truth。
+- 本計畫分兩個 checkpoint：`06A` 先以 Plan 05 minimal index 完成 normalized-v2 base
+  graph vertical slice；Plan 07 依第二個 consumer 需求擴充 index；`06B` 再完成
+  reference/profile overlay 與共用 backend renderers。
+- Persisted `ai_system_map.json` 與 `ViewerLoadResult.ai_system_map` 在 Plan 13 前仍保留
+  v1 compatibility payload；graph、profile/readiness 與 renderers 改讀 normalized v2。
+
 ## Contract source of truth
 
 | 主題 | Source |
@@ -15,6 +44,8 @@ backend 同一投影模型產生 JSON graph、Markdown 與 Mermaid，再讓 fron
 | `GraphViewModel` / `ViewerLoadResult` | `docs/MODEL-CONTRACT.md` |
 | Viewer 讀取端點 | `docs/API-GUIDE.md` `GET /api/map-builds/{build_id}` |
 | 五態 / activation | `../../capability-map-assessment-decision-summary.md` + `docs/MODEL-CONTRACT.md` |
+| Current runtime models | `src/kai_mind/core/models/viewer.py` + `frontend/src/types.ts` |
+| Current build wiring | `map_build_pipeline.py` + `build_artifact_publisher.py` + `build_manifest_service.py` |
 
 `GraphViewModel` 是 `ViewerLoadResult` 內的 ephemeral projection，不是 persisted sibling JSON。
 
@@ -37,9 +68,11 @@ Governance / observability 是 canonical plane；cross-plane governance lens 可
 backend-derived view，但不得複製 canonical facts。`extension_subsystems` 是 reference
 grouping，不建立或恢復 legacy `ExtensionComponent` product surface。
 
-Projection semantic kinds 至少區分 `reference_capability` 與 `repo_component`。Reference
-node 固定存在不代表 repo 已實作；repo component 可對位多個 reference node，無可靠 mapping
-時保留 unmapped。Frontend 不得從 label/topology 重新推論 mapping。
+Projection semantic kinds 明確分成 `reference_capability`、`repo_component`、
+`unmapped_component`、`capability_candidate` 與 `profile_attachment`。Reference node 固定
+存在不代表 repo 已實作；repo component 可對位多個 reference node，無可靠 mapping 時保留
+unmapped。`profile_attachment` 是 15 個 profile findings 的獨立 semantic overlay，不得冒充
+52-node reference identity。Frontend 不得從 label/topology 重新推論 mapping。
 
 Identity boundary：`reference_node_id` 是固定 catalog coordinate，`component_id` 是 repo
 scan identity，兩者不得因字串或 label 相同而視為同一 id。Step 6 / Step 7 只能使用 backend
@@ -66,8 +99,9 @@ flow 被丟棄或標成 unresolved，而不是由 projection 端猜測。
 ### Step 7 Projection Boundary（只畫，不重新判斷）
 
 本計畫位在 Step 6 `ProfileInferenceService` 之後。Graph projection 的輸入是
-validated `ai_system_map.json`、Step 6 assessment/profile result 與 reference catalog
-metadata；輸出是 GraphViewModel、Mermaid 與 Markdown view。
+validated normalized `AiSystemMapV2`、Step 6 assessment/profile result 與 reference
+catalog metadata；輸出只是一份 `GraphViewModel`。Mermaid/Markdown renderers再消費同一
+projection，不能各自重建 topology。
 
 ```text
 Step 6 ProfileInferenceService
@@ -87,9 +121,9 @@ undetermined 或 degraded reason，不可猜測 anchor。
 
 ### 目標
 
-拆出可單測的 backend graph projection，先完成 `system_map.mmd`、
-`ai_system_map.md` 與 API
-graph projection，再完成最小 frontend static renderer/degraded-state integration。
+拆出可單測的 backend graph projection，完成 `system_map.mmd`、`ai_system_map.md`、
+API graph projection 與 degraded sidecar behavior；frontend integration 依 2026-07-12
+scope correction 延後。
 
 ### 背景
 
@@ -97,29 +131,44 @@ graph projection，再完成最小 frontend static renderer/degraded-state integ
 
 ### 目前 code 狀態
 
-backend `GraphNodeModel` 沒有 `semantic_kind/profile_id/anchors`；frontend `types.ts`、`SystemGraph.tsx`、`SystemNode.tsx` 與 `DetailPanel.tsx` 都尚未接上 profile attachment contract。
+- backend `GraphNodeModel` 仍只有 v1 `type/slot/status` 等欄位，沒有 semantic kind、
+  assessment/activation/scope、profile/reference ids 或 anchors。
+- `ViewerSessionService.load_map()/build()/project_to_graph()` 都接 `RagSystemMap`，direct
+  viewer route 尚未經 `CanonicalMapLoader`。
+- `MapBuildPipeline` 已同時持有 legacy v1 map、normalized v2 map 與 profile/readiness；
+  但 `BuildArtifactPublisher` 只把 v1 map交給 Markdown/viewer，manifest reload 也用 v1
+  map重建 graph。
+- `StaticExecutionArtifactService` 直接從 normalized v2 產生 `system_map.mmd` 與
+  `execution_map.mmd`；`MarkdownSummaryService` 另從 v1 產生 `ai_system_map.md`。
+- frontend `types.ts`、`SystemGraph.tsx`、`SystemNode.tsx` 與 `DetailPanel.tsx` 只接 base
+  graph contract，尚無 reference/profile overlay、scope、completeness 或 degraded warnings。
 
 ### 相關檔案
 
 - `src/kai_mind/core/services/viewer_session_service.py`
 - `src/kai_mind/core/services/graph_projection_service.py`（新增）
+- `src/kai_mind/core/services/reference_map_overlay_projector.py`（新增）
+- `src/kai_mind/core/services/graph_mermaid_renderer.py`（新增）
+- `src/kai_mind/core/services/graph_markdown_renderer.py`（新增）
 - `src/kai_mind/core/models/viewer.py`
-- `frontend/src/types.ts`
-- `frontend/src/components/SystemGraph.tsx`
-- `frontend/src/components/SystemNode.tsx`
-- `frontend/src/components/DetailPanel.tsx`
-- `frontend/src/store/viewerStore.ts`
+- `src/kai_mind/core/services/map_build_pipeline.py`
+- `src/kai_mind/core/services/build_artifact_publisher.py`
+- `src/kai_mind/core/services/build_manifest_service.py`
+- `src/kai_mind/core/services/static_execution_artifact_service.py`
+- `src/kai_mind/core/services/markdown_summary_service.py`
+- Frontend files are handoff consumers only and are not modified in this plan run.
 
 ### 實作步驟
 
-先 characterization backend projection，再拆 service、generic view projector、Mermaid
-renderer 與 capability attachment projector；完成 CLI artifact tests 後，才同步 frontend
-parser/renderer/filter/details。
+先 characterization 現有 v1 viewer behavior，再完成 06A normalized-v2 base graph與
+v1 compatibility wiring。Plan 07 擴充 lookup 後，06B 加入 fixed reference/profile
+overlay與共用 Mermaid/Markdown renderers；frontend parser/renderer/filter/details 延後。
 
 ### 驗收標準
 
 CLI/API 可從同一 normalized v2 projection 產生可追溯的 component/edge/evidence map、
-`system_map.mmd` 與 `ai_system_map.md`；frontend 只 render backend output，不自行推論。
+`system_map.mmd` 與 `ai_system_map.md`；backend contract 完整承載 semantic metadata，供
+後續 frontend 直接 render、不需自行推論。
 
 ### 風險與注意事項
 
@@ -129,9 +178,12 @@ Profile attachment 是 static semantic overlay，不是本次 query 的 runtime 
 
 1. **職責拆分**
    - `ViewerSessionService`：只負責 load / validate / serialize / session orchestration。
-   - `GraphProjectionService`：負責把 normalized `AiSystemMapV2`（與 optional `ProfileInferenceResult`）投影成 `GraphViewModel`/Mermaid/Markdown views。
+   - `GraphProjectionService`：只負責把 normalized `AiSystemMapV2`（與 optional
+     `ProfileInferenceResult`）投影成 `GraphViewModel`。
    - `ReferenceMapOverlayProjector`：投影 fixed reference nodes，再疊加 evidence-backed repo
-     components/assessments；legacy profile attachment 只作 migration input。
+     components/assessments/profile findings；不產生 topology mapping edge。
+   - `GraphMermaidRenderer` / `GraphMarkdownRenderer`：只消費同一份 `GraphViewModel`，
+     不重新讀 canonical map 或重建 topology ids。
 
 2. **interface 不要越長越胖**
    - viewer session 不應同時懂 file I/O、canonical map、base graph、profile overlay、anchor 選擇等所有細節。
@@ -180,13 +232,13 @@ Phase2 還要再加：
 現況：
 
 ```text
-ViewerSessionService.project_to_graph(normalized AiSystemMapV2)
+ViewerSessionService.project_to_graph(RagSystemMap v1)
   -> GraphViewModel
        -> nodes / edges / details / filters
 ```
 
-- 現行 v1 base graph 已能從 legacy grounding slots、flows、unmapped、legacy
-  extensions 建 node；00A 後必須先 normalize 成 v2 generic components/edges。
+- 現行 v1 base graph已能從 legacy grounding slots、flows、unmapped、legacy extensions
+  建 node；00A 已能 normalize 成 v2 generic components/edges，但 viewer 尚未接上。
 - 但 `GraphNodeModel` 還沒有 profile attachment 專用欄位，例如：
   - `semantic_kind`（consumer 用來辨識這是 profile attachment node）
   - `profile_id`
@@ -241,7 +293,7 @@ Original after diagram:
 flowchart TD
   S[ViewerSessionService]
   GP[GraphProjectionService]
-  PA[ProfileAttachmentProjector]
+  PA[ReferenceMapOverlayProjector]
   S -->|載入 validated artifacts| GP
   GP -->|base graph interface| Nodes[nodes / edges / details / filters]
   GP --> PA
@@ -250,8 +302,9 @@ flowchart TD
 
 ## 範圍
 
-本計畫處理 backend generic projection、Mermaid/Markdown renderers、
-`GraphViewModel` capability attachment contract，以及最小 frontend integration。
+本計畫處理 backend generic projection、Mermaid/Markdown renderers與
+`GraphViewModel` capability attachment contract。Frontend integration 依 2026-07-12
+scope correction 延後。
 Runtime query trace UI 仍屬 plan 12 deferred boundary，不是本計畫前置條件。
 
 ## 預期架構
@@ -274,91 +327,115 @@ flowchart TD
 
 - `src/kai_mind/core/services/viewer_session_service.py`
 - `src/kai_mind/core/models/viewer.py`
-- `src/kai_mind/core/models/profile_signal.py` once introduced by Phase2 profile work
+- `src/kai_mind/core/models/profile_signal.py`
+- `src/kai_mind/core/services/build_artifact_publisher.py`
+- `src/kai_mind/core/services/build_manifest_service.py`
+- `src/kai_mind/core/services/static_execution_artifact_service.py`
 - `tests/unit/core/test_viewer_session_service.py`
 
-Frontend contract parsing、renderer 與 layout 必須直接修改本 repo 的
-`frontend/src/`；Meeting-Sync 文件只作補充設計紀錄。
+本次不得修改 `frontend/src/`。Backend 必須以 versioned/additive JSON contract與測試
+提供完整 handoff surface，讓 frontend owner 後續承接 parser、renderer 與 layout。
 
 ## 實作 Tasks
 
-- [ ] 在 extract 任何程式之前，先為現有 `ViewerSessionService.build()` 與 `project_to_graph()` behavior 新增 characterization tests。
-- [ ] 引入 `GraphProjectionService`，interface 保持 narrow，例如 `project(system_map, profile_result=None, map_json_path=None) -> GraphViewModel`。
-- [ ] `GraphProjectionService` 的 target input 是 normalized `AiSystemMapV2`；v1 由 00A adapter 轉換。
-- [ ] 新增 versioned fixed reference-map model，10 plane ids / 52 node ids / ordering 必須
-  穩定；governance lens 只作 derived view，`extension_subsystems` 不使用 legacy extension
-  semantics。
-- [ ] `GraphNodeModel.semantic_kind` 明確區分 `reference_capability` 與 `repo_component`；
-  overlay mapping 保存 reference/repo ids 與 evidence refs，不複製 canonical facts。
-- [ ] Projection 同時輸出五態 status、六態 activation、typed evidence、field-specific
-  conflicts、not-detected coverage gate 與 build/snapshot/environment scope。
-- [ ] Backend **surface** Step 6-1 已計算的 Mapping Completeness（numerator/denominator/status
-  counts / fixed weights disclosure）；**不得**在 Step 7 重算 completeness；frontend 不重算。
-- [ ] 新增 `MermaidRenderer`，從同一 projection 產生 `system_map.mmd`，顯示
-  generic components/edges、capability relationships 與 agent/workflow control edges；每個節點可
-  回查 source id/evidence，但不嵌入 raw source。
-- [ ] 新增 Markdown readiness renderer，輸出 `ai_system_map.md`，摘要 capability overlays、
-  findings 與 next checks。
-- [ ] 讓 `ViewerSessionService` 仍負責 load/validate/session orchestration 與 JSON serialization，不負責 graph construction details。
-- [ ] 將 `ReferenceMapOverlayProjector` 放在 graph projection implementation 後方，而非
-  public web route dependency。
-- [ ] 擴充 `GraphNodeModel`，加入 reference/repo semantic kind、reference id、repo component
-  id、assessment/activation/scope 與最小 provenance ids。
-- [ ] 每個 reference node 都可顯示五態與 activation；只有具有 evidence-backed repo mapping
-  的 component 才 emit repo overlay。無 reliable mapping 時不得猜 anchor/component。
-- [ ] 使用 backend 提供的 `GraphNodeModel.label` 作為 compact canvas label；不要求 frontend 將 `profile_id` 對應成 display text。
-- [ ] 不要為 reference/repo mapping 建立看似 runtime topology 的 synthetic edge；mapping
-  relationship 使用專用 overlay refs。
-- [ ] 將 `filter:profile_attachments` membership 加入 graph filters，使用既有 positive filter semantics。
-- [ ] 將 evidence counts、related refs counts、anchors、完整 profile names 與 descriptions 保留在 details/provenance payloads，不要放在 canvas node。
-- [ ] `partial`、`undetermined`、`not_detected`、`conflicted` 都可在 fixed reference map
-  顯示狀態；`not_detected` 必須顯示 coverage gate，`conflicted` 顯示 field-specific refs。
-- [ ] 不要使用 legacy `extensions` 作為 profile attachments 的 renderer-facing product concept。若 legacy extension ids 存在，僅在 details 中作 compatibility refs 暴露，不作為 primary node type。
-- [ ] 更新 `frontend/src/types.ts` 的 Zod/TypeScript schema，辨識 `semantic_kind="profile_attachment"`、`profile_id` 與 anchors。
-- [ ] 在 `SystemNode` 增加專用但克制的 attachment renderer；label 使用 backend 提供值，不在 frontend 重建 profile metadata。
-- [ ] Reference map layout 固定；repo overlay placement 不得改變 plane/node identity，且不得被
-  誤認為 runtime traversal。
-- [ ] `DetailPanel` 顯示 status、depth、evidence/related-ref counts、uncertainty 與 next checks；不得顯示 raw source 或推測性 runtime path。
-- [ ] 增加 `filter:profile_attachments` 的 frontend toggle，預設關閉且不改動其他 active filters。
-- [ ] 最小 frontend contract 增加 reference/repo legend、status/activation/evidence legend、
-  scope display、governance lens 與 Mapping Completeness formula disclosure。
-- [ ] 執行 `pnpm build`、`pnpm lint`，並以 valid/missing/invalid sidecar 三種 API payload 做 browser regression。
+### 06A：Normalized-v2 base graph vertical slice（Plan 05 後）
+
+- [x] 在任何 production extraction 前，補現有 `ViewerSessionService.load_map()`、
+  `build()`、`project_to_graph()` 的 v1 characterization：nodes/edges/details/filters、
+  ordering、empty/bad input、no mutation 與 public JSON shape；先確認 unchanged code PASS。
+- [x] 再寫 normalized-v2 `GraphProjectionService` failing tests；interface 固定為
+  `project(system_map, *, profile_result=None, artifact_ref=None) -> GraphViewModel`，
+  `system_map` 只接受 `AiSystemMapV2`，並透過 Plan 05 `SystemMapIndex` 解析 canonical facts。
+- [x] 先完成 base graph：`repo_component`、`unmapped_component`、canonical topology edges、
+  evidence/risk details、positive filters與 deterministic ordering。`artifact_ref` 只允許
+  build-relative ref，不得輸出 absolute local path。
+- [x] `ViewerSessionService` 改成 load/JSON parse/`CanonicalMapLoader`/serialize/session owner；
+  v1 input 先 adapt 成 v2 graph，但 `ViewerLoadResult.ai_system_map` 與既有 error reasons 保持
+  compatibility。
+- [x] `BuildArtifactPublisher` 同時接 legacy persisted map、normalized v2 與 profile/readiness，
+  只呼叫一次 projection；`BuildManifestService.load()` 使用已載入的 normalized/profile
+  重建相同 graph。Missing/invalid profile sidecar 仍 loaded base graph並回 warning。
+- [x] 06A focused/web/CLI tests通過後才進 Plan 07；不得在 06A 偷加 grouping/location helper
+  到 index，也不得先改 frontend visual hierarchy。
+
+### 06B：Reference/profile overlay 與共用 backend renderers（Plan 07 後）
+
+- [x] 擴充 frozen viewer models：semantic kind、reference/component/profile identity、plane、
+  status、activation、typed evidence ids、conflicts、coverage gate、scope、anchor refs、
+  related refs與 optional Mapping Completeness。`ViewerLoadResult` 保留 legacy core contract；
+  warnings、`profile_inference_result` 與 `readiness_report` 繼續由 build-scoped envelope
+  承載，不重複塞進 viewer payload。`GraphViewModel` 新增欄位維持 additive compatibility。
+- [x] `ReferenceMapOverlayProjector` 依 catalog order emit固定 10 planes / 52
+  `reference_capability` nodes，再以 Step 6 明確 related ids emit evidence-backed
+  repo/unmapped/candidate overlays；無 mapping 不猜 component或 anchor。
+- [x] 將 15 個 `ProfileFinding` emit成 `profile_attachment` nodes；label/description/status/
+  depth/uncertainty/next checks使用 backend fields，anchor只從 related ids deterministic
+  resolve。無 reliable anchor時保留 detail finding但不畫誤導性 topology node。
+- [x] Mapping Completeness直接使用 `ProfileInferenceResult.mapping_completeness`；projection與
+  renderers不得重算。`not_detected` surface coverage gate，`conflicted`
+  surface field-specific refs。
+- [x] Reference/repo/profile mapping只放專用 relation/membership/details；不得寫入
+  `GraphViewModel.edges[]` 偽裝成 runtime traversal。`filter:profile_attachments` 使用正 filter
+  semantics且預設 inactive。
+- [x] `GraphMermaidRenderer` 與 `GraphMarkdownRenderer` 只消費同一 `GraphViewModel`；
+  `system_map.mmd` / `ai_system_map.md` 使用 API graph相同 ids。完成 regression 後，
+  `StaticExecutionArtifactService` 只保留 call/dataflow/execution/evidence與
+  `execution_map.mmd`，v1 `MarkdownSummaryService` 不再是 active publisher owner。
+- [x] 執行 backend focused/full regression，並以 valid/missing/invalid sidecar三種 live
+  build-scoped API payload做 HTTP regression；確認 base graph fail-soft、warnings 留在
+  build envelope，且輸出不含 absolute local path、raw source或完整 secret。
 
 ## 驗收標準
 
-- [ ] 對 map-only payloads，`ViewerSessionService` 仍與先前完全一樣 load 並 validate `ai_system_map.json`。
-- [ ] `system_map.mmd` 與 Markdown/API graph 使用同一組 node/edge ids，不各自重建 topology。
-- [ ] non-grounded LLM app、tool agent、RAG system、grounded agent 與 workflow
+- [x] 對 map-only payloads，`ViewerSessionService` 維持既有 loaded/error/public map behavior，
+  但 validation/adapter 由 `CanonicalMapLoader` 統一；missing sidecar只產生 warning。
+- [x] `system_map.mmd` 與 Markdown/API graph 使用同一組 node/edge ids，不各自重建 topology。
+- [x] non-grounded LLM app、tool agent、RAG system、grounded agent 與 workflow
   fixtures 都能產生非空且語意正確的 Mermaid。
-- [ ] Base graph projection behavior 仍由既有 viewer tests 涵蓋。
-- [ ] `GraphProjectionService` 可在無 file I/O 的情況下 unit test。
-- [ ] Reference nodes 與 repo overlay 都由 backend emit，具 explicit semantic fields 與 stable ids。
-- [ ] Fixed reference nodes 與 repo overlay nodes 使用不同 semantic kinds；reference node
+- [x] Base graph projection behavior 仍由既有 viewer tests 涵蓋。
+- [x] `GraphProjectionService` 可在無 file I/O 的情況下 unit test。
+- [x] Build-time、manifest reload、direct viewer CLI/API 對等 input 產生相同 graph contract。
+- [x] Reference nodes 與 repo overlay 都由 backend emit，具 explicit semantic fields 與 stable ids。
+- [x] Fixed reference nodes 與 repo overlay nodes 使用不同 semantic kinds；reference node
   不因存在於底圖而自動成為 detected/enabled。
-- [ ] 五態、activation、field conflicts、coverage gate 與 Mapping Completeness 皆由 Step 6-1
-  計算、Step 7 projection **surface**；frontend 不推論或重算。
-- [ ] 不向 topology `GraphViewModel.edges[]` 新增會誤導成 runtime path 的 mapping edges。
-- [ ] `filter:profile_attachments` 可用，但預設不 active。
-- [ ] Backend contract tests 以 `semantic_kind="profile_attachment"` 作為 consumer renderer selection marker。
-- [ ] Runtime query trace highlighting 不在此實作；本計畫記載 trace focus 依賴獨立的 runtime trace contract。
-- [ ] 前端 enhancement 不得阻擋 JSON + Mermaid + Markdown 的 Phase2 MVP 驗收。
+- [x] 五態、activation、field conflicts、coverage gate 與 Mapping Completeness 皆由 Step 6-1
+  計算、Step 7 projection **surface**；backend 不產生第二套推論。
+- [x] 不向 topology `GraphViewModel.edges[]` 新增會誤導成 runtime path 的 mapping edges。
+- [x] `filter:profile_attachments` 可用，但預設不 active。
+- [x] Backend contract tests 以 `semantic_kind="profile_attachment"` 作為 consumer renderer selection marker。
+- [x] `profile_attachment` 不取代 `reference_capability` identity，且無可靠 anchor時不產生
+  synthetic topology edge/node placement。
+- [x] Graph/artifact refs不暴露 absolute local path、raw source或完整 secret values。
+- [x] Runtime query trace highlighting 不在此實作；本計畫記載 trace focus 依賴獨立的 runtime trace contract。
+- [x] JSON + Mermaid + Markdown、CLI/API compatibility與 sidecar degraded regression 是本次
+  06A/06B backend gate；frontend implementation 依 2026-07-12 scope correction 延後。
 
 ## 驗證
 
-- [ ] `.venv/bin/pytest tests/unit/core/test_viewer_session_service.py -q`
-- [ ] 為 `GraphProjectionService` 與 `ProfileAttachmentProjector` 新增 focused tests。
-- [ ] `.venv/bin/pytest tests/contracts/test_ai_system_map_schema.py -q` 以確認 canonical schema 未被 mutate。
-- [ ] `rg -n "profile_attachment|semantic_kind|primary_anchor_node_id|filter:profile_attachments" src tests docs/work/Timmy/design`
-- [ ] `git diff --check docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/06-deepen-graph-projection-module.md`
+- [x] `.venv/bin/pytest tests/unit/core/test_viewer_session_service.py -q`
+- [x] 為 `GraphProjectionService` 與 `ReferenceMapOverlayProjector` 新增 focused tests。
+- [x] `.venv/bin/pytest tests/contracts/test_ai_system_map_schema.py tests/contracts/test_ai_system_map_v2_schema.py -q` 以確認 canonical schema 未被 mutate。
+- [x] `.venv/bin/pytest tests/integration/test_map_build_service.py tests/web/test_viewer_routes.py tests/web/test_map_build_apply_routes.py tests/cli/test_viewer_command.py -q`
+- [x] `.venv/bin/ruff check src tests && .venv/bin/mypy src tests`
+  （**2026-07-13 重驗**：先前勾選曾與實際 E501 / format drift 不符；已折行中文註解並
+  `ruff format` 後，`uv run ruff check src tests` + `uv run ruff format --check src tests`
+  通過。細節見
+  `docs/work/Timmy/schedule/report/2026-07-12-backend-validation-manual-qa-REP.md`
+  Correction 節。）
+- [x] `rg -n "profile_attachment|semantic_kind|primary_anchor_node_id|filter:profile_attachments" src tests docs/work/Timmy/design`
+- [x] `git diff --check -- docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-a-index-projection/06-deepen-graph-projection-module.md`
 
 ## 相依關係
 
-- 應在 `03-consolidate-profile-sidecar-lifecycle.md` 之後，使 projection 能收到 stable profile result。
-- 應使用或至少對齊 `05-add-read-only-system-map-index.md` 與 `07-expand-system-map-index-to-shared-lookup-contract.md`，以取得 deterministic anchor lookup。
-- 必須保留 `02-implement-stackable-profile-inference.md` 中的 read-only / non-canonical 決策。
+- Profile sidecar lifecycle、Step 6 inference/reference catalog/completeness已完成，是本計畫
+  可直接消費的 live prerequisites。
+- 06A依賴 Plan 05 minimal index；Plan 07 依 06A 第二 consumer需求擴充；06B再依 Plan 07
+  完成 grouping/location/anchor lookup與 backend renderers。
+- Plan 08/09 必須等 06B graph/API contract與 regression穩定後才遷移/清理 consumers。
 
 ## 不在範圍內
 
+- 本次不修改 frontend parser、components、styles、dependencies或 browser visual behavior。
 - 不新增 profile-level confirm actions 或 mutation APIs。
 - 不將 graph projection output write back 到 `ai_system_map.json`。
 - 不將 repo overlay mapping 當成 runtime topology truth。
@@ -368,8 +445,8 @@ Frontend contract parsing、renderer 與 layout 必須直接修改本 repo 的
 Graph projection 需清楚分成兩張圖：
 
 - `system_map.mmd`：component-level system architecture / readiness map。
-- `execution_map.mmd`：static inferred query path / call-dataflow sequence，由 dynamic `00`
-  的 execution renderer 產生。
+- `execution_map.mmd`：static inferred query path / call-dataflow sequence，由現有
+  `StaticExecutionArtifactService` 擁有；未來 dynamic `00` 不得改寫 canonical topology graph。
 
 本計畫可以提供共用 renderer primitives 與 viewer projection conventions，但不得把 execution
 path edges 混入 canonical topology graph。若 UI 顯示 execution path，需使用明確的 static

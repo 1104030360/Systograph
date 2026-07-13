@@ -3,7 +3,8 @@
 #
 # Input  : none (reads the latest session viewer payload).
 # Output : ViewerPayload {viewer_load_result:{loaded, error_reason, map_json,
-#          ai_system_map, graph_view_model:{nodes, edges, details, filters}}}
+#          ai_system_map, graph_view_model:{nodes, edges, relationships,
+#          details, filters, mapping_completeness}}} (Track A graph projection).
 #
 # By default this script first builds a map so the payload is non-empty. Pass
 # --no-setup to call GET /api/map against whatever is already in the session
@@ -54,10 +55,8 @@ kai_progress "現在要讀取最新 viewer map..."
 api_call GET "/api/map"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Graph summary"
-echo "$LAST_BODY" | jq '{
-  loaded: .viewer_load_result.loaded,
-  error_reason: .viewer_load_result.error_reason,
-  node_count: (.viewer_load_result.graph_view_model.nodes | length),
-  edge_count: (.viewer_load_result.graph_view_model.edges | length)
-}'
+kai_section "Graph projection 摘要（Track A）"
+kai_summarize_viewer_payload "$LAST_BODY"
+if [[ "$NO_SETUP" -eq 0 ]]; then
+  kai_assert_graph_projection_loaded "$LAST_BODY"
+fi

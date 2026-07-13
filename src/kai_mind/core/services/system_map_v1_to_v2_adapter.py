@@ -264,7 +264,9 @@ class SystemMapV1ToV2Adapter:
                 json_pointer=json_pointer,
                 config_key=config_key,
             ),
-            extract_summary=item.snippet,
+            # v2 只有 extract_summary：優先 snippet，否則保留 value
+            # （config/dependency 常無 snippet；--no-snippets 亦然）。
+            extract_summary=item.snippet or item.value,
             rule_id=item.rule_id,
         )
 

@@ -5,6 +5,8 @@
 #          no_snippets, boundary_decisions?}
 # Output : ScanCreateResponse {scan_id, project_id, status, build_result,
 #          boundary_proposals, available_boundary_actions}
+#          build_result includes Track A viewer_load_result / graph projection
+#          when status=completed.
 #          404 "Project not found" when the project_id was never imported.
 #
 # A project_id must be imported first, so this script imports the project then
@@ -69,6 +71,13 @@ echo "$LAST_BODY" | jq '{
   status,
   build_status: .build_result.status,
   build_id: .build_result.lineage.build_id,
-  map_json_path: .build_result.map_json_path,
-  unmapped_count: (.build_result.ai_system_map.unmapped_components | length)
+  map_json_path: .build_result.map_json_path
 }'
+kai_section "Build result / graph projection 摘要（Track A）"
+BUILD_RESULT_JSON="$(echo "$LAST_BODY" | jq '.build_result')"
+kai_summarize_map_build_result "$BUILD_RESULT_JSON"
+
+SCAN_STATUS="$(echo "$LAST_BODY" | jq -r '.status')"
+if [[ "$SCAN_STATUS" == "completed" ]]; then
+  kai_assert_graph_projection_loaded "$(echo "$BUILD_RESULT_JSON" | jq '{viewer_load_result}')"
+fi

@@ -58,8 +58,12 @@ def test_persisted_manifest_reloads_build_from_artifact_refs(
     loaded = service.load(manifest)
 
     assert loaded.lineage == result.lineage
+    assert result.viewer_load_result is not None
     assert loaded.viewer_load_result is not None
     assert loaded.viewer_load_result.loaded
+    assert loaded.viewer_load_result.graph_view_model == (
+        result.viewer_load_result.graph_view_model
+    )
     assert set(manifest.artifact_digests) == {
         "ai_system_map.json",
         "profile_signals.json",

@@ -2,7 +2,8 @@
 # Trace: POST /api/detail-scans
 #
 # Input  : {project_id, build_id?, target_type, target, scan_depth}
-# Output : DetailScanResponse with child build lineage fields when build-bound.
+# Output : DetailScanResponse with child build lineage fields when build-bound,
+#          plus optional viewer_load_result (Track A child graph projection).
 #
 # Phase2 S1: prefer explicit build_id so the detail scan binds to a parent build
 # and publishes an immutable child build_id.
@@ -80,7 +81,7 @@ kai_progress "現在要對指定 build 做 detail scan（target=$TARGET）..."
 api_call POST "/api/detail-scans" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Detail scan 摘要"
+kai_section "Detail scan 摘要（含 Track A child graph）"
 echo "$LAST_BODY" | jq '{
   detail_scan_id: .detail_scan.id,
   target_type: .detail_scan.target_type,
@@ -92,5 +93,15 @@ echo "$LAST_BODY" | jq '{
   scan_id,
   finding_count: (.detail_scan.findings | length),
   evidence_total: (.ai_system_map.evidence | length),
-  warnings
+  warnings,
+  child_graph: (
+    if .viewer_load_result == null then null
+    else {
+      loaded: .viewer_load_result.loaded,
+      node_count: (.viewer_load_result.graph_view_model.nodes | length),
+      edge_count: (.viewer_load_result.graph_view_model.edges | length),
+      relationship_count: ((.viewer_load_result.graph_view_model.relationships // []) | length)
+    }
+    end
+  )
 }'

@@ -1,3 +1,16 @@
+# 這個檔案負責：把「單一 capability 評估結果」往上聚合成「系統能力 profile」。
+# 例如：dense_retriever + llm_answerer + context_flow(direct) → rag-grounding
+# detected。
+# 它不掃原始碼、不改 map；只做確定性規則組裝，輸出固定 15 筆 ProfileFinding。
+#
+# 呼叫鏈：
+#   MapBuildPipeline / MapBuildService
+#     → ProfileInferenceService.infer()
+#       → ProfileFindingService.infer()   ← 本檔入口
+#         → _finding() × 15
+#           → _relationship_evidence()
+#           → profile_finding_rules（infer_profile_status / activation /
+# evidence_strength）
 from __future__ import annotations
 
 from collections import defaultdict
@@ -23,7 +36,14 @@ from kai_mind.core.services.profile_registry import (
 )
 
 
+# ProfileFindingService：依 PROFILE_DEFINITIONS，把 assessments 聚合成
+# profiles。
+# 被誰呼叫：ProfileInferenceService.infer()（map build 管線內）
 class ProfileFindingService:
+    # 做什麼：把 52 個 capability assessment 聚合成 15 個 ProfileFinding。
+    # 被誰呼叫：ProfileInferenceService.infer() →
+    # self._finding_service.infer(...)
+    # 自己呼叫：對 PROFILE_DEFINITIONS 每一條呼叫 _finding()
     def infer(
         self,
         assessments: Sequence[ReferenceCapabilityAssessment],
@@ -56,6 +76,14 @@ class ProfileFindingService:
             for definition in PROFILE_DEFINITIONS
         )
 
+    # 做什麼：針對單一 profile，合併 required assessments / wiring 證據，
+    # 組出一筆 ProfileFinding。
+    # 被誰呼叫：infer()（每個 PROFILE_DEFINITIONS 呼叫一次）
+    # 自己呼叫：
+    #   - _relationship_evidence()：查 wiring 是否有 direct evidence
+    #   - infer_profile_status()：決定 detected / partial / undetermined…
+    #   - activation() / evidence_strength()：填 activation 與證據強度
+    #   - 最後 new ProfileFinding(...)
     @staticmethod
     def _finding(
         definition: ProfileDefinition,
@@ -218,6 +246,13 @@ class ProfileFindingService:
             environment_id=environment_id,
         )
 
+    # 做什麼：找出指定 relationship（如 context_flow）的 evidence。
+    #         回傳 (全部 evidence_ids, 其中 evidence_kind=direct 的子集)。
+    # 被誰呼叫：_finding()（當 ProfileDefinition.required_relationship 有值時）
+    # 自己呼叫：無外部函式；只讀 relationships dict 與 direct_evidence_ids
+    # set。
+    # 注意：有 edge ≠ 通過；必須有 direct evidence，relationship_met 才會
+    # True。
     @staticmethod
     def _relationship_evidence(
         relationship: str | None,

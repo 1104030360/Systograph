@@ -2,7 +2,8 @@
 # Trace: GET /map  (legacy fallback for GET /api/map)
 #
 # Input  : none.
-# Output : identical ViewerPayload shape as GET /api/map.
+# Output : identical ViewerPayload shape as GET /api/map, including Track A
+#          graph_view_model projection fields (lenses, relationships, details).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,9 +50,8 @@ kai_progress "現在要呼叫 legacy /map fallback..."
 api_call GET "/map"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Graph summary"
-echo "$LAST_BODY" | jq '{
-  loaded: .viewer_load_result.loaded,
-  node_count: (.viewer_load_result.graph_view_model.nodes | length),
-  edge_count: (.viewer_load_result.graph_view_model.edges | length)
-}'
+kai_section "Graph projection 摘要（Track A）"
+kai_summarize_viewer_payload "$LAST_BODY"
+if [[ "$NO_SETUP" -eq 0 ]]; then
+  kai_assert_graph_projection_loaded "$LAST_BODY"
+fi

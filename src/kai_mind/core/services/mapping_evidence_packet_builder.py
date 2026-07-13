@@ -5,14 +5,15 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Sequence
 
+from kai_mind.core.models.ai_system_map_v2 import CanonicalEvidence
 from kai_mind.core.models.mapping import (
     MAX_USER_DESCRIPTION_CHARS,
     MappingEvidencePacket,
 )
-from kai_mind.core.models.system_map import Evidence, UnmappedComponent
 from kai_mind.core.services.secret_masking_service import (
     SecretMaskingService,
 )
+from kai_mind.core.services.system_map_index import SystemMapIndex
 
 
 class MappingEvidencePacketBuilder:
@@ -35,68 +36,71 @@ class MappingEvidencePacketBuilder:
         self,
         *,
         project_id: str,
-        unmapped_component: UnmappedComponent,
-        evidence: Sequence[Evidence],
+        index: SystemMapIndex,
+        unmapped_id: str,
         available_slots: Sequence[str],
         available_extensions: Sequence[str] | None = None,
         confirmed_component_ids: Sequence[str] | None = None,
         user_description: str | None = None,
     ) -> MappingEvidencePacket:
-        referenced = set(unmapped_component.evidence_ids)
-        selected = [item for item in evidence if item.id in referenced][
+        unmapped = index.unmapped_by_id(unmapped_id)
+        if unmapped is None:
+            raise KeyError(unmapped_id)
+        evidence = index.evidence_for_ids(unmapped.evidence_ids)[
             : self._max_evidence_items
         ]
-
+        summaries = [
+            self._bounded_masked_text(item.extract_summary)
+            for item in evidence
+            if item.extract_summary is not None
+        ]
         return MappingEvidencePacket(
             project_id=project_id,
-            source_unmapped_id=unmapped_component.id,
-            source_file=unmapped_component.source_file,
-            observed_kind=unmapped_component.observed_kind,
-            reason=unmapped_component.reason,
+            source_unmapped_id=unmapped.unmapped_id,
+            source_file=unmapped.source_file,
+            observed_kind=unmapped.observed_kind,
+            reason=unmapped.reason,
             user_description=self._bounded_masked_user_description(
                 user_description
             ),
-            evidence_ids=[item.id for item in selected],
+            evidence_ids=[item.evidence_id for item in evidence],
             rule_ids=_unique(
-                item.rule_id for item in selected if item.rule_id
+                item.rule_id for item in evidence if item.rule_id
             ),
-            line_ranges=_line_ranges(selected),
-            masked_evidence_values=[
-                self._bounded_masked_text(item.value)
-                for item in selected
-                if item.value is not None
-            ],
-            masked_snippets=[
-                self._bounded_masked_text(item.snippet)
-                for item in selected
-                if item.snippet is not None
-            ],
+            line_ranges=_canonical_line_ranges(evidence),
+            masked_evidence_values=summaries,
+            masked_snippets=summaries,
             dependency_signals=[
-                self._bounded_masked_text(item.value)
-                for item in selected
-                if item.value is not None and _is_dependency_signal(item)
+                summary
+                for item, summary in _canonical_summaries(evidence, self)
+                if _canonical_signal_matches(item, {"dependency"})
             ],
             import_signals=[
-                self._bounded_masked_text(item.value or item.path or "")
-                for item in selected
-                if _looks_like_signal(item, {"import"})
+                self._bounded_masked_text(signal)
+                for item in evidence
+                if _canonical_signal_matches(item, {"import"})
+                and (signal := _canonical_signal_text(item)) is not None
             ],
             class_function_signals=[
-                self._bounded_masked_text(item.path)
-                for item in selected
-                if item.path and _looks_like_symbol_path(item.path)
+                self._bounded_masked_text(location)
+                for item in evidence
+                if (location := _canonical_symbol_location(item)) is not None
             ],
             call_like_signals=[
-                self._bounded_masked_text(item.path or item.value or "")
-                for item in selected
-                if _looks_like_signal(item, {"call", "route", "invoke"})
+                self._bounded_masked_text(signal)
+                for item in evidence
+                if _canonical_signal_matches(
+                    item,
+                    {"call", "route", "invoke"},
+                )
+                and (signal := _canonical_signal_text(item)) is not None
             ],
             context_limits={
-                "source": "existing_evidence_array",
+                "source": "system_map_index",
                 "max_evidence_items": self._max_evidence_items,
                 "max_value_chars": self._max_value_chars,
                 "evidence_truncated": (
-                    len(referenced) > self._max_evidence_items
+                    len(unmapped.evidence_ids) > self._max_evidence_items
                 ),
                 "best_effort": True,
             },
@@ -134,47 +138,61 @@ def _unique(values: Iterable[str]) -> list[str]:
     return result
 
 
-def _line_range(evidence: Evidence) -> str | None:
-    if evidence.file is None or evidence.line_start is None:
-        return None
-    line_end = evidence.line_end or evidence.line_start
-    return f"{evidence.file}:{evidence.line_start}-{line_end}"
+def _looks_like_symbol_path(value: str) -> bool:
+    return "." in value or value.endswith(")") or "(" in value
 
 
-def _line_ranges(evidence: Sequence[Evidence]) -> list[str]:
+def _canonical_line_ranges(
+    evidence: Sequence[CanonicalEvidence],
+) -> list[str]:
     ranges: list[str] = []
     for item in evidence:
-        line_range = _line_range(item)
-        if line_range is not None:
-            ranges.append(line_range)
+        location = item.location
+        if location.path is None or location.start_line is None:
+            continue
+        line_end = location.end_line or location.start_line
+        ranges.append(f"{location.path}:{location.start_line}-{line_end}")
     return ranges
 
 
-def _is_dependency_signal(evidence: Evidence) -> bool:
-    haystack = " ".join(
-        [
-            evidence.kind,
-            evidence.rule_id or "",
-        ]
-    ).lower()
-    return "dependency" in haystack
+def _canonical_summaries(
+    evidence: Sequence[CanonicalEvidence],
+    builder: MappingEvidencePacketBuilder,
+) -> list[tuple[CanonicalEvidence, str]]:
+    return [
+        (item, builder._bounded_masked_text(item.extract_summary))
+        for item in evidence
+        if item.extract_summary is not None
+    ]
 
 
-def _looks_like_signal(
-    evidence: Evidence,
+def _canonical_signal_matches(
+    evidence: CanonicalEvidence,
     tokens: set[str],
 ) -> bool:
+    location = evidence.location
     haystack = " ".join(
         [
-            evidence.kind,
+            evidence.artifact_type,
             evidence.rule_id or "",
-            evidence.path or "",
-            evidence.value or "",
+            evidence.extract_summary or "",
+            location.json_pointer or "",
+            location.config_key or "",
         ]
     ).lower()
     parts = {part for part in re.split(r"[^a-z0-9]+", haystack) if part}
     return any(token in parts for token in tokens)
 
 
-def _looks_like_symbol_path(value: str) -> bool:
-    return "." in value or value.endswith(")") or "(" in value
+def _canonical_symbol_location(
+    evidence: CanonicalEvidence,
+) -> str | None:
+    location = evidence.location
+    value = location.config_key or location.json_pointer
+    if value is None or not _looks_like_symbol_path(value):
+        return None
+    return value
+
+
+def _canonical_signal_text(evidence: CanonicalEvidence) -> str | None:
+    return _canonical_symbol_location(evidence) or evidence.extract_summary

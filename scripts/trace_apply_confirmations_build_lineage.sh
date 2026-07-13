@@ -5,6 +5,8 @@
 #
 # Verifies apply confirmations create an immutable child build with lineage,
 # and that latest / history pointers advance correctly.
+# Track A: GET map-builds/{id} surfaces viewer_load_result graph projection and
+# build_result.profile_signals_available.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -86,6 +88,21 @@ api_call GET "/api/map-builds/$APPLIED_BUILD_ID"
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
 [[ "$(echo "$LAST_BODY" | jq -r '.build_id')" == "$APPLIED_BUILD_ID" ]] \
   || kai_die "GET map-builds/{id} returned unexpected build_id"
+
+kai_section "Graph projection 摘要（Track A）"
+kai_summarize_viewer_payload "$(echo "$LAST_BODY" | jq '{viewer_load_result}')"
+echo "$LAST_BODY" | jq '{
+  profile_signals_available: .build_result.profile_signals_available,
+  readiness_report_available: .build_result.readiness_report_available
+}'
+
+PROFILE_OK="$(echo "$LAST_BODY" | jq -r '.build_result.profile_signals_available')"
+[[ "$PROFILE_OK" == "true" ]] \
+  || kai_die "Expected build_result.profile_signals_available=true, got: $PROFILE_OK"
+VIEWER_PRESENT="$(echo "$LAST_BODY" | jq -r '.viewer_load_result != null')"
+if [[ "$VIEWER_PRESENT" == "true" ]]; then
+  kai_assert_graph_projection_loaded "$(echo "$LAST_BODY" | jq '{viewer_load_result}')"
+fi
 
 kai_section "確認 latest / history 指標"
 kai_progress "接著查詢專案最新 build..."

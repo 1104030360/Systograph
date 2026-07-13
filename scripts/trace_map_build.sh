@@ -3,7 +3,9 @@
 #
 # Input  : {project_path, output, redact_root_path, no_snippets}
 # Output : MapBuildResult {status, project_name, output_run_dir, map_json_path,
-#          map_markdown_path, viewer_load_result, ai_system_map, warnings, error}
+#          map_markdown_path, profile_signals_path, viewer_load_result,
+#          ai_system_map, warnings, error} — Track A graph projection lives
+#          under viewer_load_result.graph_view_model.
 #
 # This is the all-in-one demo endpoint: it scans a path and stores the latest
 # viewer payload in one call (no prior import needed).
@@ -42,14 +44,11 @@ kai_progress "現在要用 path 一次掃描並建圖（demo 流程）..."
 api_call POST "/api/map/build" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "結果摘要"
-echo "$LAST_BODY" | jq '{
-  status,
-  project_name,
-  output_run_dir,
-  map_json_path,
-  map_markdown_path,
-  node_count: (.ai_system_map.components_by_slot | length),
-  unmapped_count: (.ai_system_map.unmapped_components | length),
-  warnings
-}'
+kai_section "結果摘要（含 Track A graph projection）"
+kai_summarize_map_build_result "$LAST_BODY"
+
+BUILD_STATUS="$(echo "$LAST_BODY" | jq -r '.status')"
+VIEWER_PRESENT="$(echo "$LAST_BODY" | jq -r '.viewer_load_result != null')"
+if [[ "$BUILD_STATUS" == "ok" && "$VIEWER_PRESENT" == "true" ]]; then
+  kai_assert_graph_projection_loaded "$(echo "$LAST_BODY" | jq '{viewer_load_result}')"
+fi

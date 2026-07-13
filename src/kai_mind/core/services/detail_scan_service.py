@@ -8,16 +8,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.system_map import (
     ComponentInstance,
     DetailScanResult,
     Edge,
-    Evidence,
     ExtensionComponent,
     RagSystemMap,
     ScanDepth,
     UnmappedComponent,
 )
+from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
 from kai_mind.core.services.code_path_scan_service import (
     CodePathScanService,
 )
@@ -25,6 +26,12 @@ from kai_mind.core.services.component_detail_scan_service import (
     ComponentDetailScanService,
     _slug,
 )
+from kai_mind.core.services.detail_scan_target_resolver import (
+    DetailScanTarget,
+    DetailScanTargetError,
+    DetailScanTargetResolver,
+)
+from kai_mind.core.services.system_map_index import SystemMapIndex
 from kai_mind.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
@@ -51,10 +58,6 @@ TARGET_TYPE_ALIASES: dict[str, DetailScanTargetType] = {
 }
 
 
-class DetailScanTargetError(ValueError):
-    """Raised when a detail scan target does not exist in the loaded map."""
-
-
 class DetailScanValidationError(ValueError):
     """Raised when the updated system map fails contract validation."""
 
@@ -69,13 +72,6 @@ class DetailScanExecutionResult:
     system_map: RagSystemMap
 
 
-@dataclass(frozen=True)
-class DetailScanTarget:
-    target_type: DetailScanTargetType
-    target: str
-    related_files: list[str]
-
-
 class DetailScanService:
     """Dispatch L2/L3 bounded scans and persist them through validation."""
 
@@ -87,6 +83,7 @@ class DetailScanService:
         ) = None,
         code_path_scan_service: CodePathScanService | None = None,
         validation_service: SystemMapValidationService | None = None,
+        canonical_map_loader: CanonicalMapLoader | None = None,
     ) -> None:
         self._component_detail_scan_service = (
             component_detail_scan_service or ComponentDetailScanService()
@@ -97,12 +94,16 @@ class DetailScanService:
         self._validation_service = (
             validation_service or SystemMapValidationService()
         )
+        self._canonical_map_loader = (
+            canonical_map_loader or CanonicalMapLoader()
+        )
 
     def scan(
         self,
         *,
         project_root: Path,
         system_map: RagSystemMap,
+        normalized_system_map: AiSystemMapV2 | None = None,
         target_type: str,
         target: str,
         scan_depth: ScanDepth = "component",
@@ -112,8 +113,15 @@ class DetailScanService:
             raise ValueError("scan_depth must be component or code_path")
 
         normalized_target_type = self._normalize_target_type(target_type)
-        target_ref = self._resolve_target(
+        normalized = (
+            normalized_system_map
+            or self._canonical_map_loader.load(
+                system_map.model_dump(mode="json")
+            ).normalized
+        )
+        target_ref = self._resolve_read_only_target(
             system_map,
+            SystemMapIndex.from_map(normalized),
             target_type=normalized_target_type,
             target=target,
         )
@@ -123,11 +131,6 @@ class DetailScanService:
             expected_file_fingerprints,
         )
         updated = system_map.model_copy(deep=True)
-        updated_target = self._resolve_target(
-            updated,
-            target_type=normalized_target_type,
-            target=target,
-        )
         existing_ids = {item.id for item in updated.evidence}
         target_slug = _slug(target)
 
@@ -181,7 +184,7 @@ class DetailScanService:
         updated.evidence.extend(evidence)
         self._attach_evidence_ids(
             system_map=updated,
-            target=updated_target,
+            target=target_ref,
             evidence_ids=[item.id for item in evidence],
         )
         updated.detail_scans.append(detail_scan)
@@ -225,7 +228,23 @@ class DetailScanService:
             raise DetailScanTargetError("target_type_not_supported")
         return normalized
 
-    def _resolve_target(
+    def _resolve_read_only_target(
+        self,
+        system_map: RagSystemMap,
+        index: SystemMapIndex,
+        *,
+        target_type: DetailScanTargetType,
+        target: str,
+    ) -> DetailScanTarget:
+        if target_type in {"component_slot", "extension"}:
+            return self._resolve_compatibility_alias_target(
+                system_map,
+                target_type=target_type,
+                target=target,
+            )
+        return DetailScanTargetResolver(index).resolve(target_type, target)
+
+    def _resolve_compatibility_alias_target(
         self,
         system_map: RagSystemMap,
         *,
@@ -234,87 +253,29 @@ class DetailScanService:
     ) -> DetailScanTarget:
         if target_type == "component_slot":
             slot = system_map.components_by_slot.get(target)
-            if slot is None:
-                raise DetailScanTargetError("target_not_found")
-            return DetailScanTarget(
-                target_type=target_type,
-                target=target,
-                related_files=self._files_for_evidence_ids(
-                    system_map,
-                    _flatten(
-                        instance.evidence_ids for instance in slot.instances
-                    ),
-                ),
+            evidence_ids = (
+                [
+                    evidence_id
+                    for instance in slot.instances
+                    for evidence_id in instance.evidence_ids
+                ]
+                if slot is not None
+                else None
             )
-
-        if target_type == "component_instance":
-            instance = self._find_component_instance(system_map, target)
-            if instance is None:
-                raise DetailScanTargetError("target_not_found")
-            return DetailScanTarget(
-                target_type=target_type,
-                target=target,
-                related_files=self._files_for_evidence_ids(
-                    system_map,
-                    instance.evidence_ids,
-                ),
-            )
-
-        if target_type == "extension":
-            extension = self._find_extension(system_map, target)
-            if extension is None:
-                raise DetailScanTargetError("target_not_found")
-            return DetailScanTarget(
-                target_type=target_type,
-                target=target,
-                related_files=self._files_for_evidence_ids(
-                    system_map,
-                    extension.evidence_ids,
-                ),
-            )
-
-        if target_type == "unmapped_component":
-            unmapped = self._find_unmapped(system_map, target)
-            if unmapped is None:
-                raise DetailScanTargetError("target_not_found")
-            return DetailScanTarget(
-                target_type=target_type,
-                target=target,
-                related_files=_unique(
-                    [
-                        *self._files_for_evidence_ids(
-                            system_map,
-                            unmapped.evidence_ids,
-                        ),
-                        *(
-                            [unmapped.source_file]
-                            if unmapped.source_file
-                            else []
-                        ),
-                    ]
-                ),
-            )
-
-        if target_type == "edge":
-            edge = self._find_edge(system_map, target)
-            if edge is None:
-                raise DetailScanTargetError("target_not_found")
-            return DetailScanTarget(
-                target_type=target_type,
-                target=target,
-                related_files=self._files_for_evidence_ids(
-                    system_map,
-                    edge.evidence_ids,
-                ),
-            )
-
-        evidence = self._find_evidence(system_map, target)
-        if evidence is None:
+        else:
+            extension = self._find_compatibility_extension(system_map, target)
+            evidence_ids = extension.evidence_ids if extension else None
+        if evidence_ids is None:
             raise DetailScanTargetError("target_not_found")
+        evidence_by_id = {item.id: item for item in system_map.evidence}
         return DetailScanTarget(
             target_type=target_type,
             target=target,
-            related_files=[evidence.file] if evidence.file else [],
+            related_files=_unique(
+                evidence_by_id[evidence_id].file
+                for evidence_id in evidence_ids
+                if evidence_id in evidence_by_id
+            ),
         )
 
     def _attach_evidence_ids(
@@ -334,7 +295,7 @@ class DetailScanService:
             return
 
         if target.target_type == "component_instance":
-            component = self._find_component_instance(
+            component = self._find_compatibility_component_for_mutation(
                 system_map,
                 target.target,
             )
@@ -343,35 +304,30 @@ class DetailScanService:
             return
 
         if target.target_type == "extension":
-            extension = self._find_extension(system_map, target.target)
+            extension = self._find_compatibility_extension(
+                system_map,
+                target.target,
+            )
             if extension is not None:
                 _append_missing(extension.evidence_ids, evidence_ids)
             return
 
         if target.target_type == "unmapped_component":
-            unmapped = self._find_unmapped(system_map, target.target)
+            unmapped = self._find_compatibility_unmapped_for_mutation(
+                system_map,
+                target.target,
+            )
             if unmapped is not None:
                 _append_missing(unmapped.evidence_ids, evidence_ids)
             return
 
         if target.target_type == "edge":
-            edge = self._find_edge(system_map, target.target)
+            edge = self._find_compatibility_edge_for_mutation(
+                system_map,
+                target.target,
+            )
             if edge is not None:
                 _append_missing(edge.evidence_ids, evidence_ids)
-
-    def _files_for_evidence_ids(
-        self,
-        system_map: RagSystemMap,
-        evidence_ids: Iterable[str],
-    ) -> list[str]:
-        evidence_by_id = {item.id: item for item in system_map.evidence}
-        files = [
-            evidence.file
-            for evidence_id in evidence_ids
-            if (evidence := evidence_by_id.get(evidence_id)) is not None
-            and evidence.file is not None
-        ]
-        return _unique(files)
 
     def _detail_scan_id(
         self,
@@ -389,7 +345,7 @@ class DetailScanService:
             index += 1
         return f"{base}:{index}"
 
-    def _find_component_instance(
+    def _find_compatibility_component_for_mutation(
         self,
         system_map: RagSystemMap,
         component_id: str,
@@ -400,7 +356,7 @@ class DetailScanService:
                     return instance
         return None
 
-    def _find_extension(
+    def _find_compatibility_extension(
         self,
         system_map: RagSystemMap,
         extension_id: str,
@@ -410,7 +366,7 @@ class DetailScanService:
                 return extension
         return None
 
-    def _find_unmapped(
+    def _find_compatibility_unmapped_for_mutation(
         self,
         system_map: RagSystemMap,
         unmapped_id: str,
@@ -420,7 +376,7 @@ class DetailScanService:
                 return unmapped
         return None
 
-    def _find_edge(
+    def _find_compatibility_edge_for_mutation(
         self,
         system_map: RagSystemMap,
         edge_id: str,
@@ -431,16 +387,6 @@ class DetailScanService:
                     return edge
         return None
 
-    def _find_evidence(
-        self,
-        system_map: RagSystemMap,
-        evidence_id: str,
-    ) -> Evidence | None:
-        for evidence in system_map.evidence:
-            if evidence.id == evidence_id:
-                return evidence
-        return None
-
 
 def _append_missing(values: list[str], candidates: Sequence[str]) -> None:
     existing = set(values)
@@ -448,10 +394,6 @@ def _append_missing(values: list[str], candidates: Sequence[str]) -> None:
         if candidate not in existing:
             values.append(candidate)
             existing.add(candidate)
-
-
-def _flatten(values: Iterable[Iterable[str]]) -> list[str]:
-    return [item for group in values for item in group]
 
 
 def _unique(values: Iterable[str | None]) -> list[str]:

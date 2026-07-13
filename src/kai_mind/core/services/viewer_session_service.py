@@ -1,55 +1,82 @@
+# 這個檔案負責：把已驗證的 system map 轉成前端 ViewerLoadResult。
+# 核心路徑：load / build → CanonicalMapLoader →
+# GraphProjectionService.project。
+#
+# 呼叫鏈：
+#   Web POST /api/viewer/load、BuildArtifactPublisher、BuildManifestService
+#     → ViewerSessionService.load_map / build / project_to_graph
+#         → CanonicalMapLoader.load（v1/v2 → AiSystemMapV2）
+#         → GraphProjectionService.project（→ GraphViewModel）
+#         → ViewerLoadResult
 """Load validated system maps into frontend viewer payloads."""
 
 from __future__ import annotations
 
 import json
-import re
-from collections import defaultdict
 from collections.abc import Mapping
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
+from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
+from kai_mind.core.models.profile_signal import ProfileInferenceResult
 from kai_mind.core.models.system_map import (
-    ComponentInstance,
-    ComponentSlot,
-    Edge,
-    Endpoint,
-    ExtensionComponent,
-    Flow,
     RagSystemMap,
     RiskHint,
-    UnmappedComponent,
 )
 from kai_mind.core.models.viewer import (
     GraphDetailsModel,
-    GraphEdgeModel,
-    GraphFilterModel,
     GraphFiltersModel,
-    GraphNodeModel,
+    GraphRecommendedNextCheckModel,
     GraphViewModel,
     ViewerLoadResult,
 )
+from kai_mind.core.services.canonical_map_loader import (
+    CanonicalMapLoader,
+    CanonicalMapLoadError,
+)
+from kai_mind.core.services.graph_projection_service import (
+    GRAPH_SCHEMA_VERSION,
+    GraphProjectionService,
+)
+from kai_mind.core.services.path_safety_service import (
+    is_project_relative_posix_path,
+)
 from kai_mind.core.services.system_map_validation_service import (
-    SystemMapValidationError,
     SystemMapValidationService,
 )
 
-GRAPH_SCHEMA_VERSION = "graph-view-model/v1"
 
-
+# 做什麼：Viewer session 服務；讀 map、正規化、呼叫 graph projection。
+# 被誰用：viewer_routes、BuildArtifactPublisher、BuildManifestService、
+# MapBuild 相關。
+# 自己呼叫：CanonicalMapLoader、GraphProjectionService。
 class ViewerSessionService:
     """Convert validated canonical maps into frontend graph payloads."""
 
+    # 做什麼：注入（或預設）canonical loader 與 graph projection。
+    # 被誰呼叫：各 service / DI 建構時。
+    # 自己呼叫：CanonicalMapLoader、GraphProjectionService。
     def __init__(
         self,
         *,
         validation_service: SystemMapValidationService | None = None,
+        canonical_loader: CanonicalMapLoader | None = None,
+        graph_projection_service: GraphProjectionService | None = None,
     ) -> None:
-        self._validation_service = (
-            validation_service or SystemMapValidationService()
+        self._canonical_loader = canonical_loader or CanonicalMapLoader(
+            v1_validation_service=validation_service
+        )
+        self._graph_projection = (
+            graph_projection_service or GraphProjectionService()
         )
 
+    # 做什麼：從磁碟讀 ai_system_map.json → validate/load → 投影成
+    # ViewerLoadResult。
+    # 被誰呼叫：viewer_routes.POST /api/viewer/load。
+    # 自己呼叫：CanonicalMapLoader.load；v1 → build()；v2 →
+    # _build_normalized_payload()。
+    # 失敗：回 empty(error_reason=...)，不丟未處理例外給 API。
     def load_map(self, map_json_path: Path) -> ViewerLoadResult:
         """Read, validate, and project one ai_system_map.json file."""
 
@@ -58,38 +85,67 @@ class ViewerSessionService:
             parsed = json.loads(raw)
             if not isinstance(parsed, Mapping):
                 return self.empty(error_reason="map_json_must_be_object")
-            system_map = self._validation_service.validate(parsed)
+            loaded = self._canonical_loader.load(parsed)
         except OSError as exc:
             return self.empty(error_reason=f"map_read_failed: {exc}")
         except JSONDecodeError as exc:
             return self.empty(error_reason=f"invalid_json: {exc.msg}")
-        except SystemMapValidationError as exc:
+        except CanonicalMapLoadError as exc:
             return self.empty(error_reason=f"invalid_map: {exc}")
 
-        return self.build(system_map, map_json_path=map_json_path)
+        if loaded.active_schema_version == "ai-system-map/v1":
+            system_map = RagSystemMap.model_validate(parsed)
+            return self.build(
+                system_map,
+                normalized_system_map=loaded.normalized,
+                map_json_path=map_json_path,
+            )
+        return self._build_normalized_payload(
+            ai_system_map=dict(parsed),
+            normalized_system_map=loaded.normalized,
+            artifact_ref=_safe_artifact_ref(map_json_path),
+        )
 
+    # 做什麼：對已驗證的 v1 RagSystemMap 做投影，回完整 ViewerLoadResult。
+    # 被誰呼叫：load_map（v1）、BuildArtifactPublisher.publish、
+    # BuildManifestService.load。
+    # 自己呼叫：
+    #   CanonicalMapLoader（若缺 normalized）→ 保序 edges →
+    #   GraphProjectionService.project → _with_legacy_details → _result。
     def build(
         self,
         system_map: RagSystemMap,
         *,
         map_json_path: Path | None = None,
+        normalized_system_map: AiSystemMapV2 | None = None,
+        profile_result: ProfileInferenceResult | None = None,
     ) -> ViewerLoadResult:
         """Return a complete viewer load result for a validated map."""
 
-        graph = self.project_to_graph(system_map, map_json_path=map_json_path)
+        normalized = (
+            normalized_system_map
+            or self._canonical_loader.load(
+                system_map.model_dump(mode="json")
+            ).normalized
+        )
+        normalized = _preserve_legacy_edge_order(system_map, normalized)
+        graph = self._graph_projection.project(
+            normalized,
+            profile_result=profile_result,
+            artifact_ref=_safe_artifact_ref(map_json_path),
+            recommended_next_checks=_graph_recommended_next_checks(system_map),
+        )
+        graph = _with_legacy_details(graph, system_map)
         system_map_data = system_map.model_dump(mode="json")
-        return ViewerLoadResult(
-            loaded=True,
-            error_reason=None,
-            map_json=json.dumps(
-                system_map_data,
-                ensure_ascii=False,
-                sort_keys=True,
-            ),
+        return self._result(
             ai_system_map=system_map_data,
-            graph_view_model=graph,
+            graph=graph,
         )
 
+    # 做什麼：只回 GraphViewModel（不要完整 ViewerLoadResult）。
+    # 被誰呼叫：需要純圖資料的路徑 / tests。
+    # 自己呼叫：CanonicalMapLoader → GraphProjectionService.project → legacy
+    # details。
     def project_to_graph(
         self,
         system_map: RagSystemMap,
@@ -98,44 +154,58 @@ class ViewerSessionService:
     ) -> GraphViewModel:
         """Project canonical facts into semantic graph data only."""
 
-        risk_index = RiskHintIndex(system_map.risk_hints, system_map.endpoints)
-        node_builder = _GraphNodeBuilder(risk_index)
-        nodes = node_builder.build_nodes(system_map)
-        node_ids_by_source = {
-            node.source_id: node.id for node in nodes if node.source_id
-        }
-        node_ids_by_slot = _node_ids_by_slot(nodes)
-        edges = [
-            self._edge_for_graph(
-                edge=edge,
-                node_ids_by_source=node_ids_by_source,
-                node_ids_by_slot=node_ids_by_slot,
-                risk_index=risk_index,
-            )
-            for flow in system_map.flows
-            for edge in flow.edges
-        ]
+        normalized = self._canonical_loader.load(
+            system_map.model_dump(mode="json")
+        ).normalized
+        graph = self._graph_projection.project(
+            _preserve_legacy_edge_order(system_map, normalized),
+            artifact_ref=_safe_artifact_ref(map_json_path),
+            recommended_next_checks=_graph_recommended_next_checks(system_map),
+        )
+        return _with_legacy_details(graph, system_map)
 
-        return GraphViewModel(
-            schema_version=GRAPH_SCHEMA_VERSION,
-            source_schema_version=system_map.schema_version,
-            map_json=str(map_json_path) if map_json_path is not None else None,
-            summary=_summary(system_map, nodes=nodes, edges=edges),
-            nodes=nodes,
-            edges=edges,
-            details=GraphDetailsModel(
-                evidence_by_id={
-                    evidence.id: evidence.model_dump(mode="json")
-                    for evidence in system_map.evidence
-                },
-                risk_hints_by_id={
-                    risk.id: _risk_detail(risk)
-                    for risk in system_map.risk_hints
-                },
+    # 做什麼：原生 v2 payload 路徑；直接投影 normalized map（不走 v1 legacy
+    # details）。
+    # 被誰呼叫：load_map（當 active_schema_version 是 v2）。
+    # 自己呼叫：GraphProjectionService.project → _result。
+    def _build_normalized_payload(
+        self,
+        *,
+        ai_system_map: dict[str, Any],
+        normalized_system_map: AiSystemMapV2,
+        artifact_ref: str | None,
+    ) -> ViewerLoadResult:
+        graph = self._graph_projection.project(
+            normalized_system_map,
+            artifact_ref=artifact_ref,
+        )
+        return self._result(ai_system_map=ai_system_map, graph=graph)
+
+    # 做什麼：組成功的 ViewerLoadResult（loaded=True + map JSON 字串 + graph）
+    # 。
+    # 被誰呼叫：build / _build_normalized_payload。
+    # 自己呼叫：json.dumps（排序 key，確定性輸出）。
+    @staticmethod
+    def _result(
+        *,
+        ai_system_map: dict[str, Any],
+        graph: GraphViewModel,
+    ) -> ViewerLoadResult:
+        return ViewerLoadResult(
+            loaded=True,
+            error_reason=None,
+            map_json=json.dumps(
+                ai_system_map,
+                ensure_ascii=False,
+                sort_keys=True,
             ),
-            filters=_filters(system_map.flows, nodes, edges),
+            ai_system_map=ai_system_map,
+            graph_view_model=graph,
         )
 
+    # 做什麼：回契約相容的空結果（loaded=False），給錯誤路徑用。
+    # 被誰呼叫：load_map 各失敗分支。
+    # 自己呼叫：組空 GraphViewModel / GraphDetailsModel / GraphFiltersModel。
     def empty(
         self, *, error_reason: str = "no_map_loaded"
     ) -> ViewerLoadResult:
@@ -161,408 +231,91 @@ class ViewerSessionService:
             ),
         )
 
-    def _edge_for_graph(
-        self,
-        *,
-        edge: Edge,
-        node_ids_by_source: dict[str, str],
-        node_ids_by_slot: dict[str, str],
-        risk_index: RiskHintIndex,
-    ) -> GraphEdgeModel:
-        return GraphEdgeModel(
-            id=_graph_edge_id(edge.id),
-            source_id=edge.id,
-            flow_id=edge.flow_id,
-            from_id=_edge_endpoint_id(
-                edge,
-                "from",
-                node_ids_by_source,
-                node_ids_by_slot,
-            ),
-            to=_edge_endpoint_id(
-                edge,
-                "to",
-                node_ids_by_source,
-                node_ids_by_slot,
-            ),
-            relationship=edge.relationship,
-            label=_humanize(edge.relationship),
-            evidence_ids=sorted(edge.evidence_ids),
-            risk_hint_ids=risk_index.ids_for_edge(edge),
-        )
+
+# 做什麼：把 map 路徑收成投影用的 artifact_ref（必須是專案相對 POSIX，
+# 否則只留檔名）。
+# 被誰呼叫：load_map / build / project_to_graph。
+# 自己呼叫：is_project_relative_posix_path。
+def _safe_artifact_ref(map_json_path: Path | None) -> str | None:
+    if map_json_path is None:
+        return None
+    candidate = map_json_path.as_posix()
+    if is_project_relative_posix_path(candidate):
+        return candidate
+    return map_json_path.name
 
 
-class _GraphNodeBuilder:
-    def __init__(self, risk_index: RiskHintIndex) -> None:
-        self._risk_index = risk_index
-
-    def build_nodes(self, system_map: RagSystemMap) -> list[GraphNodeModel]:
-        nodes: list[GraphNodeModel] = []
-        for slot_id in sorted(system_map.components_by_slot):
-            nodes.extend(
-                self._nodes_for_slot(system_map.components_by_slot[slot_id])
-            )
-        nodes.extend(
-            self._node_for_extension(extension, system_map.risk_hints)
-            for extension in system_map.extensions
-        )
-        nodes.extend(
-            self._node_for_unmapped(component, system_map.risk_hints)
-            for component in system_map.unmapped_components
-        )
-        return nodes
-
-    def _nodes_for_slot(self, slot: ComponentSlot) -> list[GraphNodeModel]:
-        if not slot.instances:
-            return [self._placeholder_node_for_slot(slot)]
-
-        return [
-            self._node_for_instance(slot, instance)
-            for instance in _sorted_instances(slot.instances)
-        ]
-
-    def _node_for_instance(
-        self,
-        slot: ComponentSlot,
-        instance: ComponentInstance,
-    ) -> GraphNodeModel:
-        evidence_ids = sorted(instance.evidence_ids)
-        return GraphNodeModel(
-            id=_component_node_id(instance.id),
-            source_id=instance.id,
-            type=instance.kind,
-            slot=slot.slot,
-            status=slot.status,
-            label=instance.name,
-            subtitle=instance.description or _humanize(slot.slot),
-            badges=_clean_badges(
-                [slot.status, instance.provider, instance.kind]
-            ),
-            evidence_ids=evidence_ids,
-            risk_hint_ids=self._risk_index.ids_for_slot(slot, evidence_ids),
-        )
-
-    def _placeholder_node_for_slot(
-        self,
-        slot: ComponentSlot,
-    ) -> GraphNodeModel:
-        evidence_ids: list[str] = []
-        return GraphNodeModel(
-            id=_slot_node_id(slot.slot),
-            source_id=slot.slot,
-            type="component_slot",
-            slot=slot.slot,
-            status=slot.status,
-            label=_humanize(slot.slot),
-            subtitle=None,
-            badges=_clean_badges([slot.status]),
-            evidence_ids=evidence_ids,
-            risk_hint_ids=self._risk_index.ids_for_slot(slot, evidence_ids),
-        )
-
-    def _node_for_extension(
-        self,
-        extension: ExtensionComponent,
-        risk_hints: list[RiskHint],
-    ) -> GraphNodeModel:
-        evidence_ids = sorted(extension.evidence_ids)
-        return GraphNodeModel(
-            id=f"node:extension:{_slug(extension.id)}",
-            source_id=extension.id,
-            type=extension.kind,
-            slot=None,
-            status=extension.status,
-            label=extension.name,
-            subtitle=extension.description,
-            badges=_clean_badges(
-                [extension.status, "extension", extension.kind]
-            ),
-            evidence_ids=evidence_ids,
-            risk_hint_ids=_risk_ids_for_evidence(risk_hints, evidence_ids),
-        )
-
-    def _node_for_unmapped(
-        self,
-        component: UnmappedComponent,
-        risk_hints: list[RiskHint],
-    ) -> GraphNodeModel:
-        evidence_ids = sorted(component.evidence_ids)
-        return GraphNodeModel(
-            id=f"node:unmapped:{_slug(component.id)}",
-            source_id=component.id,
-            type=component.observed_kind,
-            slot=None,
-            status=component.status,
-            label=_humanize(component.observed_kind),
-            subtitle=component.reason,
-            badges=_clean_badges(
-                [component.status, "unmapped", component.observed_kind]
-            ),
-            evidence_ids=evidence_ids,
-            risk_hint_ids=_risk_ids_for_evidence(risk_hints, evidence_ids),
-        )
-
-
-class RiskHintIndex:
-    """Index risk hints by canonical targets used in graph projection."""
-
-    def __init__(
-        self,
-        risk_hints: list[RiskHint],
-        endpoints: list[Endpoint],
-    ) -> None:
-        self._risk_hints = tuple(risk_hints)
-        self._endpoints_by_id = {
-            endpoint.id: endpoint for endpoint in endpoints
-        }
-
-    def ids_for_slot(
-        self,
-        slot: ComponentSlot,
-        evidence_ids: list[str],
-    ) -> list[str]:
-        instance_ids = {instance.id for instance in slot.instances}
-        evidence_id_set = set(evidence_ids)
-        ids = [
-            risk.id
-            for risk in self._risk_hints
-            if (
-                risk.target_type == "component_slot"
-                and risk.target == slot.slot
-            )
-            or (
-                risk.target_type == "component_instance"
-                and risk.target in instance_ids
-            )
-            or (
-                risk.target_type == "endpoint"
-                and self._endpoint_component_id(risk.target) in instance_ids
-            )
-            or (
-                risk.target_type == "evidence"
-                and risk.target in evidence_id_set
-            )
-            or risk.evidence_id in evidence_id_set
-        ]
-        return sorted(ids)
-
-    def ids_for_edge(self, edge: Edge) -> list[str]:
-        evidence_ids = set(edge.evidence_ids)
-        component_ids = {
-            value
-            for value in (edge.from_component_id, edge.to_component_id)
-            if value is not None
-        }
-        ids = [
-            risk.id
-            for risk in self._risk_hints
-            if (
-                risk.target_type == "component_instance"
-                and risk.target in component_ids
-            )
-            or (
-                risk.target_type == "endpoint"
-                and self._endpoint_component_id(risk.target) in component_ids
-            )
-            or (risk.target_type == "evidence" and risk.target in evidence_ids)
-            or risk.evidence_id in evidence_ids
-        ]
-        return sorted(ids)
-
-    def _endpoint_component_id(self, endpoint_id: str) -> str | None:
-        endpoint = self._endpoints_by_id.get(endpoint_id)
-        if endpoint is None:
-            return None
-        return endpoint.component_instance_id
-
-
-def _edge_endpoint_id(
-    edge: Edge,
-    side: str,
-    node_ids_by_source: dict[str, str],
-    node_ids_by_slot: dict[str, str],
-) -> str:
-    if side == "from":
-        component_id = edge.from_component_id
-        slot = edge.from_slot
-    else:
-        component_id = edge.to_component_id
-        slot = edge.to_slot
-
-    if component_id and component_id in node_ids_by_source:
-        return node_ids_by_source[component_id]
-
-    if slot in node_ids_by_slot:
-        return node_ids_by_slot[slot]
-
-    return _slot_node_id(slot or "unknown")
-
-
-def _node_ids_by_slot(nodes: list[GraphNodeModel]) -> dict[str, str]:
-    nodes_by_slot: dict[str, list[GraphNodeModel]] = defaultdict(list)
-    for node in nodes:
-        if node.slot:
-            nodes_by_slot[node.slot].append(node)
-
-    return {
-        slot: sorted(slot_nodes, key=lambda node: node.id)[0].id
-        for slot, slot_nodes in nodes_by_slot.items()
-        if slot_nodes
-    }
-
-
-def _filters(
-    flows: list[Flow],
-    nodes: list[GraphNodeModel],
-    edges: list[GraphEdgeModel],
-) -> GraphFiltersModel:
-    filters: list[GraphFilterModel] = []
-    node_ids_by_status: dict[str, list[str]] = defaultdict(list)
-    node_ids_by_type: dict[str, list[str]] = defaultdict(list)
-
-    for node in nodes:
-        if node.status:
-            node_ids_by_status[node.status].append(node.id)
-        if node.type:
-            node_ids_by_type[node.type].append(node.id)
-
-    filters.extend(
-        GraphFilterModel(
-            id=f"filter:status:{status}",
-            label=f"Status: {_humanize(status)}",
-            kind="status",
-            matches_node_ids=sorted(ids),
-            matches_edge_ids=[],
-        )
-        for status, ids in sorted(node_ids_by_status.items())
-        if ids
-    )
-    filters.extend(
-        GraphFilterModel(
-            id=f"filter:type:{_slug(node_type)}",
-            label=f"Type: {_humanize(node_type)}",
-            kind="type",
-            matches_node_ids=sorted(ids),
-            matches_edge_ids=[],
-        )
-        for node_type, ids in sorted(node_ids_by_type.items())
-        if ids
-    )
-
-    edge_ids_by_flow_id = _edge_ids_by_flow_id(edges)
-    node_ids_by_edge_id = {edge.id: {edge.from_id, edge.to} for edge in edges}
-    for flow in flows:
-        edge_ids = edge_ids_by_flow_id.get(flow.id, [])
-        if not edge_ids:
-            continue
-        node_ids = sorted(
-            {
-                node_id
-                for edge_id in edge_ids
-                for node_id in node_ids_by_edge_id.get(edge_id, set())
-            }
-        )
-        flow_slug = flow.flow_type or flow.id.removeprefix("flow:")
-        filters.append(
-            GraphFilterModel(
-                id=f"filter:flow:{flow_slug}",
-                label=flow.name or _humanize(flow_slug),
-                kind="flow",
-                matches_node_ids=node_ids,
-                matches_edge_ids=edge_ids,
-            )
-        )
-
-    risk_node_ids = sorted(node.id for node in nodes if node.risk_hint_ids)
-    risk_edge_ids = sorted(edge.id for edge in edges if edge.risk_hint_ids)
-    if risk_node_ids or risk_edge_ids:
-        filters.append(
-            GraphFilterModel(
-                id="filter:risk:has_risk",
-                label="Has Risk Hint",
-                kind="risk",
-                matches_node_ids=risk_node_ids,
-                matches_edge_ids=risk_edge_ids,
-            )
-        )
-
-    return GraphFiltersModel(available=filters, behavior="highlight")
-
-
-def _edge_ids_by_flow_id(
-    edges: list[GraphEdgeModel],
-) -> dict[str, list[str]]:
-    grouped: dict[str, list[str]] = defaultdict(list)
-    for edge in edges:
-        if edge.flow_id:
-            grouped[edge.flow_id].append(edge.id)
-    return {key: sorted(value) for key, value in grouped.items()}
-
-
-def _summary(
+# 做什麼：依 v1 flows 的邊順序重排 normalized.edges（保留舊 viewer 順序）。
+# 被誰呼叫：build / project_to_graph。
+# 自己呼叫：model_copy(update={"edges": ...})。
+def _preserve_legacy_edge_order(
     system_map: RagSystemMap,
-    *,
-    nodes: list[GraphNodeModel],
-    edges: list[GraphEdgeModel],
-) -> dict[str, Any]:
-    summary: dict[str, Any] = {
-        "project_name": system_map.project.name,
-        "schema_version": system_map.schema_version,
-        "scan_depth": system_map.scan_depth,
-        "node_count": len(nodes),
-        "edge_count": len(edges),
-    }
-    if system_map.scan_summary is not None:
-        summary.update(system_map.scan_summary.model_dump(mode="json"))
-    return summary
+    normalized: AiSystemMapV2,
+) -> AiSystemMapV2:
+    edges_by_id = {edge.edge_id: edge for edge in normalized.edges}
+    ordered_ids = [edge.id for flow in system_map.flows for edge in flow.edges]
+    ordered_edges = [
+        edges_by_id[edge_id]
+        for edge_id in ordered_ids
+        if edge_id in edges_by_id
+    ]
+    ordered_id_set = set(ordered_ids)
+    ordered_edges.extend(
+        edge for edge in normalized.edges if edge.edge_id not in ordered_id_set
+    )
+    return normalized.model_copy(update={"edges": ordered_edges})
 
 
+# 做什麼：把 v1 recommended_next_checks 轉成 graph additive 欄位。
+# 被誰呼叫：build / project_to_graph。
+# 自己呼叫：GraphRecommendedNextCheckModel。
+def _graph_recommended_next_checks(
+    system_map: RagSystemMap,
+) -> list[GraphRecommendedNextCheckModel]:
+    return [
+        GraphRecommendedNextCheckModel(
+            id=check.id,
+            target_type=check.target_type,
+            target=check.target,
+            reason=check.reason,
+            action=check.action,
+        )
+        for check in system_map.recommended_next_checks
+    ]
+
+
+# 做什麼：用 v1 map 的 evidence / risk_hints 覆寫
+# graph.details（相容舊前端形狀）。
+# 被誰呼叫：build / project_to_graph。
+# 自己呼叫：_risk_detail。
+def _with_legacy_details(
+    graph: GraphViewModel,
+    system_map: RagSystemMap,
+) -> GraphViewModel:
+    return graph.model_copy(
+        update={
+            "details": graph.details.model_copy(
+                update={
+                    "evidence_by_id": {
+                        evidence.id: evidence.model_dump(mode="json")
+                        for evidence in system_map.evidence
+                    },
+                    "risk_hints_by_id": {
+                        risk.id: _risk_detail(risk)
+                        for risk in system_map.risk_hints
+                    },
+                },
+            )
+        }
+    )
+
+
+# 做什麼：把 v1 RiskHint 補上 title / severity / description 給側欄顯示。
+# 被誰呼叫：_with_legacy_details。
+# 自己呼叫：model_dump。
 def _risk_detail(risk: RiskHint) -> dict[str, Any]:
     detail = risk.model_dump(mode="json")
-    detail["title"] = _humanize(risk.type)
+    detail["title"] = risk.type.replace("_", " ").title()
     detail["severity"] = risk.severity_hint or "review"
     detail["description"] = risk.rationale
     return detail
-
-
-def _risk_ids_for_evidence(
-    risk_hints: list[RiskHint],
-    evidence_ids: list[str],
-) -> list[str]:
-    evidence_id_set = set(evidence_ids)
-    return sorted(
-        risk.id
-        for risk in risk_hints
-        if risk.evidence_id in evidence_id_set
-        or (risk.target_type == "evidence" and risk.target in evidence_id_set)
-    )
-
-
-def _sorted_instances(
-    instances: list[ComponentInstance],
-) -> list[ComponentInstance]:
-    return sorted(instances, key=lambda item: item.id)
-
-
-def _component_node_id(component_id: str) -> str:
-    return f"node:component:{_slug(component_id)}"
-
-
-def _slot_node_id(slot: str) -> str:
-    return f"node:slot:{_slug(slot)}"
-
-
-def _graph_edge_id(edge_id: str) -> str:
-    return f"graph:{edge_id}"
-
-
-def _clean_badges(values: list[str | None]) -> list[str]:
-    return [value for value in values if value]
-
-
-def _humanize(value: str) -> str:
-    return re.sub(r"[_:-]+", " ", value).title()
-
-
-def _slug(value: str) -> str:
-    return re.sub(r"[^a-zA-Z0-9]+", "-", value).strip("-").lower() or "unknown"

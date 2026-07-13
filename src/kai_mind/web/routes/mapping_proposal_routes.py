@@ -6,17 +6,19 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.mapping import (
     MappingProposal,
     MappingProposalDecisionResult,
 )
-from kai_mind.core.models.system_map import RagSystemMap, UnmappedComponent
+from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
 from kai_mind.core.services.mapping_evidence_packet_builder import (
     MappingEvidencePacketBuilder,
 )
 from kai_mind.core.services.mapping_proposal_service import (
     MappingProposalService,
 )
+from kai_mind.core.services.system_map_index import SystemMapIndex
 from kai_mind.web.dependencies import (
     mapping_proposal_service,
     session_store,
@@ -64,27 +66,22 @@ def create_mapping_proposal(
     """Create a pending proposal from the latest masked map evidence."""
     if store.project(payload.project_id) is None:
         raise HTTPException(status_code=404, detail="project_not_found")
-    system_map = _system_map_for_project(store, payload.project_id)
-    if system_map is None:
+    normalized = _normalized_map_for_project(store, payload.project_id)
+    if normalized is None:
         raise HTTPException(status_code=404, detail="map_not_loaded")
 
-    unmapped = _find_unmapped(system_map, payload.source_unmapped_id)
-    if unmapped is None:
+    index = SystemMapIndex.from_map(normalized)
+    if index.unmapped_by_id(payload.source_unmapped_id) is None:
         raise HTTPException(status_code=404, detail="unmapped_not_found")
 
+    compatibility = _compatibility_projection(normalized)
     packet = MappingEvidencePacketBuilder().build(
         project_id=payload.project_id,
-        unmapped_component=unmapped,
-        evidence=system_map.evidence,
-        available_slots=list(system_map.components_by_slot),
-        available_extensions=[
-            extension.id for extension in system_map.extensions
-        ],
-        confirmed_component_ids=[
-            instance.id
-            for slot in system_map.components_by_slot.values()
-            for instance in slot.instances
-        ],
+        index=index,
+        unmapped_id=payload.source_unmapped_id,
+        available_slots=compatibility["slots"],
+        available_extensions=compatibility["extensions"],
+        confirmed_component_ids=compatibility["components"],
         user_description=payload.user_description,
     )
     try:
@@ -117,21 +114,43 @@ def decide_mapping_proposal(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-def _system_map_for_project(
+def _normalized_map_for_project(
     store: SessionStore,
     project_id: str,
-) -> RagSystemMap | None:
+) -> AiSystemMapV2 | None:
     result = store.build_result(project_id)
     if result is None:
         return None
-    return result.ai_system_map
+    if result.normalized_ai_system_map is not None:
+        return result.normalized_ai_system_map
+    if result.ai_system_map is None:
+        return None
+    return (
+        CanonicalMapLoader()
+        .load(result.ai_system_map.model_dump(mode="json"))
+        .normalized
+    )
 
 
-def _find_unmapped(
-    system_map: RagSystemMap,
-    unmapped_id: str,
-) -> UnmappedComponent | None:
-    for component in system_map.unmapped_components:
-        if component.id == unmapped_id:
-            return component
-    return None
+def _compatibility_projection(
+    system_map: AiSystemMapV2,
+) -> dict[str, list[str]]:
+    slots: list[str] = []
+    extensions: list[str] = []
+    components: list[str] = []
+    for component in system_map.components:
+        metadata = component.metadata
+        slot = metadata.get("legacy_slot")
+        extension = metadata.get("source_extension_id")
+        semantic_kind = metadata.get("semantic_kind")
+        if isinstance(slot, str):
+            slots.append(slot)
+        if isinstance(extension, str):
+            extensions.append(extension)
+        if semantic_kind == "repo_component":
+            components.append(component.component_id)
+    return {
+        "slots": list(dict.fromkeys(slots)),
+        "extensions": list(dict.fromkeys(extensions)),
+        "components": list(dict.fromkeys(components)),
+    }

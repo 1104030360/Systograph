@@ -1,3 +1,13 @@
+# 這個檔案負責：map build 對外服務（CLI / Web / Apply / DetailScan 的入口）。
+# 組裝依賴、檢查 precondition、掃專案，再委派 MapBuildPipeline。
+#
+# 呼叫鏈：
+#   CLI map_command / Web scan_routes / ApplyConfirmations / DetailScanBuild
+#     → MapBuildService.build / build_from_snapshot / build_from_enriched_map
+#         → OutputArtifactProvider.check_preconditions
+#         → scan_project（僅 build）
+#         → MapBuildPipeline.materialize / materialize_existing_map
+#         → MapBuildResult
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -30,15 +40,18 @@ from kai_mind.core.services.endpoint_detection_service import (
 from kai_mind.core.services.flow_derivation_service import (
     FlowDerivationService,
 )
+from kai_mind.core.services.graph_markdown_renderer import (
+    GraphMarkdownRenderer,
+)
+from kai_mind.core.services.graph_mermaid_renderer import (
+    GraphMermaidRenderer,
+)
 from kai_mind.core.services.manual_mapping_service import ManualMappingService
 from kai_mind.core.services.map_build_orchestration import (
     precondition_error_result,
     scan_project,
 )
 from kai_mind.core.services.map_build_pipeline import MapBuildPipeline
-from kai_mind.core.services.markdown_summary_service import (
-    MarkdownSummaryService,
-)
 from kai_mind.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
@@ -65,7 +78,14 @@ from kai_mind.core.services.system_map_validation_service import (
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
 
 
+# 做什麼：對外 build facade；組 pipeline，提供三種建圖入口。
+# 被誰用：CLI、Web、ApplyConfirmations、DetailScanBuild。
+# 自己呼叫：MapBuildPipeline、scan_project、precondition_error_result。
 class MapBuildService:
+    # 做什麼：組裝 materializer / publisher / pipeline 依賴圖。
+    # 被誰呼叫：app 啟動或測試注入。
+    # 自己呼叫：SystemMapMaterializationService、BuildArtifactPublisher、
+    # MapBuildPipeline。
     def __init__(
         self,
         *,
@@ -77,7 +97,8 @@ class MapBuildService:
         flow_derivation_service: FlowDerivationService | None = None,
         manual_mapping_service: ManualMappingService | None = None,
         normalize_service: SystemMapNormalizeService | None = None,
-        markdown_summary_service: MarkdownSummaryService | None = None,
+        graph_markdown_renderer: GraphMarkdownRenderer | None = None,
+        graph_mermaid_renderer: GraphMermaidRenderer | None = None,
         projection_service: ViewerSessionService | None = None,
         validation_service: SystemMapValidationService | None = None,
         canonical_map_loader: CanonicalMapLoader | None = None,
@@ -104,7 +125,8 @@ class MapBuildService:
         )
         publisher = artifact_publisher or BuildArtifactPublisher(
             output_artifact_provider=output_provider,
-            markdown_summary_service=markdown_summary_service,
+            markdown_renderer=graph_markdown_renderer,
+            mermaid_renderer=graph_mermaid_renderer,
             projection_service=projection_service,
         )
         self._manual_mapping_service = manual_mapping_service
@@ -119,6 +141,11 @@ class MapBuildService:
             static_execution_artifact_service=static_execution_artifact_service,
         )
 
+    # 做什麼：完整初掃 build——precondition → scan → pipeline.materialize。
+    # 被誰呼叫：CLI map、Web create scan、一般首次建圖。
+    # 自己呼叫：check_preconditions、scan_project、
+    # MapBuildPipeline.materialize。
+    # 失敗 precondition：回 precondition_error_result（status=error）。
     def build(
         self,
         request: MapBuildRequest,
@@ -176,6 +203,9 @@ class MapBuildService:
             warnings=precondition.warnings,
         )
 
+    # 做什麼：用既有 ScanSnapshot 重建（不重掃 filesystem inventory）。
+    # 被誰呼叫：ApplyConfirmations 等「基於 snapshot 再 build」流程。
+    # 自己呼叫：組 MapBuildLineage → MapBuildPipeline.materialize。
     def build_from_snapshot(
         self,
         snapshot: ScanSnapshot,
@@ -209,6 +239,11 @@ class MapBuildService:
             lineage=lineage,
         )
 
+    # 做什麼：用已 enrich 的 v1 map（如 detail scan 後）直接 publish，不重跑
+    # detection。
+    # 被誰呼叫：DetailScanBuild 相關流程。
+    # 自己呼叫：manual_mapping_service.list_for_project →
+    #           MapBuildPipeline.materialize_existing_map。
     def build_from_enriched_map(
         self,
         snapshot: ScanSnapshot,

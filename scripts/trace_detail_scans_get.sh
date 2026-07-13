@@ -2,7 +2,8 @@
 # Trace: GET /api/detail-scans/{detail_scan_id}
 #
 # A detail scan must exist first, so this script imports + scans, creates a
-# build-bound detail scan, then reads it back by id.
+# build-bound detail scan, then reads it back by id. Summary includes lineage
+# ids and Track A child graph projection when viewer_load_result is present.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -73,11 +74,22 @@ kai_progress "現在要依 id 讀回 detail scan..."
 api_call GET "/api/detail-scans/$ENCODED_ID"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Detail scan 摘要"
+kai_section "Detail scan 摘要（含 Track A child graph）"
 echo "$LAST_BODY" | jq '{
   project_id,
   detail_scan_id: .detail_scan.id,
   target_type: .detail_scan.target_type,
   target: .detail_scan.target,
-  status: .detail_scan.status
+  status: .detail_scan.status,
+  source_build_id,
+  build_id,
+  scan_id,
+  child_graph: (
+    if .viewer_load_result == null then null
+    else {
+      loaded: .viewer_load_result.loaded,
+      node_count: (.viewer_load_result.graph_view_model.nodes | length)
+    }
+    end
+  )
 }'
