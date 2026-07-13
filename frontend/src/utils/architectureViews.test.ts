@@ -73,7 +73,9 @@ describe("buildArchitectureViews", () => {
 
     expect(views.map((view) => view.id)).toEqual(ARCHITECTURE_VIEW_DEFINITIONS.map((view) => view.id));
     expect(views).toHaveLength(16);
-    expect(views.find((view) => view.id === "dataflow")?.matchesNodeIds).toEqual(["node:component:loader"]);
+    expect(new Set(views.find((view) => view.id === "dataflow")?.matchesNodeIds)).toEqual(
+      new Set(["node:component:loader", "node:reference:planner"]),
+    );
     expect(views.find((view) => view.id === "ingestion")?.matchesNodeIds).toEqual(["node:component:loader"]);
     expect(views.find((view) => view.id === "known")?.matchesNodeIds).toEqual(["node:reference:planner"]);
     expect(new Set(views.find((view) => view.id === "unmapped")?.matchesNodeIds)).toEqual(

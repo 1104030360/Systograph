@@ -1319,15 +1319,28 @@ button.readiness-ref:hover { border-color: var(--accent-line); color: var(--text
 .dr-map-body .state-overlay { min-height: 720px; }
 
 .dr-architecture-map { padding: 14px; display: grid; gap: 14px; }
-.dr-plane-stack { position: relative; display: grid; gap: 12px; padding-left: 17px; }
-.dr-plane-stack::before {
-  content: ""; position: absolute; z-index: 0; left: 5px; top: 29px; bottom: 29px;
-  border-left: 1px dashed color-mix(in srgb, var(--dr-blue) 42%, transparent);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--dr-blue) 18%, transparent));
+.dr-plane-stack { position: relative; display: grid; gap: 12px; }
+.dr-edge-overlay {
+  position: absolute; z-index: 1; inset: 0; overflow: visible;
+  width: 100%; height: 100%; pointer-events: none;
 }
+.dr-edge-path {
+  fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round;
+  stroke-width: 2px; opacity: 0.62;
+  transition: opacity var(--dur-short), stroke-width var(--dur-short);
+}
+.dr-edge-path.is-declared-edge {
+  stroke: var(--dr-green); stroke-dasharray: 8 6;
+}
+.dr-edge-path.is-projection-relationship {
+  stroke: var(--dr-purple); stroke-dasharray: 3 5;
+}
+.dr-edge-path.is-focused { opacity: 0.82; }
+.dr-edge-path.is-dimmed { opacity: 0.025; }
+.dr-edge-path.is-selected { opacity: 1; stroke-width: 3px; }
 .dr-plane {
   --plane-tone: var(--accent);
-  position: relative; z-index: 1; overflow: visible;
+  position: relative; overflow: visible;
   border: 1px solid color-mix(in srgb, var(--plane-tone) 34%, var(--line));
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel) 76%, transparent);
@@ -1342,17 +1355,8 @@ button.readiness-ref:hover { border-color: var(--accent-line); color: var(--text
 .dr-plane-memory_state { --plane-tone: var(--dr-slate); }
 .dr-plane-governance_observability { --plane-tone: var(--dr-red); }
 .dr-plane-unassigned { --plane-tone: var(--dr-red); border-style: dashed; }
-.dr-plane-connector {
-  position: absolute; left: -13px; top: 29px; width: 13px; height: 1px;
-  border-top: 1px dashed color-mix(in srgb, var(--plane-tone) 68%, transparent);
-  pointer-events: none;
-}
-.dr-plane-connector::before {
-  content: ""; position: absolute; left: -2px; top: -3px; width: 5px; height: 5px;
-  border: 1px solid color-mix(in srgb, var(--plane-tone) 72%, transparent);
-  border-radius: 50%; background: color-mix(in srgb, var(--canvas) 84%, transparent);
-}
 .dr-plane-heading {
+  position: relative; z-index: 2;
   min-height: 58px; padding: 9px 12px;
   display: grid; grid-template-columns: 26px 30px minmax(0, 1fr) auto; align-items: center; gap: 8px;
   border-bottom: 1px solid color-mix(in srgb, var(--plane-tone) 22%, var(--line));
@@ -1366,9 +1370,10 @@ button.readiness-ref:hover { border-color: var(--accent-line); color: var(--text
 .dr-plane-heading small { color: var(--text-3); font-size: 9.5px; }
 .dr-plane-count { color: var(--text-3); font-family: var(--mono); font-size: 9.5px; }
 .dr-plane-nodes { padding: 11px; display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 8px; border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px); }
-.dr-plane-empty { grid-column: 1 / -1; padding: 14px; color: var(--text-faint); font-size: 10.5px; text-align: center; }
+.dr-plane-empty { position: relative; z-index: 2; grid-column: 1 / -1; padding: 14px; color: var(--text-faint); font-size: 10.5px; text-align: center; }
 
 .dr-node-card {
+  position: relative; z-index: 2;
   min-width: 0; min-height: 108px; padding: 9px 10px;
   display: flex; flex-direction: column; align-items: stretch; gap: 5px;
   border: 1px dashed color-mix(in srgb, var(--plane-tone) 32%, var(--line-strong)); border-radius: var(--radius);
@@ -1411,6 +1416,8 @@ button.readiness-ref:hover { border-color: var(--accent-line); color: var(--text
 .dr-legend-divider { height: 14px; width: 1px; background: var(--line-strong); }
 .dr-kind-mark { width: 10px; height: 7px; display: inline-block; border: 1px dashed var(--text-3); border-radius: 2px; }
 .dr-kind-mark.component { border: 0; border-left: 3px solid var(--accent); background: var(--surface-3); }
+.dr-edge-mark { width: 18px; height: 1px; display: inline-block; border-top: 2px dashed var(--dr-green); }
+.dr-edge-mark.mapping { border-top-color: var(--dr-purple); border-top-style: dotted; }
 .dr-map-empty { min-height: 720px; padding: 48px; display: grid; place-content: center; justify-items: center; gap: 9px; color: var(--text-3); text-align: center; }
 .dr-map-empty h3 { color: var(--text); font-size: 16px; }
 .dr-map-empty p { max-width: 520px; margin: 0; font-size: 12px; line-height: 1.6; }

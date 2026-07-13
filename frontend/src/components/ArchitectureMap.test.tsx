@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { graphViewModelSchema, type GraphViewModel } from "../types";
 import { buildArchitectureViews } from "../utils/architectureViews";
@@ -29,6 +29,15 @@ function graphFixture(referenceMapVersion: string | null = "1"): GraphViewModel 
         activation: "enabled",
         label: "Document Loader",
       },
+      {
+        id: "node:reference:output-guardrail",
+        reference_node_id: "output_guardrail",
+        plane_id: "governance_observability",
+        type: "reference_capability",
+        semantic_kind: "reference_capability",
+        status: "undetermined",
+        label: "Output Guardrail",
+      },
     ],
     edges: [
       {
@@ -37,10 +46,32 @@ function graphFixture(referenceMapVersion: string | null = "1"): GraphViewModel 
         to: "node:reference:planner",
         relationship: "provides context",
       },
+      {
+        id: "edge:control:planner-guardrail",
+        from: "node:reference:planner",
+        to: "node:reference:output-guardrail",
+        relationship: "applies guardrail",
+      },
+    ],
+    relationships: [
+      {
+        id: "relation:reference-component:planner:0",
+        kind: "reference_component_mapping",
+        source_node_id: "node:reference:planner",
+        target_node_id: "node:component:loader",
+        evidence_ids: [],
+      },
     ],
     details: {},
     filters: {
       lenses: [
+        {
+          id: "lens:data",
+          label: "Data",
+          supported: true,
+          matches_node_ids: ["node:component:loader"],
+          matches_edge_ids: ["edge:query:loader-planner"],
+        },
         {
           id: "lens:risk",
           label: "Risk",
@@ -54,7 +85,7 @@ function graphFixture(referenceMapVersion: string | null = "1"): GraphViewModel 
 }
 
 describe("ArchitectureMap", () => {
-  it("renders the fixed ten-plane architecture and selects backend nodes", () => {
+  it("renders the fixed ten-plane architecture and selects backend nodes", async () => {
     const graph = graphFixture();
     const onSelect = vi.fn();
     const { container } = render(
@@ -70,12 +101,37 @@ describe("ArchitectureMap", () => {
 
     expect(screen.getByLabelText("AI Agent System, ten architecture planes")).toBeInTheDocument();
     expect(container.querySelectorAll("[data-plane-id]")).toHaveLength(10);
-    expect(container.querySelectorAll(".dr-plane-connector[aria-hidden='true']")).toHaveLength(10);
+    expect(container.querySelector(".dr-edge-overlay")).toHaveAttribute("aria-hidden", "true");
+    await waitFor(() => expect(container.querySelectorAll(".dr-edge-path.is-focused")).toHaveLength(3));
+    expect(container.querySelectorAll(".dr-plane-connector")).toHaveLength(0);
     expect(screen.getByText("Input & Intent")).toBeInTheDocument();
     expect(screen.getByText("Deployment Topology")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Node Planner" }));
     expect(onSelect).toHaveBeenCalledWith({ kind: "node", id: "node:reference:planner" });
+  });
+
+  it("focuses only backend-matched connections for Data Flow", async () => {
+    const graph = graphFixture();
+    const { container } = render(
+      <ArchitectureMap
+        graph={graph}
+        views={buildArchitectureViews(graph)}
+        activeViewId="dataflow"
+        search=""
+        selected={null}
+        onSelect={() => {}}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-connection-id="edge:query:loader-planner"]')).toHaveClass("is-focused"),
+    );
+    expect(container.querySelector('[data-connection-id="relation:reference-component:planner:0"]')).toHaveClass(
+      "is-focused",
+    );
+    expect(container.querySelector('[data-connection-id="edge:control:planner-guardrail"]')).toHaveClass("is-dimmed");
+    expect(container.querySelector('[data-node-id="node:reference:output-guardrail"]')).toHaveClass("is-dimmed");
   });
 
   it("dims nodes outside the selected backend view without removing the ten-plane context", () => {

@@ -5,6 +5,7 @@ import { PHASE2_STATUS_LEGEND, nodeStatusKey, nodeStatusLabel } from "../utils/a
 import type { ArchitectureViewId, ArchitectureViewModel } from "../utils/architectureViews";
 import { PLANE_PRESENTATION_ORDER, hasBackendPlaneProjection, planeLabel } from "../utils/planes";
 import { compactId, titleCase } from "../utils/format";
+import { ArchitectureEdgeOverlay, type ArchitectureConnection } from "./ArchitectureEdgeOverlay";
 
 type Props = {
   graph: GraphViewModel;
@@ -120,6 +121,32 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
     nodesByPlane.set(planeId, [...(nodesByPlane.get(planeId) ?? []), node]);
   });
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const searchMatches = (node: GraphNodeModel | undefined) =>
+    normalizedSearch === "" || (node != null && searchableText(node).includes(normalizedSearch));
+  const connections: ArchitectureConnection[] = [
+    ...graph.edges.map((edge) => ({
+      id: edge.id,
+      from: edge.from,
+      to: edge.to,
+      source: "declared-edge" as const,
+      focused:
+        (activeViewId === "overview" || focusedEdgeIds.has(edge.id)) &&
+        (searchMatches(nodeById.get(edge.from)) || searchMatches(nodeById.get(edge.to))),
+      selected: selected?.kind === "edge" && selected.id === edge.id,
+    })),
+    ...graph.relationships.map((relationship) => ({
+      id: relationship.id,
+      from: relationship.source_node_id,
+      to: relationship.target_node_id,
+      source: "projection-relationship" as const,
+      focused:
+        (activeViewId === "overview" ||
+          (focusedNodeIds.has(relationship.source_node_id) && focusedNodeIds.has(relationship.target_node_id))) &&
+        (searchMatches(nodeById.get(relationship.source_node_id)) ||
+          searchMatches(nodeById.get(relationship.target_node_id))),
+      selected: false,
+    })),
+  ];
   const visibleEdges = graph.edges.filter(
     (edge) => {
       const fromNode = nodeById.get(edge.from);
@@ -135,14 +162,13 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
 
   return (
     <div className="dr-architecture-map">
-      <div className="dr-plane-stack" aria-label="AI Agent System, ten architecture planes">
+      <ArchitectureEdgeOverlay connections={connections}>
         {PLANE_PRESENTATION_ORDER.map((planeId, index) => {
           const nodes = nodesByPlane.get(planeId) ?? [];
           const focusedCount = nodes.filter(nodeMatches).length;
           const PlaneIcon = getPlaneIcon(planeId);
           return (
             <section className={`dr-plane dr-plane-${planeId}`} key={planeId} data-plane-id={planeId}>
-              <span className="dr-plane-connector" aria-hidden="true" />
               <header className="dr-plane-heading">
                 <span className="dr-plane-index">{String(index + 1).padStart(2, "0")}</span>
                 <span className="dr-plane-icon" aria-hidden="true">
@@ -177,7 +203,6 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
 
         {(nodesByPlane.get("__unassigned__")?.length ?? 0) > 0 ? (
           <section className="dr-plane dr-plane-unassigned" data-plane-id="__unassigned__">
-            <span className="dr-plane-connector" aria-hidden="true" />
             <header className="dr-plane-heading">
               <span className="dr-plane-index">—</span>
               <span className="dr-plane-icon" aria-hidden="true">
@@ -202,7 +227,7 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
             </div>
           </section>
         ) : null}
-      </div>
+      </ArchitectureEdgeOverlay>
 
       <section className="dr-declared-flows" aria-labelledby="declared-flows-title">
         <div className="dr-flow-heading">
@@ -244,6 +269,8 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
         <span className="dr-legend-divider" aria-hidden="true" />
         <span><i className="dr-kind-mark reference" aria-hidden="true" />Reference capability</span>
         <span><i className="dr-kind-mark component" aria-hidden="true" />Repo component</span>
+        <span><i className="dr-edge-mark declared" aria-hidden="true" />Declared flow</span>
+        <span><i className="dr-edge-mark mapping" aria-hidden="true" />Backend mapping</span>
       </div>
     </div>
   );

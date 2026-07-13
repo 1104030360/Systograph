@@ -60,13 +60,24 @@ function viewFromNodeIds(
   supported: boolean,
   unavailableReason: string | null = null,
   extraEdgeIds: string[] = [],
+  includeExplicitEdgeEndpoints = false,
 ): ArchitectureViewModel {
+  const matchesEdgeIds = [...new Set([...edgeIdsForNodes(graph, nodeIds), ...extraEdgeIds])];
+  const expandedNodeIds = new Set(nodeIds);
+  if (includeExplicitEdgeEndpoints) {
+    const explicitEdgeIds = new Set(extraEdgeIds);
+    graph.edges.forEach((edge) => {
+      if (!explicitEdgeIds.has(edge.id)) return;
+      expandedNodeIds.add(edge.from);
+      expandedNodeIds.add(edge.to);
+    });
+  }
   return {
     ...definition,
     supported,
     unavailableReason,
-    matchesNodeIds: [...nodeIds],
-    matchesEdgeIds: [...new Set([...edgeIdsForNodes(graph, nodeIds), ...extraEdgeIds])],
+    matchesNodeIds: [...expandedNodeIds],
+    matchesEdgeIds,
   };
 }
 
@@ -88,6 +99,7 @@ function lensView(graph: GraphViewModel, definition: ViewDefinition, lensId: str
     lens.supported,
     lens.supported ? null : (lens.unavailable_reason ?? "No backend-provided membership."),
     lens.matches_edge_ids,
+    true,
   );
 }
 
