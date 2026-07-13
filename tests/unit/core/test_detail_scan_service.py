@@ -18,12 +18,16 @@ from kai_mind.core.models.system_map import (
     ScanSummary,
     UnmappedComponent,
 )
-from kai_mind.core.services.detail_scan_service import (
-    DetailScanService,
+from kai_mind.core.services.detail_scan_service import DetailScanService
+from kai_mind.core.services.detail_scan_target_resolver import (
     DetailScanTargetError,
 )
 from kai_mind.core.services.mapping_evidence_packet_builder import (
     MappingEvidencePacketBuilder,
+)
+from kai_mind.core.services.system_map_index import SystemMapIndex
+from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+    SystemMapV1ToV2Adapter,
 )
 
 
@@ -116,11 +120,12 @@ def test_detail_scan_added_evidence_flows_into_mapping_packet(
         scan_depth="code_path",
     )
 
-    unmapped = result.system_map.unmapped_components[0]
+    canonical = SystemMapV1ToV2Adapter().adapt_to_canonical(result.system_map)
+    unmapped = canonical.unmapped_components[0]
     packet = MappingEvidencePacketBuilder(max_value_chars=120).build(
         project_id="project:demo",
-        unmapped_component=unmapped,
-        evidence=result.system_map.evidence,
+        index=SystemMapIndex.from_map(canonical),
+        unmapped_id=unmapped.unmapped_id,
         available_slots=list(result.system_map.components_by_slot),
     )
 

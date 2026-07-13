@@ -1,0 +1,144 @@
+{
+  "schema_version": "ai-system-map/v2",
+  "system_type": "ai_system",
+  "scan_id": "scan:grounded-agent",
+  "build_id": "build:grounded-agent",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:grounded-agent",
+  "project": {
+    "project_id": "project:grounded-agent",
+    "name": "grounded-agent",
+    "root_path": null,
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted"
+  },
+  "components": [
+    {
+      "component_id": "component:agent:loop",
+      "display_name": "Grounded Agent Loop",
+      "canonical_type": "agent_loop",
+      "layer": "control",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:agent-loop"],
+      "metadata": {}
+    },
+    {
+      "component_id": "component:retriever:knowledge",
+      "display_name": "Knowledge Retriever",
+      "canonical_type": "retriever",
+      "layer": "retrieval",
+      "status": "detected",
+      "activation": "conditional",
+      "evidence_ids": ["evidence:retriever"],
+      "metadata": {}
+    },
+    {
+      "component_id": "component:tool:search",
+      "display_name": "Search Tool",
+      "canonical_type": "tool",
+      "layer": "extension_subsystems",
+      "status": "detected",
+      "activation": "conditional",
+      "evidence_ids": ["evidence:tool"],
+      "metadata": {}
+    },
+    {
+      "component_id": "component:llm:answer",
+      "display_name": "Answer LLM",
+      "canonical_type": "llm",
+      "layer": "generation",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:llm"],
+      "metadata": {}
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "edge:agent-to-retriever",
+      "source": "component:agent:loop",
+      "target": "component:retriever:knowledge",
+      "relationship": "retrieve",
+      "status": "observed",
+      "evidence_ids": ["evidence:retriever"]
+    },
+    {
+      "edge_id": "edge:agent-to-tool",
+      "source": "component:agent:loop",
+      "target": "component:tool:search",
+      "relationship": "tool_call",
+      "status": "observed",
+      "evidence_ids": ["evidence:tool"]
+    },
+    {
+      "edge_id": "edge:retriever-to-llm",
+      "source": "component:retriever:knowledge",
+      "target": "component:llm:answer",
+      "relationship": "context_flow",
+      "status": "observed",
+      "evidence_ids": ["evidence:llm"]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evidence:agent-loop",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/agent/loop.py",
+        "start_line": 18,
+        "end_line": 36,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "Agent loop dispatches retrieval and tool calls.",
+      "rule_id": "py.agent.loop"
+    },
+    {
+      "evidence_id": "evidence:retriever",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/agent/grounding.py",
+        "start_line": 24,
+        "end_line": 28,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "Agent retrieves knowledge before generation.",
+      "rule_id": "py.retriever.invoke"
+    },
+    {
+      "evidence_id": "evidence:tool",
+      "artifact_type": "config",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "config/tools.json",
+        "start_line": null,
+        "end_line": null,
+        "json_pointer": "/tools/0/name",
+        "config_key": null
+      },
+      "extract_summary": "Search tool is registered for the agent.",
+      "rule_id": "json.tool.registry"
+    },
+    {
+      "evidence_id": "evidence:llm",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/agent/answer.py",
+        "start_line": 41,
+        "end_line": 44,
+        "json_pointer": null,
+        "config_key": null
+      },
+      "extract_summary": "LLM receives retrieved context to produce an answer.",
+      "rule_id": "py.llm.invoke"
+    }
+  ],
+  "endpoints": [],
+  "risk_hints": [],
+  "unmapped_components": []
+}

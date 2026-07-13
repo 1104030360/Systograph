@@ -1,3 +1,18 @@
+# 這個檔案負責：定義 ai-system-map/v1 的 Pydantic 資料契約（舊版 / v1 map）。
+# 掃描管線各 service 產出的「系統地圖」JSON，形狀都依這裡的 model。
+# 注意：新管線正規化後的 canonical 形狀在 ai_system_map_v2.py；本檔是 v1
+# contract。
+#
+# 呼叫鏈（誰會用到這些 model）：
+#   providers（掃檔找證據）→ Evidence / Endpoint / ComponentInstance
+#   ComponentDetection / EndpointDetection / FlowDerivation / RiskHint
+#     → 組裝進 RagSystemMap
+#   SystemMapNormalizeService / SystemMapValidationService
+#     → 驗證、正規化 RagSystemMap
+#   MarkdownSummary / QueryTrace / DetailScan / Viewer
+#     → 讀取 RagSystemMap 各子區塊
+#   build_system_map_schema()
+#     → 產出 JSON Schema 給 contract / 文件用
 """Pydantic models for the ai-system-map/v1 contract."""
 
 from __future__ import annotations
@@ -21,18 +36,27 @@ RiskTargetType = Literal[
 ]
 
 
+# 做什麼：所有 v1 contract model 的基底；禁止多出未知欄位（extra="forbid"）。
+# 被誰用：本檔所有 class 都繼承它。
+# 自己呼叫：Pydantic BaseModel（序列化 / 驗證）。
 class ContractModel(BaseModel):
     """Base model that forbids silent contract drift."""
 
     model_config = ConfigDict(extra="forbid")
 
 
+# 做什麼：記錄這份 map 用哪個模板分類（目前固定 rag-core-v1）。
+# 被誰用：組裝 RagSystemMap 時填入；normalize / validation 會讀。
+# 內含：無巢狀 model，只有 mode / selected_template。
 class Classification(ContractModel):
     mode: ClassificationMode
     selected_template: Literal["rag-core-v1"]
     future_layer: str | None = None
 
 
+# 做什麼：被掃描專案的基本資訊（名稱、路徑、schema version）。
+# 被誰用：map build assemble、path safety / redaction 相關流程。
+# 內含：無巢狀 model。
 class Project(ContractModel):
     name: str
     root_path: str | None = None
@@ -41,6 +65,9 @@ class Project(ContractModel):
     system_map_schema_version: SystemMapSchemaVersion | None = None
 
 
+# 做什麼：參考架構模板（有哪些 slots / flows）。
+# 被誰用：組裝 RagSystemMap；對照「應有哪些 RAG 槽位」。
+# 內含：slots / flows 字串列表（非巢狀 model）。
 class ReferenceArchitecture(ContractModel):
     id: Literal["rag-core-v1"]
     version: str | None = None
@@ -48,6 +75,10 @@ class ReferenceArchitecture(ContractModel):
     flows: list[str]
 
 
+# 做什麼：某個 slot 裡偵測到的實際元件實例（如 Qdrant retriever）。
+# 被誰用：ComponentDetectionService 建立；Endpoint / Flow / Risk / DetailScan
+# 會引用 id。
+# 內含：evidence_ids 指向 Evidence.id。
 class ComponentInstance(ContractModel):
     id: str
     slot: str
@@ -58,6 +89,9 @@ class ComponentInstance(ContractModel):
     evidence_ids: list[str] = Field(default_factory=list)
 
 
+# 做什麼：一個架構槽位（如 vector_store）及其狀態、底下 instances。
+# 被誰用：ComponentDetection 填入；RagSystemMap.components_by_slot 的 value。
+# 內含：instances → list[ComponentInstance]。
 class ComponentSlot(ContractModel):
     slot: str
     required_for_rag: bool
@@ -65,6 +99,10 @@ class ComponentSlot(ContractModel):
     instances: list[ComponentInstance] = Field(default_factory=list)
 
 
+# 做什麼：一筆可追溯證據（哪個檔、哪幾行、什麼值、哪個 rule）。
+# 被誰用：providers（code_pattern / config_parse / dependency / docker…）建立；
+#         幾乎所有 detection / risk / mapping / detail scan 都會引用。
+# 內含：無巢狀 model；file 必須是專案相對 POSIX path。
 class Evidence(ContractModel):
     id: str
     kind: str
@@ -83,6 +121,10 @@ class Evidence(ContractModel):
     snippet: str | None = None
 
 
+# 做什麼：偵測到的 API / service endpoint（local 或 external）。
+# 被誰用：EndpointDetectionService 建立；QueryTrace / RiskHint 可能引用。
+# 內含：evidence_id → Evidence；可選 component_instance_id →
+# ComponentInstance。
 class Endpoint(ContractModel):
     id: str
     value: str
@@ -93,6 +135,10 @@ class Endpoint(ContractModel):
     evidence_id: str
 
 
+# 做什麼：flow 裡的一條邊（從哪個 slot/component 到哪個）。
+# 被誰用：FlowDerivationService 建立；包在 Flow.edges 裡。
+# 內含：evidence_ids → Evidence；可選 from/to_component_id →
+# ComponentInstance。
 class Edge(ContractModel):
     id: str
     flow_id: str
@@ -104,6 +150,9 @@ class Edge(ContractModel):
     evidence_ids: list[str] = Field(default_factory=list)
 
 
+# 做什麼：一條資料流（例如 query → retrieve → generate），含多條 Edge。
+# 被誰用：FlowDerivationService；RagSystemMap.flows；Viewer 畫圖會讀。
+# 內含：edges → list[Edge]。
 class Flow(ContractModel):
     id: str
     name: str | None = None
@@ -111,6 +160,10 @@ class Flow(ContractModel):
     edges: list[Edge] = Field(default_factory=list)
 
 
+# 做什麼：風險提示（指向某個 target，並附 evidence / rationale）。
+# 被誰用：RiskHintService 建立；readiness / markdown summary / viewer 會讀。
+# 內含：evidence_id → Evidence；target 依 target_type 指向 component/endpoint/
+# …。
 class RiskHint(ContractModel):
     id: str
     type: str
@@ -123,6 +176,9 @@ class RiskHint(ContractModel):
     severity_hint: str | None = None
 
 
+# 做什麼：detail scan 的單筆 finding（摘要 + 相關 evidence）。
+# 被誰用：DetailScanService 寫入；包在 DetailScanResult.findings。
+# 內含：evidence_ids → Evidence。
 class DetailScanFinding(ContractModel):
     kind: str
     summary: str
@@ -130,6 +186,9 @@ class DetailScanFinding(ContractModel):
     best_effort: bool | None = None
 
 
+# 做什麼：detail scan 追到的程式路徑一步（檔案 / symbol / 行號）。
+# 被誰用：DetailScanService；包在 DetailScanResult.code_path。
+# 內含：可選 evidence_id → Evidence。
 class CodePathStep(ContractModel):
     file: str = Field(
         description=(
@@ -144,6 +203,9 @@ class CodePathStep(ContractModel):
     best_effort: bool | None = None
 
 
+# 做什麼：一次 detail scan 的完整結果（findings + code_path + warnings）。
+# 被誰用：DetailScanService / routes；掛在 RagSystemMap.detail_scans。
+# 內含：findings → DetailScanFinding；code_path → CodePathStep。
 class DetailScanResult(ContractModel):
     id: str
     target_type: str
@@ -158,6 +220,10 @@ class DetailScanResult(ContractModel):
     context_limits: dict[str, Any] = Field(default_factory=dict)
 
 
+# 做什麼：query replay / trace 的單一事件（時間序、延遲、input/output）。
+# 被誰用：QueryTraceService；Viewer ReplayTimeline；掛在
+# RagSystemMap.query_trace_events。
+# 內含：可選 endpoint_id / component_id / edge_id 等導航欄位。
 class QueryTraceEvent(ContractModel):
     id: str
     trace_id: str | None = None
@@ -182,6 +248,10 @@ class QueryTraceEvent(ContractModel):
     retrieved_chunks: Any | None = None
 
 
+# 做什麼：模板外的擴充元件（使用者確認或偵測到但不在核心 slots）。
+# 被誰用：manual mapping / confirmation；normalize 時可能轉成 v2
+# candidate_facts。
+# 內含：evidence_ids → Evidence。
 class ExtensionComponent(ContractModel):
     id: str
     name: str
@@ -192,6 +262,9 @@ class ExtensionComponent(ContractModel):
     evidence_ids: list[str] = Field(default_factory=list)
 
 
+# 做什麼：掃到但尚未對應到正式 slot 的元件（待 mapping）。
+# 被誰用：ComponentDetection；MappingProposal / MappingEvidencePacketBuilder。
+# 內含：evidence_ids → Evidence。
 class UnmappedComponent(ContractModel):
     id: str
     source_file: str | None = None
@@ -202,6 +275,9 @@ class UnmappedComponent(ContractModel):
     suggested_actions: list[str] = Field(default_factory=list)
 
 
+# 做什麼：建議下一步要檢查什麼（target + reason + action）。
+# 被誰用：map build 組裝 recommended_next_checks；markdown summary / UI 顯示。
+# 內含：無巢狀 model。
 class RecommendedNextCheck(ContractModel):
     id: str
     target_type: str
@@ -210,6 +286,9 @@ class RecommendedNextCheck(ContractModel):
     action: str
 
 
+# 做什麼：整次掃描的計數摘要（掃了幾檔、缺幾個 slot、幾個 risk…）。
+# 被誰用：map build 結尾填入 RagSystemMap.scan_summary。
+# 內含：無巢狀 model。
 class ScanSummary(ContractModel):
     status: str
     files_scanned: int = 0
@@ -222,6 +301,11 @@ class ScanSummary(ContractModel):
     secret_masking_applied: bool = False
 
 
+# 做什麼：v1 AI System Map 的根物件（整份地圖）。
+# 被誰用：MapBuildService / Normalize / Validation / Markdown / Trace / Viewer
+# 等。
+# 內含：把上面所有區塊組在一起（slots、evidence、flows、risks…）。
+# 之後若進 v2：通常經 adapter → AiSystemMapV2 → SystemMapIndex。
 class RagSystemMap(ContractModel):
     schema_version: SystemMapSchemaVersion
     system_type: SystemType
@@ -242,6 +326,10 @@ class RagSystemMap(ContractModel):
     query_trace_events: list[QueryTraceEvent]
 
 
+# 做什麼：從 RagSystemMap 產出確定性的 JSON Schema（給 contract / schema 檔用）
+# 。
+# 被誰呼叫：schema 產生腳本、contracts 測試（驗證 schema artifact）。
+# 自己呼叫：RagSystemMap.model_json_schema()，再補上 $schema / $id。
 def build_system_map_schema() -> dict[str, Any]:
     """Return the deterministic JSON Schema artifact for ai-system-map/v1."""
 

@@ -1,13 +1,128 @@
 from __future__ import annotations
 
-from kai_mind.core.models.system_map import Evidence, UnmappedComponent
+from pathlib import Path
+
+from kai_mind.core.models.ai_system_map_v2 import (
+    AiSystemMapV2,
+    CanonicalEvidence,
+    CanonicalEvidenceLocation,
+    CanonicalProject,
+    CanonicalUnmappedComponent,
+)
+from kai_mind.core.models.mapping import MappingEvidencePacket
+from kai_mind.core.models.system_map import (
+    Evidence,
+    RagSystemMap,
+    UnmappedComponent,
+)
 from kai_mind.core.services.mapping_evidence_packet_builder import (
     MappingEvidencePacketBuilder,
 )
+from kai_mind.core.services.system_map_index import SystemMapIndex
+from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+    SystemMapV1ToV2Adapter,
+)
+
+RICH_MAP = (
+    Path(__file__).parents[2]
+    / "fixtures"
+    / "ai_system_map"
+    / "valid_rich_frontend_sample.v1.json"
+)
+
+
+def _build_packet(
+    builder: MappingEvidencePacketBuilder,
+    *,
+    project_id: str,
+    unmapped_component: UnmappedComponent,
+    evidence: list[Evidence],
+    available_slots: list[str],
+    available_extensions: list[str] | None = None,
+    confirmed_component_ids: list[str] | None = None,
+    user_description: str | None = None,
+) -> MappingEvidencePacket:
+    canonical_evidence = [
+        CanonicalEvidence(
+            evidence_id=item.id,
+            artifact_type=item.kind,
+            evidence_kind="direct" if item.file else "indirect",
+            location=CanonicalEvidenceLocation(
+                path=item.file,
+                start_line=item.line_start,
+                end_line=item.line_end,
+                json_pointer=(
+                    item.path
+                    if item.path and item.path.startswith("/")
+                    else None
+                ),
+                config_key=(
+                    item.path
+                    if item.path and not item.path.startswith("/")
+                    else None
+                ),
+            ),
+            # Keep helper aligned with production adapter:
+            # extract_summary = snippet or value.
+            extract_summary=item.snippet or item.value,
+            rule_id=item.rule_id,
+        )
+        for item in evidence
+    ]
+    canonical = AiSystemMapV2(
+        schema_version="ai-system-map/v2",
+        system_type="ai_system",
+        project=CanonicalProject(name="packet-test"),
+        evidence=canonical_evidence,
+        unmapped_components=[
+            CanonicalUnmappedComponent(
+                unmapped_id=unmapped_component.id,
+                observed_kind=unmapped_component.observed_kind,
+                status=unmapped_component.status,
+                reason=unmapped_component.reason,
+                source_file=unmapped_component.source_file,
+                evidence_ids=list(unmapped_component.evidence_ids),
+                suggested_actions=list(unmapped_component.suggested_actions),
+            )
+        ],
+    )
+    return builder.build(
+        project_id=project_id,
+        index=SystemMapIndex.from_map(canonical),
+        unmapped_id=unmapped_component.id,
+        available_slots=available_slots,
+        available_extensions=available_extensions,
+        confirmed_component_ids=confirmed_component_ids,
+        user_description=user_description,
+    )
+
+
+def test_builder_consumes_normalized_index_facts_without_mutation() -> None:
+    legacy = RagSystemMap.model_validate_json(
+        RICH_MAP.read_text(encoding="utf-8")
+    )
+    canonical = SystemMapV1ToV2Adapter().adapt_to_canonical(legacy)
+    original = canonical.model_copy(deep=True)
+    index = SystemMapIndex.from_map(canonical)
+    unmapped = canonical.unmapped_components[0]
+
+    packet = MappingEvidencePacketBuilder().build(
+        project_id="project:demo",
+        index=index,
+        unmapped_id=unmapped.unmapped_id,
+        available_slots=["retriever"],
+        available_extensions=[],
+        confirmed_component_ids=[],
+    )
+
+    assert packet.source_unmapped_id == unmapped.unmapped_id
+    assert packet.evidence_ids == unmapped.evidence_ids
+    assert canonical == original
 
 
 def test_builder_masks_evidence_and_keeps_traceable_metadata() -> None:
-    packet = MappingEvidencePacketBuilder(max_value_chars=80).build(
+    packet = _build_packet(
+        MappingEvidencePacketBuilder(max_value_chars=80),
         project_id="project:demo",
         unmapped_component=UnmappedComponent(
             id="unmapped:src_router_py:route:code_pattern_custom_router",
@@ -49,7 +164,7 @@ def test_builder_masks_evidence_and_keeps_traceable_metadata() -> None:
     assert packet.rule_ids == ["code_pattern_custom_router"]
     assert packet.line_ranges == ["src/router.py:7-9"]
     assert packet.masked_evidence_values == [
-        "OPENAI_API_KEY=sk-l...7890 route_query"
+        "OPENAI_API_KEY=sk-l...7890\nclass QueryRouter: ..."
     ]
     assert packet.masked_snippets == [
         "OPENAI_API_KEY=sk-l...7890\nclass QueryRouter: ..."
@@ -57,11 +172,12 @@ def test_builder_masks_evidence_and_keeps_traceable_metadata() -> None:
     assert packet.available_slots == ["retriever", "vector_store"]
     assert packet.available_extensions == ["extension:reranker"]
     assert packet.confirmed_component_ids == ["component:retriever:main"]
-    assert packet.context_limits["source"] == "existing_evidence_array"
+    assert packet.context_limits["source"] == "system_map_index"
 
 
 def test_builder_keeps_only_referenced_evidence() -> None:
-    packet = MappingEvidencePacketBuilder().build(
+    packet = _build_packet(
+        MappingEvidencePacketBuilder(),
         project_id="project:demo",
         unmapped_component=UnmappedComponent(
             id="unmapped:requirements_txt:line_1:dependency",
@@ -98,7 +214,8 @@ def test_builder_keeps_only_referenced_evidence() -> None:
 
 
 def test_builder_masks_and_truncates_user_description() -> None:
-    packet = MappingEvidencePacketBuilder().build(
+    packet = _build_packet(
+        MappingEvidencePacketBuilder(),
         project_id="project:demo",
         unmapped_component=UnmappedComponent(
             id="unmapped:requirements_txt:line_1:dependency",
@@ -131,7 +248,8 @@ def test_builder_masks_and_truncates_user_description() -> None:
 
 
 def test_builder_consumes_detail_scan_evidence_from_existing_index() -> None:
-    packet = MappingEvidencePacketBuilder(max_value_chars=120).build(
+    packet = _build_packet(
+        MappingEvidencePacketBuilder(max_value_chars=120),
         project_id="project:demo",
         unmapped_component=UnmappedComponent(
             id="unmapped:router",
@@ -178,7 +296,8 @@ def test_builder_consumes_detail_scan_evidence_from_existing_index() -> None:
 
 def test_builder_masks_url_credentials_in_evidence_packet() -> None:
     raw_url = "postgresql://demo:synthetic-pass-138@db.example:5432/app"
-    packet = MappingEvidencePacketBuilder().build(
+    packet = _build_packet(
+        MappingEvidencePacketBuilder(),
         project_id="project:demo",
         unmapped_component=UnmappedComponent(
             id="unmapped:database",
@@ -206,3 +325,69 @@ def test_builder_masks_url_credentials_in_evidence_packet() -> None:
     assert raw_url not in serialized
     assert "synthetic-pass-138" not in serialized
     assert "[MASKED]" in serialized
+
+
+def test_production_adapter_preserves_value_only_evidence_in_packet() -> None:
+    # Given: real adapter path (not helper bypass) with null snippets
+    legacy = RagSystemMap.model_validate_json(
+        RICH_MAP.read_text(encoding="utf-8")
+    )
+    config_evidence = Evidence(
+        id="evidence:config-custom-router",
+        kind="config_value",
+        file="config.yaml",
+        path="routing.custom_query_router",
+        value="custom_query_router",
+        snippet=None,
+        rule_id="config_yaml_value_detected",
+    )
+    dependency_evidence = Evidence(
+        id="evidence:dependency-langchain-core",
+        kind="dependency_candidate",
+        file="requirements.txt",
+        path="line[3]",
+        value="langchain-core",
+        snippet=None,
+        rule_id="dependency_framework_langchain",
+    )
+    unmapped = UnmappedComponent(
+        id="unmapped:custom-router-value-only",
+        source_file="config.yaml",
+        observed_kind="custom_router",
+        status="needs_confirmation",
+        reason="Custom router candidate from config/dependency signals.",
+        evidence_ids=[
+            config_evidence.id,
+            dependency_evidence.id,
+        ],
+        suggested_actions=["confirm_mapping"],
+    )
+    extended = legacy.model_copy(
+        update={
+            "evidence": [
+                *legacy.evidence,
+                config_evidence,
+                dependency_evidence,
+            ],
+            "unmapped_components": [
+                *legacy.unmapped_components,
+                unmapped,
+            ],
+        }
+    )
+    canonical = SystemMapV1ToV2Adapter().adapt_to_canonical(extended)
+
+    # When
+    packet = MappingEvidencePacketBuilder().build(
+        project_id="project:demo",
+        index=SystemMapIndex.from_map(canonical),
+        unmapped_id=unmapped.id,
+        available_slots=["retriever"],
+    )
+
+    # Then
+    assert packet.masked_evidence_values == [
+        "custom_query_router",
+        "langchain-core",
+    ]
+    assert packet.dependency_signals == ["langchain-core"]

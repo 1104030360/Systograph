@@ -101,6 +101,7 @@ class DetailScanBuildService:
         enriched = self._detail_scan.scan(
             project_root=project_root,
             system_map=base.ai_system_map,
+            normalized_system_map=base.normalized_ai_system_map,
             target_type=target_type,
             target=target,
             scan_depth=scan_depth,

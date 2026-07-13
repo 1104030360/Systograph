@@ -266,3 +266,106 @@ kai_create_proposal() {
     '{project_id:$id, source_unmapped_id:$u}')"
   setup_post "/api/mapping-proposals" "$body"
 }
+
+# Summarize a ViewerPayload JSON (stdin or arg) for Track A graph projection QA.
+# Expects root shape: { viewer_load_result: { loaded, error_reason, graph_view_model: {...} } }
+kai_summarize_viewer_payload() {
+  local json="${1:-}"
+  if [[ -z "$json" ]]; then
+    json="$(cat)"
+  fi
+  echo "$json" | jq '{
+    loaded: .viewer_load_result.loaded,
+    error_reason: .viewer_load_result.error_reason,
+    schema_version: .viewer_load_result.graph_view_model.schema_version,
+    source_schema_version: .viewer_load_result.graph_view_model.source_schema_version,
+    project_id: .viewer_load_result.graph_view_model.project_id,
+    scan_id: .viewer_load_result.graph_view_model.scan_id,
+    build_id: .viewer_load_result.graph_view_model.build_id,
+    generated_from_build_id: .viewer_load_result.graph_view_model.generated_from_build_id,
+    reference_map_version: .viewer_load_result.graph_view_model.reference_map_version,
+    node_count: (.viewer_load_result.graph_view_model.nodes | length),
+    edge_count: (.viewer_load_result.graph_view_model.edges | length),
+    relationship_count: ((.viewer_load_result.graph_view_model.relationships // []) | length),
+    semantic_kind_counts: (
+      [.viewer_load_result.graph_view_model.nodes[]?.semantic_kind // "null"]
+      | group_by(.)
+      | map({key: .[0], value: length})
+      | from_entries
+    ),
+    reference_assessment_count: (
+      (.viewer_load_result.graph_view_model.details.reference_assessments_by_id // {}) | length
+    ),
+    profile_finding_count: (
+      (.viewer_load_result.graph_view_model.details.profile_findings_by_id // {}) | length
+    ),
+    capability_candidate_count: (
+      (.viewer_load_result.graph_view_model.details.capability_candidates_by_id // {}) | length
+    ),
+    lens_ids: [(.viewer_load_result.graph_view_model.filters.lenses // [])[].id],
+    filter_behavior: .viewer_load_result.graph_view_model.filters.behavior,
+    mapping_completeness: (
+      .viewer_load_result.graph_view_model.mapping_completeness
+      | if . == null then null else {numerator, denominator, value} end
+    )
+  }'
+}
+
+# Soft asserts for a loaded ViewerPayload. Fail only when map is expected loaded.
+# Usage: kai_assert_graph_projection_loaded "$LAST_BODY"
+kai_assert_graph_projection_loaded() {
+  local json="$1"
+  local loaded schema lenses refs behavior
+  loaded="$(echo "$json" | jq -r '.viewer_load_result.loaded')"
+  [[ "$loaded" == "true" ]] || kai_die "Expected viewer_load_result.loaded=true, got: $loaded"
+  schema="$(echo "$json" | jq -r '.viewer_load_result.graph_view_model.schema_version // empty')"
+  [[ "$schema" == "graph-view-model/v1" ]] \
+    || kai_die "Expected graph schema_version=graph-view-model/v1, got: $schema"
+  lenses="$(echo "$json" | jq -r '(.viewer_load_result.graph_view_model.filters.lenses // []) | length')"
+  [[ "$lenses" == "6" ]] || kai_die "Expected 6 graph lenses, got: $lenses"
+  behavior="$(echo "$json" | jq -r '.viewer_load_result.graph_view_model.filters.behavior // empty')"
+  [[ "$behavior" == "highlight_and_dim" ]] \
+    || kai_die "Expected filters.behavior=highlight_and_dim, got: $behavior"
+  refs="$(echo "$json" | jq -r '(.viewer_load_result.graph_view_model.details.reference_assessments_by_id // {}) | length')"
+  [[ "$refs" == "52" ]] \
+    || kai_die "Expected 52 reference assessments, got: $refs"
+}
+
+# Summarize MapBuildResult-shaped JSON (root or .build_result) for projection sidecar QA.
+kai_summarize_map_build_result() {
+  local json="$1"
+  echo "$json" | jq '{
+    status,
+    build_id: .lineage.build_id,
+    map_json_path,
+    profile_signals_path,
+    readiness_report_path,
+    profile_available: (.profile_inference_result != null),
+    readiness_available: (.readiness_report != null),
+    warnings,
+    migration_warnings,
+    slot_count: ((.ai_system_map.components_by_slot // {}) | length),
+    unmapped_count: ((.ai_system_map.unmapped_components // []) | length),
+    graph: (
+      if .viewer_load_result == null then null
+      else {
+        loaded: .viewer_load_result.loaded,
+        node_count: (.viewer_load_result.graph_view_model.nodes | length),
+        edge_count: (.viewer_load_result.graph_view_model.edges | length),
+        relationship_count: ((.viewer_load_result.graph_view_model.relationships // []) | length),
+        reference_assessment_count: (
+          (.viewer_load_result.graph_view_model.details.reference_assessments_by_id // {}) | length
+        ),
+        profile_finding_count: (
+          (.viewer_load_result.graph_view_model.details.profile_findings_by_id // {}) | length
+        ),
+        lens_count: ((.viewer_load_result.graph_view_model.filters.lenses // []) | length),
+        mapping_completeness: (
+          .viewer_load_result.graph_view_model.mapping_completeness
+          | if . == null then null else {numerator, denominator, value} end
+        )
+      }
+      end
+    )
+  }'
+}

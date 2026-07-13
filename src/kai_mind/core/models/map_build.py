@@ -1,3 +1,13 @@
+# 這個檔案負責：map build 管線的「輸入請求」與「輸出結果」契約。
+# 不負責實際掃描；真正組 map 的是 MapBuildService / MapBuildPipeline。
+#
+# 呼叫鏈：
+#   CLI map_command / Web scan_routes / ApplyConfirmations / DetailScanBuild
+#     → 組 MapBuildRequest
+#     → MapBuildService.build() / build_from_snapshot() /
+# build_from_enriched_map()
+#     → MapBuildPipeline.materialize*()
+#     → 回傳 MapBuildResult（含路徑、v1/v2 map、profile、readiness、viewer…）
 """Models for core map build orchestration."""
 
 from __future__ import annotations
@@ -18,12 +28,23 @@ from kai_mind.core.models.viewer import ViewerLoadResult
 SystemMapSchemaSelection = Literal["ai-system-map/v1", "ai-system-map/v2"]
 
 
+# 做什麼：map build 相關 model 的基底（允許 Path 等 arbitrary types，
+# 禁止未知欄位）。
+# 被誰用：MapBuildRequest / MapBuildResult 繼承。
+# 自己呼叫：Pydantic BaseModel。
 class MapBuildModel(BaseModel):
     """Base model for map build inputs and results."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
 
+# 做什麼：啟動一次 map build 的輸入參數（掃哪個專案、輸出哪裡、要不要 redact）
+# 。
+# 被誰用：
+#   - CLI：map_command 轉成這個 request
+#   - Web：scan_routes / apply_confirmations / materialization 組 request
+#   - MapBuildService.build*() 當入口參數
+# 內含：無巢狀 map；schema 選擇決定輸出偏 v1 或走 v2 相容路徑。
 class MapBuildRequest(MapBuildModel):
     project_path: Path
     output: Path = Path("outputs")
@@ -32,6 +53,20 @@ class MapBuildRequest(MapBuildModel):
     system_map_schema_version: SystemMapSchemaSelection = "ai-system-map/v1"
 
 
+# 做什麼：一次 map build 的完整結果（成功/失敗、產物路徑、記憶體內 map 與報告）
+# 。
+# 被誰用：
+#   - MapBuildService / MapBuildPipeline / BuildArtifactPublisher 組出並回傳
+#   - ApplyConfirmations / BuildManifest / DetailScanBuild 讀取結果與路徑
+#   - CLI / Web 把結果呈現或寫入 history
+# 內含：
+#   - ai_system_map → RagSystemMap（v1）
+#   - normalized_ai_system_map → AiSystemMapV2（canonical）
+#   - profile_inference_result / readiness_report / viewer_load_result /
+# lineage
+#   - 各種 *_path → 磁碟上的 artifact
+#   - error → PreconditionError（失敗時）
+# 自己呼叫：無方法；純資料承載。
 class MapBuildResult(MapBuildModel):
     status: Literal["ok", "error"]
     project_name: str

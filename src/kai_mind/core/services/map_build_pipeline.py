@@ -1,3 +1,19 @@
+# 這個檔案負責：map build 管線核心——materialize → normalize(v2) → profile →
+# readiness → execution artifacts → publish → MapBuildResult。
+# 產出 normalized AiSystemMapV2（寫入 MapBuildResult.normalized_ai_system_map）
+# 。
+#
+# 呼叫鏈：
+#   MapBuildService.build / build_from_snapshot / build_from_enriched_map
+#     → MapBuildPipeline.materialize / materialize_existing_map
+#         → SystemMapMaterializationService（組 v1 RagSystemMap）
+#         → _complete：
+#             CanonicalMapLoader.load → AiSystemMapV2
+#             ProfileInferenceService.infer
+#             ReadinessReportService.build
+#             StaticExecutionArtifactService.build
+#             BuildArtifactPublisher.publish
+#         → MapBuildResult
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,7 +44,15 @@ from kai_mind.core.services.system_map_materialization_service import (
 )
 
 
+# 做什麼：編排一次完整 build（從 scan/map 到 artifacts + MapBuildResult）。
+# 被誰用：MapBuildService。
+# 自己呼叫：materialization、canonical loader、profiles、readiness、execution、
+# publisher。
 class MapBuildPipeline:
+    # 做什麼：注入管線各階段依賴。
+    # 被誰呼叫：MapBuildService.__init__。
+    # 自己呼叫：預設 CanonicalMapLoader / ProfileInference / Readiness /
+    # Execution。
     def __init__(
         self,
         *,
@@ -51,6 +75,9 @@ class MapBuildPipeline:
             or StaticExecutionArtifactService()
         )
 
+    # 做什麼：從 raw scan materialize 出 v1 map，再走 _complete 產出結果。
+    # 被誰呼叫：MapBuildService.build / build_from_snapshot。
+    # 自己呼叫：SystemMapMaterializationService.materialize → _complete。
     def materialize(
         self,
         *,
@@ -94,6 +121,9 @@ class MapBuildPipeline:
             warnings=warnings,
         )
 
+    # 做什麼：已有 v1 map（例如 detail scan 後）直接走 _complete，不再重掃。
+    # 被誰呼叫：MapBuildService.build_from_enriched_map。
+    # 自己呼叫：_complete。
     def materialize_existing_map(
         self,
         *,
@@ -119,6 +149,16 @@ class MapBuildPipeline:
             manual_mappings=manual_mappings,
         )
 
+    # 做什麼：管線後半段——normalize v2、profile、readiness、execution、
+    # publish。
+    # 被誰呼叫：materialize / materialize_existing_map。
+    # 自己呼叫：
+    #   CanonicalMapLoader.load → 填 scan_id/build_id
+    #   ProfileInferenceService.infer
+    #   ReadinessReportService.build
+    #   StaticExecutionArtifactService.build
+    #   BuildArtifactPublisher.publish
+    # → 組 MapBuildResult（含 normalized_ai_system_map）。
     def _complete(
         self,
         *,
@@ -160,6 +200,7 @@ class MapBuildPipeline:
         )
         published = self._publisher.publish(
             system_map=system_map,
+            normalized_system_map=normalized,
             profile_result=profiles,
             readiness_report=readiness,
             execution=execution,

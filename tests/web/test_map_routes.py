@@ -53,7 +53,16 @@ def test_map_report_route_returns_latest_markdown_report(
     assert report_response.headers["content-type"].startswith("text/markdown")
     assert report_response.text.startswith("# KAI-Mind System Map\n")
     assert "## Slot Coverage" in report_response.text
+    assert "## Local Endpoints" in report_response.text
+    assert "## External Endpoints" in report_response.text
+    assert "## Network Exposure" in report_response.text
     assert "## Recommended Next Checks" in report_response.text
+    assert "No backend-provided next checks" not in report_response.text
+    assert "- [ ]" in report_response.text
+    assert (
+        "localhost:6333" in report_response.text
+        or "6333" in report_response.text
+    )
 
 
 def test_map_report_route_can_return_download_attachment(

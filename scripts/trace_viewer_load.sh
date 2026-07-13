@@ -3,7 +3,9 @@
 #
 # Input  : {map_json_path:"outputs/.../ai_system_map.json"}
 # Output : ViewerPayload built by re-validating an existing ai_system_map.json.
-#          Invalid maps still return HTTP 200 with loaded:false + error_reason.
+#          Includes Track A graph_view_model projection (schema_version, lenses,
+#          relationships, reference_assessments). Invalid maps still return
+#          HTTP 200 with loaded:false + error_reason.
 #
 # This endpoint does NOT scan a project. It loads a map file from disk, so the
 # script first builds one to obtain a real map_json_path (unless --map-json-path
@@ -68,10 +70,7 @@ kai_progress "現在要從磁碟載入 ai_system_map.json 到 viewer..."
 api_call POST "/api/viewer/load" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Load summary"
-echo "$LAST_BODY" | jq '{
-  loaded: .viewer_load_result.loaded,
-  error_reason: .viewer_load_result.error_reason,
-  node_count: (.viewer_load_result.graph_view_model.nodes | length),
-  edge_count: (.viewer_load_result.graph_view_model.edges | length)
-}'
+kai_section "Graph projection 摘要（Track A）"
+kai_summarize_viewer_payload "$LAST_BODY"
+# map_json_path was resolved above; expect a loaded projection.
+kai_assert_graph_projection_loaded "$LAST_BODY"

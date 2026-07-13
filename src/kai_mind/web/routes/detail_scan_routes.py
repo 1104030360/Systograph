@@ -16,6 +16,8 @@ from kai_mind.core.services.detail_scan_build_service import (
 from kai_mind.core.services.detail_scan_service import (
     DetailScanService,
     DetailScanSnapshotStaleError,
+)
+from kai_mind.core.services.detail_scan_target_resolver import (
     DetailScanTargetError,
 )
 from kai_mind.core.services.viewer_session_service import ViewerSessionService

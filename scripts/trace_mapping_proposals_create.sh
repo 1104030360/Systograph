@@ -3,7 +3,10 @@
 #
 # Input  : {project_id, source_unmapped_id, user_description?}
 # Output : MappingProposal {proposal_id, status:"pending_user_confirmation",
-#          candidates:[...], provider_name, provider_error_reason, ...}
+#          candidates:[...], evidence_packet:{context_limits.source},
+#          provider_name, provider_error_reason, ...}
+#          Track A: evidence_packet.context_limits.source should be
+#          "system_map_index" when the packet is present.
 #          404 project_not_found / map_not_loaded / unmapped_not_found.
 #
 # Requires an unmapped component, so this script imports + scans, then proposes
@@ -87,5 +90,22 @@ echo "$LAST_BODY" | jq '{
   provider_error_reason,
   source_unmapped_id,
   candidate_count: (.candidates | length),
-  candidates: [.candidates[] | {candidate_id, candidate_type, recommendation_level, target_slot, component_name}]
+  candidates: [.candidates[] | {candidate_id, candidate_type, recommendation_level, target_slot, component_name}],
+  evidence_packet: (
+    if .evidence_packet == null then null
+    else {
+      source_file: .evidence_packet.source_file,
+      observed_kind: .evidence_packet.observed_kind,
+      evidence_id_count: ((.evidence_packet.evidence_ids // []) | length),
+      context_limits_source: .evidence_packet.context_limits.source
+    }
+    end
+  )
 }'
+
+PACKET_PRESENT="$(echo "$LAST_BODY" | jq -r '.evidence_packet != null')"
+if [[ "$PACKET_PRESENT" == "true" ]]; then
+  SOURCE="$(echo "$LAST_BODY" | jq -r '.evidence_packet.context_limits.source // empty')"
+  [[ "$SOURCE" == "system_map_index" ]] \
+    || kai_die "Expected evidence_packet.context_limits.source=system_map_index, got: $SOURCE"
+fi

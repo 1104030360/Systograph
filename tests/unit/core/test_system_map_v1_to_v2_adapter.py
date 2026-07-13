@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.system_map import RagSystemMap
+from kai_mind.core.models.system_map import Evidence, RagSystemMap
 from kai_mind.core.services.system_map_v1_to_v2_adapter import (
     LegacySystemMapAdaptError,
     SystemMapV1ToV2Adapter,
@@ -244,6 +244,42 @@ def test_adapt_to_canonical_keeps_evidence_ids_without_verdict() -> None:
     assert "active_output_remains_v1_until_plan_13" in (
         canonical.migration_warnings
     )
+
+
+def test_adapt_to_canonical_maps_value_when_snippet_missing() -> None:
+    # Given: config/dependency style evidence often has value but null snippet
+    system_map = _validated_rag_system_map()
+    value_only = Evidence(
+        id="evidence:value-only-config",
+        kind="config_value",
+        file="config.yaml",
+        path="routing.custom_query_router",
+        value="custom_query_router",
+        snippet=None,
+        rule_id="config_yaml_value_detected",
+    )
+    both = Evidence(
+        id="evidence:snippet-preferred",
+        kind="code_pattern",
+        file="src/router.py",
+        path="line[10]",
+        value="fallback-value",
+        snippet="class QueryRouter:",
+        rule_id="code_pattern_custom_router",
+        line_start=10,
+        line_end=10,
+    )
+    extended = system_map.model_copy(
+        update={"evidence": [*system_map.evidence, value_only, both]}
+    )
+
+    # When
+    canonical = SystemMapV1ToV2Adapter().adapt_to_canonical(extended)
+    by_id = {item.evidence_id: item for item in canonical.evidence}
+
+    # Then
+    assert by_id[value_only.id].extract_summary == "custom_query_router"
+    assert by_id[both.id].extract_summary == "class QueryRouter:"
 
 
 def test_adapter_is_deterministic_across_slot_key_order() -> None:

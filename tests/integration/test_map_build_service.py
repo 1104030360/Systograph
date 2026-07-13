@@ -172,6 +172,11 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     assert result.viewer_load_result is not None
     assert result.viewer_load_result.loaded
     assert result.viewer_load_result.graph_view_model.nodes
+    graph = result.viewer_load_result.graph_view_model
+    profile = result.profile_inference_result
+    assert graph.scan_id == profile.scan_id
+    assert graph.build_id == profile.build_id
+    assert graph.generated_from_build_id == profile.build_id
 
     artifact_data = json.loads(
         result.map_json_path.read_text(encoding="utf-8")
@@ -183,8 +188,15 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
 
     markdown = result.map_markdown_path.read_text(encoding="utf-8")
     assert markdown.startswith("# KAI-Mind System Map\n")
-    assert "## Slot Coverage" in markdown
-    assert "## Recommended Next Checks" in markdown
+    assert "## Nodes" in markdown
+    assert "## Topology Edges" in markdown
+    graph = result.viewer_load_result.graph_view_model
+    assert result.system_map_mermaid_path is not None
+    mermaid = result.system_map_mermaid_path.read_text(encoding="utf-8")
+    assert all(node.id in markdown for node in graph.nodes)
+    assert all(edge.id in markdown for edge in graph.edges)
+    assert all(node.id in mermaid for node in graph.nodes)
+    assert all(edge.id in mermaid for edge in graph.edges)
 
 
 def test_map_build_failure_removes_partial_public_siblings(

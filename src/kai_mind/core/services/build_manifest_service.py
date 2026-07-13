@@ -1,3 +1,14 @@
+# 這個檔案負責：把成功的 MapBuildResult 存成 MapBuildManifest（含 artifact
+# digests），
+# 以及依 manifest「同一條路徑」reload 回 MapBuildResult（再走
+# CanonicalMapLoader + Viewer）。
+#
+# 呼叫鏈：
+#   persist：ApplyConfirmations / history 流程 →
+# BuildManifestService.persist(result)
+#            → 算 digests → repository.save_build_manifest
+#   load：依 manifest 讀磁碟 artifacts → validate/digest →
+#         CanonicalMapLoader.load → ViewerSessionService.build → MapBuildResult
 from __future__ import annotations
 
 import json
@@ -30,6 +41,9 @@ from kai_mind.core.services.system_map_validation_service import (
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
 
 
+# 做什麼：寫入 MapBuildManifest 的 repository 協定。
+# 被誰用：BuildManifestService.persist。
+# 自己呼叫：實作方（storage）提供 save_build_manifest。
 class BuildManifestWriter(Protocol):
     def save_build_manifest(
         self,
@@ -37,11 +51,19 @@ class BuildManifestWriter(Protocol):
     ) -> MapBuildManifest: ...
 
 
+# 做什麼：reload 時必要 artifact 無效或 map 無法載入時丟出。
+# 被誰用：load / _require_valid_digest。
 class BuildArtifactLoadError(ValueError):
     pass
 
 
+# 做什麼：persist（存 manifest）與 load（依 manifest 重載同一套 artifacts）。
+# 被誰用：ApplyConfirmations / history / query 需要「重開舊 build」的路徑。
+# 自己呼叫：CanonicalMapLoader、ViewerSessionService、digest helpers。
 class BuildManifestService:
+    # 做什麼：注入 repository、canonical loader、viewer。
+    # 被誰呼叫：DI / 測試。
+    # 自己呼叫：預設 CanonicalMapLoader、ViewerSessionService。
     def __init__(
         self,
         *,
@@ -53,6 +75,10 @@ class BuildManifestService:
         self._canonical_loader = canonical_loader or CanonicalMapLoader()
         self._viewer = viewer_service or ViewerSessionService()
 
+    # 做什麼：成功 build 後寫入 manifest（output_dir + 各 artifact digest）。
+    # 被誰呼叫：ApplyConfirmations / 需要記錄 lineage 的流程。
+    # 自己呼叫：required_artifact_paths、validate_artifact_scope、digest、
+    #           repository.save_build_manifest。
     def persist(
         self,
         result: MapBuildResult,
@@ -78,6 +104,14 @@ class BuildManifestService:
         )
         return self._repository.save_build_manifest(manifest)
 
+    # 做什麼：依 manifest 從磁碟 reload 同一套 build（同路徑驗證 digest）。
+    # 被誰呼叫：需要重開歷史 build / query service。
+    # 自己呼叫：
+    #   1. 驗 ai_system_map.json digest → SystemMapValidation +
+    # CanonicalMapLoader
+    #   2. _load_profiles / _load_readiness（可降級成 warning）
+    #   3. 其他 optional artifacts digest 不符 → warning
+    #   4. ViewerSessionService.build → MapBuildResult
     def load(self, manifest: MapBuildManifest) -> MapBuildResult:
         output_dir = Path(manifest.output_dir)
         paths = {name: output_dir / name for name in PATH_FIELDS}
@@ -117,7 +151,12 @@ class BuildManifestService:
                 continue
             if not digest_matches(manifest, name, paths[name]):
                 warnings.append(f"optional_artifact_invalid:{name}")
-        viewer = self._viewer.build(system_map, map_json_path=map_path)
+        viewer = self._viewer.build(
+            system_map,
+            map_json_path=map_path,
+            normalized_system_map=normalized,
+            profile_result=profiles,
+        )
         return MapBuildResult(
             status="ok",
             project_name=system_map.project.name,
@@ -148,6 +187,11 @@ class BuildManifestService:
             ),
         )
 
+    # 做什麼：載入並驗證 profile_signals.json（digest + schema + scope）。
+    # 被誰呼叫：load()。
+    # 自己呼叫：digest_matches、ProfileInferenceResult.model_validate_json、
+    #           ProfileSignalValidationService.validate、_scope_matches。
+    # 失敗：寫 warning、回 None（不擋整個 reload）。
     def _load_profiles(
         self,
         manifest: MapBuildManifest,
@@ -179,6 +223,11 @@ class BuildManifestService:
             return None
         return result
 
+    # 做什麼：載入並驗證 readiness_report.json（digest + schema + scope）。
+    # 被誰呼叫：load()。
+    # 自己呼叫：digest_matches、ReadinessReport.model_validate_json、
+    # _scope_matches。
+    # 失敗：寫 warning、回 None。
     def _load_readiness(
         self,
         manifest: MapBuildManifest,
@@ -201,6 +250,9 @@ class BuildManifestService:
             return None
         return report
 
+    # 做什麼：確認 artifact 的 build_id/scan_id 與 manifest.lineage 一致。
+    # 被誰呼叫：_load_profiles / _load_readiness。
+    # 自己呼叫：getattr。
     @staticmethod
     def _scope_matches(manifest: MapBuildManifest, item: object) -> bool:
         return bool(
@@ -208,6 +260,9 @@ class BuildManifestService:
             and getattr(item, "scan_id", None) == manifest.lineage.scan_id
         )
 
+    # 做什麼：必要 artifact digest 不符就丟 BuildArtifactLoadError。
+    # 被誰呼叫：load()（對 ai_system_map.json）。
+    # 自己呼叫：digest_matches。
     def _require_valid_digest(
         self,
         manifest: MapBuildManifest,

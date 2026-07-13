@@ -1,3 +1,14 @@
+# 這個檔案負責：從 normalized AiSystemMapV2 組出靜態 execution artifacts
+# （call_graph / dataflow_hints / execution_paths / evidence_table / mermaid）
+# 。
+# 不做 runtime replay；只從 map 的 components/edges/evidence + manual mappings
+# 推導。
+#
+# 呼叫鏈：
+#   MapBuildPipeline._complete()
+#     → StaticExecutionArtifactService.build(normalized, manual_mappings)
+#         → StaticExecutionArtifacts
+#     → BuildArtifactPublisher.publish 寫到磁碟
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,17 +37,30 @@ EvidenceReviewState = Literal[
 ]
 
 
+# 做什麼：一次靜態 execution 產物集合（給 publisher 寫檔）。
+# 被誰用：MapBuildPipeline → BuildArtifactPublisher。
+# 自己呼叫：無；純資料。
 @dataclass(frozen=True, slots=True)
 class StaticExecutionArtifacts:
     call_graph: CallGraphArtifact
     dataflow_hints: DataflowHintsArtifact
     execution_paths: ExecutionPathsArtifact
     evidence_table: EvidenceTableArtifact
-    system_map_mermaid: str
     execution_map_mermaid: str
 
 
+# 做什麼：從 canonical map 組靜態 execution artifacts。
+# 被誰用：MapBuildPipeline._complete。
+# 自己呼叫：_review_states、_mermaid、_id。
 class StaticExecutionArtifactService:
+    # 做什麼：入口；要求 map 已有 build_id/scan_id，再組 nodes/edges/evidence
+    # rows。
+    # 被誰呼叫：MapBuildPipeline._complete。
+    # 自己呼叫：
+    #   components → ArtifactNode
+    #   edges → ArtifactEdge / paths / dataflow hints
+    #   _review_states → EvidenceTableRow.review_state
+    #   _mermaid → execution_map_mermaid
     def build(
         self,
         system_map: AiSystemMapV2,
@@ -111,10 +135,14 @@ class StaticExecutionArtifactService:
                 generated_from_build_id=build_id,
                 rows=rows,
             ),
-            system_map_mermaid=self._mermaid("System map", nodes, edges),
             execution_map_mermaid=self._mermaid("Execution map", nodes, edges),
         )
 
+    # 做什麼：依 unmapped evidence + manual mapping decisions 算 review_state。
+    # 被誰呼叫：build()。
+    # 自己呼叫：掃 unmapped_components.evidence_ids（預設 needs_confirmation）
+    # ，
+    #           再用 ManualMapping.decision 覆寫。
     @staticmethod
     def _review_states(
         system_map: AiSystemMapV2,
@@ -137,6 +165,9 @@ class StaticExecutionArtifactService:
                 states[evidence_id] = state
         return states
 
+    # 做什麼：把 nodes/edges 渲成簡單 flowchart LR mermaid 字串。
+    # 被誰呼叫：build()（execution_map_mermaid）。
+    # 自己呼叫：_id。
     @staticmethod
     def _mermaid(
         title: str,
@@ -153,6 +184,9 @@ class StaticExecutionArtifactService:
             lines.append(f"  {source} -->|{edge.relationship}| {target}")
         return "\n".join(lines) + "\n"
 
+    # 做什麼：把任意 id 壓成 mermaid 安全的 node_* 識別字。
+    # 被誰呼叫：_mermaid。
+    # 自己呼叫：字元過濾。
     @staticmethod
     def _id(value: str) -> str:
         return "node_" + "".join(
