@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { CircleSlash2, ClipboardCheck, X } from "lucide-react";
 import { readinessReportSchema, type ReadinessFinding } from "../contracts/viewer";
 import type { GraphViewModel } from "../types";
@@ -56,67 +57,99 @@ function FindingCard({ finding, graph }: { finding: ReadinessFinding; graph: Gra
 
 export function ReadinessPanel({ report, graph, onClose }: Props) {
   const parsed = report == null ? null : readinessReportSchema.safeParse(report);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      trigger?.focus();
+    };
+  }, [onClose]);
 
   return (
-    <aside className="readiness-drawer" aria-label="Readiness findings">
-      <header className="readiness-head">
-        <span className="kind-tag">
-          <ClipboardCheck aria-hidden="true" size={12} />
-          Readiness
-        </span>
-        {parsed?.success ? <StatusChip status={parsed.data.grounding.status} /> : null}
-        <button className="icon-btn" type="button" aria-label="Close readiness panel" onClick={onClose}>
-          <X size={14} />
-        </button>
-      </header>
-
-      {parsed == null ? (
-        <div className="readiness-empty">
-          <CircleSlash2 aria-hidden="true" size={16} />
-          <p>This build does not include a readiness report. Base projection views remain trustworthy.</p>
-        </div>
-      ) : !parsed.success ? (
-        <div className="readiness-empty">
-          <CircleSlash2 aria-hidden="true" size={16} />
-          <p>The readiness report uses a contract this viewer version does not support, so findings are not shown.</p>
-        </div>
-      ) : (
-        <div className="readiness-body">
-          <div className="readiness-summary">
-            <span className="readiness-static-note">
-              Grounding {titleCase(parsed.data.grounding.applicability)}
-              {parsed.data.primary_map_type ? ` · ${titleCase(parsed.data.primary_map_type)}` : ""} · static
-              analysis
-            </span>
+    <div
+      className="modal-scrim"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section className="readiness-dialog" role="dialog" aria-modal="true" aria-labelledby="readiness-dialog-title">
+        <header className="readiness-head">
+          <div>
+            <span className="eyebrow">Build assessment</span>
+            <h2 id="readiness-dialog-title">
+              <ClipboardCheck aria-hidden="true" size={17} />
+              Readiness
+            </h2>
           </div>
-          {parsed.data.grounding.reason ? (
-            <p className="readiness-static-note">{parsed.data.grounding.reason}</p>
-          ) : null}
+          {parsed?.success ? <StatusChip status={parsed.data.grounding.status} /> : null}
+          <button
+            ref={closeButtonRef}
+            className="icon-btn"
+            type="button"
+            aria-label="Close readiness dialog"
+            onClick={onClose}
+          >
+            <X size={15} />
+          </button>
+        </header>
 
-          {parsed.data.findings.length === 0 ? (
-            <p className="readiness-static-note">No findings for this build.</p>
-          ) : (
-            parsed.data.findings.map((finding) => (
-              <FindingCard key={finding.finding_id} finding={finding} graph={graph} />
-            ))
-          )}
-
-          {parsed.data.recommended_next_checks.length > 0 ? (
-            <div className="readiness-refs">
-              <span className="eyebrow">Report next checks</span>
-              <ul className="readiness-checks">
-                {parsed.data.recommended_next_checks.map((check) => (
-                  <li key={check}>{check}</li>
-                ))}
-              </ul>
+        {parsed == null ? (
+          <div className="readiness-empty">
+            <CircleSlash2 aria-hidden="true" size={16} />
+            <p>This build does not include a readiness report. Base projection views remain trustworthy.</p>
+          </div>
+        ) : !parsed.success ? (
+          <div className="readiness-empty">
+            <CircleSlash2 aria-hidden="true" size={16} />
+            <p>The readiness report uses a contract this viewer version does not support, so findings are not shown.</p>
+          </div>
+        ) : (
+          <div className="readiness-body">
+            <div className="readiness-summary">
+              <span className="readiness-static-note">
+                Grounding {titleCase(parsed.data.grounding.applicability)}
+                {parsed.data.primary_map_type ? ` · ${titleCase(parsed.data.primary_map_type)}` : ""} · static analysis
+              </span>
             </div>
-          ) : null}
+            {parsed.data.grounding.reason ? (
+              <p className="readiness-static-note">{parsed.data.grounding.reason}</p>
+            ) : null}
 
-          {parsed.data.limitations.length > 0 ? (
-            <p className="readiness-limitations">{parsed.data.limitations.join(" ")}</p>
-          ) : null}
-        </div>
-      )}
-    </aside>
+            {parsed.data.findings.length === 0 ? (
+              <p className="readiness-static-note">No findings for this build.</p>
+            ) : (
+              parsed.data.findings.map((finding) => (
+                <FindingCard key={finding.finding_id} finding={finding} graph={graph} />
+              ))
+            )}
+
+            {parsed.data.recommended_next_checks.length > 0 ? (
+              <div className="readiness-refs">
+                <span className="eyebrow">Report next checks</span>
+                <ul className="readiness-checks">
+                  {parsed.data.recommended_next_checks.map((check) => (
+                    <li key={check}>{check}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {parsed.data.limitations.length > 0 ? (
+              <p className="readiness-limitations">{parsed.data.limitations.join(" ")}</p>
+            ) : null}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

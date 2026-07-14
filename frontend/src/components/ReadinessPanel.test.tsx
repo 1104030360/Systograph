@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { graphViewModelSchema } from "../types";
 import { ReadinessPanel } from "./ReadinessPanel";
 
@@ -57,6 +57,7 @@ describe("ReadinessPanel", () => {
   it("renders backend grounding summary, five-state chips, and next checks", () => {
     render(<ReadinessPanel report={report} graph={graph} onClose={() => {}} />);
 
+    expect(screen.getByRole("dialog", { name: "Readiness" })).toBeInTheDocument();
     expect(screen.getAllByText("Undetermined").length).toBeGreaterThan(0);
     expect(screen.getByText(/Grounding Undetermined/)).toBeInTheDocument();
     expect(screen.getByText("Capability readiness: rag-grounding")).toBeInTheDocument();
@@ -76,5 +77,14 @@ describe("ReadinessPanel", () => {
     render(<ReadinessPanel report={{ schema_version: "readiness-report/v99" }} graph={graph} onClose={() => {}} />);
 
     expect(screen.getByText(/contract this viewer version does not support/)).toBeInTheDocument();
+  });
+
+  it("closes with Escape", () => {
+    const onClose = vi.fn();
+    render(<ReadinessPanel report={report} graph={graph} onClose={onClose} />);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

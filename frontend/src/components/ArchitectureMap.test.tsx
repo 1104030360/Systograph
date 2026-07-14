@@ -100,6 +100,16 @@ describe("ArchitectureMap", () => {
     );
 
     expect(screen.getByLabelText("AI Agent System, ten architecture planes")).toBeInTheDocument();
+    const flowToggle = screen.getByRole("button", { name: "Show backend-declared flows" });
+    expect(flowToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Backend-declared flows")).toBeNull();
+    fireEvent.click(flowToggle);
+    expect(screen.getByText("Backend-declared flows")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Flow Document Loader to Planner" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hide backend-declared flows" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
     expect(container.querySelectorAll("[data-plane-id]")).toHaveLength(10);
     expect(container.querySelector(".dr-edge-overlay")).toHaveAttribute("aria-hidden", "true");
     await waitFor(() => expect(container.querySelectorAll(".dr-edge-path.is-focused")).toHaveLength(3));

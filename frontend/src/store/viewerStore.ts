@@ -17,7 +17,7 @@ type ViewerState = {
   isProgressRunning: boolean;
   followFocus: boolean;
   liveProgressEvent: ScanProgressEvent | null;
-  detailMode: "overview" | "component" | "code_path";
+  detailMode: "overview" | "evidence" | "code_path";
   setDataSourceMode: (mode: DataSourceMode) => void;
   setApiBaseUrl: (baseUrl: string) => void;
   setActiveProjectId: (projectId: string | null) => void;

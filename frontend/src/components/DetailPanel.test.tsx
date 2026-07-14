@@ -62,13 +62,13 @@ const payload = viewerPayloadSchema.parse({
   },
 });
 
-function renderPanel(nodeId: string) {
+function renderPanel(nodeId: string, detailMode: "overview" | "evidence" | "code_path" = "overview") {
   return render(
     <DetailPanel
       graph={graph}
       payload={payload}
       selected={{ kind: "node", id: nodeId }}
-      detailMode="overview"
+      detailMode={detailMode}
       onDetailModeChange={() => {}}
       onClose={() => {}}
     />,
@@ -103,7 +103,7 @@ describe("DetailPanel plane chip", () => {
   });
 
   it("surfaces backend assessment scope, typed evidence, conflicts, and next checks", () => {
-    renderPanel("node:coordinator");
+    renderPanel("node:coordinator", "evidence");
 
     expect(screen.getByText("Reference Capability")).toBeInTheDocument();
     expect(screen.getByText(/environment:static/)).toBeInTheDocument();
@@ -111,5 +111,16 @@ describe("DetailPanel plane chip", () => {
     expect(screen.getByText(/Evidence disagrees/)).toBeInTheDocument();
     expect(screen.getByText(/Runtime execution is not verified/)).toBeInTheDocument();
     expect(screen.getByText(/Run a bounded runtime trace/)).toBeInTheDocument();
+  });
+
+  it("keeps the summary compact and moves long identifiers behind a disclosure", () => {
+    const { container } = renderPanel("node:coordinator");
+
+    expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Assessment")).toBeInTheDocument();
+    expect(screen.getByText("Activation")).toBeInTheDocument();
+    expect(screen.getByText(/Identifiers/)).toBeInTheDocument();
+    expect(container.querySelector(".detail-disclosure")).not.toHaveAttribute("open");
+    expect(container.querySelector(".inspector-sub")).toBeNull();
   });
 });

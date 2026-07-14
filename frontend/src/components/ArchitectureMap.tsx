@@ -1,7 +1,8 @@
-import { ArrowRight, Boxes, Info } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Boxes, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import type { GraphNodeModel, GraphViewModel, Selection } from "../types";
 import { getPlaneIcon } from "../icons/registry";
-import { PHASE2_STATUS_LEGEND, nodeStatusKey, nodeStatusLabel } from "../utils/assessment";
+import { nodeStatusKey, nodeStatusLabel } from "../utils/assessment";
 import type { ArchitectureViewId, ArchitectureViewModel } from "../utils/architectureViews";
 import { PLANE_PRESENTATION_ORDER, hasBackendPlaneProjection, planeLabel } from "../utils/planes";
 import { compactId, titleCase } from "../utils/format";
@@ -95,6 +96,8 @@ function ArchitectureNodeCard({
 }
 
 export function ArchitectureMap({ graph, views, activeViewId, search, selected, onSelect }: Props) {
+  const [flowsOpen, setFlowsOpen] = useState(false);
+
   if (!hasBackendPlaneProjection(graph)) {
     return (
       <div className="dr-map-empty" role="note">
@@ -162,8 +165,59 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
 
   return (
     <div className="dr-architecture-map">
-      <ArchitectureEdgeOverlay connections={connections}>
-        {PLANE_PRESENTATION_ORDER.map((planeId, index) => {
+      <div className={flowsOpen ? "dr-flow-drawer is-open" : "dr-flow-drawer"}>
+        <button
+          className="dr-flow-drawer-toggle"
+          type="button"
+          aria-label={flowsOpen ? "Hide backend-declared flows" : "Show backend-declared flows"}
+          aria-controls="backend-declared-flows-card"
+          aria-expanded={flowsOpen}
+          title={flowsOpen ? "Hide backend-declared flows" : "Show backend-declared flows"}
+          onClick={() => setFlowsOpen((open) => !open)}
+        >
+          {flowsOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </button>
+
+        {flowsOpen ? (
+        <section
+          id="backend-declared-flows-card"
+          className="dr-declared-flows"
+          aria-labelledby="declared-flows-title"
+        >
+          <div className="dr-flow-heading">
+            <div>
+              <span className="eyebrow">Current build</span>
+              <h3 id="declared-flows-title">Backend-declared flows</h3>
+            </div>
+            <span>{visibleEdges.length} visible</span>
+          </div>
+          {visibleEdges.length > 0 ? (
+            <div className="dr-flow-list">
+              {visibleEdges.slice(0, 12).map((edge) => (
+                <button
+                  className={selected?.kind === "edge" && selected.id === edge.id ? "dr-flow is-selected" : "dr-flow"}
+                  key={edge.id}
+                  type="button"
+                  aria-label={`Flow ${nodeById.get(edge.from)?.label ?? compactId(edge.from)} to ${nodeById.get(edge.to)?.label ?? compactId(edge.to)}`}
+                  onClick={() => onSelect({ kind: "edge", id: edge.id })}
+                >
+                  <span>{nodeById.get(edge.from)?.label ?? compactId(edge.from)}</span>
+                  <ArrowRight size={13} aria-hidden="true" />
+                  <span>{nodeById.get(edge.to)?.label ?? compactId(edge.to)}</span>
+                  <small>{edge.label ?? edge.relationship ?? edge.flow_id ?? "declared edge"}</small>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="dr-flow-empty">No backend-declared edge matches this view.</p>
+          )}
+        </section>
+        ) : null}
+      </div>
+
+      <div className="dr-map-scroll-content">
+        <ArchitectureEdgeOverlay connections={connections}>
+          {PLANE_PRESENTATION_ORDER.map((planeId, index) => {
           const nodes = nodesByPlane.get(planeId) ?? [];
           const focusedCount = nodes.filter(nodeMatches).length;
           const PlaneIcon = getPlaneIcon(planeId);
@@ -199,10 +253,10 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
               </div>
             </section>
           );
-        })}
+          })}
 
-        {(nodesByPlane.get("__unassigned__")?.length ?? 0) > 0 ? (
-          <section className="dr-plane dr-plane-unassigned" data-plane-id="__unassigned__">
+          {(nodesByPlane.get("__unassigned__")?.length ?? 0) > 0 ? (
+            <section className="dr-plane dr-plane-unassigned" data-plane-id="__unassigned__">
             <header className="dr-plane-heading">
               <span className="dr-plane-index">—</span>
               <span className="dr-plane-icon" aria-hidden="true">
@@ -225,53 +279,11 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
                 />
               ))}
             </div>
-          </section>
-        ) : null}
-      </ArchitectureEdgeOverlay>
-
-      <section className="dr-declared-flows" aria-labelledby="declared-flows-title">
-        <div className="dr-flow-heading">
-          <div>
-            <span className="eyebrow">Current build</span>
-            <h3 id="declared-flows-title">Backend-declared flows</h3>
-          </div>
-          <span>{visibleEdges.length} visible</span>
-        </div>
-        {visibleEdges.length > 0 ? (
-          <div className="dr-flow-list">
-            {visibleEdges.slice(0, 12).map((edge) => (
-              <button
-                className={selected?.kind === "edge" && selected.id === edge.id ? "dr-flow is-selected" : "dr-flow"}
-                key={edge.id}
-                type="button"
-                aria-label={`Flow ${nodeById.get(edge.from)?.label ?? compactId(edge.from)} to ${nodeById.get(edge.to)?.label ?? compactId(edge.to)}`}
-                onClick={() => onSelect({ kind: "edge", id: edge.id })}
-              >
-                <span>{nodeById.get(edge.from)?.label ?? compactId(edge.from)}</span>
-                <ArrowRight size={13} aria-hidden="true" />
-                <span>{nodeById.get(edge.to)?.label ?? compactId(edge.to)}</span>
-                <small>{edge.label ?? edge.relationship ?? edge.flow_id ?? "declared edge"}</small>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="dr-flow-empty">No backend-declared edge matches this view.</p>
-        )}
-      </section>
-
-      <div className="dr-map-legend" aria-label="Assessment and node kind legend">
-        {PHASE2_STATUS_LEGEND.map(({ key, label }) => (
-          <span key={key}>
-            <i className={`dr-status-dot s-${key}`} aria-hidden="true" />
-            {label}
-          </span>
-        ))}
-        <span className="dr-legend-divider" aria-hidden="true" />
-        <span><i className="dr-kind-mark reference" aria-hidden="true" />Reference capability</span>
-        <span><i className="dr-kind-mark component" aria-hidden="true" />Repo component</span>
-        <span><i className="dr-edge-mark declared" aria-hidden="true" />Declared flow</span>
-        <span><i className="dr-edge-mark mapping" aria-hidden="true" />Backend mapping</span>
+            </section>
+          ) : null}
+        </ArchitectureEdgeOverlay>
       </div>
+
     </div>
   );
 }

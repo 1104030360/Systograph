@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ClipboardCheck, Folder, Layers3, MessageCircle, Moon, MoreHorizontal, RotateCcw, Share2, Sun } from "lucide-react";
+import { ClipboardCheck, Folder, Info, Layers3, MessageCircle, Moon, MoreHorizontal, RotateCcw, Share2, Sun } from "lucide-react";
 import { ArchitectureMap } from "./components/ArchitectureMap";
+import { ArchitectureInfoDialog } from "./components/ArchitectureInfoDialog";
 import { ArchitectureViewNav } from "./components/ArchitectureViewNav";
 import { ChatPanel } from "./components/ChatPanel";
 import { BoundaryDecisionModal, decisionsForBoundary } from "./components/BoundaryDecisionModal";
@@ -113,12 +114,7 @@ export default function App() {
   const [view, setView] = useState<"viewer" | "scan-template">("viewer");
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
   const [readinessOpen, setReadinessOpen] = useState(false);
-
-  // The node/edge inspector and the readiness drawer share the right rail, so
-  // making a selection (including readiness component drilldown) closes the drawer.
-  useEffect(() => {
-    if (selected) setReadinessOpen(false);
-  }, [selected]);
+  const [architectureInfoOpen, setArchitectureInfoOpen] = useState(false);
 
   const sourceError = payloadQuery.error instanceof Error ? payloadQuery.error.message : undefined;
   const scanError = liveProgressEvent?.event === "sse_error";
@@ -323,9 +319,13 @@ export default function App() {
           <button
             className={readinessOpen ? "btn is-active" : "btn"}
             type="button"
+            aria-haspopup="dialog"
             aria-pressed={readinessOpen}
             disabled={!dataAvailable}
-            onClick={() => setReadinessOpen(!readinessOpen)}
+            onClick={() => {
+              setArchitectureInfoOpen(false);
+              setReadinessOpen((open) => !open);
+            }}
           >
             <ClipboardCheck size={14} />
             Readiness
@@ -347,6 +347,20 @@ export default function App() {
             onRefresh={() => void payloadQuery.refetch()}
             onStartScan={() => void handleStartScan()}
           />
+          <button
+            className={architectureInfoOpen ? "icon-btn is-active" : "icon-btn"}
+            type="button"
+            aria-label="Architecture information"
+            title="Architecture information"
+            aria-haspopup="dialog"
+            aria-pressed={architectureInfoOpen}
+            onClick={() => {
+              setReadinessOpen(false);
+              setArchitectureInfoOpen((open) => !open);
+            }}
+          >
+            <Info size={16} />
+          </button>
           <details className="toolbar-menu more-menu">
             <summary className="icon-btn" aria-label="More tools" title="More tools"><MoreHorizontal size={16} /></summary>
             <div className="toolbar-popover align-right">
@@ -364,31 +378,21 @@ export default function App() {
       </header>
 
       <main className="dr-main" id="top">
-        <section className="dr-context-strip" aria-labelledby="page-title">
-          <div className="dr-context-copy">
-            <span className="eyebrow">{dataSourceMode === "api" ? "Backend build projection" : "Legacy sample payload"}</span>
-            <h1 id="page-title">AI Agent System · 10-plane normalized architecture</h1>
-            <p>
-              A backend-driven view of reference capabilities, repository components, assessment state, evidence and risk.
-              The UI does not infer missing plane or lens membership.
-            </p>
-          </div>
-        </section>
+        <div className="dr-viewer-stage">
+          {isProgressRunning || liveProgressEvent ? (
+            <div className="dr-progress-host">
+              <ProgressStrip
+                isRunning={isProgressRunning}
+                percent={progressPercent}
+                message={progressMessage}
+                stage={progressStage}
+                isError={scanError}
+                onToggle={() => setProgressRunning(!isProgressRunning)}
+              />
+            </div>
+          ) : null}
 
-        {isProgressRunning || liveProgressEvent ? (
-          <div className="dr-progress-host">
-            <ProgressStrip
-              isRunning={isProgressRunning}
-              percent={progressPercent}
-              message={progressMessage}
-              stage={progressStage}
-              isError={scanError}
-              onToggle={() => setProgressRunning(!isProgressRunning)}
-            />
-          </div>
-        ) : null}
-
-        <section className="dr-workspace" id="architecture-workspace">
+          <section className="dr-workspace" id="architecture-workspace">
           <ArchitectureViewNav
             views={architectureViews}
             activeViewId={activeArchitectureView}
@@ -400,7 +404,7 @@ export default function App() {
             <header className="dr-map-toolbar">
               <div>
                 <span className="eyebrow">Normalized reference map</span>
-                <h2 id="architecture-map-title">AI Agent System</h2>
+                <h1 id="architecture-map-title">AI Agent System</h1>
                 <p>
                   {architectureViews.find((candidate) => candidate.id === activeArchitectureView)?.description}
                 </p>
@@ -438,23 +442,10 @@ export default function App() {
                   onSelect={setSelected}
                 />
               )}
-
-              {readinessOpen && !selected && !showOverlay && payload ? (
-                <ReadinessPanel
-                  report={payload.viewer_load_result.readiness_report}
-                  graph={graph}
-                  onClose={() => setReadinessOpen(false)}
-                />
-              ) : null}
             </div>
           </section>
 
-          <aside className="dr-inspector-panel" aria-labelledby="node-inspector-title">
-            <div className="dr-inspector-label">
-              <span className="eyebrow">Selection details</span>
-              <h2 id="node-inspector-title">Node Inspector</h2>
-              <p>{selected ? "Backend-provided facts for the selected map element." : "Select a node or declared flow."}</p>
-            </div>
+          <aside className="dr-inspector-panel" aria-label="Node inspector">
             {selected && !showOverlay && payload ? (
               <DetailPanel
                 graph={graph}
@@ -478,63 +469,35 @@ export default function App() {
               </div>
             )}
           </aside>
-        </section>
+          </section>
+        </div>
 
-        <section className="dr-explain-grid" aria-label="How to read the architecture map">
-          <article>
-            <span className="eyebrow">Architecture model</span>
-            <h2>Why ten planes?</h2>
-            <p>
-              The fixed reference map separates intent, control, ingestion, retrieval, extensions, evidence, generation,
-              memory, governance and deployment. Repository components are projected into these backend-owned planes.
-            </p>
-          </article>
-          <article>
-            <span className="eyebrow">Assessment model</span>
-            <h2>Status is not activation</h2>
-            <p>
-              Assessment describes the available evidence; activation describes runtime configuration. Both values remain
-              visible so an enabled component is never mistaken for a well-supported readiness finding.
-            </p>
-          </article>
-          <article>
-            <span className="eyebrow">Filter behavior</span>
-            <h2>Backend membership only</h2>
-            <p>
-              Enabled views use published lenses, plane IDs and semantic kinds. Runtime, Variants and Reasoning Mode remain
-              disabled until their metadata becomes part of the graph contract.
-            </p>
-          </article>
-        </section>
+        <div className="dr-status-slot">
+          <MapStatusBar
+            mappingCompleteness={mappingCompleteness?.value ?? null}
+            normalizedNodes={graph.nodes.length}
+            declaredEdges={graph.edges.length}
+            referenceMapVersion={graph.reference_map_version ?? null}
+            projectionActive={graphHasPlanes}
+            sourceLabel={dataSourceMode === "api" ? "API" : "Sample"}
+          />
+        </div>
 
-        <section className="dr-backend-scope" aria-labelledby="backend-scope-title">
-          <div>
-            <span className="eyebrow">Current contract boundary</span>
-            <h2 id="backend-scope-title">The frontend projects facts; it does not invent architecture.</h2>
-            <p>
-              Plane membership, lens membership, evidence, conflicts, endpoints and risk hints come from the selected immutable
-              build. Missing metadata is presented as unavailable rather than reconstructed in the browser.
-            </p>
-          </div>
-          <dl>
-            <div><dt>Source schema</dt><dd>{graph.source_schema_version ?? "unavailable"}</dd></div>
-            <div><dt>Graph schema</dt><dd>{graph.schema_version ?? "unavailable"}</dd></div>
-            <div><dt>Build</dt><dd>{graph.build_id ?? "sample / unavailable"}</dd></div>
-            <div><dt>Environment</dt><dd>{graph.environment_id ?? "unavailable"}</dd></div>
-          </dl>
-        </section>
-
-        <MapStatusBar
-          mappingCompleteness={mappingCompleteness?.value ?? null}
-          normalizedNodes={graph.nodes.length}
-          declaredEdges={graph.edges.length}
-          referenceMapVersion={graph.reference_map_version ?? null}
-          projectionActive={graphHasPlanes}
-          sourceLabel={dataSourceMode === "api" ? "API" : "Sample"}
-        />
       </main>
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+
+      {readinessOpen && !showOverlay && payload ? (
+        <ReadinessPanel
+          report={payload.viewer_load_result.readiness_report}
+          graph={graph}
+          onClose={() => setReadinessOpen(false)}
+        />
+      ) : null}
+
+      {architectureInfoOpen ? (
+        <ArchitectureInfoDialog graph={graph} onClose={() => setArchitectureInfoOpen(false)} />
+      ) : null}
 
       {pendingBoundary.length > 0 ? (
         <BoundaryDecisionModal
