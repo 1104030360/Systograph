@@ -182,7 +182,7 @@ uv sync
 ```bash
 uv run pytest
 uv run ruff check src tests
-uv run mypy .
+uv run mypy
 uv run kai-mind --help
 # 或
 uv run python -m kai_mind.cli.main --help
