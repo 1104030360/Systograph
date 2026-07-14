@@ -16,7 +16,7 @@ from kai_mind.core.models.profile_signal import (
 from kai_mind.core.services.profile_finding_service import (
     ProfileFindingService,
 )
-from kai_mind.core.services.profile_registry import (
+from kai_mind.core.services.profile_rule_definitions import (
     MVP_CAPABILITY_PROFILE_IDS,
 )
 from kai_mind.core.services.profile_signal_validation_service import (

@@ -11,7 +11,7 @@ from kai_mind.core.models.profile_signal import (
 from kai_mind.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapLoader,
 )
-from kai_mind.core.services.profile_registry import (
+from kai_mind.core.services.profile_rule_definitions import (
     MVP_CAPABILITY_PROFILE_IDS,
 )
 

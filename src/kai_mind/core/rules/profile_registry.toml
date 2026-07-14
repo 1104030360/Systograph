@@ -1,0 +1,166 @@
+schema_version = "profile-registry/v1"
+
+[[profiles]]
+profile_id = "rag-grounding"
+display_name = "RAG Grounding"
+short_label = "RAG Grounding"
+description = "Retrieval evidence is connected to answer generation through a grounded context flow."
+primary_axis = "grounding"
+secondary_axes = []
+display_order = 10
+default_uncertainty = "Static evidence does not confirm runtime grounding behavior."
+recommended_next_checks = ["Review the runtime context path from retrieval to answer generation."]
+
+[[profiles]]
+profile_id = "agentic-control"
+display_name = "Agentic Control"
+short_label = "Agentic Control"
+description = "Agent-loop evidence coordinates model decisions through deterministic control flow."
+primary_axis = "agent_control"
+secondary_axes = []
+display_order = 20
+default_uncertainty = "Static evidence does not confirm runtime agent decisions."
+recommended_next_checks = ["Review the runtime decision loop and its termination conditions."]
+
+[[profiles]]
+profile_id = "tool-calling"
+display_name = "Tool Calling"
+short_label = "Tool Calling"
+description = "Agent and generator evidence is connected through a tool-call relationship."
+primary_axis = "tool_use"
+secondary_axes = []
+display_order = 30
+default_uncertainty = "Static evidence does not confirm which tools are invoked at runtime."
+recommended_next_checks = ["Review runtime tool selection, arguments, and permission boundaries."]
+
+[[profiles]]
+profile_id = "memory"
+display_name = "Memory"
+short_label = "Memory"
+description = "The system contains evidence of a long-term memory capability."
+primary_axis = "memory"
+secondary_axes = []
+display_order = 40
+default_uncertainty = "Static evidence does not confirm runtime retention or recall behavior."
+recommended_next_checks = ["Review memory write, retention, retrieval, and deletion paths."]
+
+[[profiles]]
+profile_id = "workflow-orchestration"
+display_name = "Workflow Orchestration"
+short_label = "Workflow Orchestration"
+description = "Orchestrator evidence participates in an observed workflow transition."
+primary_axis = "workflow_orchestration"
+secondary_axes = []
+display_order = 50
+default_uncertainty = "Static evidence does not confirm runtime transition coverage."
+recommended_next_checks = ["Review workflow transitions, retries, and terminal states."]
+
+[[profiles]]
+profile_id = "hybrid-retrieval"
+display_name = "Hybrid Retrieval"
+short_label = "Hybrid Retrieval"
+description = "Hybrid retrieval evidence participates in a retrieval-fusion relationship."
+primary_axis = "retrieval_strategy"
+secondary_axes = []
+display_order = 60
+default_uncertainty = "Static evidence does not confirm runtime fusion behavior."
+recommended_next_checks = ["Review how retrieval sources are combined and ranked at runtime."]
+
+[[profiles]]
+profile_id = "reranking"
+display_name = "Reranking"
+short_label = "Reranking"
+description = "Reranker evidence participates in retrieval ordering."
+primary_axis = "retrieval_strategy"
+secondary_axes = []
+display_order = 70
+default_uncertainty = "Static evidence does not confirm runtime retrieval ordering."
+recommended_next_checks = ["Review the runtime path that invokes the reranker."]
+
+[[profiles]]
+profile_id = "corrective-retrieval"
+display_name = "Corrective Retrieval"
+short_label = "Corrective Retrieval"
+description = "Conflict-checking and routing evidence participates in a fallback route."
+primary_axis = "agent_control"
+secondary_axes = []
+display_order = 80
+default_uncertainty = "Static evidence does not confirm runtime correction decisions."
+recommended_next_checks = ["Review evaluator outcomes and corrective fallback behavior."]
+
+[[profiles]]
+profile_id = "self-reflection"
+display_name = "Self Reflection"
+short_label = "Self Reflection"
+description = "Conflict-checking and agent-loop evidence participates in self-critique."
+primary_axis = "agent_control"
+secondary_axes = []
+display_order = 90
+default_uncertainty = "Static evidence does not confirm runtime reflection quality."
+recommended_next_checks = ["Review self-critique decisions and their effect on subsequent actions."]
+
+[[profiles]]
+profile_id = "graph-retrieval"
+display_name = "Graph Retrieval"
+short_label = "Graph Retrieval"
+description = "Graph-retriever evidence participates in a graph retrieval relationship."
+primary_axis = "knowledge_structure"
+secondary_axes = []
+display_order = 100
+default_uncertainty = "Static evidence does not confirm runtime graph traversal behavior."
+recommended_next_checks = ["Review graph construction, traversal, and retrieval execution paths."]
+
+[[profiles]]
+profile_id = "hierarchical-retrieval"
+display_name = "Hierarchical Retrieval"
+short_label = "Hierarchical Retrieval"
+description = "Index-building and context-composition evidence participates in a hierarchical flow."
+primary_axis = "knowledge_structure"
+secondary_axes = []
+display_order = 110
+default_uncertainty = "Static evidence does not confirm runtime hierarchy selection."
+recommended_next_checks = ["Review hierarchy construction and runtime level-selection behavior."]
+
+[[profiles]]
+profile_id = "contextual-retrieval"
+display_name = "Contextual Retrieval"
+short_label = "Contextual Retrieval"
+description = "Metadata extraction and context composition participate in context enrichment."
+primary_axis = "context_enrichment"
+secondary_axes = []
+display_order = 120
+default_uncertainty = "Static evidence does not confirm runtime contextualization coverage."
+recommended_next_checks = ["Review when and how retrieved content is contextualized."]
+
+[[profiles]]
+profile_id = "multimodal-grounding"
+display_name = "Multimodal Grounding"
+short_label = "Multimodal Grounding"
+description = "Multimodal system evidence participates in a multimodal retrieval relationship."
+primary_axis = "data_modality"
+secondary_axes = []
+display_order = 130
+default_uncertainty = "Static evidence does not confirm runtime modality coverage."
+recommended_next_checks = ["Review modality ingestion, retrieval, and grounding paths."]
+
+[[profiles]]
+profile_id = "modular-composition"
+display_name = "Modular Composition"
+short_label = "Modular Composition"
+description = "Orchestration and routing evidence participates in component selection."
+primary_axis = "design_paradigm"
+secondary_axes = []
+display_order = 140
+default_uncertainty = "Static evidence does not confirm runtime module substitution."
+recommended_next_checks = ["Review runtime component selection and replacement boundaries."]
+
+[[profiles]]
+profile_id = "multi-query-retrieval"
+display_name = "Multi-query Retrieval"
+short_label = "Multi-query Retrieval"
+description = "Query classification and routing evidence participates in query routing."
+primary_axis = "retrieval_strategy"
+secondary_axes = []
+display_order = 150
+default_uncertainty = "Static evidence does not confirm runtime query expansion behavior."
+recommended_next_checks = ["Review query generation, routing, and result-combination behavior."]
