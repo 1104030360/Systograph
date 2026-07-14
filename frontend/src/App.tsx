@@ -8,6 +8,7 @@ import { BoundaryDecisionModal, decisionsForBoundary } from "./components/Bounda
 import { BuildHistoryMenu } from "./components/BuildHistoryMenu";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
+import { MapStatusBar } from "./components/MapStatusBar";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { ReadinessPanel } from "./components/ReadinessPanel";
 import { StateOverlay, type ViewerState } from "./components/StateOverlay";
@@ -372,12 +373,6 @@ export default function App() {
               The UI does not infer missing plane or lens membership.
             </p>
           </div>
-          <div className="dr-hero-metrics" aria-label="Current map metrics">
-            <div><span>Mapping completeness</span><strong>{mappingCompleteness ? `${(mappingCompleteness.value * 100).toFixed(1)}%` : "—"}</strong></div>
-            <div><span>Normalized nodes</span><strong>{graph.nodes.length}</strong></div>
-            <div><span>Declared edges</span><strong>{graph.edges.length}</strong></div>
-            <div><span>Reference map</span><strong>{graph.reference_map_version ?? "—"}</strong></div>
-          </div>
         </section>
 
         {isProgressRunning || liveProgressEvent ? (
@@ -529,10 +524,14 @@ export default function App() {
           </dl>
         </section>
 
-        <footer className="dr-footer">
-          <span>Local AI Health Doctor · backend-driven Agent System Map</span>
-          <span>{graphHasPlanes ? "Plan 06 reference projection active" : "No Plan 06 projection in the current payload"}</span>
-        </footer>
+        <MapStatusBar
+          mappingCompleteness={mappingCompleteness?.value ?? null}
+          normalizedNodes={graph.nodes.length}
+          declaredEdges={graph.edges.length}
+          referenceMapVersion={graph.reference_map_version ?? null}
+          projectionActive={graphHasPlanes}
+          sourceLabel={dataSourceMode === "api" ? "API" : "Sample"}
+        />
       </main>
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
