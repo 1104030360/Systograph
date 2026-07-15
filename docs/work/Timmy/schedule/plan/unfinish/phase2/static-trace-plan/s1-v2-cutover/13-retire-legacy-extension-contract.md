@@ -139,7 +139,7 @@ tests 與 runtime reload probe；只有 code、test 與 gate report 同時通過
 - Test: `tests/contracts/test_ai_system_map_v2_schema.py`
 - Create: `tests/contracts/test_v2_cutover_consumer_allowlist.py`
 - Test: `tests/integration/test_map_build_service.py`
-- Test: `tests/unit/core/test_build_manifest_service.py`
+- Test: `tests/integration/test_build_manifest_service.py`
 - Create: `tests/unit/core/test_build_commit_service.py`
 - Create: `tests/unit/core/test_legacy_v1_rollback_service.py`
 - Test: `tests/unit/core/test_viewer_session_service.py`
