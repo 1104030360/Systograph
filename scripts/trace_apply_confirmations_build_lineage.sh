@@ -47,7 +47,7 @@ UNMAPPED_COUNT="$(echo "$SCAN_JSON" \
   || kai_die "Scan response missing build_result.lineage.build_id"
 [[ "$UNMAPPED_COUNT" -ge 2 ]] \
   || kai_die "Need at least two unmapped components; found $UNMAPPED_COUNT"
-kai_progress "初始 build_id=$BASE_BUILD_ID，unmapped=$UNMAPPED_COUNT"
+kai_progress "初始 build_id=${BASE_BUILD_ID}，unmapped=$UNMAPPED_COUNT"
 
 kai_section "準備：建立兩筆 confirmed mapping"
 MAPPING_IDS=()

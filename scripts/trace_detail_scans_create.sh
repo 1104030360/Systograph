@@ -77,7 +77,7 @@ REQUEST_BODY="$(jq -n \
   --arg t "$TARGET" \
   --arg sd "$SCAN_DEPTH" \
   '{project_id:$id, build_id:$build, target_type:$tt, target:$t, scan_depth:$sd}')"
-kai_progress "現在要對指定 build 做 detail scan（target=$TARGET）..."
+kai_progress "現在要對指定 build 做 detail scan（target=${TARGET}）..."
 api_call POST "/api/detail-scans" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

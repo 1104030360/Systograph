@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import inspect
+from importlib import resources
+from typing import Never
 
 import pytest
 
@@ -153,6 +155,97 @@ def test_parser_rejects_duplicate_plane_id() -> None:
         CapabilityReferenceMapError, match="duplicate plane id"
     ):
         CapabilityReferenceMapLoader().parse_text(duplicate)
+
+
+def test_parser_rejects_malformed_toml() -> None:
+    # Given
+    malformed = "[catalog"
+
+    # When / Then
+    with pytest.raises(
+        CapabilityReferenceMapError,
+        match="failed to parse capability catalog",
+    ):
+        CapabilityReferenceMapLoader().parse_text(malformed)
+
+
+def test_parser_rejects_missing_required_catalog_fields() -> None:
+    # Given
+    missing_fields = 'catalog_id = "incomplete"\n'
+
+    # When / Then
+    with pytest.raises(CapabilityReferenceMapError, match="version"):
+        CapabilityReferenceMapLoader().parse_text(missing_fields)
+
+
+def test_loader_wraps_packaged_catalog_read_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given
+    def unavailable(_package: str) -> Never:
+        raise OSError("catalog unavailable")
+
+    monkeypatch.setattr(
+        resources,
+        "files",
+        unavailable,
+    )
+
+    # When / Then
+    with pytest.raises(
+        CapabilityReferenceMapError,
+        match="failed to read packaged capability catalog",
+    ):
+        CapabilityReferenceMapLoader().load()
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement", "match"),
+    [
+        ("catalog_id", "unexpected", "unexpected catalog_id"),
+        ("version", "2", "unexpected catalog version"),
+    ],
+)
+def test_loader_rejects_unexpected_packaged_catalog_identity(
+    field: str,
+    replacement: str,
+    match: str,
+) -> None:
+    # Given
+    loader = CapabilityReferenceMapLoader()
+    invalid = loader.load().model_copy(update={field: replacement})
+
+    # When / Then
+    with pytest.raises(CapabilityReferenceMapError, match=match):
+        loader._validate_active_catalog(invalid)
+
+
+def test_loader_rejects_packaged_catalog_with_missing_plane() -> None:
+    # Given
+    loader = CapabilityReferenceMapLoader()
+    catalog = loader.load()
+    invalid = catalog.model_copy(update={"planes": catalog.planes[:-1]})
+
+    # When / Then
+    with pytest.raises(
+        CapabilityReferenceMapError,
+        match="catalog must contain 10 planes",
+    ):
+        loader._validate_active_catalog(invalid)
+
+
+def test_loader_rejects_packaged_catalog_with_missing_node() -> None:
+    # Given
+    loader = CapabilityReferenceMapLoader()
+    catalog = loader.load()
+    invalid = catalog.model_copy(update={"nodes": catalog.nodes[:-1]})
+
+    # When / Then
+    with pytest.raises(
+        CapabilityReferenceMapError,
+        match="catalog must contain 52 nodes",
+    ):
+        loader._validate_active_catalog(invalid)
 
 
 def test_parser_rejects_duplicate_node_id() -> None:

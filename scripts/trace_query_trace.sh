@@ -72,7 +72,7 @@ REQUEST_BODY="$(jq -n \
   --arg timeout "$TIMEOUT_SECONDS" \
   '{project_id:$id, build_id:$build, endpoint_id:$endpoint, query:$query,
     timeout_seconds:($timeout|tonumber)}')"
-kai_progress "現在要對 build 執行 query trace（endpoint=$ENDPOINT_ID）..."
+kai_progress "現在要對 build 執行 query trace（endpoint=${ENDPOINT_ID}）..."
 api_call POST "/api/trace" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

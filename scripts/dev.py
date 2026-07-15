@@ -174,7 +174,9 @@ def main() -> int:
     threads: list[threading.Thread] = []
 
     try:
-        processes.append(start_process("api", backend, ROOT, os.environ.copy()))
+        processes.append(
+            start_process("api", backend, ROOT, os.environ.copy())
+        )
         processes.append(
             start_process("web", frontend, FRONTEND_DIR, frontend_env)
         )
@@ -199,7 +201,8 @@ def main() -> int:
                 exit_code = process.poll()
                 if exit_code is not None:
                     print(
-                        f"Process exited with code {exit_code}; stopping dev servers."
+                        f"Process exited with code {exit_code}; "
+                        f"stopping dev servers."
                     )
                     return exit_code
             time.sleep(0.25)

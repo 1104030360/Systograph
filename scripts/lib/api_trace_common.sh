@@ -236,7 +236,7 @@ kai_create_demo_mapping() {
   [[ -n "$evidence_id" ]] \
     || kai_die "Could not derive an evidence id from the scan"
 
-  kai_progress "現在要建立 manual mapping（slot=$slot）" >&2
+  kai_progress "現在要建立 manual mapping（slot=${slot}）" >&2
   body="$(jq -n \
     --arg id "$project_id" \
     --arg slot "$slot" \
@@ -260,7 +260,7 @@ kai_first_unmapped_id() {
 kai_create_proposal() {
   local project_id="$1"
   local unmapped_id="$2"
-  kai_progress "接著呼叫 mapping proposal（unmapped=$unmapped_id）" >&2
+  kai_progress "接著呼叫 mapping proposal（unmapped=${unmapped_id}）" >&2
   local body
   body="$(jq -n --arg id "$project_id" --arg u "$unmapped_id" \
     '{project_id:$id, source_unmapped_id:$u}')"

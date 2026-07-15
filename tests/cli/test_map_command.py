@@ -47,6 +47,27 @@ def test_map_command_builds_same_canonical_artifact_contract(
     )
 
 
+def test_map_command_reports_missing_project_without_success_artifacts(
+    tmp_path: Path,
+) -> None:
+    # Given
+    output_dir = tmp_path / "outputs"
+
+    # When
+    result = CliRunner().invoke(
+        cli_main.app,
+        ["map", str(tmp_path / "missing"), "--output", str(output_dir)],
+    )
+
+    # Then
+    assert result.exit_code == 1
+    assert "Map build failed: project_path_not_found" in result.stderr
+    assert f"Error report: {output_dir / 'map-error.md'}" in result.stderr
+    assert (output_dir / "map-error.md").is_file()
+    assert not (output_dir / "ai_system_map.json").exists()
+    assert not (output_dir / "profile_signals.json").exists()
+
+
 def test_map_command_is_thin_adapter_without_provider_logic() -> None:
     source = inspect.getsource(map_command)
 
