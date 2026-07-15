@@ -324,7 +324,17 @@ Legacy alias（`advanced-rag` 等）僅 fixture / 討論用；active output 前�
 Catalog / rule ownership：
 
 - `capability_reference_map.toml` — 52 node 座標、labels、activation_applicable
-- `profile_registry.py` — Gate-1 的 15 profile metadata、required nodes 與 wiring gate；Plan 11 才把 presentation metadata 搬到 TOML
+- `profile_rule_definitions.py` — 15 stable profile ids、executable required nodes 與 wiring
+- `profile_registry.toml` — labels、description、axes、display order、default uncertainty 與
+  recommended next checks；由 `ProfileRegistryLoader` strict/fail-closed 載入
+- `ProfileRegistryProjectionService` — validated TOML 的 deterministic
+  `profile-registry/v1` read-only projection；Profile Engine 不讀回 JSON，也沒有新增 API 或
+  per-build artifact
+
+`default_evidence_strength`、conditions、thresholds、coverage gates、required nodes 與 wiring
+不得進入 profile TOML；evidence strength 仍由實際 status 與 direct evidence 計算。Frontend
+不得複製或重新排序 15 profile ids；未來若需要 registry consumer，必須消費 validated
+projection contract。
 
 ### 6.3 profile-signals/v1
 

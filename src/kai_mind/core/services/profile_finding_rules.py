@@ -70,7 +70,7 @@ def evidence_strength(
 def activation(
     assessments: Sequence[ReferenceCapabilityAssessment],
 ) -> ActivationState:
-    states = {
+    states: set[ActivationState] = {
         item.activation
         for item in assessments
         if item.activation not in {"unknown", "not_applicable"}

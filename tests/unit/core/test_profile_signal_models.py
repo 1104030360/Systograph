@@ -4,6 +4,8 @@ import pytest
 from pydantic import ValidationError
 
 from kai_mind.core.models.profile_signal import (
+    ActivationState,
+    MappingCompleteness,
     ProfileFinding,
     ReferenceCapabilityAssessment,
 )
@@ -78,3 +80,56 @@ def test_not_detected_profile_requires_completed_coverage_gate() -> None:
             scan_id="scan:test",
             environment_id="environment:default-static",
         )
+
+
+@pytest.mark.parametrize(
+    "activation",
+    [
+        "enabled",
+        "disabled",
+        "conditional",
+        "unknown",
+        "conflicted",
+        "not_applicable",
+    ],
+)
+def test_activation_state_does_not_change_profile_status(
+    activation: ActivationState,
+) -> None:
+    # Given: one of the six activation states and an undetermined profile.
+    finding = ProfileFinding(
+        profile_id="reranking",
+        label="Reranking",
+        primary_axis="retrieval_strategy",
+        implementation_depth_level=0,
+        status="undetermined",
+        activation=activation,
+        evidence_strength="weak_or_ambiguous_signal",
+        build_id="build:test",
+        scan_id="scan:test",
+        environment_id="environment:default-static",
+    )
+
+    # When / Then: activation is preserved without becoming a profile status.
+    assert finding.activation == activation
+    assert finding.status == "undetermined"
+
+
+def test_mapping_completeness_rejects_external_weight_override() -> None:
+    # Given: a complete status count with an attempted partial-weight override.
+    payload = {
+        "numerator": 26,
+        "value": 0.5,
+        "status_counts": {
+            "detected": 0,
+            "partial": 52,
+            "undetermined": 0,
+            "not_detected": 0,
+            "conflicted": 0,
+        },
+        "weights": {"partial": 0.75},
+    }
+
+    # When / Then: the boundary rejects external scoring semantics.
+    with pytest.raises(ValidationError, match="less than or equal to 0.5"):
+        MappingCompleteness.model_validate(payload)
