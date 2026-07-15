@@ -1,2564 +1,1555 @@
 {
-  "ai_system_map": {
-    "build_id": "build:sample-b2",
-    "components": [
-      {
-        "activation": "enabled",
-        "canonical_type": "api_input",
-        "component_id": "component:input:api",
-        "display_name": "Chat API",
-        "evidence_ids": [
-          "evidence:api-route"
+  "viewer_load_result": {
+    "loaded": true,
+    "error_reason": null,
+    "map_json": null,
+    "ai_system_map": {
+      "schema_version": "ai-system-map/v1",
+      "system_type": "rag",
+      "classification": {
+        "mode": "user_selected_or_default",
+        "selected_template": "rag-core-v1",
+        "future_layer": null
+      },
+      "project": {
+        "name": "sample-health-rag",
+        "root_path": "<project_root>",
+        "root_path_redacted": "<project_root>",
+        "path_mode": "redacted",
+        "system_map_schema_version": "ai-system-map/v1"
+      },
+      "reference_architecture": {
+        "id": "rag-core-v1",
+        "version": "1.0.0",
+        "slots": [
+          "data_sources",
+          "document_loader",
+          "chunking",
+          "embedding_model",
+          "vector_store",
+          "app_api_or_orchestrator",
+          "query_processing",
+          "retriever",
+          "prompt_builder",
+          "llm",
+          "citation_or_response_composer",
+          "guardrails",
+          "observability"
         ],
-        "framework": "fastapi",
-        "layer": "input_layer",
-        "metadata": {
-          "route": "/chat"
+        "flows": [
+          "indexing",
+          "query_answer"
+        ]
+      },
+      "scan_depth": "system",
+      "scan_summary": {
+        "status": "partial",
+        "files_scanned": 42,
+        "files_skipped": 9,
+        "detected_slots": 8,
+        "missing_slots": 2,
+        "not_configured_slots": 2,
+        "unmapped_components": 1,
+        "risk_hints": 5,
+        "secret_masking_applied": true
+      },
+      "components_by_slot": {
+        "data_sources": {
+          "slot": "data_sources",
+          "required_for_rag": true,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:data_sources:docs-folder",
+              "slot": "data_sources",
+              "kind": "local_document_corpus",
+              "name": "docs/",
+              "description": "Local document folder used by the indexing flow.",
+              "provider": null,
+              "evidence_ids": [
+                "evidence:filesystem:docs-folder"
+              ]
+            }
+          ]
         },
-        "status": "detected"
-      },
-      {
-        "activation": "enabled",
-        "canonical_type": "retriever",
-        "component_id": "component:retriever:qdrant",
-        "display_name": "Qdrant Retriever",
-        "evidence_ids": [
-          "evidence:retriever-call"
-        ],
-        "framework": "langchain",
-        "layer": "retrieval_layer",
-        "metadata": {
-          "search_k": 5
+        "document_loader": {
+          "slot": "document_loader",
+          "required_for_rag": true,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:document_loader:langchain-directory-loader",
+              "slot": "document_loader",
+              "kind": "document_loader",
+              "name": "LangChain DirectoryLoader",
+              "description": "Loads source documents from the local docs folder.",
+              "provider": null,
+              "evidence_ids": [
+                "evidence:code_pattern:loader"
+              ]
+            }
+          ]
         },
-        "status": "detected"
-      },
-      {
-        "activation": "enabled",
-        "canonical_type": "llm",
-        "component_id": "component:llm:openai-chat",
-        "display_name": "OpenAI Chat Model",
-        "evidence_ids": [
-          "evidence:llm-call"
-        ],
-        "framework": "langchain",
-        "layer": "generation_layer",
-        "metadata": {
-          "provider": "openai"
+        "chunking": {
+          "slot": "chunking",
+          "required_for_rag": true,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:chunking:recursive-character-splitter",
+              "slot": "chunking",
+              "kind": "text_splitter",
+              "name": "RecursiveCharacterTextSplitter",
+              "description": "Splits documents before embedding.",
+              "provider": null,
+              "evidence_ids": [
+                "evidence:code_pattern:chunking"
+              ]
+            }
+          ]
         },
-        "status": "detected"
-      }
-    ],
-    "edges": [
-      {
-        "edge_id": "edge:api-to-retriever",
-        "evidence_ids": [
-          "evidence:retriever-call"
-        ],
-        "relationship": "data_flow",
-        "source": "component:input:api",
-        "status": "detected",
-        "target": "component:retriever:qdrant"
-      },
-      {
-        "edge_id": "edge:retriever-to-llm",
-        "evidence_ids": [
-          "evidence:prompt-context"
-        ],
-        "relationship": "context_flow",
-        "source": "component:retriever:qdrant",
-        "status": "undetermined",
-        "target": "component:llm:openai-chat"
-      }
-    ],
-    "endpoints": [
-      {
-        "component_id": "component:input:api",
-        "endpoint_id": "endpoint:chat",
-        "evidence_ids": [
-          "evidence:api-route"
-        ],
-        "handler": "src.api.chat.chat",
-        "method": "POST",
-        "path": "/chat"
-      }
-    ],
-    "environment_id": "environment:default-static",
-    "evidence": [
-      {
-        "artifact_type": "source_code",
-        "end_line": 12,
-        "evidence_id": "evidence:api-route",
-        "extract_summary": "FastAPI POST route detected.",
-        "json_pointer": null,
-        "path": "src/api/chat.py",
-        "rule_id": "py.fastapi.route",
-        "start_line": 12
-      },
-      {
-        "artifact_type": "source_code",
-        "end_line": 42,
-        "evidence_id": "evidence:retriever-call",
-        "extract_summary": "Vector retriever call detected.",
-        "json_pointer": null,
-        "path": "src/rag/pipeline.py",
-        "rule_id": "py.vectorstore.retriever",
-        "start_line": 42
-      },
-      {
-        "artifact_type": "source_code",
-        "end_line": 64,
-        "evidence_id": "evidence:prompt-context",
-        "extract_summary": "Prompt builder appears to receive retrieved documents.",
-        "json_pointer": null,
-        "path": "src/rag/pipeline.py",
-        "rule_id": "py.context.prompt_builder",
-        "start_line": 64
-      },
-      {
-        "artifact_type": "source_code",
-        "end_line": 58,
-        "evidence_id": "evidence:reranker-call",
-        "extract_summary": "Reranker-like call detected.",
-        "json_pointer": null,
-        "path": "src/rag/pipeline.py",
-        "rule_id": "py.reranker.call",
-        "start_line": 58
-      },
-      {
-        "artifact_type": "source_code",
-        "end_line": 76,
-        "evidence_id": "evidence:llm-call",
-        "extract_summary": "LLM invocation detected.",
-        "json_pointer": null,
-        "path": "src/rag/pipeline.py",
-        "rule_id": "py.llm.invoke",
-        "start_line": 76
-      }
-    ],
-    "generated_from_build_id": "build:sample-b2",
-    "project": {
-      "name": "sample-ai-health-rag",
-      "path_mode": "redacted",
-      "project_id": "project:sample-ai-health-rag",
-      "root_path": null,
-      "root_path_redacted": "<project_root>"
-    },
-    "risk_hints": [],
-    "scan_id": "scan:sample-s1",
-    "schema_version": "ai-system-map/v2",
-    "system_type": "ai_system",
-    "unmapped_components": [
-      {
-        "evidence_ids": [
-          "evidence:reranker-call"
-        ],
-        "observed_kind": "reranker",
-        "reason": "Reranker-like evidence is present, but static analysis cannot prove it is part of the active answer path.",
-        "source_file": "src/rag/pipeline.py",
-        "status": "needs_review",
-        "suggested_actions": [
-          "confirm_as_non_baseline_capability_candidate",
-          "skip_for_now"
-        ],
-        "unmapped_id": "unmapped:reranker-review"
-      }
-    ]
-  },
-  "applied_mapping_ids": [
-    "mapping:reranker-review"
-  ],
-  "artifact_refs": [
-    {
-      "artifact_id": "artifact:build-sample-b2:ai-system-map",
-      "artifact_type": "ai_system_map",
-      "file_name": "ai_system_map.json",
-      "media_type": "application/json",
-      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
-      "size_bytes": 4096
-    },
-    {
-      "artifact_id": "artifact:build-sample-b2:evidence-table",
-      "artifact_type": "evidence_table",
-      "file_name": "evidence_table.json",
-      "media_type": "application/json",
-      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
-      "size_bytes": 2048
-    },
-    {
-      "artifact_id": "artifact:build-sample-b2:call-graph",
-      "artifact_type": "call_graph",
-      "file_name": "call_graph.json",
-      "media_type": "application/json",
-      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
-      "size_bytes": 3072
-    },
-    {
-      "artifact_id": "artifact:build-sample-b2:dataflow-hints",
-      "artifact_type": "dataflow_hints",
-      "file_name": "dataflow_hints.json",
-      "media_type": "application/json",
-      "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
-      "size_bytes": 1536
-    },
-    {
-      "artifact_id": "artifact:build-sample-b2:execution-paths",
-      "artifact_type": "execution_paths",
-      "file_name": "execution_paths.json",
-      "media_type": "application/json",
-      "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
-      "size_bytes": 2560
-    },
-    {
-      "artifact_id": "artifact:build-sample-b2:profile-signals",
-      "artifact_type": "profile_signals",
-      "file_name": "profile_signals.json",
-      "media_type": "application/json",
-      "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
-      "size_bytes": 3584
-    },
-    {
-      "artifact_id": "artifact:build-sample-b2:readiness-report",
-      "artifact_type": "readiness_report",
-      "file_name": "readiness_report.json",
-      "media_type": "application/json",
-      "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
-      "size_bytes": 2304
-    },
-    {
-      "artifact_id": "artifact:build-sample-b2:map-markdown",
-      "artifact_type": "ai_system_map_markdown",
-      "file_name": "ai_system_map.md",
-      "media_type": "text/markdown",
-      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
-      "size_bytes": 1024
-    },
-    {
-      "artifact_id": "artifact:build-sample-b2:system-map-mermaid",
-      "artifact_type": "system_map_mermaid",
-      "file_name": "system_map.mmd",
-      "media_type": "text/plain",
-      "sha256": "9999999999999999999999999999999999999999999999999999999999999999",
-      "size_bytes": 768
-    },
-    {
-      "artifact_id": "artifact:build-sample-b2:execution-map-mermaid",
-      "artifact_type": "execution_map_mermaid",
-      "file_name": "execution_map.mmd",
-      "media_type": "text/plain",
-      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "size_bytes": 896
-    }
-  ],
-  "based_on_build_id": "build:sample-b1",
-  "build_id": "build:sample-b2",
-  "environment_id": "environment:default-static",
-  "error_reason": null,
-  "generated_from_build_id": "build:sample-b2",
-  "graph_view_model": {
-    "build_id": "build:sample-b2",
-    "details": {
-      "capability_candidates_by_id": {
-        "capability-candidate:reranker": {
-          "decision_source": "manual",
-          "evidence_ids": [
-            "evidence:reranker-call"
-          ],
-          "id": "capability-candidate:reranker",
-          "name": "Reranker",
-          "observed_kind": "reranker",
-          "proposal_id": "mapping-proposal:reranker-review",
-          "status": "confirmed_non_baseline"
+        "embedding_model": {
+          "slot": "embedding_model",
+          "required_for_rag": true,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:embedding_model:openai-embeddings",
+              "slot": "embedding_model",
+              "kind": "embedding_provider",
+              "name": "OpenAI Embeddings",
+              "description": "External embedding model used when indexing documents.",
+              "provider": "openai",
+              "evidence_ids": [
+                "evidence:dependency:openai",
+                "evidence:env:openai-key"
+              ]
+            }
+          ]
+        },
+        "vector_store": {
+          "slot": "vector_store",
+          "required_for_rag": true,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:vector_store:qdrant",
+              "slot": "vector_store",
+              "kind": "vector_db",
+              "name": "Qdrant",
+              "description": "Vector database exposed by Docker Compose.",
+              "provider": null,
+              "evidence_ids": [
+                "evidence:docker:qdrant-service",
+                "evidence:docker:qdrant-port"
+              ]
+            }
+          ]
+        },
+        "app_api_or_orchestrator": {
+          "slot": "app_api_or_orchestrator",
+          "required_for_rag": true,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:app_api_or_orchestrator:fastapi-chat-api",
+              "slot": "app_api_or_orchestrator",
+              "kind": "api_orchestrator",
+              "name": "FastAPI Chat API",
+              "description": "Local API endpoint that receives chat queries.",
+              "provider": null,
+              "evidence_ids": [
+                "evidence:code_pattern:fastapi-route"
+              ]
+            }
+          ]
+        },
+        "query_processing": {
+          "slot": "query_processing",
+          "required_for_rag": false,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:query_processing:query-rewrite",
+              "slot": "query_processing",
+              "kind": "query_rewrite",
+              "name": "Query Rewrite",
+              "description": "Rewrites user questions before retrieval.",
+              "provider": null,
+              "evidence_ids": [
+                "evidence:code_pattern:query-rewrite"
+              ]
+            }
+          ]
+        },
+        "retriever": {
+          "slot": "retriever",
+          "required_for_rag": true,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:retriever:qdrant-retriever",
+              "slot": "retriever",
+              "kind": "vector_retriever",
+              "name": "Qdrant Retriever",
+              "description": "Queries Qdrant for semantically similar chunks.",
+              "provider": null,
+              "evidence_ids": [
+                "evidence:code_pattern:retriever"
+              ]
+            }
+          ]
+        },
+        "prompt_builder": {
+          "slot": "prompt_builder",
+          "required_for_rag": true,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:prompt_builder:context-prompt-template",
+              "slot": "prompt_builder",
+              "kind": "prompt_template",
+              "name": "Context Prompt Template",
+              "description": "Builds the answer prompt from query and retrieved context.",
+              "provider": null,
+              "evidence_ids": [
+                "evidence:code_pattern:prompt-template"
+              ]
+            }
+          ]
+        },
+        "llm": {
+          "slot": "llm",
+          "required_for_rag": true,
+          "status": "detected",
+          "instances": [
+            {
+              "id": "component:llm:openai-chat",
+              "slot": "llm",
+              "kind": "external_llm",
+              "name": "OpenAI Chat Completions",
+              "description": "External LLM provider used for answer generation.",
+              "provider": "openai",
+              "evidence_ids": [
+                "evidence:dependency:openai",
+                "evidence:code_pattern:llm-call"
+              ]
+            }
+          ]
+        },
+        "citation_or_response_composer": {
+          "slot": "citation_or_response_composer",
+          "required_for_rag": true,
+          "status": "not_configured",
+          "instances": []
+        },
+        "guardrails": {
+          "slot": "guardrails",
+          "required_for_rag": false,
+          "status": "missing",
+          "instances": []
+        },
+        "observability": {
+          "slot": "observability",
+          "required_for_rag": false,
+          "status": "not_configured",
+          "instances": []
         }
       },
-      "evidence_by_id": {
-        "evidence:reranker-call": {
-          "artifact_type": "source_code",
-          "end_line": 58,
-          "evidence_id": "evidence:reranker-call",
-          "evidence_strength": "weak_or_ambiguous_signal",
-          "extract_summary": "Reranker-like call detected.",
-          "path": "src/rag/pipeline.py",
-          "rule_id": "py.reranker.call",
-          "start_line": 58
-        },
-        "evidence:retriever-call": {
-          "artifact_type": "source_code",
-          "end_line": 42,
-          "evidence_id": "evidence:retriever-call",
-          "evidence_strength": "static_single_signal",
-          "extract_summary": "Vector retriever call detected.",
-          "path": "src/rag/pipeline.py",
-          "rule_id": "py.vectorstore.retriever",
-          "start_line": 42
-        }
-      },
-      "profile_findings_by_id": {
-        "rag-grounding": {
-          "coverage_detected": 3,
-          "coverage_total": 4,
-          "evidence_ids": [
-            "evidence:retriever-call",
-            "evidence:llm-call"
-          ],
-          "label": "RAG Grounding",
-          "primary_axis": "grounding",
-          "profile_id": "rag-grounding",
-          "status": "detected"
-        },
-        "reranking": {
-          "coverage_detected": 1,
-          "coverage_total": 2,
-          "evidence_ids": [
-            "evidence:reranker-call"
-          ],
-          "label": "Reranking",
-          "primary_axis": "retrieval_strategy",
-          "profile_id": "reranking",
-          "related_capability_candidate_component_ids": [
-            "capability-candidate:reranker"
-          ],
-          "related_unmapped_component_ids": [
-            "unmapped:reranker-review"
-          ],
-          "status": "undetermined"
-        }
-      },
-      "risk_hints_by_id": {}
-    },
-    "edges": [
-      {
-        "evidence_ids": [
-          "evidence:retriever-call"
-        ],
-        "flow_id": null,
-        "from": "node:component:input:api",
-        "id": "view-edge:api-to-retriever",
-        "label": "query",
-        "relationship": "data_flow",
-        "risk_hint_ids": [],
-        "source_id": "edge:api-to-retriever",
-        "to": "node:component:retriever:qdrant"
-      },
-      {
-        "evidence_ids": [
-          "evidence:prompt-context"
-        ],
-        "flow_id": null,
-        "from": "node:component:retriever:qdrant",
-        "id": "view-edge:retriever-to-llm",
-        "label": "context",
-        "relationship": "context_flow",
-        "risk_hint_ids": [],
-        "source_id": "edge:retriever-to-llm",
-        "to": "node:component:llm:openai-chat"
-      }
-    ],
-    "environment_id": "environment:default-static",
-    "filters": {
-      "available": [
+      "evidence": [
         {
-          "id": "filter:profile_attachments",
-          "kind": "node_semantic_kind",
-          "label": "Capability overlays",
-          "matches_edge_ids": [],
-          "matches_node_ids": [
-            "node:profile-attachment:rag-grounding:retriever"
+          "id": "evidence:filesystem:docs-folder",
+          "kind": "filesystem_entry",
+          "file": "docs/sample-health-faq.md",
+          "path": "docs/",
+          "value": "document corpus detected",
+          "rule_id": "local_docs_folder_detected",
+          "line_start": null,
+          "line_end": null,
+          "snippet": null
+        },
+        {
+          "id": "evidence:code_pattern:loader",
+          "kind": "code_pattern",
+          "file": "src/indexing/load_documents.py",
+          "path": "DirectoryLoader",
+          "value": "DirectoryLoader(path='docs')",
+          "rule_id": "langchain_document_loader_detected",
+          "line_start": 12,
+          "line_end": 14,
+          "snippet": "loader = DirectoryLoader('docs')"
+        },
+        {
+          "id": "evidence:code_pattern:chunking",
+          "kind": "code_pattern",
+          "file": "src/indexing/split_documents.py",
+          "path": "RecursiveCharacterTextSplitter",
+          "value": "chunk_size=800, chunk_overlap=120",
+          "rule_id": "text_splitter_detected",
+          "line_start": 9,
+          "line_end": 11,
+          "snippet": "splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)"
+        },
+        {
+          "id": "evidence:dependency:openai",
+          "kind": "dependency_manifest",
+          "file": "requirements.txt",
+          "path": "openai",
+          "value": "openai==1.52.0",
+          "rule_id": "openai_dependency_detected",
+          "line_start": null,
+          "line_end": null,
+          "snippet": null
+        },
+        {
+          "id": "evidence:env:openai-key",
+          "kind": "config_key",
+          "file": ".env.example",
+          "path": "OPENAI_API_KEY",
+          "value": "sk-****ample",
+          "rule_id": "secret_like_config_key_detected",
+          "line_start": null,
+          "line_end": null,
+          "snippet": null
+        },
+        {
+          "id": "evidence:docker:qdrant-service",
+          "kind": "docker_service",
+          "file": "docker-compose.yml",
+          "path": "services.qdrant.image",
+          "value": "qdrant/qdrant:v1.11.0",
+          "rule_id": "qdrant_service_detected",
+          "line_start": null,
+          "line_end": null,
+          "snippet": null
+        },
+        {
+          "id": "evidence:docker:qdrant-port",
+          "kind": "docker_port",
+          "file": "docker-compose.yml",
+          "path": "services.qdrant.ports[0]",
+          "value": "6333:6333",
+          "rule_id": "docker_published_port_detected",
+          "line_start": null,
+          "line_end": null,
+          "snippet": null
+        },
+        {
+          "id": "evidence:code_pattern:fastapi-route",
+          "kind": "code_pattern",
+          "file": "src/api.py",
+          "path": "POST /query",
+          "value": "http://localhost:8000/query",
+          "rule_id": "fastapi_post_route_detected",
+          "line_start": 21,
+          "line_end": 25,
+          "snippet": "@app.post('/query')"
+        },
+        {
+          "id": "evidence:code_pattern:query-rewrite",
+          "kind": "code_pattern",
+          "file": "src/rag/query_processing.py",
+          "path": "rewrite_query",
+          "value": "query rewrite function detected",
+          "rule_id": "query_rewrite_detected",
+          "line_start": 16,
+          "line_end": 20,
+          "snippet": "def rewrite_query(user_query): ..."
+        },
+        {
+          "id": "evidence:code_pattern:retriever",
+          "kind": "code_pattern",
+          "file": "src/rag/retriever.py",
+          "path": "QdrantVectorStore.as_retriever",
+          "value": "top_k=5",
+          "rule_id": "vector_retriever_detected",
+          "line_start": 31,
+          "line_end": 38,
+          "snippet": "retriever = vector_store.as_retriever(search_kwargs={'k': 5})"
+        },
+        {
+          "id": "evidence:code_pattern:prompt-template",
+          "kind": "code_pattern",
+          "file": "src/rag/prompts.py",
+          "path": "ANSWER_PROMPT",
+          "value": "context-aware answer prompt detected",
+          "rule_id": "prompt_template_detected",
+          "line_start": 5,
+          "line_end": 13,
+          "snippet": "ANSWER_PROMPT = 'Use the provided context to answer...'"
+        },
+        {
+          "id": "evidence:code_pattern:llm-call",
+          "kind": "code_pattern",
+          "file": "src/rag/generator.py",
+          "path": "client.chat.completions.create",
+          "value": "model=gpt-4o-mini",
+          "rule_id": "llm_call_detected",
+          "line_start": 18,
+          "line_end": 24,
+          "snippet": "client.chat.completions.create(model='gpt-4o-mini', ...)"
+        },
+        {
+          "id": "evidence:dependency:redis",
+          "kind": "dependency_manifest",
+          "file": "requirements.txt",
+          "path": "redis",
+          "value": "redis==5.1.1",
+          "rule_id": "redis_dependency_detected",
+          "line_start": null,
+          "line_end": null,
+          "snippet": null
+        },
+        {
+          "id": "evidence:code_pattern:reranker-ambiguous",
+          "kind": "code_pattern",
+          "file": "src/rag/rerank.py",
+          "path": "rerank_chunks",
+          "value": "reranking-like code detected",
+          "rule_id": "routing_or_reranking_like_code_detected",
+          "line_start": 7,
+          "line_end": 19,
+          "snippet": "def rerank_chunks(query, chunks): ..."
+        },
+        {
+          "id": "evidence:parse_error:settings-yaml",
+          "kind": "parse_error",
+          "file": "config/settings.yaml",
+          "path": "$",
+          "value": "YAML parse failed near line 18",
+          "rule_id": "config_parse_error",
+          "line_start": null,
+          "line_end": null,
+          "snippet": null
+        }
+      ],
+      "endpoints": [
+        {
+          "id": "endpoint:local:chat-query",
+          "value": "http://localhost:8000/query",
+          "endpoint_type": "local",
+          "method": "POST",
+          "slot": "app_api_or_orchestrator",
+          "component_instance_id": "component:app_api_or_orchestrator:fastapi-chat-api",
+          "evidence_id": "evidence:code_pattern:fastapi-route"
+        },
+        {
+          "id": "endpoint:local:qdrant",
+          "value": "http://localhost:6333",
+          "endpoint_type": "local",
+          "method": "GET",
+          "slot": "vector_store",
+          "component_instance_id": "component:vector_store:qdrant",
+          "evidence_id": "evidence:docker:qdrant-port"
+        },
+        {
+          "id": "endpoint:external:openai-api",
+          "value": "https://api.openai.com/v1",
+          "endpoint_type": "external",
+          "method": "POST",
+          "slot": "llm",
+          "component_instance_id": "component:llm:openai-chat",
+          "evidence_id": "evidence:dependency:openai"
+        }
+      ],
+      "flows": [
+        {
+          "id": "flow:indexing",
+          "name": "Indexing Flow",
+          "flow_type": "indexing",
+          "edges": [
+            {
+              "id": "edge:indexing:data_sources:document_loader",
+              "flow_id": "flow:indexing",
+              "from_slot": "data_sources",
+              "to_slot": "document_loader",
+              "from_component_id": "component:data_sources:docs-folder",
+              "to_component_id": "component:document_loader:langchain-directory-loader",
+              "relationship": "loads_documents",
+              "evidence_ids": [
+                "evidence:filesystem:docs-folder",
+                "evidence:code_pattern:loader"
+              ]
+            },
+            {
+              "id": "edge:indexing:document_loader:chunking",
+              "flow_id": "flow:indexing",
+              "from_slot": "document_loader",
+              "to_slot": "chunking",
+              "from_component_id": "component:document_loader:langchain-directory-loader",
+              "to_component_id": "component:chunking:recursive-character-splitter",
+              "relationship": "splits_loaded_documents",
+              "evidence_ids": [
+                "evidence:code_pattern:chunking"
+              ]
+            },
+            {
+              "id": "edge:indexing:chunking:embedding_model",
+              "flow_id": "flow:indexing",
+              "from_slot": "chunking",
+              "to_slot": "embedding_model",
+              "from_component_id": "component:chunking:recursive-character-splitter",
+              "to_component_id": "component:embedding_model:openai-embeddings",
+              "relationship": "embeds_chunks",
+              "evidence_ids": [
+                "evidence:dependency:openai"
+              ]
+            },
+            {
+              "id": "edge:indexing:embedding_model:vector_store",
+              "flow_id": "flow:indexing",
+              "from_slot": "embedding_model",
+              "to_slot": "vector_store",
+              "from_component_id": "component:embedding_model:openai-embeddings",
+              "to_component_id": "component:vector_store:qdrant",
+              "relationship": "stores_vectors",
+              "evidence_ids": [
+                "evidence:docker:qdrant-service"
+              ]
+            }
           ]
         },
         {
-          "id": "filter:needs_review",
-          "kind": "status",
-          "label": "Needs review",
-          "matches_edge_ids": [],
-          "matches_node_ids": [
-            "node:unmapped:reranker-review"
+          "id": "flow:query_answer",
+          "name": "Query Answer Flow",
+          "flow_type": "query_answer",
+          "edges": [
+            {
+              "id": "edge:query_answer:app_api_or_orchestrator:query_processing",
+              "flow_id": "flow:query_answer",
+              "from_slot": "app_api_or_orchestrator",
+              "to_slot": "query_processing",
+              "from_component_id": "component:app_api_or_orchestrator:fastapi-chat-api",
+              "to_component_id": "component:query_processing:query-rewrite",
+              "relationship": "rewrites_user_query",
+              "evidence_ids": [
+                "evidence:code_pattern:fastapi-route",
+                "evidence:code_pattern:query-rewrite"
+              ]
+            },
+            {
+              "id": "edge:query_answer:query_processing:retriever",
+              "flow_id": "flow:query_answer",
+              "from_slot": "query_processing",
+              "to_slot": "retriever",
+              "from_component_id": "component:query_processing:query-rewrite",
+              "to_component_id": "component:retriever:qdrant-retriever",
+              "relationship": "passes_rewritten_query",
+              "evidence_ids": [
+                "evidence:code_pattern:query-rewrite",
+                "evidence:code_pattern:retriever"
+              ]
+            },
+            {
+              "id": "edge:query_answer:retriever:vector_store",
+              "flow_id": "flow:query_answer",
+              "from_slot": "retriever",
+              "to_slot": "vector_store",
+              "from_component_id": "component:retriever:qdrant-retriever",
+              "to_component_id": "component:vector_store:qdrant",
+              "relationship": "queries_vector_store",
+              "evidence_ids": [
+                "evidence:code_pattern:retriever",
+                "evidence:docker:qdrant-service"
+              ]
+            },
+            {
+              "id": "edge:query_answer:retriever:prompt_builder",
+              "flow_id": "flow:query_answer",
+              "from_slot": "retriever",
+              "to_slot": "prompt_builder",
+              "from_component_id": "component:retriever:qdrant-retriever",
+              "to_component_id": "component:prompt_builder:context-prompt-template",
+              "relationship": "provides_context_chunks",
+              "evidence_ids": [
+                "evidence:code_pattern:prompt-template"
+              ]
+            },
+            {
+              "id": "edge:query_answer:prompt_builder:llm",
+              "flow_id": "flow:query_answer",
+              "from_slot": "prompt_builder",
+              "to_slot": "llm",
+              "from_component_id": "component:prompt_builder:context-prompt-template",
+              "to_component_id": "component:llm:openai-chat",
+              "relationship": "sends_grounded_prompt",
+              "evidence_ids": [
+                "evidence:code_pattern:prompt-template",
+                "evidence:code_pattern:llm-call"
+              ]
+            }
           ]
         }
       ],
-      "behavior": "positive_filter_highlight_matches_dim_others"
-    },
-    "generated_from_build_id": "build:sample-b2",
-    "mapping_completeness": {
-      "denominator": 52,
-      "numerator": 4,
-      "value": 0.076923,
-      "weights": {
-        "conflicted": 0,
-        "detected": 1,
-        "not_detected": 1,
-        "partial": 0.5,
-        "undetermined": 0
-      }
-    },
-    "nodes": [
-      {
-        "activation": "enabled",
-        "anchor_node_ids": [],
-        "badges": [
-          "detected"
-        ],
-        "evidence_ids": [
-          "evidence:api-route"
-        ],
-        "id": "node:component:input:api",
-        "label": "Chat API",
-        "primary_anchor_node_id": null,
-        "profile_id": null,
-        "related_capability_candidate_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "risk_hint_ids": [],
-        "semantic_kind": "canonical_component",
-        "slot": "input_source",
-        "source_id": "component:input:api",
-        "status": "detected",
-        "subtitle": "FastAPI endpoint",
-        "type": "api_input"
-      },
-      {
-        "activation": "enabled",
-        "anchor_node_ids": [],
-        "badges": [
-          "detected",
-          "grounding"
-        ],
-        "evidence_ids": [
-          "evidence:retriever-call"
-        ],
-        "id": "node:component:retriever:qdrant",
-        "label": "Qdrant Retriever",
-        "primary_anchor_node_id": null,
-        "profile_id": null,
-        "related_capability_candidate_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "risk_hint_ids": [],
-        "semantic_kind": "grounding_component",
-        "slot": "retrieval",
-        "source_id": "component:retriever:qdrant",
-        "status": "detected",
-        "subtitle": "Vector retriever",
-        "type": "retriever"
-      },
-      {
-        "activation": "enabled",
-        "anchor_node_ids": [],
-        "badges": [
-          "detected"
-        ],
-        "evidence_ids": [
-          "evidence:llm-call"
-        ],
-        "id": "node:component:llm:openai-chat",
-        "label": "OpenAI Chat Model",
-        "primary_anchor_node_id": null,
-        "profile_id": null,
-        "related_capability_candidate_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "risk_hint_ids": [],
-        "semantic_kind": "canonical_component",
-        "slot": "generation",
-        "source_id": "component:llm:openai-chat",
-        "status": "detected",
-        "subtitle": "Generation",
-        "type": "llm"
-      },
-      {
-        "activation": "enabled",
-        "anchor_node_ids": [
-          "node:component:retriever:qdrant",
-          "node:component:llm:openai-chat"
-        ],
-        "badges": [
-          "detected"
-        ],
-        "evidence_ids": [
-          "evidence:retriever-call",
-          "evidence:llm-call"
-        ],
-        "id": "node:profile-attachment:rag-grounding:retriever",
-        "label": "RAG Grounding",
-        "primary_anchor_node_id": "node:component:retriever:qdrant",
-        "profile_id": "rag-grounding",
-        "related_capability_candidate_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "risk_hint_ids": [],
-        "semantic_kind": "profile_attachment",
-        "slot": null,
-        "source_id": "profile:rag-grounding",
-        "status": "detected",
-        "subtitle": "Capability overlay",
-        "type": "profile_attachment"
-      },
-      {
-        "activation": "unknown",
-        "anchor_node_ids": [
-          "node:component:retriever:qdrant"
-        ],
-        "badges": [
-          "review"
-        ],
-        "evidence_ids": [
-          "evidence:reranker-call"
-        ],
-        "id": "node:unmapped:reranker-review",
-        "label": "Reranker evidence",
-        "primary_anchor_node_id": "node:component:retriever:qdrant",
-        "profile_id": null,
-        "related_capability_candidate_component_ids": [
-          "capability-candidate:reranker"
-        ],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [
-          "unmapped:reranker-review"
-        ],
-        "risk_hint_ids": [],
-        "semantic_kind": "unmapped_component",
-        "slot": null,
-        "source_id": "unmapped:reranker-review",
-        "status": "needs_review",
-        "subtitle": "Review candidate",
-        "type": "review_item"
-      }
-    ],
-    "project_id": "project:sample-ai-health-rag",
-    "reference_map_version": "1",
-    "scan_id": "scan:sample-s1",
-    "schema_version": "graph-view-model/v1",
-    "source_schema_version": "ai-system-map/v2",
-    "summary": {
-      "component_count": 3,
-      "fixture_scope": "partial_projection_fragment",
-      "is_complete_reference_map": false,
-      "profile_count": 4,
-      "project_name": "sample-ai-health-rag",
-      "required_reference_node_count": 52,
-      "review_item_count": 1
-    }
-  },
-  "loaded": true,
-  "profile_inference_result": {
-    "build_id": "build:sample-b2",
-    "capability_candidate_components": [
-      {
-        "decision_source": "proposal_accept",
-        "evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "id": "capability-candidate:reranker-config",
-        "name": "Reranker configuration",
-        "observed_kind": "reranker",
-        "proposal_id": "proposal:reranker-config",
-        "source_file": "config/reranker.yaml",
-        "source_unmapped_component_id": "unmapped:reranker-config",
-        "status": "confirmed_non_baseline"
-      }
-    ],
-    "environment_id": "environment:default-static",
-    "generated_from_build_id": "build:sample-b2",
-    "mapping_completeness": {
-      "denominator": 52,
-      "numerator": 5.5,
-      "status_counts": {
-        "conflicted": 0,
-        "detected": 5,
-        "not_detected": 0,
-        "partial": 1,
-        "undetermined": 46
-      },
-      "value": 0.10576923076923077,
-      "weights": {
-        "conflicted": 0.0,
-        "detected": 1.0,
-        "not_detected": 1.0,
-        "partial": 0.5,
-        "undetermined": 0.0
-      }
-    },
-    "profiles": [
-      {
-        "activation": "enabled",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 1,
-        "coverage_total": 2,
-        "description": null,
-        "detected_signals": [
-          "llm_answerer"
-        ],
-        "direct_evidence_ids": [
-          "evidence:planner-llm"
-        ],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:planner-llm"
-        ],
-        "evidence_strength": "static_single_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "RAG Grounding",
-        "missing_signals": [
-          "dense_retriever"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "grounding",
-        "profile_id": "rag-grounding",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [
-          "component:llm:planner"
-        ],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "enabled",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 2,
-        "coverage_total": 2,
-        "description": null,
-        "detected_signals": [
-          "agent_loop",
-          "llm_answerer"
-        ],
-        "direct_evidence_ids": [
-          "evidence:agent-loop",
-          "evidence:planner-llm"
-        ],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:agent-loop",
-          "evidence:planner-llm"
-        ],
-        "evidence_strength": "static_multiple_signals",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 3,
-        "implementation_depth_reason": "Required reference capabilities are directly observed.",
-        "indirect_evidence_ids": [],
-        "label": "Agentic Control",
-        "missing_signals": [],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "agent_control",
-        "profile_id": "agentic-control",
-        "recommended_next_checks": [],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [
-          "component:agent:loop",
-          "component:llm:planner"
-        ],
-        "related_risk_hint_ids": [
-          "risk:tool-permission-review"
-        ],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "detected",
-        "uncertainty": null
-      },
-      {
-        "activation": "conditional",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 2,
-        "coverage_total": 2,
-        "description": null,
-        "detected_signals": [
-          "agent_loop",
-          "tool_using_generator"
-        ],
-        "direct_evidence_ids": [
-          "evidence:agent-loop",
-          "evidence:tool-binding"
-        ],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:agent-loop",
-          "evidence:tool-binding"
-        ],
-        "evidence_strength": "static_multiple_signals",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 3,
-        "implementation_depth_reason": "Required reference capabilities are directly observed.",
-        "indirect_evidence_ids": [],
-        "label": "Tool Calling",
-        "missing_signals": [],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "tool_use",
-        "profile_id": "tool-calling",
-        "recommended_next_checks": [],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [
-          "component:agent:loop",
-          "component:tool:search"
-        ],
-        "related_risk_hint_ids": [
-          "risk:tool-permission-review"
-        ],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "detected",
-        "uncertainty": null
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 1,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Memory",
-        "missing_signals": [
-          "long_term_memory"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "memory",
-        "profile_id": "memory",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 1,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Workflow Orchestration",
-        "missing_signals": [
-          "orchestrator"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "workflow_orchestration",
-        "profile_id": "workflow-orchestration",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 1,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Hybrid Retrieval",
-        "missing_signals": [
-          "hybrid_retriever"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "retrieval_strategy",
-        "profile_id": "hybrid-retrieval",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 1,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 1,
-        "implementation_depth_reason": "Required deterministic signals or wiring are incomplete.",
-        "indirect_evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "label": "Reranking",
-        "missing_signals": [
-          "reranker"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "retrieval_strategy",
-        "profile_id": "reranking",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [
-          "capability-candidate:reranker-config"
-        ],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [
-          "unmapped:reranker-config"
-        ],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "partial",
-        "uncertainty": "Required deterministic signals or wiring are incomplete."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 2,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Corrective Retrieval",
-        "missing_signals": [
-          "conflict_checker",
-          "router"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "agent_control",
-        "profile_id": "corrective-retrieval",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "enabled",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 1,
-        "coverage_total": 2,
-        "description": null,
-        "detected_signals": [
-          "agent_loop"
-        ],
-        "direct_evidence_ids": [
-          "evidence:agent-loop"
-        ],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:agent-loop"
-        ],
-        "evidence_strength": "static_single_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Self Reflection",
-        "missing_signals": [
-          "conflict_checker"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "agent_control",
-        "profile_id": "self-reflection",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [
-          "component:agent:loop"
-        ],
-        "related_risk_hint_ids": [
-          "risk:tool-permission-review"
-        ],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 1,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Graph Retrieval",
-        "missing_signals": [
-          "graph_retriever"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "knowledge_structure",
-        "profile_id": "graph-retrieval",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 2,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Hierarchical Retrieval",
-        "missing_signals": [
-          "index_builder",
-          "context_composer"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "knowledge_structure",
-        "profile_id": "hierarchical-retrieval",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 2,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Contextual Retrieval",
-        "missing_signals": [
-          "metadata_extractor",
-          "context_composer"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "context_enrichment",
-        "profile_id": "contextual-retrieval",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 1,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Multimodal Grounding",
-        "missing_signals": [
-          "rag_anything_system"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "data_modality",
-        "profile_id": "multimodal-grounding",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 2,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Modular Composition",
-        "missing_signals": [
-          "orchestrator",
-          "router"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "design_paradigm",
-        "profile_id": "modular-composition",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "coverage_detected": 0,
-        "coverage_total": 2,
-        "description": null,
-        "detected_signals": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "evidence_strength": "weak_or_ambiguous_signal",
-        "explicit_negative_evidence_ids": [],
-        "implementation_depth_level": 0,
-        "implementation_depth_reason": "Scanner coverage is insufficient to prove absence.",
-        "indirect_evidence_ids": [],
-        "label": "Multi-query Retrieval",
-        "missing_signals": [
-          "query_classifier",
-          "router"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "primary_axis": "retrieval_strategy",
-        "profile_id": "multi-query-retrieval",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_risk_hint_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "secondary_axes": [],
-        "source": "deterministic_static",
-        "status": "undetermined",
-        "uncertainty": "Scanner coverage is insufficient to prove absence."
-      }
-    ],
-    "reference_capability_assessments": [
-      {
-        "activation": "not_applicable",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "input_intent",
-        "reference_node_id": "user_input",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "input_intent",
-        "reference_node_id": "session_context",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "input_intent",
-        "reference_node_id": "query_classifier",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "control",
-        "reference_node_id": "planner",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "control",
-        "reference_node_id": "router",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "enabled",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [
-          "evidence:agent-loop"
-        ],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:agent-loop"
-        ],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "control",
-        "reference_node_id": "agent_loop",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [
-          "component:agent:loop"
-        ],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "detected"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "control",
-        "reference_node_id": "orchestrator",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "control",
-        "reference_node_id": "stop_policy",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "control",
-        "reference_node_id": "human_approval_gate",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "ingestion_indexing",
-        "reference_node_id": "document_loader",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "ingestion_indexing",
-        "reference_node_id": "parser",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "ingestion_indexing",
-        "reference_node_id": "chunker",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "ingestion_indexing",
-        "reference_node_id": "metadata_extractor",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "ingestion_indexing",
-        "reference_node_id": "embedder",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "ingestion_indexing",
-        "reference_node_id": "index_builder",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "retrieval",
-        "reference_node_id": "dense_retriever",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "retrieval",
-        "reference_node_id": "sparse_retriever",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "retrieval",
-        "reference_node_id": "hybrid_retriever",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "retrieval",
-        "reference_node_id": "graph_retriever",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "retrieval",
-        "reference_node_id": "memory_retriever",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "retrieval",
-        "reference_node_id": "web_retriever",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "extension_subsystems",
-        "reference_node_id": "graph_rag_system",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "extension_subsystems",
-        "reference_node_id": "rag_anything_system",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "extension_subsystems",
-        "reference_node_id": "infini_memory_system",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "extension_subsystems",
-        "reference_node_id": "corag_federated_system",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "evidence",
-        "reference_node_id": "reranker",
-        "related_capability_candidate_component_ids": [
-          "capability-candidate:reranker-config"
-        ],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [
-          "unmapped:reranker-config"
-        ],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "partial"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "evidence",
-        "reference_node_id": "conflict_checker",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "evidence",
-        "reference_node_id": "citation_mapper",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "evidence",
-        "reference_node_id": "evidence_pack",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "generation",
-        "reference_node_id": "context_composer",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "generation",
-        "reference_node_id": "prompt_builder",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "enabled",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [
-          "evidence:planner-llm"
-        ],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:planner-llm"
-        ],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "generation",
-        "reference_node_id": "llm_answerer",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [
-          "component:llm:planner"
-        ],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "detected"
-      },
-      {
-        "activation": "conditional",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "generation",
-        "reference_node_id": "tool_using_generator",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [
-          "component:tool:search"
-        ],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "detected"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "generation",
-        "reference_node_id": "output_guardrail",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "memory_state",
-        "reference_node_id": "session_state",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "memory_state",
-        "reference_node_id": "working_memory",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "memory_state",
-        "reference_node_id": "long_term_memory",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "memory_state",
-        "reference_node_id": "memory_reader",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "memory_state",
-        "reference_node_id": "memory_writer",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "governance_observability",
-        "reference_node_id": "input_guardrail",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "governance_observability",
-        "reference_node_id": "permission_policy",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "governance_observability",
-        "reference_node_id": "human_approval",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "governance_observability",
-        "reference_node_id": "trace_store",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "governance_observability",
-        "reference_node_id": "eval_harness",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "governance_observability",
-        "reference_node_id": "cost_monitor",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "governance_observability",
-        "reference_node_id": "latency_monitor",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "not_applicable",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "deployment_topology",
-        "reference_node_id": "client_app",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "deployment_topology",
-        "reference_node_id": "api_server",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "enabled",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [
-          "evidence:agent-loop"
-        ],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:agent-loop"
-        ],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "deployment_topology",
-        "reference_node_id": "agent_runtime",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [
-          "component:agent:loop"
-        ],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "detected"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "deployment_topology",
-        "reference_node_id": "worker_queue",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      },
-      {
-        "activation": "conditional",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "deployment_topology",
-        "reference_node_id": "tool_network",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [
-          "component:tool:search"
-        ],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "detected"
-      },
-      {
-        "activation": "unknown",
-        "build_id": "build:sample-b2",
-        "conflict_fields": [],
-        "direct_evidence_ids": [],
-        "environment_id": "environment:default-static",
-        "evidence_ids": [],
-        "explicit_negative_evidence_ids": [],
-        "indirect_evidence_ids": [],
-        "not_detected_coverage_gate_passed": false,
-        "plane_id": "deployment_topology",
-        "reference_node_id": "federated_clients",
-        "related_capability_candidate_component_ids": [],
-        "related_component_ids": [],
-        "related_unmapped_component_ids": [],
-        "scan_id": "scan:sample-s1",
-        "semantic_kind": "reference_capability",
-        "status": "undetermined"
-      }
-    ],
-    "reference_catalog_version": "1",
-    "scan_id": "scan:sample-s1",
-    "schema_version": "profile-signals/v1",
-    "source_schema_version": "ai-system-map/v2"
-  },
-  "project_id": "project:sample-ai-health-rag",
-  "readiness_report": {
-    "build_id": "build:sample-b2",
-    "capability_summaries": [
-      {
-        "activation": "enabled",
-        "evidence_ids": [
-          "evidence:planner-llm"
-        ],
-        "profile_id": "rag-grounding",
-        "status": "undetermined"
-      },
-      {
-        "activation": "enabled",
-        "evidence_ids": [
-          "evidence:agent-loop",
-          "evidence:planner-llm"
-        ],
-        "profile_id": "agentic-control",
-        "status": "detected"
-      },
-      {
-        "activation": "conditional",
-        "evidence_ids": [
-          "evidence:agent-loop",
-          "evidence:tool-binding"
-        ],
-        "profile_id": "tool-calling",
-        "status": "detected"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "memory",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "workflow-orchestration",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "hybrid-retrieval",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "profile_id": "reranking",
-        "status": "partial"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "corrective-retrieval",
-        "status": "undetermined"
-      },
-      {
-        "activation": "enabled",
-        "evidence_ids": [
-          "evidence:agent-loop"
-        ],
-        "profile_id": "self-reflection",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "graph-retrieval",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "hierarchical-retrieval",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "contextual-retrieval",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "multimodal-grounding",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "modular-composition",
-        "status": "undetermined"
-      },
-      {
-        "activation": "unknown",
-        "evidence_ids": [],
-        "profile_id": "multi-query-retrieval",
-        "status": "undetermined"
-      }
-    ],
-    "environment_id": "environment:default-static",
-    "findings": [
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [
-          "evidence:planner-llm"
-        ],
-        "finding_id": "readiness:profile:rag-grounding",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: rag-grounding"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [
-          "evidence:agent-loop",
-          "evidence:planner-llm"
-        ],
-        "finding_id": "readiness:profile:agentic-control",
-        "reason": "Deterministic capability gate passed.",
-        "recommended_next_checks": [],
-        "status": "detected",
-        "title": "Capability readiness: agentic-control"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [
-          "evidence:agent-loop",
-          "evidence:tool-binding"
-        ],
-        "finding_id": "readiness:profile:tool-calling",
-        "reason": "Deterministic capability gate passed.",
-        "recommended_next_checks": [],
-        "status": "detected",
-        "title": "Capability readiness: tool-calling"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:memory",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: memory"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:workflow-orchestration",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: workflow-orchestration"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:hybrid-retrieval",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: hybrid-retrieval"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [
-          "evidence:tool-binding"
-        ],
-        "finding_id": "readiness:profile:reranking",
-        "reason": "Required deterministic signals or wiring are incomplete.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "partial",
-        "title": "Capability readiness: reranking"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:corrective-retrieval",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: corrective-retrieval"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [
-          "evidence:agent-loop"
-        ],
-        "finding_id": "readiness:profile:self-reflection",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: self-reflection"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:graph-retrieval",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: graph-retrieval"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:hierarchical-retrieval",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: hierarchical-retrieval"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:contextual-retrieval",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: contextual-retrieval"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:multimodal-grounding",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: multimodal-grounding"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:modular-composition",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: modular-composition"
-      },
-      {
-        "category": "capability_readiness",
-        "evidence_ids": [],
-        "finding_id": "readiness:profile:multi-query-retrieval",
-        "reason": "Scanner coverage is insufficient to prove absence.",
-        "recommended_next_checks": [
-          "Review the missing deterministic capability signals."
-        ],
-        "status": "undetermined",
-        "title": "Capability readiness: multi-query-retrieval"
-      },
-      {
-        "category": "source_traceability",
-        "evidence_ids": [],
-        "finding_id": "readiness:source-traceability",
-        "reason": "Citation mapping coverage is not proven.",
-        "recommended_next_checks": [
-          "Verify answer-to-source citation mapping."
-        ],
-        "status": "undetermined",
-        "title": "Source traceability"
-      }
-    ],
-    "generated_from_build_id": "build:sample-b2",
-    "grounding": {
-      "applicability": "undetermined",
-      "dimensions": [
+      "extensions": [
         {
-          "dimension_id": "retrieval",
-          "evidence_ids": [],
-          "reason": "Deterministic evidence is incomplete.",
-          "status": "undetermined"
-        },
-        {
-          "dimension_id": "generation",
+          "id": "extension:cache:redis-response-cache",
+          "name": "Redis Response Cache",
+          "kind": "cache",
+          "status": "confirmed",
+          "confirmed_by_user": true,
+          "description": "Caches repeated question responses before invoking the LLM.",
           "evidence_ids": [
-            "evidence:planner-llm"
-          ],
-          "reason": null,
-          "status": "detected"
-        },
-        {
-          "dimension_id": "traceability",
-          "evidence_ids": [],
-          "reason": "Deterministic evidence is incomplete.",
-          "status": "undetermined"
+            "evidence:dependency:redis"
+          ]
         }
       ],
-      "evidence_ids": [
-        "evidence:planner-llm"
+      "unmapped_components": [
+        {
+          "id": "unmapped:src-rag-rerank",
+          "source_file": "src/rag/rerank.py",
+          "observed_kind": "reranking_like_code",
+          "status": "needs_confirmation",
+          "reason": "Detected reranking-like code, but scanner cannot safely decide whether this is a retriever extension or a custom response ranking utility.",
+          "evidence_ids": [
+            "evidence:code_pattern:reranker-ambiguous"
+          ],
+          "suggested_actions": [
+            "confirm_as_retriever_extension",
+            "confirm_as_extension_component",
+            "skip_for_now"
+          ]
+        }
       ],
-      "reason": "Scanner coverage is insufficient to prove absence.",
-      "status": "undetermined"
+      "detail_scans": [
+        {
+          "id": "detail_scan:retriever:001",
+          "target_type": "component_slot",
+          "target": "retriever",
+          "scan_depth": "component",
+          "status": "completed",
+          "replay_depth": "component_replay",
+          "findings": [
+            {
+              "kind": "retriever_call",
+              "summary": "Retriever invokes Qdrant similarity search with top_k=5.",
+              "evidence_ids": [
+                "evidence:code_pattern:retriever"
+              ],
+              "best_effort": null
+            },
+            {
+              "kind": "possible_reranker",
+              "summary": "A reranking-like file exists but needs user confirmation before it can be shown as a confirmed extension step.",
+              "evidence_ids": [
+                "evidence:code_pattern:reranker-ambiguous"
+              ],
+              "best_effort": null
+            }
+          ],
+          "code_path": [],
+          "warnings": [
+            "bounded_component_scan_only"
+          ],
+          "best_effort": null,
+          "context_limits": {}
+        },
+        {
+          "id": "detail_scan:edge-query-answer-prompt-llm:001",
+          "target_type": "edge",
+          "target": "edge:query_answer:prompt_builder:llm",
+          "scan_depth": "code_path",
+          "status": "completed",
+          "replay_depth": "code_path_replay",
+          "findings": [
+            {
+              "kind": "project_owned_code_path",
+              "summary": "Application code path reaches prompt builder and LLM call without traversing framework internals.",
+              "evidence_ids": [
+                "evidence:code_pattern:fastapi-route",
+                "evidence:code_pattern:llm-call"
+              ],
+              "best_effort": null
+            }
+          ],
+          "code_path": [
+            {
+              "file": "src/api.py",
+              "symbol": "query",
+              "line_start": 21,
+              "line_end": null,
+              "evidence_id": null,
+              "best_effort": null
+            },
+            {
+              "file": "src/rag/service.py",
+              "symbol": "answer_question",
+              "line_start": 34,
+              "line_end": null,
+              "evidence_id": null,
+              "best_effort": null
+            },
+            {
+              "file": "src/rag/generator.py",
+              "symbol": "generate_answer",
+              "line_start": 18,
+              "line_end": null,
+              "evidence_id": null,
+              "best_effort": null
+            }
+          ],
+          "warnings": [
+            "best_effort_code_path",
+            "third_party_library_internals_not_traversed"
+          ],
+          "best_effort": null,
+          "context_limits": {}
+        }
+      ],
+      "risk_hints": [
+        {
+          "id": "risk:docker_published_port_exposure:component-vector-store-qdrant",
+          "type": "network_exposure",
+          "target": "component:vector_store:qdrant",
+          "target_type": "component_instance",
+          "evidence_id": "evidence:docker:qdrant-port",
+          "rule_id": "docker_published_port_exposure",
+          "rationale": "Qdrant has a published Docker port and may be reachable outside the app container boundary.",
+          "uncertainty": "Epic 1 does not run full port security or firewall checks.",
+          "severity_hint": "high"
+        },
+        {
+          "id": "risk:external_provider_detected:component-llm-openai-chat",
+          "type": "external_provider",
+          "target": "component:llm:openai-chat",
+          "target_type": "component_instance",
+          "evidence_id": "evidence:dependency:openai",
+          "rule_id": "external_provider_detected",
+          "rationale": "The app depends on an external OpenAI API provider.",
+          "uncertainty": "Epic 1 does not verify runtime egress policy or data handling settings.",
+          "severity_hint": "medium"
+        },
+        {
+          "id": "risk:secret_like_config_key_detected:openai-api-key",
+          "type": "secret_exposure",
+          "target": "evidence:env:openai-key",
+          "target_type": "evidence",
+          "evidence_id": "evidence:env:openai-key",
+          "rule_id": "secret_like_config_key_detected",
+          "rationale": "A secret-like config key exists. The value is masked in the report.",
+          "uncertainty": "Epic 1 only confirms the key pattern, not whether the actual secret is valid or committed.",
+          "severity_hint": "medium"
+        },
+        {
+          "id": "risk:config_parse_error:settings-yaml",
+          "type": "partial_scan",
+          "target": "config/settings.yaml",
+          "target_type": "file",
+          "evidence_id": "evidence:parse_error:settings-yaml",
+          "rule_id": "config_parse_error",
+          "rationale": "A config file could not be parsed, so the map may be incomplete.",
+          "uncertainty": "Scanner continued with partial evidence.",
+          "severity_hint": "medium"
+        },
+        {
+          "id": "risk:missing_required_slot:citation",
+          "type": "missing_component",
+          "target": "citation_or_response_composer",
+          "target_type": "component_slot",
+          "evidence_id": "evidence:code_pattern:prompt-template",
+          "rule_id": "missing_required_slot",
+          "rationale": "No explicit citation or response composer was detected even though a prompt builder and retriever were detected.",
+          "uncertainty": "The behavior may be inline in code not covered by L1 scan.",
+          "severity_hint": "low"
+        }
+      ],
+      "recommended_next_checks": [
+        {
+          "id": "next_check:confirm-reranker",
+          "target_type": "unmapped_component",
+          "target": "unmapped:src-rag-rerank",
+          "reason": "Confirm whether rerank.py should appear as a retriever extension in the graph.",
+          "action": "manual_mapping_confirmation"
+        },
+        {
+          "id": "next_check:review-qdrant-port",
+          "target_type": "component_instance",
+          "target": "component:vector_store:qdrant",
+          "reason": "Published vector database port may affect release readiness.",
+          "action": "review_network_exposure"
+        },
+        {
+          "id": "next_check:run-query-trace",
+          "target_type": "endpoint",
+          "target": "endpoint:local:chat-query",
+          "reason": "A local query endpoint was detected and can be used for opt-in replay.",
+          "action": "run_query_trace"
+        }
+      ],
+      "query_trace_events": [
+        {
+          "id": "trace_event:sample-trace:001",
+          "trace_id": "trace:sample-health-query",
+          "sequence_index": 0,
+          "timestamp": "2026-05-26T10:20:30Z",
+          "event_type": null,
+          "step_type": null,
+          "status": null,
+          "query_sent": null,
+          "endpoint_id": null,
+          "replay_depth": "coarse_replay",
+          "slot": "app_api_or_orchestrator",
+          "component_id": "component:app_api_or_orchestrator:fastapi-chat-api",
+          "unmapped_component_id": null,
+          "edge_id": "edge:query_answer:app_api_or_orchestrator:query_processing",
+          "warnings": [],
+          "input": {
+            "query": "What documents mention discharge instructions?"
+          },
+          "output": {
+            "status": "accepted"
+          },
+          "latency_ms": 14,
+          "latency": null,
+          "error": null,
+          "retrieved_chunks": []
+        },
+        {
+          "id": "trace_event:sample-trace:002",
+          "trace_id": "trace:sample-health-query",
+          "sequence_index": 1,
+          "timestamp": "2026-05-26T10:20:31Z",
+          "event_type": null,
+          "step_type": null,
+          "status": null,
+          "query_sent": null,
+          "endpoint_id": null,
+          "replay_depth": "coarse_replay",
+          "slot": "retriever",
+          "component_id": "component:retriever:qdrant-retriever",
+          "unmapped_component_id": null,
+          "edge_id": "edge:query_answer:retriever:vector_store",
+          "warnings": [],
+          "input": {
+            "query": "discharge instructions documents"
+          },
+          "output": {
+            "top_k": 5,
+            "documents_found": 3
+          },
+          "latency_ms": 82,
+          "latency": null,
+          "error": null,
+          "retrieved_chunks": [
+            {
+              "chunk_id": "chunk:docs-sample-health-faq:001",
+              "source_file": "docs/sample-health-faq.md",
+              "score": 0.87,
+              "text_preview": "Discharge instructions include follow-up care and medication reminders..."
+            },
+            {
+              "chunk_id": "chunk:docs-sample-health-faq:002",
+              "source_file": "docs/sample-health-faq.md",
+              "score": 0.81,
+              "text_preview": "Patients should contact the clinic if symptoms worsen..."
+            }
+          ]
+        },
+        {
+          "id": "trace_event:sample-trace:003",
+          "trace_id": "trace:sample-health-query",
+          "sequence_index": 2,
+          "timestamp": "2026-05-26T10:20:32Z",
+          "event_type": null,
+          "step_type": null,
+          "status": null,
+          "query_sent": null,
+          "endpoint_id": null,
+          "replay_depth": "coarse_replay",
+          "slot": "prompt_builder",
+          "component_id": "component:prompt_builder:context-prompt-template",
+          "unmapped_component_id": null,
+          "edge_id": "edge:query_answer:retriever:prompt_builder",
+          "warnings": [],
+          "input": {
+            "chunks": 3
+          },
+          "output": {
+            "prompt_preview": "Use the provided context to answer the question. Context: Discharge instructions..."
+          },
+          "latency_ms": 7,
+          "latency": null,
+          "error": null,
+          "retrieved_chunks": []
+        },
+        {
+          "id": "trace_event:sample-trace:004",
+          "trace_id": "trace:sample-health-query",
+          "sequence_index": 3,
+          "timestamp": "2026-05-26T10:20:33Z",
+          "event_type": null,
+          "step_type": null,
+          "status": null,
+          "query_sent": null,
+          "endpoint_id": null,
+          "replay_depth": "coarse_replay",
+          "slot": "llm",
+          "component_id": "component:llm:openai-chat",
+          "unmapped_component_id": null,
+          "edge_id": "edge:query_answer:prompt_builder:llm",
+          "warnings": [],
+          "input": {
+            "model": "gpt-4o-mini",
+            "prompt_preview": "Use the provided context..."
+          },
+          "output": {
+            "answer_preview": "The documents mention discharge instructions in the follow-up care section..."
+          },
+          "latency_ms": 940,
+          "latency": null,
+          "error": null,
+          "retrieved_chunks": []
+        }
+      ]
     },
-    "limitations": [
-      "Static analysis does not prove runtime behavior.",
-      "Undetermined does not mean the capability is absent."
-    ],
-    "mapping_completeness": {
-      "denominator": 52,
-      "numerator": 5.5,
-      "status_counts": {
-        "conflicted": 0,
-        "detected": 5,
-        "not_detected": 0,
-        "partial": 1,
-        "undetermined": 46
+    "graph_view_model": {
+      "schema_version": "graph-view-model/v1",
+      "source_schema_version": "ai-system-map/v1",
+      "project_id": null,
+      "scan_id": null,
+      "build_id": null,
+      "environment_id": "environment:default-static",
+      "generated_from_build_id": null,
+      "reference_map_version": "1",
+      "mapping_completeness": null,
+      "map_json": null,
+      "summary": {
+        "fixture_scope": "current_contract_fragment",
+        "full_runtime_node_count": 67,
+        "included_node_count": 6,
+        "required_reference_node_count": 52,
+        "note": "This handoff fixture is intentionally truncated; runtime projection emits all 52 reference nodes."
       },
-      "value": 0.10576923076923077,
-      "weights": {
-        "conflicted": 0.0,
-        "detected": 1.0,
-        "not_detected": 1.0,
-        "partial": 0.5,
-        "undetermined": 0.0
+      "nodes": [
+        {
+          "id": "node:reference:user_input",
+          "source_id": "user_input",
+          "reference_node_id": "user_input",
+          "component_id": null,
+          "profile_id": null,
+          "plane_id": "input_intent",
+          "type": "reference_capability",
+          "semantic_kind": "reference_capability",
+          "slot": null,
+          "status": "undetermined",
+          "activation": "not_applicable",
+          "label": "User Input",
+          "subtitle": "Accepts a user request.",
+          "badges": [
+            "undetermined",
+            "not_applicable",
+            "input_intent"
+          ],
+          "evidence_ids": [],
+          "direct_evidence_ids": [],
+          "indirect_evidence_ids": [],
+          "explicit_negative_evidence_ids": [],
+          "conflict_fields": [],
+          "not_detected_coverage_gate_passed": null,
+          "assessment_scope": null,
+          "primary_anchor_node_id": null,
+          "anchor_node_ids": [],
+          "related_component_ids": [],
+          "related_unmapped_component_ids": [],
+          "related_capability_candidate_component_ids": [],
+          "related_risk_hint_ids": [],
+          "description": null,
+          "implementation_depth_level": null,
+          "implementation_depth_reason": null,
+          "evidence_strength": null,
+          "uncertainty": null,
+          "recommended_next_checks": [],
+          "risk_hint_ids": []
+        },
+        {
+          "id": "node:component:component-app-api-or-orchestrator-fastapi-chat-api~78f0fa6f",
+          "source_id": "component:app_api_or_orchestrator:fastapi-chat-api",
+          "reference_node_id": null,
+          "component_id": "component:app_api_or_orchestrator:fastapi-chat-api",
+          "profile_id": null,
+          "plane_id": "control",
+          "type": "api_orchestrator",
+          "semantic_kind": "repo_component",
+          "slot": "app_api_or_orchestrator",
+          "status": "detected",
+          "activation": "enabled",
+          "label": "FastAPI Chat API",
+          "subtitle": "Control",
+          "badges": [
+            "detected",
+            "enabled",
+            "api_orchestrator"
+          ],
+          "evidence_ids": [
+            "evidence:code_pattern:fastapi-route"
+          ],
+          "direct_evidence_ids": [],
+          "indirect_evidence_ids": [],
+          "explicit_negative_evidence_ids": [],
+          "conflict_fields": [],
+          "not_detected_coverage_gate_passed": null,
+          "assessment_scope": null,
+          "primary_anchor_node_id": null,
+          "anchor_node_ids": [],
+          "related_component_ids": [],
+          "related_unmapped_component_ids": [],
+          "related_capability_candidate_component_ids": [],
+          "related_risk_hint_ids": [],
+          "description": null,
+          "implementation_depth_level": null,
+          "implementation_depth_reason": null,
+          "evidence_strength": null,
+          "uncertainty": null,
+          "recommended_next_checks": [],
+          "risk_hint_ids": []
+        },
+        {
+          "id": "node:component:component-query-processing-query-rewrite~92728de7",
+          "source_id": "component:query_processing:query-rewrite",
+          "reference_node_id": null,
+          "component_id": "component:query_processing:query-rewrite",
+          "profile_id": null,
+          "plane_id": "retrieval",
+          "type": "query_rewrite",
+          "semantic_kind": "repo_component",
+          "slot": "query_processing",
+          "status": "detected",
+          "activation": "enabled",
+          "label": "Query Rewrite",
+          "subtitle": "Retrieval",
+          "badges": [
+            "detected",
+            "enabled",
+            "query_rewrite"
+          ],
+          "evidence_ids": [
+            "evidence:code_pattern:query-rewrite"
+          ],
+          "direct_evidence_ids": [],
+          "indirect_evidence_ids": [],
+          "explicit_negative_evidence_ids": [],
+          "conflict_fields": [],
+          "not_detected_coverage_gate_passed": null,
+          "assessment_scope": null,
+          "primary_anchor_node_id": null,
+          "anchor_node_ids": [],
+          "related_component_ids": [],
+          "related_unmapped_component_ids": [],
+          "related_capability_candidate_component_ids": [],
+          "related_risk_hint_ids": [],
+          "description": null,
+          "implementation_depth_level": null,
+          "implementation_depth_reason": null,
+          "evidence_strength": null,
+          "uncertainty": null,
+          "recommended_next_checks": [],
+          "risk_hint_ids": []
+        },
+        {
+          "id": "node:component:component-retriever-qdrant-retriever~a2817041",
+          "source_id": "component:retriever:qdrant-retriever",
+          "reference_node_id": null,
+          "component_id": "component:retriever:qdrant-retriever",
+          "profile_id": null,
+          "plane_id": "retrieval",
+          "type": "vector_retriever",
+          "semantic_kind": "repo_component",
+          "slot": "retriever",
+          "status": "detected",
+          "activation": "enabled",
+          "label": "Qdrant Retriever",
+          "subtitle": "Retrieval",
+          "badges": [
+            "detected",
+            "enabled",
+            "vector_retriever"
+          ],
+          "evidence_ids": [
+            "evidence:code_pattern:retriever"
+          ],
+          "direct_evidence_ids": [],
+          "indirect_evidence_ids": [],
+          "explicit_negative_evidence_ids": [],
+          "conflict_fields": [],
+          "not_detected_coverage_gate_passed": null,
+          "assessment_scope": null,
+          "primary_anchor_node_id": null,
+          "anchor_node_ids": [],
+          "related_component_ids": [],
+          "related_unmapped_component_ids": [],
+          "related_capability_candidate_component_ids": [],
+          "related_risk_hint_ids": [],
+          "description": null,
+          "implementation_depth_level": null,
+          "implementation_depth_reason": null,
+          "evidence_strength": null,
+          "uncertainty": null,
+          "recommended_next_checks": [],
+          "risk_hint_ids": []
+        },
+        {
+          "id": "node:extension:extension-cache-redis-response-cache~b82f652a",
+          "source_id": "extension:cache:redis-response-cache",
+          "reference_node_id": null,
+          "component_id": "extension:cache:redis-response-cache",
+          "profile_id": null,
+          "plane_id": "extension_subsystems",
+          "type": "legacy_extension",
+          "semantic_kind": "repo_component",
+          "slot": null,
+          "status": "confirmed",
+          "activation": "enabled",
+          "label": "Redis Response Cache",
+          "subtitle": "Extension Subsystems",
+          "badges": [
+            "confirmed",
+            "enabled",
+            "legacy_extension"
+          ],
+          "evidence_ids": [
+            "evidence:dependency:redis"
+          ],
+          "direct_evidence_ids": [],
+          "indirect_evidence_ids": [],
+          "explicit_negative_evidence_ids": [],
+          "conflict_fields": [],
+          "not_detected_coverage_gate_passed": null,
+          "assessment_scope": null,
+          "primary_anchor_node_id": null,
+          "anchor_node_ids": [],
+          "related_component_ids": [],
+          "related_unmapped_component_ids": [],
+          "related_capability_candidate_component_ids": [],
+          "related_risk_hint_ids": [],
+          "description": null,
+          "implementation_depth_level": null,
+          "implementation_depth_reason": null,
+          "evidence_strength": null,
+          "uncertainty": null,
+          "recommended_next_checks": [],
+          "risk_hint_ids": []
+        },
+        {
+          "id": "node:unmapped:unmapped-src-rag-rerank~9fc3d268",
+          "source_id": "unmapped:src-rag-rerank",
+          "reference_node_id": null,
+          "component_id": null,
+          "profile_id": null,
+          "plane_id": null,
+          "type": "reranking_like_code",
+          "semantic_kind": "unmapped_component",
+          "slot": null,
+          "status": "needs_confirmation",
+          "activation": "unknown",
+          "label": "Reranking Like Code",
+          "subtitle": "Detected reranking-like code, but scanner cannot safely decide whether this is a retriever extension or a custom response ranking utility.",
+          "badges": [
+            "needs_confirmation",
+            "unmapped"
+          ],
+          "evidence_ids": [
+            "evidence:code_pattern:reranker-ambiguous"
+          ],
+          "direct_evidence_ids": [],
+          "indirect_evidence_ids": [],
+          "explicit_negative_evidence_ids": [],
+          "conflict_fields": [],
+          "not_detected_coverage_gate_passed": null,
+          "assessment_scope": null,
+          "primary_anchor_node_id": null,
+          "anchor_node_ids": [],
+          "related_component_ids": [],
+          "related_unmapped_component_ids": [],
+          "related_capability_candidate_component_ids": [],
+          "related_risk_hint_ids": [],
+          "description": null,
+          "implementation_depth_level": null,
+          "implementation_depth_reason": null,
+          "evidence_strength": null,
+          "uncertainty": null,
+          "recommended_next_checks": [],
+          "risk_hint_ids": []
+        }
+      ],
+      "edges": [
+        {
+          "id": "graph:edge:query_answer:app_api_or_orchestrator:query_processing",
+          "source_id": "edge:query_answer:app_api_or_orchestrator:query_processing",
+          "flow_id": "flow:query_answer",
+          "from": "node:component:component-app-api-or-orchestrator-fastapi-chat-api~78f0fa6f",
+          "to": "node:component:component-query-processing-query-rewrite~92728de7",
+          "relationship": "rewrites_user_query",
+          "label": "Rewrites User Query",
+          "evidence_ids": [
+            "evidence:code_pattern:fastapi-route",
+            "evidence:code_pattern:query-rewrite"
+          ],
+          "risk_hint_ids": []
+        },
+        {
+          "id": "graph:edge:query_answer:query_processing:retriever",
+          "source_id": "edge:query_answer:query_processing:retriever",
+          "flow_id": "flow:query_answer",
+          "from": "node:component:component-query-processing-query-rewrite~92728de7",
+          "to": "node:component:component-retriever-qdrant-retriever~a2817041",
+          "relationship": "passes_rewritten_query",
+          "label": "Passes Rewritten Query",
+          "evidence_ids": [
+            "evidence:code_pattern:query-rewrite",
+            "evidence:code_pattern:retriever"
+          ],
+          "risk_hint_ids": []
+        }
+      ],
+      "relationships": [],
+      "endpoints": [
+        {
+          "endpoint_id": "endpoint:external:openai-api",
+          "value": "https://api.openai.com/v1",
+          "endpoint_type": "external",
+          "method": "POST",
+          "component_id": "component:llm:openai-chat",
+          "slot": "llm"
+        },
+        {
+          "endpoint_id": "endpoint:local:chat-query",
+          "value": "http://localhost:8000/query",
+          "endpoint_type": "local",
+          "method": "POST",
+          "component_id": "component:app_api_or_orchestrator:fastapi-chat-api",
+          "slot": "app_api_or_orchestrator"
+        },
+        {
+          "endpoint_id": "endpoint:local:qdrant",
+          "value": "http://localhost:6333",
+          "endpoint_type": "local",
+          "method": "GET",
+          "component_id": "component:vector_store:qdrant",
+          "slot": "vector_store"
+        }
+      ],
+      "recommended_next_checks": [
+        {
+          "id": "next_check:confirm-reranker",
+          "target_type": "unmapped_component",
+          "target": "unmapped:src-rag-rerank",
+          "reason": "Confirm whether rerank.py should appear as a retriever extension in the graph.",
+          "action": "manual_mapping_confirmation"
+        },
+        {
+          "id": "next_check:review-qdrant-port",
+          "target_type": "component_instance",
+          "target": "component:vector_store:qdrant",
+          "reason": "Published vector database port may affect release readiness.",
+          "action": "review_network_exposure"
+        },
+        {
+          "id": "next_check:run-query-trace",
+          "target_type": "endpoint",
+          "target": "endpoint:local:chat-query",
+          "reason": "A local query endpoint was detected and can be used for opt-in replay.",
+          "action": "run_query_trace"
+        }
+      ],
+      "details": {
+        "evidence_by_id": {},
+        "risk_hints_by_id": {},
+        "reference_assessments_by_id": {},
+        "profile_findings_by_id": {},
+        "capability_candidates_by_id": {}
+      },
+      "filters": {
+        "available": [
+          {
+            "id": "filter:status:confirmed",
+            "label": "Status: Confirmed",
+            "kind": "status",
+            "active": false,
+            "matches_node_ids": [
+              "node:extension:extension-cache-redis-response-cache~b82f652a"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:status:detected",
+            "label": "Status: Detected",
+            "kind": "status",
+            "active": false,
+            "matches_node_ids": [
+              "node:component:component-app-api-or-orchestrator-fastapi-chat-api~78f0fa6f",
+              "node:component:component-query-processing-query-rewrite~92728de7",
+              "node:component:component-retriever-qdrant-retriever~a2817041"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:status:missing",
+            "label": "Status: Missing",
+            "kind": "status",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:status:needs_confirmation",
+            "label": "Status: Needs Confirmation",
+            "kind": "status",
+            "active": false,
+            "matches_node_ids": [
+              "node:unmapped:unmapped-src-rag-rerank~9fc3d268"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:status:not_configured",
+            "label": "Status: Not Configured",
+            "kind": "status",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:status:undetermined",
+            "label": "Status: Undetermined",
+            "kind": "status",
+            "active": false,
+            "matches_node_ids": [
+              "node:reference:user_input"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:api-orchestrator",
+            "label": "Type: Api Orchestrator",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [
+              "node:component:component-app-api-or-orchestrator-fastapi-chat-api~78f0fa6f"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:document-loader",
+            "label": "Type: Document Loader",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:embedding-provider",
+            "label": "Type: Embedding Provider",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:external-llm",
+            "label": "Type: External Llm",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:legacy-extension",
+            "label": "Type: Legacy Extension",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [
+              "node:extension:extension-cache-redis-response-cache~b82f652a"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:local-document-corpus",
+            "label": "Type: Local Document Corpus",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:prompt-template",
+            "label": "Type: Prompt Template",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:query-rewrite",
+            "label": "Type: Query Rewrite",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [
+              "node:component:component-query-processing-query-rewrite~92728de7"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:reference-capability",
+            "label": "Type: Reference Capability",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [
+              "node:reference:user_input"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:reranking-like-code",
+            "label": "Type: Reranking Like Code",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [
+              "node:unmapped:unmapped-src-rag-rerank~9fc3d268"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:slot-placeholder",
+            "label": "Type: Slot Placeholder",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:text-splitter",
+            "label": "Type: Text Splitter",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:vector-db",
+            "label": "Type: Vector Db",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:type:vector-retriever",
+            "label": "Type: Vector Retriever",
+            "kind": "type",
+            "active": false,
+            "matches_node_ids": [
+              "node:component:component-retriever-qdrant-retriever~a2817041"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:flow:indexing",
+            "label": "Indexing",
+            "kind": "flow",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:flow:query_answer",
+            "label": "Query Answer",
+            "kind": "flow",
+            "active": false,
+            "matches_node_ids": [
+              "node:component:component-app-api-or-orchestrator-fastapi-chat-api~78f0fa6f",
+              "node:component:component-query-processing-query-rewrite~92728de7",
+              "node:component:component-retriever-qdrant-retriever~a2817041"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:risk:has_risk",
+            "label": "Has Risk Hint",
+            "kind": "risk",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:profile_attachments",
+            "label": "Profile Attachments",
+            "kind": "profile_attachment",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "filter:capability_candidates",
+            "label": "Capability Candidates",
+            "kind": "capability_candidate",
+            "active": false,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          }
+        ],
+        "lenses": [
+          {
+            "id": "lens:data",
+            "label": "Data",
+            "supported": true,
+            "unavailable_reason": null,
+            "matches_node_ids": [
+              "node:component:component-query-processing-query-rewrite~92728de7",
+              "node:component:component-retriever-qdrant-retriever~a2817041"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "lens:control",
+            "label": "Control",
+            "supported": true,
+            "unavailable_reason": null,
+            "matches_node_ids": [
+              "node:component:component-app-api-or-orchestrator-fastapi-chat-api~78f0fa6f"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "lens:evidence",
+            "label": "Evidence",
+            "supported": true,
+            "unavailable_reason": null,
+            "matches_node_ids": [
+              "node:component:component-app-api-or-orchestrator-fastapi-chat-api~78f0fa6f",
+              "node:component:component-query-processing-query-rewrite~92728de7",
+              "node:component:component-retriever-qdrant-retriever~a2817041",
+              "node:extension:extension-cache-redis-response-cache~b82f652a",
+              "node:unmapped:unmapped-src-rag-rerank~9fc3d268"
+            ],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "lens:governance",
+            "label": "Governance",
+            "supported": true,
+            "unavailable_reason": null,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "lens:source",
+            "label": "Source",
+            "supported": true,
+            "unavailable_reason": null,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          },
+          {
+            "id": "lens:risk",
+            "label": "Risk",
+            "supported": true,
+            "unavailable_reason": null,
+            "matches_node_ids": [],
+            "matches_edge_ids": []
+          }
+        ],
+        "behavior": "highlight_and_dim"
       }
-    },
-    "primary_map_type": "agentic_ai_system",
-    "recommended_next_checks": [
-      "Review the missing deterministic capability signals."
-    ],
-    "scan_id": "scan:sample-s1",
-    "schema_version": "readiness-report/v1",
-    "source_schema_version": "ai-system-map/v2"
-  },
-  "scan_id": "scan:sample-s1",
-  "warnings": []
+    }
+  }
 }

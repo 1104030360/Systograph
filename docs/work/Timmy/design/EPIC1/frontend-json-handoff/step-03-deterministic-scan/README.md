@@ -1,30 +1,29 @@
 # Step 3 — 確定性掃描
 
-Last updated: 2026-07-07（UA 整合決策對齊）
+Last updated: 2026-07-15（Phase A live-state correction）
 
-Backend 會持久化 `snapshot.json`（`scan-snapshot/v1`，Plan 03A），內含 raw
-`ProjectScanResult` 與 snapshot internal UA sidecar。
+## Current Phase A
 
-**Frontend 不使用此檔。** Viewer 與 handoff mock 從 Step 4 起的 build artifacts / API 載入即可。
-
-2026-07-07 決策後，Step 3 掃描來源為 UA-primary：
+Step 2 完成 boundary 後，current pipeline 由 KAI deterministic TOML／config／filesystem
+providers 產生 structural facts、evidence 與 issues。Backend 會保存
+`snapshot.json`（`scan-snapshot/v1`）；它是 Apply replay 的內部輸入，不是 public artifact。
 
 ```text
-Step 2 allowlisted inventory
-  -> UnderstandAnythingAnalysisService
-       extract-import-map
-       -> compute-batches
-       -> extract-structure
-       -> file-analyzer（bounded LLM）deferred；不執行
-       -> ua-analysis-result.json nullable deferred sidecar
-  -> Structural Adapter：structural facts → facts / evidence / issues
-  -> semantic → reserved nullable internal sidecar（Phase2 不產生、不消費）
+Final FileInventory
+  -> current KAI deterministic providers
+  -> ProjectScanResult
+  -> ScanSnapshot S1
+  -> Step 4～7 Build B1
 ```
 
-`ua-analysis-result.json` 不是 public artifact，也不是 frontend JSON handoff sample。Phase2 active
-path 不產生也不消費它；Frontend 不得依賴它的欄位；semantic candidate、`signal_origin`、
-`confidence` 等資訊不進入 sample schema。
+Frontend 不直接讀 snapshot 或 raw facts，只讀 build／viewer API。Apply 重播 S1、建立 B2；
+Rescan 才重新讀 repo、建立新的 scan 與 snapshot。
 
-過渡期 KAI scan TOML providers 仍可並跑做 parity gate；Plan 14 驗證通過後退役主掃描路徑。
-UA sidecar 失敗採 fail-closed：不進 Step 4，frontend 只會透過既有 build error contract
-感知失敗。
+## Future Phase B
+
+UA-primary `UnderstandAnythingAnalysisService` structural sidecar 是後續 Phase B；Plan 20
+inventory selection 不呼叫 UA。Reserved nullable semantic sidecar、bounded LLM file analyzer 與
+Plan 17 `AssessmentOrchestrator` 目前都不在 active path。
+
+因此 frontend sample 不得新增 `ua-analysis-result`、`signal_origin`、numeric `confidence` 或
+semantic candidate 欄位，也不得把 current KAI 說成 parity-only fallback。

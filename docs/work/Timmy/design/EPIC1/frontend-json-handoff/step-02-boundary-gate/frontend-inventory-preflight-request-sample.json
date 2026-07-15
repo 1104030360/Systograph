@@ -1,0 +1,10 @@
+{
+  "scan_depth": "system",
+  "requested_paths": [
+    "src/experimental.py",
+    "node_modules/small-local-package",
+    "missing.env"
+  ],
+  "reviewable_excluded_cursor": null,
+  "reviewable_excluded_limit": 100
+}

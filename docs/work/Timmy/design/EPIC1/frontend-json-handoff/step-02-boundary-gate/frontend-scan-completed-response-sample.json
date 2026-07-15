@@ -1,0 +1,24 @@
+{
+  "scan_id": "scan:sample-s1",
+  "project_id": "project:sample-ai-health-rag",
+  "status": "completed",
+  "build_result": {
+    "status": "ok",
+    "build_id": "build:sample-b1"
+  },
+  "boundary_proposals": [],
+  "inventory_selection_summary": {
+    "included_file_count": 167,
+    "skipped_file_count": 8,
+    "directory_scope_results": [
+      {
+        "target_path": "node_modules/small-local-package",
+        "decision": "scan_this_run",
+        "observed_file_count": 26,
+        "included_file_count": 22,
+        "hard_blocked_file_count": 3,
+        "post_decision_blocked_file_count": 1
+      }
+    ]
+  }
+}

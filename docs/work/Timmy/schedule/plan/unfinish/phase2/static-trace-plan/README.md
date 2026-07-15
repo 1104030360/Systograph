@@ -1,4 +1,4 @@
-# Static Trace Plan（00～19，含 00A、01A、01B、03A）
+# Static Trace Plan（00～20，含 00A、01A、01B、03A）
 
 靜態 release-readiness 主線：read-only scan、Review scanner suggestions（internal
 manual decision lifecycle）、profile inference、system map v2、static inferred
@@ -38,6 +38,10 @@ POST /api/map-builds/{base_build_id}/apply
 POST /api/map-builds/{build_id}/detail-scans
 POST /api/map-builds/{build_id}/trace
 ```
+
+Plan `20` 規劃 additive `POST /api/projects/{project_id}/scan-preflights`；在 Plan 20 Task 9
+同步 `docs/API-GUIDE.md` 且 contract tests 通過前，它仍是 planned target，不是 current
+canonical HTTP surface。
 
 Step 9 review / manual decision 仍使用 current runtime 的
 `POST /api/mapping-proposals`、`POST /api/mapping-proposals/{proposal_id}/decision`、
@@ -145,7 +149,7 @@ capability assessment 與 Step 7 projection 混在一起。
 
 | Pipeline step | Owner plan | 語意 | TOML / Python 邊界 |
 |---|---|---|---|
-| Step 2 Boundary | `19`（inventory rules TOML）+ `16` Task 2（UA enrichment） | file inventory include / ignore metadata + 語言 / category / 行數 enrichment | TOML 只放 include / ignore boundary metadata；boundary 決策與 policy overlay 在 Python |
+| Step 2 Boundary | `19`（inventory selection policy catalog）+ `20`（metadata-only preflight / one-run exact-file與bounded recursive-directory override）；`16` Task 2 是後續獨立 UA enrichment | Plan 20 只完成 default inventory、可覆寫 soft exclusion、不可覆寫 safety與final allowlist；**不接 UA** | TOML 擁有 default path policy；Python 擁有preflight、bounded directory expansion、decision overlay、safety與final inventory；frontend只回傳scope decisions；UA adapter/request/parity由Plan 16另行負責 |
 | Step 3 Scan | Phase A：既有 KAI providers；Phase B：`16`；Phase C：`18` | Phase A 以 TOML facts 打通 E2E；Phase B 改為 UA structural primary + TOML parity；Phase C 退役 TOML 主掃描路徑 | 所有階段禁止 scan layer 寫 `plane_id` / `reference_node_id` |
 | Step 4 Bridge 1 | `01B` + `01` + `03A` | `rule_id + evidence` → repo component / `unmapped_components[]` / candidate input | Python `component_bridge_registry.py`；risk/next-check TOML 只放文案 |
 | Step 5 Index | `05`～`09` | validated map 的 read-only lookup | 不寫檔、不 validate、不 infer capability |
@@ -212,7 +216,7 @@ highlight/dim，**不得**自行推導 `matches_node_ids` / `matches_edge_ids`�
 
 ## 目錄結構（依執行順序，非檔案編號）
 
-計畫檔依 **stage / track** 分資料夾；檔名仍保留原編號（`00`～`19`）以便 cross-reference。
+計畫檔依 **stage / track** 分資料夾；檔名仍保留原編號（`00`～`20`）以便 cross-reference。
 `README.md` 留在此根目錄。
 
 ```text
@@ -223,6 +227,7 @@ static-trace-plan/
 ├── s1-track-a-index-projection/     ← S1 並行 Track-A（05→09）
 ├── s1-track-b-profile-rules/        ← S1 並行 Track-B（10→11）
 ├── s1-track-d-inventory/            ← S1 並行 Track-D（19；建議 Plan 16 前）
+├── s1-track-d-inventory-review/     ← S1 Track-D 後續（20；依 19；UA-independent）
 ├── s1-v2-cutover/                   ← S1 收尾（13）；Gate-1 前
 ├── s2-ua-integration/               ← S2（16）；Gate-1 後
 ├── s3-validation/                   ← S3 驗證（14）；Gate-2 後
@@ -242,15 +247,19 @@ static-trace-plan/
    與文案，五態判斷仍留在 Python。
 5. `s1-track-d-inventory/`：補 Step 2 inventory include / ignore metadata，為後續 UA sidecar
    與 scan boundary 提供穩定檔案清單基礎。
-6. `s1-v2-cutover/`：在 compatibility gate 通過後，正式把 active surface 切到 v2，退役
+6. `s1-track-d-inventory-review/`：在 Plan 19 default policy 上新增 metadata-only preflight、
+   exact-file與bounded recursive-directory one-run override、不可覆寫 safety 與 frontend decision
+   handoff；current scanner只消費同一 final inventory。**Plan 20 不接 UA**；UA integration由
+   Plan 16後續獨立處理。
+7. `s1-v2-cutover/`：在 compatibility gate 通過後，正式把 active surface 切到 v2，退役
    legacy extension output。
-7. `s2-ua-integration/`：導入 Understand-Anything structural sidecar，讓 UA 成為 Step 3 primary，
+8. `s2-ua-integration/`：導入 Understand-Anything structural sidecar，讓 UA 成為 Step 3 primary，
    同時保留 TOML parity report 與 fail-closed 邊界。
-8. `s3-validation/`：用本機真實專案與 fixtures 做 final validation，確認 Apply、UA parity、
+9. `s3-validation/`：用本機真實專案與 fixtures 做 final validation，確認 Apply、UA parity、
    static execution artifacts 與安全邊界都可回溯。
-9. `s3-retirement/`：在驗證報告保存後，退役 KAI scan TOML providers 主掃描路徑，最後完成
+10. `s3-retirement/`：在驗證報告保存後，退役 KAI scan TOML providers 主掃描路徑，最後完成
    legacy v1 compatibility retirement。
-10. `deferred/`：放 Phase2 static MVP 不阻擋的項目，例如 runtime boundary 文件與 AI
+11. `deferred/`：放 Phase2 static MVP 不阻擋的項目，例如 runtime boundary 文件與 AI
     `AssessmentOrchestrator` candidate flow。
 
 ## 計畫一覽（依執行順序）
@@ -296,6 +305,12 @@ static-trace-plan/
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
 | 19 | [19-add-scan-inventory-rules-toml.md](./s1-track-d-inventory/19-add-scan-inventory-rules-toml.md) | Step 2 `scan_inventory_rules.toml`（include / ignore boundary metadata） | 無 hard gate |
+
+### S1 Track-D Review — `s1-track-d-inventory-review/`（Plan 19 後；不接 UA）
+
+| # | 檔案 | 主題 | Gate |
+|---:|---|---|---|
+| 20 | [20-add-user-controlled-scan-inventory-selection.md](./s1-track-d-inventory-review/20-add-user-controlled-scan-inventory-selection.md) | Metadata-only preflight、exact-file／bounded recursive-directory per-run selection、frontend decision handoff、final inventory audit；UA deferred | 依 `19`；納入 Gate-1；不實作 UA integration |
 
 ### S1 收尾 — `s1-v2-cutover/`
 
@@ -344,9 +359,14 @@ S1  TOML-primary pipeline（Step 3 = 現有 KAI scan TOML providers）
               （03 + 05 穩定後、**Gate-1 前完成**；產出 `call_graph.json`、
               `dataflow_hints.json`、`execution_paths.json`、`evidence_table.json`、
               `execution_map.mmd`，與 Plan 03 atomic publish 對齊 `docs/MODEL-CONTRACT.md`）
-         └─ s1-track-d-inventory/: 19（建議 Plan 16 前完成）
+         └─ Track-D: s1-track-d-inventory/: 19
+                     -> s1-track-d-inventory-review/: 20
+                     （default policy -> metadata-only preflight -> one-run decision -> final inventory；
+                      **Gate-1 前完成**；Plan 20 到current providers/snapshot為止，**不接 UA**；
+                      UA request/adapter/parity由Plan 16後續獨立實作）
     s1-v2-cutover/: 13
     ──[Gate-1: B1 Step 1～7 + Step 8 viewer（initial scan 不必 Step 9）；
+         Plan 19→20 inventory policy/preflight/decision/final-allowlist E2E（UA不執行）；
          另驗 Step 9 decision + Apply B1→B2（4-1→4-2→4～7）；
          P0 static execution artifacts；`ua_analysis_result=None`；`runtime_verified=false`]──►
 
@@ -375,7 +395,7 @@ deferred/
 | Gate | 通過條件 | 解鎖 |
 |---|---|---|
 | Gate-0 | Plan 00 legacy characterization 與 Plan 00A v2 compatibility gate 完成 | S1 正式 v2 consumer work、Plan 13 |
-| Gate-1 | **B1 path：** TOML-primary Step 1～7 publish + Step 8 viewer（**initial scan 不必跑 Step 9**）。**Apply path（Gate-1 必驗）：** Step 9 decision + Apply B1→B2（跳 Step 3/UA；**4-1 bridge replay → 4-2 overlay** → Step 4～7）；共用 snapshot；`ua_analysis_result=None` 可通過。Track-C `dynamic/00` 已接入 Step 6，同一 validated build 產出 P0 static execution artifacts（`call_graph.json`、`dataflow_hints.json`、`execution_paths.json`、`evidence_table.json`、`execution_map.mmd`），皆標 `runtime_verified=false` / static inferred，**不得宣稱 runtime proof** | Plan 16 |
+| Gate-1 | **B1 path：** TOML-primary Step 1～7 publish + Step 8 viewer（**initial scan 不必跑 Step 9**）。**Inventory path：** Plan 19 default policy + Plan 20 metadata-only preflight / exact-file與bounded recursive-directory one-run decision / hard-safety revalidation 完成；current providers只讀同一final inventory，pending/stale不建立`scan_id`，target repo不被修改；**Plan 20不建立或呼叫UA request/service/parity**。**Apply path（Gate-1 必驗）：** Step 9 decision + Apply B1→B2（跳 Step 3/UA；**4-1 bridge replay → 4-2 overlay** → Step 4～7）；共用 snapshot；`ua_analysis_result=None` 可通過。Track-C `dynamic/00` 已接入 Step 6，同一 validated build 產出 P0 static execution artifacts（`call_graph.json`、`dataflow_hints.json`、`execution_paths.json`、`evidence_table.json`、`execution_map.mmd`），皆標 `runtime_verified=false` / static inferred，**不得宣稱 runtime proof** | Plan 16（另行接 UA） |
 | Gate-2 | Plan 16 UA structural path、snapshot internal sidecar、fail-closed 與 parity harness 通過 | Plan 14 |
 | Gate-3 | Plan 14 final validation 完成並保存 UA parity / no-UA-rerun report | Plan 18 |
 | Gate-4 | Plan 18 provider retirement 通過，且 Plan 14 report 可回溯 | Plan 15 |

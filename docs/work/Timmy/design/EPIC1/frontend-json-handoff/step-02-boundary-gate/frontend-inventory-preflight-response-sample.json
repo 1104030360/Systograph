@@ -1,0 +1,260 @@
+{
+  "preflight_request_id": "preflight:9d13-sample",
+  "project_id": "project:sample-ai-health-rag",
+  "generated_at": "2026-07-15T08:00:00Z",
+  "source_mode": "git",
+  "inventory_policy_schema_version": "scan-inventory-policy/v1",
+  "inventory_policy_digest": "sha256:catalog-sample",
+  "candidate_set_digest": "sha256:candidates-sample",
+  "filesystem_safety_version": "inventory-safety/v1",
+  "summary": {
+    "default_included_file_count": 143,
+    "required_review_count": 1,
+    "reviewable_excluded_count": 12,
+    "hard_blocked_count": 0,
+    "missing_count": 1,
+    "collapsed_directory_count": 0
+  },
+  "required_boundary_proposals": [
+    {
+      "proposal_id": "proposal:required-env-sample",
+      "project_id": "project:sample-ai-health-rag",
+      "status": "pending_user_confirmation",
+      "target": {
+        "path": ".env",
+        "target_type": "file",
+        "risk_type": "secret_like_config",
+        "reason": "Potential secret-bearing configuration file requires a one-run decision.",
+        "size_bytes": 512,
+        "fingerprint": "sha256:metadata-env-sample"
+      },
+      "evidence_packet": {
+        "project_id": "project:sample-ai-health-rag",
+        "target_path": ".env",
+        "risk_type": "secret_like_config",
+        "reason": "Potential secret-bearing configuration file requires a one-run decision.",
+        "evidence_ids": [],
+        "rule_ids": [
+          "boundary.secret-like-config-path"
+        ],
+        "masked_evidence_values": [],
+        "masked_snippets": [],
+        "context_limits": {
+          "content_read": false,
+          "evidence_value_limit": 0,
+          "snippet_limit": 0
+        }
+      },
+      "available_actions": [
+        "scan_this_run",
+        "skip_this_run"
+      ],
+      "created_at": "2026-07-15T08:00:00Z",
+      "updated_at": "2026-07-15T08:00:00Z",
+      "selection_context": {
+        "base_outcome": "included",
+        "review_kind": "required_confirmation",
+        "default_decision": null,
+        "decision_required": true,
+        "override_allowed": true,
+        "exclusion_sources": [],
+        "matched_inventory_policy_ids": [],
+        "target_kind": "file",
+        "selection_scope": "exact_file",
+        "directory_summary": null
+      }
+    }
+  ],
+  "reviewable_excluded_page": {
+    "items": [
+      {
+        "proposal_id": "proposal:ignored-loader-sample",
+        "project_id": "project:sample-ai-health-rag",
+        "status": "pending_user_confirmation",
+        "target": {
+          "path": "ignored/custom-loader.py",
+          "target_type": "file",
+          "risk_type": "soft_excluded_inventory_path",
+          "reason": "Excluded by the project ignore policy.",
+          "size_bytes": 4096,
+          "fingerprint": "sha256:metadata-ignored-loader-sample"
+        },
+        "evidence_packet": {
+          "project_id": "project:sample-ai-health-rag",
+          "target_path": "ignored/custom-loader.py",
+          "risk_type": "soft_excluded_inventory_path",
+          "reason": "Excluded by the project ignore policy.",
+          "evidence_ids": [],
+          "rule_ids": [],
+          "masked_evidence_values": [],
+          "masked_snippets": [],
+          "context_limits": {
+            "content_read": false,
+            "evidence_value_limit": 0,
+            "snippet_limit": 0
+          }
+        },
+        "available_actions": [
+          "scan_this_run",
+          "skip_this_run"
+        ],
+        "created_at": "2026-07-15T08:00:00Z",
+        "updated_at": "2026-07-15T08:00:00Z",
+        "selection_context": {
+          "base_outcome": "soft_excluded",
+          "review_kind": "optional_override",
+          "default_decision": "skip_this_run",
+          "decision_required": false,
+          "override_allowed": true,
+          "exclusion_sources": [
+            "project_ignore"
+          ],
+          "matched_inventory_policy_ids": [],
+          "target_kind": "file",
+          "selection_scope": "exact_file",
+          "directory_summary": null
+        }
+      }
+    ],
+    "next_cursor": "cursor:reviewable-excluded-page-2-sample",
+    "total": 12
+  },
+  "requested_target_results": [
+    {
+      "target_path": "src/experimental.py",
+      "target_kind": "file",
+      "status": "reviewable",
+      "proposal": {
+        "proposal_id": "proposal:experimental-sample",
+        "project_id": "project:sample-ai-health-rag",
+        "status": "pending_user_confirmation",
+        "target": {
+          "path": "src/experimental.py",
+          "target_type": "file",
+          "risk_type": "inventory_selection",
+          "reason": "Included by the prepared default inventory.",
+          "size_bytes": 8192,
+          "fingerprint": "sha256:metadata-experimental-sample"
+        },
+        "evidence_packet": {
+          "project_id": "project:sample-ai-health-rag",
+          "target_path": "src/experimental.py",
+          "risk_type": "inventory_selection",
+          "reason": "Included by the prepared default inventory.",
+          "evidence_ids": [],
+          "rule_ids": [],
+          "masked_evidence_values": [],
+          "masked_snippets": [],
+          "context_limits": {
+            "content_read": false,
+            "evidence_value_limit": 0,
+            "snippet_limit": 0
+          }
+        },
+        "available_actions": [
+          "scan_this_run",
+          "skip_this_run"
+        ],
+        "created_at": "2026-07-15T08:00:00Z",
+        "updated_at": "2026-07-15T08:00:00Z",
+        "selection_context": {
+          "base_outcome": "included",
+          "review_kind": "optional_override",
+          "default_decision": "scan_this_run",
+          "decision_required": false,
+          "override_allowed": true,
+          "exclusion_sources": [],
+          "matched_inventory_policy_ids": [],
+          "target_kind": "file",
+          "selection_scope": "exact_file",
+          "directory_summary": null
+        }
+      },
+      "reason_code": null,
+      "limit_context": null
+    },
+    {
+      "target_path": "node_modules/small-local-package",
+      "target_kind": "directory",
+      "status": "reviewable",
+      "proposal": {
+        "proposal_id": "proposal:directory-sample",
+        "project_id": "project:sample-ai-health-rag",
+        "status": "pending_user_confirmation",
+        "target": {
+          "path": "node_modules/small-local-package",
+          "target_type": "directory",
+          "risk_type": "recursive_directory_scope",
+          "reason": "Requested recursive directory scope contains included and soft-excluded files.",
+          "size_bytes": null,
+          "fingerprint": "sha256:directory-manifest-sample"
+        },
+        "evidence_packet": {
+          "project_id": "project:sample-ai-health-rag",
+          "target_path": "node_modules/small-local-package",
+          "risk_type": "recursive_directory_scope",
+          "reason": "Requested recursive directory scope contains included and soft-excluded files.",
+          "evidence_ids": [],
+          "rule_ids": [
+            "dependency-directory-default-skip"
+          ],
+          "masked_evidence_values": [],
+          "masked_snippets": [],
+          "context_limits": {
+            "content_read": false,
+            "evidence_value_limit": 0,
+            "snippet_limit": 0
+          }
+        },
+        "available_actions": [
+          "scan_this_run",
+          "skip_this_run"
+        ],
+        "created_at": "2026-07-15T08:00:00Z",
+        "updated_at": "2026-07-15T08:00:00Z",
+        "selection_context": {
+          "base_outcome": "mixed",
+          "review_kind": "required_confirmation",
+          "default_decision": null,
+          "decision_required": true,
+          "override_allowed": true,
+          "exclusion_sources": [
+            "project_ignore",
+            "kai_inventory_catalog"
+          ],
+          "matched_inventory_policy_ids": [
+            "dependency-directory-default-skip"
+          ],
+          "target_kind": "directory",
+          "selection_scope": "recursive_directory",
+          "directory_summary": {
+            "observed_regular_file_count": 26,
+            "selectable_file_count": 23,
+            "default_included_count": 4,
+            "soft_excluded_count": 19,
+            "sensitive_file_count": 2,
+            "pre_content_hard_blocked_count": 3,
+            "selectable_bytes": 12400000,
+            "observed_max_relative_depth": 5,
+            "blocked_reason_counts": {
+              "unsupported_type": 1,
+              "absolute_size_cap": 2
+            }
+          }
+        }
+      },
+      "reason_code": null,
+      "limit_context": null
+    },
+    {
+      "target_path": "missing.env",
+      "target_kind": "file",
+      "status": "missing",
+      "proposal": null,
+      "reason_code": "inventory_selection_target_missing",
+      "limit_context": null
+    }
+  ],
+  "blocked_summaries": [],
+  "warnings": []
+}

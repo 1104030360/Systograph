@@ -1,0 +1,59 @@
+{
+  "project_id": "project:sample-ai-health-rag",
+  "status": "requires_boundary_decision",
+  "preflight_request_id": "preflight:9d13-sample",
+  "boundary_proposals": [
+    {
+      "proposal_id": "proposal:required-env-sample",
+      "project_id": "project:sample-ai-health-rag",
+      "status": "pending_user_confirmation",
+      "target": {
+        "path": ".env",
+        "target_type": "file",
+        "risk_type": "secret_like_config",
+        "reason": "Potential secret-bearing configuration file requires a one-run decision.",
+        "size_bytes": 512,
+        "fingerprint": "sha256:metadata-env-sample"
+      },
+      "evidence_packet": {
+        "project_id": "project:sample-ai-health-rag",
+        "target_path": ".env",
+        "risk_type": "secret_like_config",
+        "reason": "Potential secret-bearing configuration file requires a one-run decision.",
+        "evidence_ids": [],
+        "rule_ids": [
+          "boundary.secret-like-config-path"
+        ],
+        "masked_evidence_values": [],
+        "masked_snippets": [],
+        "context_limits": {
+          "content_read": false,
+          "evidence_value_limit": 0,
+          "snippet_limit": 0
+        }
+      },
+      "available_actions": [
+        "scan_this_run",
+        "skip_this_run"
+      ],
+      "created_at": "2026-07-15T08:00:00Z",
+      "updated_at": "2026-07-15T08:00:00Z",
+      "selection_context": {
+        "base_outcome": "included",
+        "review_kind": "required_confirmation",
+        "default_decision": null,
+        "decision_required": true,
+        "override_allowed": true,
+        "exclusion_sources": [],
+        "matched_inventory_policy_ids": [],
+        "target_kind": "file",
+        "selection_scope": "exact_file",
+        "directory_summary": null
+      }
+    }
+  ],
+  "available_boundary_actions": [
+    "scan_this_run",
+    "skip_this_run"
+  ]
+}

@@ -1,18 +1,21 @@
 # Step 6 — 衍生評估（sidecar JSON）
 
-Last updated: 2026-07-11（current S1 Pydantic payloads）
+Last updated: 2026-07-15（current Pydantic payloads + live graph wiring）
 
 **命名：** 流程與服務叫 **Profile Inference** / `ProfileInferenceService`（6-1）；磁碟檔
 `profile_signals.json`；API 欄位 `profile_inference_result`（同一份 `ProfileInferenceResult`）。
 
-**主畫布：** Current Gate-1 viewer 仍是 canonical v1 base projection，**不是** merge
-本步六份 JSON。Plan 06 才把 **6-1 profile assessment** 經 Step 7 投影進 canvas，並為
-其他 artifacts 增加 safe lazy refs。
+**主畫布：** Backend `GraphProjectionService` 已把 canonical map、完整 52-node reference
+assessment 與 profile overlay 投影成 richer `GraphViewModel`。它不是把本步六份 JSON 直接
+merge。Frontend Zod／UI 尚未完整消費 rich details、relationships 與六個 lenses；safe
+`ArtifactRef` lazy load 也尚未實作。
 
 **Step 6 子步速查：** 見 `static-trace-plan/README.md` § Step 6 子步驟與 Ownership 速查；
 契約細節見 `docs/MODEL-CONTRACT.md` § Phase2 Pipeline · Step 6 Assessment。
 
-從 canonical map **推導**出來的資料，Step 7 寫入磁碟。**不是** canonical truth，不要 write back 到 `ai_system_map.json`。
+從 canonical map **推導**出來的資料，Step 7 寫入磁碟。**不是** canonical truth，不要
+write back 到 `ai_system_map.json`。Current build-scoped API 把 profile／readiness 放在
+`build_result`；`viewer_load_result` 只放 raw map 與 graph projection。
 
 2026-07-07 UA 整合決策：Step 6 在 Phase2 維持純 Python
 `ProfileInferenceService` 唯一定案五態。Plan 17 `AssessmentOrchestrator` / AI semantic

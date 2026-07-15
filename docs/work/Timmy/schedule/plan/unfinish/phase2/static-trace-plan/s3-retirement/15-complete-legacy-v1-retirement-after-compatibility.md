@@ -65,6 +65,27 @@ legacy v1 / extension 移除都有 migration report、fixtures 與 regression te
 使用者已確認遷移策略：**先相容遷移確認沒問題，再完全遷移**。因此本計畫不可再主張
 跳過 `00A`、不做 adapter 或直接刪除 legacy surface。若尚未完成 00A/13/14，本計畫只能保持 pending。
 
+### Plan 13 Task 4 handoff（persisted mapping migration 暫時寫法）
+
+Plan 13 Task 4 會先建立**過渡用** persisted mapping migration surface，讓舊
+`mapping_type="new_extension_component"` JSON 能在刪除 active
+`ManualMappingType.NEW_EXTENSION` 前安全搬家。這些寫法**不是**長期產品路徑：
+
+| Plan 13 建立（暫時） | Plan 15 必須處理 |
+| --- | --- |
+| `LegacyManualMappingDTO`（migration-only 讀舊 shape） | 刪除或確認已無 active import |
+| `LegacyManualMappingMigrationService` | 刪除；不得被 normal repository／API 再呼叫 |
+| `migrate-legacy-mappings` CLI（`--dry-run` / `--apply`） | 刪除 command 註冊與實作 |
+| state 目錄 backup／quarantine／migration report 產物與 helper | 清掉不再需要的 code；文件記載保留／清除策略 |
+| active enum 已移除後仍殘留的 legacy 字串讀取分支 | 只允許 migration fixtures／deprecated tests／docs |
+
+原則（2026-07-15 記錄）：
+
+- Plan 13：**先搬家，再拆舊門**（migration 完成後 active path 停寫／停讀 legacy mapping type）。
+- Plan 15：**搬家結束後丟掉紙箱**——移除上述暫時 migration 寫法，避免 dual-read／DTO／CLI
+  變成永久維護負擔。
+- normal API／`ManualMapping` repository **不得**在 Plan 15 後仍長期接受 legacy shape。
+
 ### 目前 code 狀態
 
 執行本計畫前必須重新 audit `src/`、`tests/`、`schemas/`、`frontend/src/`：
@@ -72,6 +93,8 @@ legacy v1 / extension 移除都有 migration report、fixtures 與 regression te
 - `ai-system-map/v2` model/schema 是否已是 active output。
 - v1 fixtures 是否已能透過 adapter 匯入並產生等價 v2 facts。
 - `ExtensionComponent` / `new_extension_component` 是否只剩 legacy reader 或測試資料。
+- Plan 13 Task 4 的 `LegacyManualMappingDTO`、migration service、`migrate-legacy-mappings`
+  CLI、quarantine／backup helpers 是否仍存在且僅 migration-only（或可安全刪除）。
 - P0 execution artifacts 是否已能與 v2 build 同 run directory 產出。
 
 ### 相關檔案
@@ -82,6 +105,9 @@ legacy v1 / extension 移除都有 migration report、fixtures 與 regression te
 - `src/kai_mind/core/services/system_map_normalize_service.py`
 - `src/kai_mind/core/services/system_map_validation_service.py`
 - `src/kai_mind/core/providers/output_artifact_provider.py`
+- `src/kai_mind/core/models/mapping_base.py`（確認 active enum 已無 `NEW_EXTENSION`）
+- `src/kai_mind/core/services/legacy_manual_mapping_migration_service.py`（Plan 13 建、本計畫刪）
+- Legacy DTO／`migrate-legacy-mappings` CLI 註冊處（Plan 13 建、本計畫刪）
 - `schemas/ai-system-map.v2.schema.json`
 - `tests/fixtures/ai_system_map/`
 - `tests/contracts/test_ai_system_map_v2_schema.py`
@@ -89,12 +115,13 @@ legacy v1 / extension 移除都有 migration report、fixtures 與 regression te
 - `docs/MODEL-CONTRACT.md`
 - `docs/API-GUIDE.md`
 - `frontend/API_CONTRACT.md`
+- `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-v2-cutover/13-retire-legacy-extension-contract.md`（Task 4 來源）
 
 ### 實作步驟
 
 先鎖定 00A/13/14 報告與 fixtures，再新增 legacy-surface absence tests；接著移除 v1 write
-path、extension product surface 與長期 dual-read 分支，最後跑 v2-only artifact / frontend /
-CLI / API regression gate。
+path、extension product surface、**Plan 13 Task 4 暫時 mapping migration DTO／CLI／quarantine**
+與長期 dual-read 分支，最後跑 v2-only artifact / frontend / CLI / API regression gate。
 
 ### 驗收標準
 
@@ -107,6 +134,10 @@ CLI / API regression gate。
 - [ ] active `src/`、`tests/`、`frontend/src/` 不再有 `NEW_EXTENSION` /
   `ExtensionComponent` product path；legacy 字串只允許出現在 migration fixtures、明確
   deprecated tests 或 docs。
+- [ ] Plan 13 Task 4 暫時 migration surface 已退役：`LegacyManualMappingDTO`、
+  `LegacyManualMappingMigrationService`、`migrate-legacy-mappings` CLI、quarantine／backup
+  helpers 已刪除或只剩文件化的 historical note；normal repository／API 不接受 legacy
+  mapping shape。
 - [ ] v1 artifacts 的保留策略明確：刪除、移入 migration-only helper，或以 explicit error
   指示使用 migration tool；不得留下 silent dual-read。
 - [ ] `uv run pytest`、`ruff check`、`mypy src`、`cd frontend && pnpm build && pnpm lint`
@@ -163,6 +194,27 @@ CLI / API regression gate。
   usage 改成 generic components、unmapped components 或 non-baseline capability candidates。
 - [ ] 保留 legacy fixture 時，加上 migration-only naming 與 test comments，避免新流程誤用。
 - [ ] Frontend/API 不再顯示「新增 extension」作為使用者 action。
+
+### Task 3b：移除 Plan 13 Task 4 暫時 persisted mapping migration 寫法
+
+> 來源：`13-retire-legacy-extension-contract.md` Task 4。Plan 13 只負責搬家與 active 停寫；
+> **本 task 負責刪掉暫時 migration 工具**，避免 DTO／CLI／quarantine 變成永久維護面。
+
+前置：Plan 13 cutover report 證明所有 `CONFIRMED` legacy extension mappings 已 migrate，
+reload gate 通過，且 active `ManualMappingType` 已無 `NEW_EXTENSION`。
+
+- [ ] 刪除 `LegacyManualMappingDTO` 與任何仍能 parse `new_extension_component` 的
+  migration-only model（若仍需歷史測試，改為明確 deprecated fixture + comment，不得掛在
+  active import graph）。
+- [ ] 刪除 `LegacyManualMappingMigrationService` 及對應 unit／integration tests 的 active
+  production import；必要 characterization 改寫為「此 surface 已不存在」absence test。
+- [ ] 移除 `migrate-legacy-mappings` CLI command 註冊、help 文案與 scripts 引用。
+- [ ] 清除 quarantine／backup index helpers 與不再需要的 state-side migration report writers；
+  文件記載既有 backup 目錄是否人工保留、何時可刪（不得靜默留 code path）。
+- [ ] 確認 normal mapping repository／API／UI：**拒絕** legacy mapping shape，回傳穩定
+  error（沿用或收斂 Plan 13 的 `legacy_mapping_type_read_only`），且無 silent dual-read。
+- [ ] `rg -n "LegacyManualMapping|migrate-legacy-mappings|legacy_manual_mapping_migration|new_extension_component" src tests frontend/src`
+  的 hit 全部分類為 remove／deprecated-test／docs；不得剩 active caller。
 
 ### Task 4：收斂 loaders 與 consumers
 

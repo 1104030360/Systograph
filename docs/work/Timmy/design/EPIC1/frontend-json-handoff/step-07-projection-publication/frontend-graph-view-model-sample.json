@@ -10,7 +10,14 @@
   "mapping_completeness": {
     "numerator": 4,
     "denominator": 52,
-    "value": 0.076923,
+    "value": 0.07692307692307693,
+    "status_counts": {
+      "detected": 3,
+      "partial": 2,
+      "undetermined": 47,
+      "not_detected": 0,
+      "conflicted": 0
+    },
     "weights": {
       "detected": 1,
       "partial": 0.5,
@@ -33,7 +40,7 @@
       "id": "node:component:input:api",
       "source_id": "component:input:api",
       "type": "api_input",
-      "semantic_kind": "canonical_component",
+      "semantic_kind": "repo_component",
       "slot": "input_source",
       "status": "detected",
       "activation": "enabled",
@@ -53,7 +60,7 @@
       "id": "node:component:retriever:qdrant",
       "source_id": "component:retriever:qdrant",
       "type": "retriever",
-      "semantic_kind": "grounding_component",
+      "semantic_kind": "repo_component",
       "slot": "retrieval",
       "status": "detected",
       "activation": "enabled",
@@ -73,7 +80,7 @@
       "id": "node:component:llm:openai-chat",
       "source_id": "component:llm:openai-chat",
       "type": "llm",
-      "semantic_kind": "canonical_component",
+      "semantic_kind": "repo_component",
       "slot": "generation",
       "status": "detected",
       "activation": "enabled",
