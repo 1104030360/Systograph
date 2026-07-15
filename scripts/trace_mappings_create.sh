@@ -51,7 +51,7 @@ REQUEST_BODY="$(jq -n \
   --arg ev "$EVIDENCE_ID" \
   '{project_id:$id, mapping_type:"existing_slot_mapping", decision:"confirmed",
     target_slot:$slot, component_name:"TraceDemoComponent", evidence_ids:[$ev]}')"
-kai_progress "現在要建立 confirmed manual mapping（slot=$SLOT）..."
+kai_progress "現在要建立 confirmed manual mapping（slot=${SLOT}）..."
 api_call POST "/api/mappings" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

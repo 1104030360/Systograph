@@ -131,6 +131,79 @@ def test_detail_scan_preserves_parent_schema_selection(tmp_path: Path) -> None:
     )
 
 
+def test_detail_scan_rejects_build_owned_by_another_project(
+    tmp_path: Path,
+) -> None:
+    # Given
+    client = TestClient(create_app(state_dir=tmp_path / "state"))
+    first_root = tmp_path / "first"
+    second_root = tmp_path / "second"
+    first_root.mkdir()
+    second_root.mkdir()
+    project_id, _, _, target_id, _ = prepare_detail_scan(
+        client,
+        first_root,
+    )
+    _, _, foreign_build_id, _, _ = prepare_detail_scan(
+        client,
+        second_root,
+    )
+
+    # When
+    response = client.post(
+        "/api/detail-scans",
+        json={
+            "project_id": project_id,
+            "build_id": foreign_build_id,
+            "target_type": "unmapped_component",
+            "target": target_id,
+            "scan_depth": "component",
+        },
+    )
+
+    # Then
+    assert response.status_code == 404
+    assert response.json()["detail"] == "project_build_mismatch"
+
+
+def test_detail_scan_rejects_base_build_after_latest_advances(
+    tmp_path: Path,
+) -> None:
+    # Given
+    client = TestClient(create_app(state_dir=tmp_path / "state"))
+    project_id, _, base_build_id, target_id, _ = prepare_detail_scan(
+        client,
+        tmp_path,
+    )
+    first_response = client.post(
+        "/api/detail-scans",
+        json={
+            "project_id": project_id,
+            "build_id": base_build_id,
+            "target_type": "unmapped_component",
+            "target": target_id,
+            "scan_depth": "component",
+        },
+    )
+    assert first_response.status_code == 200
+
+    # When
+    response = client.post(
+        "/api/detail-scans",
+        json={
+            "project_id": project_id,
+            "build_id": base_build_id,
+            "target_type": "unmapped_component",
+            "target": target_id,
+            "scan_depth": "component",
+        },
+    )
+
+    # Then
+    assert response.status_code == 409
+    assert response.json()["detail"] == "base_build_not_latest"
+
+
 def test_detail_scan_fails_closed_when_profile_sidecar_is_unavailable(
     tmp_path: Path,
 ) -> None:

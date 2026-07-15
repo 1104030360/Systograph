@@ -26,6 +26,7 @@ dev = [
   "mypy>=2.1.0",
   "pre-commit>=4.6.0",
   "pytest>=8,<9",
+  "pytest-cov>=6,<8",
   "ruff>=0.6,<1",
   "types-jsonschema>=4.26.0.20260518",
 ]
@@ -37,7 +38,27 @@ kai-mind = "kai_mind.cli.main:main"
 packages = ["src/kai_mind"]
 
 [tool.pytest.ini_options]
+minversion = "8.0"
 testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+markers = [
+  "cli: Typer CLI adapter and command integration tests",
+  "contract: schema and compatibility contract tests",
+  "e2e: complete user workflow tests across persisted boundaries",
+  "integration: tests crossing multiple core providers or services",
+  "smoke: package import and minimal availability tests",
+  "unit: isolated domain and service behavior tests",
+  "web: FastAPI route and middleware integration tests",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["kai_mind"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
 
 [tool.ruff]
 line-length = 79
