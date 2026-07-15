@@ -5,6 +5,8 @@
   "build_id": "build:sample-b2",
   "environment_id": "environment:default-static",
   "generated_from_build_id": "build:sample-b2",
+  "source_schema_version": "ai-system-map/v1",
+  "migration_warnings": [],
   "project": {
     "project_id": "project:sample-ai-health-rag",
     "name": "sample-ai-health-rag",
@@ -17,7 +19,7 @@
       "component_id": "component:input:api",
       "display_name": "Chat API",
       "canonical_type": "api_input",
-      "layer": "input_layer",
+      "layer": "input_intent",
       "status": "detected",
       "activation": "enabled",
       "framework": "fastapi",
@@ -30,7 +32,7 @@
       "component_id": "component:retriever:qdrant",
       "display_name": "Qdrant Retriever",
       "canonical_type": "retriever",
-      "layer": "retrieval_layer",
+      "layer": "retrieval",
       "status": "detected",
       "activation": "enabled",
       "framework": "langchain",
@@ -43,7 +45,7 @@
       "component_id": "component:llm:openai-chat",
       "display_name": "OpenAI Chat Model",
       "canonical_type": "llm",
-      "layer": "generation_layer",
+      "layer": "generation",
       "status": "detected",
       "activation": "enabled",
       "framework": "langchain",
@@ -59,7 +61,7 @@
       "source": "component:input:api",
       "target": "component:retriever:qdrant",
       "relationship": "data_flow",
-      "status": "detected",
+      "status": "observed",
       "evidence_ids": ["evidence:retriever-call"]
     },
     {
@@ -75,50 +77,70 @@
     {
       "evidence_id": "evidence:api-route",
       "artifact_type": "source_code",
-      "path": "src/api/chat.py",
-      "start_line": 12,
-      "end_line": 12,
-      "json_pointer": null,
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/api/chat.py",
+        "start_line": 12,
+        "end_line": 12,
+        "json_pointer": null,
+        "config_key": null
+      },
       "extract_summary": "FastAPI POST route detected.",
       "rule_id": "py.fastapi.route"
     },
     {
       "evidence_id": "evidence:retriever-call",
       "artifact_type": "source_code",
-      "path": "src/rag/pipeline.py",
-      "start_line": 42,
-      "end_line": 42,
-      "json_pointer": null,
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/rag/pipeline.py",
+        "start_line": 42,
+        "end_line": 42,
+        "json_pointer": null,
+        "config_key": null
+      },
       "extract_summary": "Vector retriever call detected.",
       "rule_id": "py.vectorstore.retriever"
     },
     {
       "evidence_id": "evidence:prompt-context",
       "artifact_type": "source_code",
-      "path": "src/rag/pipeline.py",
-      "start_line": 64,
-      "end_line": 64,
-      "json_pointer": null,
+      "evidence_kind": "indirect",
+      "location": {
+        "path": "src/rag/pipeline.py",
+        "start_line": 64,
+        "end_line": 64,
+        "json_pointer": null,
+        "config_key": null
+      },
       "extract_summary": "Prompt builder appears to receive retrieved documents.",
       "rule_id": "py.context.prompt_builder"
     },
     {
       "evidence_id": "evidence:reranker-call",
       "artifact_type": "source_code",
-      "path": "src/rag/pipeline.py",
-      "start_line": 58,
-      "end_line": 58,
-      "json_pointer": null,
+      "evidence_kind": "indirect",
+      "location": {
+        "path": "src/rag/pipeline.py",
+        "start_line": 58,
+        "end_line": 58,
+        "json_pointer": null,
+        "config_key": null
+      },
       "extract_summary": "Reranker-like call detected.",
       "rule_id": "py.reranker.call"
     },
     {
       "evidence_id": "evidence:llm-call",
       "artifact_type": "source_code",
-      "path": "src/rag/pipeline.py",
-      "start_line": 76,
-      "end_line": 76,
-      "json_pointer": null,
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/rag/pipeline.py",
+        "start_line": 76,
+        "end_line": 76,
+        "json_pointer": null,
+        "config_key": null
+      },
       "extract_summary": "LLM invocation detected.",
       "rule_id": "py.llm.invoke"
     }
@@ -126,9 +148,9 @@
   "endpoints": [
     {
       "endpoint_id": "endpoint:chat",
+      "value": "/chat",
+      "endpoint_type": "local",
       "method": "POST",
-      "path": "/chat",
-      "handler": "src.api.chat.chat",
       "component_id": "component:input:api",
       "evidence_ids": ["evidence:api-route"]
     }
@@ -147,5 +169,6 @@
         "skip_for_now"
       ]
     }
-  ]
+  ],
+  "candidate_facts": []
 }

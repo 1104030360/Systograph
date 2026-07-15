@@ -1,0 +1,8 @@
+{
+  "detail": {
+    "code": "inventory_rules_invalid",
+    "message": "The default scan inventory policy is invalid.",
+    "retryable": false,
+    "context": null
+  }
+}

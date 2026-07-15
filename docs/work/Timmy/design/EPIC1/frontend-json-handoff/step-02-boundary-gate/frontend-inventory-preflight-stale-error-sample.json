@@ -1,0 +1,8 @@
+{
+  "detail": {
+    "code": "inventory_preflight_stale",
+    "message": "Scan selection changed. Refresh the file review.",
+    "retryable": true,
+    "context": null
+  }
+}
