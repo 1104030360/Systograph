@@ -1,7 +1,8 @@
 # Inventory Selection Policy Catalog（scan_inventory_rules.toml）實作計畫
 
-Status: planned（ASCII map Step 2 📦 擴充點的 owner plan；Plan 16 request construction 的
-hard prerequisite）
+Status: complete（2026-07-16；policy catalog、Git/recursive/fallback parity、audit/digest、
+snapshot provenance、CLI/API fail-closed 與 wheel resource smoke 已驗收；Plan 16 request
+construction 的 hard prerequisite，但 UA adapter／`files[]` 不屬於本計畫執行範圍）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:test-driven-development`，依 characterization → failing contract test →
@@ -32,6 +33,29 @@ pytest。
 - 不得把 invalid/missing catalog 解讀成空 inventory 或成功掃描。
 - 新增 JSON 欄位必須 additive；既有 snapshot 仍可讀，新 snapshot 則必須寫入 policy version
   與 digest。
+
+## 2026-07-16 repo truth-check（實作前基線）
+
+本節記錄實際 code／tests 現況，避免照舊檔名或未實作的 target contract 直接動工。
+
+- Baseline：`uv run pytest -q` = `850 passed`；`uv run ruff check src tests` 與
+  `uv run mypy src tests` 均通過。
+- `src/kai_mind/core/providers/filesystem_provider.py` 目前以
+  `DIRECTORY_SKIP_REASONS`、`MODEL_WEIGHT_SUFFIXES`、`GENERATED_SUFFIXES` 保存 hidden Python
+  defaults；Git mode 的 candidate list沒有一致套用 directory defaults，正是本計畫要修正的
+  parity gap。
+- `FileInventory` 目前只有 `source/project_root/files/skipped/warnings`，尚無 policy schema、
+  catalog digest、run digest或 audit trail。
+- `ScanSnapshot`／`ScanSnapshotManifest` 目前只有 legacy `inventory_digest`；新 provenance 欄位
+  必須 optional/additive，writer 對新 scan填值，legacy讀取不得套用目前catalog冒充歷史值。
+- `FilesystemProvider` 目前在 inventory build 期間讀檔判定 binary；Plan 19 保留「binary判定由
+  Python safety擁有」，但 no-read-before-decision 的讀取時點由後續 Plan 20收斂，不能誤把
+  binary signature移進TOML。
+- `filesystem_provider.py` 已超過400行；新增 schema／matcher／digest邏輯不得繼續堆進同一檔。
+  Typed catalog放 `core/models/inventory_policy.py`，loader與 matcher各自維持單一責任，provider
+  只組合 enumeration、policy與safety結果。
+- `pyproject.toml` 使用 Hatch wheel；built-wheel smoke必須實際檢查 TOML resource，而不是只在
+  editable install下通過。
 
 ---
 
@@ -212,6 +236,8 @@ validation failure；但 fallback 必須留下上列 source mode、stable warnin
 
 - 可與 S1 Track 其他工作並行實作，但 **Plan 16 request construction 不得在本計畫完成前
   定案**；UA `files[]` allowlist 必須保存同一份 inventory policy digest。
+- 上述 UA `files[]` 是後續 Plan 16 handoff contract，不是 Plan 19 executable DoD；Plan 19不
+  建立、不呼叫、不測試 UA adapter或sidecar，避免形成 `19 -> 16 -> 20` 循環依賴。
 - 不影響 Plan 18 退役範圍；`scan_inventory_rules.toml` 是 Plan 18 明列的保留項。
 
 ## Task 1：定義 catalog schema、loader 與錯誤 contract
@@ -219,9 +245,12 @@ validation failure；但 fallback 必須留下上列 source mode、stable warnin
 Files:
 
 - Create: `src/kai_mind/core/rules/scan_inventory_rules.toml`
+- Create: `src/kai_mind/core/models/inventory_policy.py`
 - Create: `src/kai_mind/core/services/scan_inventory_rule_loader.py`
+- Create: `src/kai_mind/core/services/inventory_policy_matcher.py`
 - Modify: `src/kai_mind/core/models/errors.py`
 - Create: `tests/unit/core/test_scan_inventory_rule_loader.py`
+- Create: `tests/unit/core/test_inventory_policy_matcher.py`
 
 Interfaces:
 
@@ -232,14 +261,16 @@ Interfaces:
 
 Steps:
 
-- [ ] 先寫 valid catalog、packaged resource、source-order 與 digest tests。
-- [ ] 寫 invalid TOML、unknown field、duplicate id、unsupported schema、absolute/traversal/blank
+- [x] 先寫 valid catalog、packaged resource、source-order 與 digest tests。
+- [x] 寫 invalid TOML、unknown field、duplicate id、unsupported schema、absolute/traversal/blank
   pattern、未 escape `!` 與 invalid action 的 failing tests。
-- [ ] 以 Pydantic `extra="forbid"` 建立 frozen typed catalog；`load_default()` 只用
+- [x] 以 Pydantic `extra="forbid"` 建立 frozen typed catalog；`load_default()` 只用
   `importlib.resources` 讀 package-bundled TOML。
-- [ ] 將 unavailable/invalid failure 對應到上述穩定 error code；不得在 message 印 catalog
+- [x] Matcher只接收已正規化的project-relative POSIX path，依source order執行
+  last-match-wins；不得讓loader、provider與preflight各自實作一套glob語意。
+- [x] 將 unavailable/invalid failure 對應到上述穩定 error code；不得在 message 印 catalog
   原文或 absolute resource path。
-- [ ] 執行 built wheel resource smoke check，確認 wheel 內含
+- [x] 執行 built wheel resource smoke check，確認 wheel 內含
   `kai_mind/core/rules/scan_inventory_rules.toml` 且 installed import 可讀。
 
 ## Task 2：統一 Git／recursive 的 KAI policy application
@@ -255,21 +286,22 @@ Files:
 
 Steps:
 
-- [ ] 先補 mode matrix characterization tests：Git、recursive、fallback × tracked/untracked ×
+- [x] 先補 mode matrix characterization tests：Git、recursive、fallback × tracked/untracked ×
   file/directory × exclude/include。
-- [ ] 對 tracked + ignored、`.git/info/exclude`、global exclude 建立 mode-specific expected
+- [x] 對 tracked + ignored、`.git/info/exclude`、global exclude 建立 mode-specific expected
   tests，不把刻意差異誤判成 regression。
-- [ ] 把 KAI-owned directory/suffix defaults 移入 ordered `path_rules`，Git path list 與
-  recursive walk 共用同一 matcher；不得保留 hidden Python default list。
-- [ ] 加入「directory 先 exclude、descendant 後 include」fixture，證明 recursive 不會因過早
+- [x] 把 KAI-owned directory/suffix defaults 移入 ordered `path_rules`，Git path list 與
+  recursive walk共用 `InventoryPolicyMatcher`；不得保留 hidden Python default list，也不得
+  把matcher邏輯複製回oversized provider。
+- [x] 加入「directory 先 exclude、descendant 後 include」fixture，證明 recursive 不會因過早
   prune 漏檔，且與 Git mode 的 catalog decision 一致。
-- [ ] 對 Git mode 目前未套用 directory defaults 的行為建立 failing parity test，再把它改成
+- [x] 對 Git mode 目前未套用 directory defaults 的行為建立 failing parity test，再把它改成
   catalog-controlled skip；在 migration report 明列此 intentional delta。
-- [ ] 保留 Python safety checks，並驗證 catalog `include` 不能重新納入 outside-root symlink、
+- [x] 保留 Python safety checks，並驗證 catalog `include` 不能重新納入 outside-root symlink、
   unreadable、binary、oversize。
-- [ ] 產生 deterministic audit entries 與完整 `inventory_run_digest`；相同 target state、source
+- [x] 產生 deterministic audit entries 與完整 `inventory_run_digest`；相同 target state、source
   mode、catalog bytes、safety version、decision 必須得到相同排序與 digest。
-- [ ] Windows-looking `\\` path 與 POSIX path 需命中同一 rule；大小寫不同則不得命中。
+- [x] Windows-looking `\\` path 與 POSIX path 需命中同一 rule；大小寫不同則不得命中。
 
 ## Task 3：收斂 runtime boundary overlay
 
@@ -282,14 +314,14 @@ Files:
 
 Steps:
 
-- [ ] 先寫 `.env` / vector persistence fixture，證明它們先進 eligible inventory，再產生
+- [x] 先寫 `.env` / vector persistence fixture，證明它們先進 eligible inventory，再產生
   proposal；default catalog 不得先排除。
-- [ ] `scan_this_run` 保留 file 並新增 included audit；`skip_this_run` 移到 skipped 並新增
+- [x] `scan_this_run` 保留 file 並新增 included audit；`skip_this_run` 移到 skipped 並新增
   skipped audit。
-- [ ] 無 decision、decision target fingerprint 不符或過期時，保持
+- [x] 無 decision、decision target fingerprint 不符或過期時，保持
   `pending_boundary_review`，不得沿用 stale approval。
-- [ ] 證明 runtime decision 無法重新加入 catalog/safety skipped path。
-- [ ] 同一 decision 重放必須 idempotent，audit 不得重複。
+- [x] 證明 runtime decision 無法重新加入 catalog/safety skipped path。
+- [x] 同一 decision 重放必須 idempotent，audit 不得重複。
 
 ## Task 4：把 policy provenance 寫入 snapshot 與錯誤 surface
 
@@ -304,15 +336,15 @@ Files:
 
 Steps:
 
-- [ ] 新 snapshot/manifest 必須保存 policy schema version、catalog digest、source mode 與
+- [x] 新 snapshot/manifest 必須保存 policy schema version、catalog digest、source mode 與
   `inventory_run_digest`；舊 fixture 缺值仍可讀，並明確標示 legacy unknown provenance。
-- [ ] Invalid/missing catalog 必須在 provider collection 前中止，API 回傳穩定 code，且 state
+- [x] Invalid/missing catalog 必須在 provider collection 前中止，API 回傳穩定 code，且 state
   repository 不存在新 snapshot/build/manifest。
-- [ ] Git enumeration error 可 fallback 且有不同 source mode/digest；fallback 無法安全建 inventory
+- [x] Git enumeration error 可 fallback 且有不同 source mode/digest；fallback 無法安全建 inventory
   時以 `inventory_enumeration_failed` 中止，並驗證沒有成功 artifact。
-- [ ] 重放相同 snapshot 時使用 snapshot 保存的 provenance，不得把目前 catalog digest 冒充成
+- [x] 重放相同 snapshot 時使用 snapshot 保存的 provenance，不得把目前 catalog digest 冒充成
   歷史 scan 使用的 digest。
-- [ ] 驗證 audit response 不含 absolute root、檔案內容或未遮蔽 secret。
+- [x] 驗證 audit response 不含 absolute root、檔案內容或未遮蔽 secret。
 
 ## Task 5：文件對照更新
 
@@ -324,28 +356,29 @@ Files:
 
 Steps:
 
-- [ ] 把 ASCII map Step 2 的「待建」改成 policy catalog + digest + audit 現況。
-- [ ] README 記錄 Plan 19 是 Plan 16 `files[]` provenance 的前置。
-- [ ] MODEL-CONTRACT 記錄兩種 candidate source、刻意 mode 差異、runtime boundary
+- [x] 把 ASCII map Step 2 的「待建」改成 policy catalog + digest + audit 現況。
+- [x] README 記錄 Plan 19 是 Plan 16 `files[]` provenance 的前置。
+- [x] MODEL-CONTRACT 記錄兩種 candidate source、刻意 mode 差異、runtime boundary
   override 範圍與 legacy snapshot provenance 語意。
 
 ## Acceptance Criteria
 
-- [ ] `scan_inventory_rules.toml` 是 KAI Step 2 default path policy 的唯一 source of truth；
+- [x] `scan_inventory_rules.toml` 是 KAI Step 2 default path policy 的唯一 source of truth；
   Python 不保留 hidden path default list。
-- [ ] TOML 名稱與文件一律使用 `inventory selection policy catalog`，不再把 executable
+- [x] TOML 名稱與文件一律使用 `inventory selection policy catalog`，不再把 executable
   path rules 稱為純 metadata。
-- [ ] Git／recursive／fallback 的共同 policy 行為與刻意差異都有 characterization tests。
-- [ ] Runtime user decision 只覆寫 boundary-review 狀態，不可越過 project source、catalog
+- [x] Git／recursive／fallback 的共同 policy 行為與刻意差異都有 characterization tests。
+- [x] Runtime user decision 只覆寫 boundary-review 狀態，不可越過 project source、catalog
   或 filesystem safety boundary。
-- [ ] Invalid/missing catalog fail closed；不建立 snapshot/canonical/manifest，且有 loader、
+- [x] Invalid/missing catalog fail closed；不建立 snapshot/canonical/manifest，且有 loader、
   service、CLI/API tests。
-- [ ] 每次新 scan 都可回讀 policy schema version、digest 與 deterministic audit trail。
-- [ ] 每次新 scan 都可回讀 candidate/policy/safety/decision/final-result 組成的
+- [x] 每次新 scan 都可回讀 policy schema version、digest 與 deterministic audit trail。
+- [x] 每次新 scan 都可回讀 candidate/policy/safety/decision/final-result 組成的
   `inventory_run_digest`；Git fallback 不會冒充正常 Git enumeration。
-- [ ] 新 audit/provenance 欄位 additive；legacy snapshot 仍可讀但標示 policy unknown。
-- [ ] Windows/macOS 使用相同 POSIX-normalized、case-sensitive catalog matching contract。
-- [ ] Plan 16 UA request 的 `files[]` 與 snapshot 保存相同 inventory policy digest。
+- [x] 新 audit/provenance 欄位 additive；legacy snapshot 仍可讀但標示 policy unknown。
+- [x] Windows/macOS 使用相同 POSIX-normalized、case-sensitive catalog matching contract。
+- [x] 保存一個明確的 Plan 16 handoff invariant：未來 UA request 的 `files[]` 必須取自同一final
+  inventory並攜帶snapshot保存的policy digest；本計畫不建立 UA request或parity runtime。
 
 ## 邊界 / 不做事項
 
@@ -355,7 +388,7 @@ Steps:
 - 不把數值 threshold 或 binary content 判斷移入 TOML。
 - 不寫 target repo；scanner 維持 read-only。
 
-## 外部研究依據（2026-07-15）
+## 外部研究依據（2026-07-16 重新查證）
 
 - [Git `git-ls-files` 官方文件](https://git-scm.com/docs/git-ls-files) 明定
   `--cached` 會列 tracked files，`--exclude-standard` 會加入 nested `.gitignore`、
@@ -370,3 +403,6 @@ Steps:
   [Grafana codeowners metadata](https://github.com/grafana/grafana/blob/main/scripts/codeowners-manifest/metadata.js)
   則示範對排序後的 Git candidate list 建 digest。本計畫另外要求 catalog、decision、safety
   version 與 final result 都進入 provenance，不能只 hash path list。
+- [Python 3.11 `importlib.resources` 官方文件](https://docs.python.org/3.11/library/importlib.resources.html)
+  明定 package resource不保證是實體filesystem path；loader應透過 `files(...).joinpath(...).read_bytes()`
+  讀取實際 packaged bytes，正好可同時作為catalog digest輸入與wheel resource smoke依據。

@@ -68,7 +68,7 @@ Step 1 Import
 
 | 資料夾 | Sample | 驗證等級 |
 | --- | --- | --- |
-| `step-02-boundary-gate/` | preflight、selection、pending／completed、typed errors | Plan 20 target；JSON + plan invariants |
+| `step-02-boundary-gate/` | preflight、selection、pending／completed、typed errors | current backend Pydantic；frontend flow 尚待實作 |
 | `step-04-normalize-validate/` | `frontend-ai-system-map-sample.json` | current `AiSystemMapV2` Pydantic |
 | `step-06-derived-assessment/` | profile、readiness、evidence、call、dataflow、paths | current Pydantic |
 | `step-07-projection-publication/` | graph + future artifact index | graph=current Pydantic；artifact index=target |
@@ -87,7 +87,7 @@ execution JSON 的差異見
 | Assessment 五態 | `detected` / `partial` / `undetermined` / `not_detected` / `conflicted` | profile、reference assessment、readiness |
 | Activation | `enabled` / `disabled` / `conditional` / `unknown` / `conflicted` / `not_applicable` | 與 assessment 分開 |
 | Current scan lifecycle | `requires_boundary_decision` / `completed` / `error` | `POST /api/scans` |
-| Plan 20 inventory target | `reviewable` / `hard_blocked` / `missing` / `empty_directory` / `directory_limit_exceeded` | 尚未上線的 preflight target |
+| Plan 20 inventory target | `reviewable` / `hard_blocked` / `missing` / `empty_directory` / `directory_limit_exceeded` | current backend preflight；frontend 尚未接線 |
 | Review workflow | `needs_confirmation` / `pending_user_confirmation` | unmapped／proposal |
 | Durable evidence review | `confirmed` / `rejected` / `needs_confirmation` / `not_required` | evidence table／mapping decision |
 | Capability candidate | `confirmed_non_baseline` | confirmed non-baseline capability |

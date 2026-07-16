@@ -6,6 +6,10 @@ from enum import StrEnum
 
 from pydantic import Field
 
+from kai_mind.core.models.inventory_provenance import (
+    InventoryPolicyAuditEntry,
+)
+from kai_mind.core.models.inventory_selection import InventorySelectionSummary
 from kai_mind.core.models.scan import ScanModel
 
 
@@ -43,6 +47,8 @@ class FileRecord(ScanModel):
 
     path: str
     size_bytes: int
+    metadata_fingerprint: str | None = None
+    content_fingerprint: str | None = None
 
 
 class SkippedFile(ScanModel):
@@ -61,6 +67,17 @@ class FileInventory(ScanModel):
     files: list[FileRecord] = Field(default_factory=list)
     skipped: list[SkippedFile] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    inventory_policy_schema_version: str | None = None
+    inventory_policy_digest: str | None = None
+    candidate_set_digest: str | None = None
+    filesystem_safety_version: str | None = None
+    boundary_decision_digest: str | None = None
+    final_inventory_digest: str | None = None
+    inventory_run_digest: str | None = None
+    inventory_policy_audit: list[InventoryPolicyAuditEntry] = Field(
+        default_factory=list
+    )
+    inventory_selection_summary: InventorySelectionSummary | None = None
 
     @property
     def files_scanned(self) -> int:

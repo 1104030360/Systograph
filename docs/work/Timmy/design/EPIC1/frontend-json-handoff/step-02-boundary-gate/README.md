@@ -1,15 +1,15 @@
 # Step 2 — Scan Inventory Boundary Gate
 
-Last updated: 2026-07-15（Plan 19 baseline + Plan 20 per-run selection target）
+Last updated: 2026-07-16（Plan 19 baseline + Plan 20 backend contract 已上線）
 
 ## 狀態與閱讀方式
 
-本資料夾描述 **Plan 20 完成後的 planned frontend handoff target**，不是 2026-07-15 已上線的
-runtime contract。Plan 20 Task 9 尚未完成前，正式 API 仍以 `docs/API-GUIDE.md`、
-`docs/MODEL-CONTRACT.md` 與 current schemas 為準。
+本資料夾描述 **Plan 20 已上線的 backend contract 與仍待實作的 frontend handoff**。正式 API
+以 `docs/API-GUIDE.md`、`docs/MODEL-CONTRACT.md` 與 current Pydantic schemas 為準；本資料夾
+8 份 sample 已在 2026-07-16 逐份通過 current Pydantic validation。
 
-Current runtime 已有 `POST /api/scans` 與 sensitive boundary proposal，但還沒有
-`POST /api/projects/{project_id}/scan-preflights`、`selection_context` 或 directory scope。
+Current backend runtime 已提供 `POST /api/projects/{project_id}/scan-preflights`、additive
+`selection_context`、exact／directory scope、typed errors 與 `POST /api/scans.preflight_request_id`。
 
 Current frontend 也尚未實作本 target：`projectScanApi.ts` 只有 import／scan，
 `scanCreateResponseSchema` 仍要求所有 response 都有 `scan_id`，而
@@ -374,14 +374,14 @@ Plan 20 到 current scanner providers、snapshot 與 build pipeline 為止。**�
 | 409 | `inventory_selection_target_missing` | 標記 missing，重新 preflight |
 | 409 | `inventory_selection_target_changed` | 清除 choice，重新 review |
 | 422 | `inventory_selection_post_decision_blocked` | 顯示 hard block，不建立 scan |
-| 500/422 | `inventory_rules_unavailable` | `baseline_error`；不顯示 review controls |
-| 500/422 | `inventory_rules_invalid` | `baseline_error`；不顯示 review controls |
+| 422 | `inventory_rules_unavailable` | `baseline_error`；不顯示 review controls |
+| 422 | `inventory_rules_invalid` | `baseline_error`；不顯示 review controls |
 
 Error body 固定有 `detail.code`、安全的 `message`、`retryable` 與 optional bounded `context`。
 UI 不顯示 TOML content、package path、absolute local path、raw exception 或 secret。
 
-Catalog error 的最終 HTTP status 要在 Plan 20 Task 9 同步到三份 canonical contract 後凍結；在此之前
-Frontend 必須以 stable `detail.code` 分流，不可依自由文字猜測。
+Catalog error 的 HTTP status 已凍結為 422；Frontend 仍必須以 stable `detail.code` 分流，不可依
+自由文字猜測。
 
 ## 8. Frontend invariants
 
@@ -397,7 +397,7 @@ Frontend 必須以 stable `detail.code` 分流，不可依自由文字猜測。
 
 ## 9. 實作與驗證 gate
 
-Plan 20 的 **backend contract freeze gate**（不等待 frontend 實作）：
+Plan 20 的 **backend contract freeze gate** 已於 2026-07-16 通過（不等待 frontend 實作）：
 
 1. Backend Pydantic request／response／OpenAPI tests。
 2. API E2E 驗證 target repo tree／Git status 前後不變。
@@ -412,6 +412,9 @@ Meeting-Sync frontend work 啟用新 flow 前另需通過：
 
 Frontend gates 不阻擋 Plan 20 backend DoD；在它們完成前，這些 samples 仍不可當成 current UI
 behavior。
+
+Backend sample validation：`8 passed`；完整 backend regression：`972 passed`。這只確認 HTTP／
+Pydantic contract，不能冒充 frontend Zod、state-machine 或 browser flow 已完成。
 
 本資料夾的靜態檢查：
 

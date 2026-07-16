@@ -11,6 +11,13 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
+from kai_mind.core.models.errors import (
+    InventoryEnumerationError,
+    InventorySelectionError,
+    InventorySelectionErrorCode,
+    ScanInventoryRulesError,
+)
+from kai_mind.core.models.inventory_selection import InventoryPreflightRequest
 from kai_mind.core.models.map_build import MapBuildRequest
 from kai_mind.core.models.scan import OutputRun
 from kai_mind.core.providers.local_json_state_errors import StateConflictError
@@ -18,6 +25,12 @@ from kai_mind.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
 from kai_mind.core.services.build_manifest_service import BuildManifestService
+from kai_mind.core.services.inventory_preflight_service import (
+    InventoryPreflightService,
+)
+from kai_mind.core.services.inventory_selection_service import (
+    InventorySelectionService,
+)
 from kai_mind.core.services.map_build_service import MapBuildService
 from kai_mind.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
@@ -25,13 +38,25 @@ from kai_mind.core.services.scan_boundary_review_service import (
 from kai_mind.core.services.scan_snapshot_service import ScanSnapshotService
 from kai_mind.web.dependencies import (
     build_manifest_service,
+    inventory_preflight_service,
+    inventory_selection_service,
     map_build_service,
     scan_boundary_review_service,
     scan_snapshot_service,
     session_store,
     state_repository,
 )
+from kai_mind.web.inventory_error_response import (
+    inventory_error_detail,
+    inventory_system_error_detail,
+    project_not_found_detail,
+)
+from kai_mind.web.inventory_preflight_projection import (
+    project_inventory_preflight,
+)
 from kai_mind.web.schemas import (
+    InventoryPreflightApiRequest,
+    InventoryPreflightResponse,
     ScanCreateRequest,
     ScanCreateResponse,
     ScanProgressEvent,
@@ -48,6 +73,54 @@ SSE_HEADERS = {
 
 
 @router.post(
+    "/api/projects/{project_id}/scan-preflights",
+    response_model=InventoryPreflightResponse,
+)
+def create_scan_preflight(
+    project_id: str,
+    payload: InventoryPreflightApiRequest,
+    preflight_service: Annotated[
+        InventoryPreflightService,
+        Depends(inventory_preflight_service),
+    ],
+    boundary_service: Annotated[
+        ScanBoundaryReviewService,
+        Depends(scan_boundary_review_service),
+    ],
+    store: Annotated[SessionStore, Depends(session_store)],
+) -> InventoryPreflightResponse:
+    project = store.project(project_id)
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail=project_not_found_detail(),
+        )
+    request = payload.to_core()
+    try:
+        state = preflight_service.create(
+            project_id,
+            project.project_path,
+            request,
+        )
+        return project_inventory_preflight(
+            state,
+            request,
+            preflight_service=preflight_service,
+            boundary_service=boundary_service,
+        )
+    except InventorySelectionError as exc:
+        raise HTTPException(
+            status_code=exc.http_status,
+            detail=inventory_error_detail(exc),
+        ) from exc
+    except (InventoryEnumerationError, ScanInventoryRulesError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=inventory_system_error_detail(exc),
+        ) from exc
+
+
+@router.post(
     "/api/scans",
     response_model=ScanCreateResponse,
 )
@@ -57,6 +130,14 @@ def create_scan(
     boundary_service: Annotated[
         ScanBoundaryReviewService,
         Depends(scan_boundary_review_service),
+    ],
+    selection_service: Annotated[
+        InventorySelectionService,
+        Depends(inventory_selection_service),
+    ],
+    preflight_service: Annotated[
+        InventoryPreflightService,
+        Depends(inventory_preflight_service),
     ],
     snapshot_service: Annotated[
         ScanSnapshotService,
@@ -75,16 +156,107 @@ def create_scan(
     """用已匯入的 project_id 執行掃描，並回傳這次掃描的建置結果。"""
     project = store.project(payload.project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    try:
-        inventory = snapshot_service.build_inventory(project.project_path)
-        proposals = boundary_service.create_proposals(
-            project_id=payload.project_id,
-            project_root=project.project_path,
-            inventory=inventory,
-            decisions=payload.boundary_decisions,
+        raise HTTPException(
+            status_code=404,
+            detail=project_not_found_detail(),
         )
+
+    selection_summary = None
+    try:
+        explicit_preflight = payload.preflight_request_id is not None
+        if explicit_preflight:
+            selection_request_id = payload.preflight_request_id
+        else:
+            implicit_state = preflight_service.create(
+                payload.project_id,
+                project.project_path,
+                InventoryPreflightRequest(
+                    requested_paths=tuple(
+                        item.target_path for item in payload.boundary_decisions
+                    )
+                ),
+            )
+            selection_request_id = implicit_state.preflight_request_id
+            required_paths = {
+                item.path
+                for item in implicit_state.candidate_set.candidates
+                if item.decision_required
+            }
+            if not payload.boundary_decisions and required_paths:
+                implicit_proposals = (
+                    boundary_service.create_selection_proposals(implicit_state)
+                )
+                return ScanCreateResponse(
+                    project_id=payload.project_id,
+                    status="requires_boundary_decision",
+                    boundary_proposals=[
+                        item
+                        for item in implicit_proposals
+                        if item.target.path in required_paths
+                    ],
+                )
+            if any(
+                item.target_path not in required_paths
+                for item in payload.boundary_decisions
+            ):
+                raise InventorySelectionError(
+                    InventorySelectionErrorCode.OVERRIDE_NOT_ALLOWED
+                )
+        assert selection_request_id is not None
+        try:
+            selection = selection_service.select(
+                project_id=payload.project_id,
+                project_root=project.project_path,
+                preflight_request_id=selection_request_id,
+                decisions=payload.boundary_decisions,
+            )
+        except InventorySelectionError as exc:
+            if not explicit_preflight and exc.code in {
+                InventorySelectionErrorCode.PREFLIGHT_STALE,
+                InventorySelectionErrorCode.TARGET_CHANGED,
+            }:
+                refreshed = preflight_service.create(
+                    payload.project_id,
+                    project.project_path,
+                    InventoryPreflightRequest(),
+                )
+                proposals = [
+                    item
+                    for item in boundary_service.create_selection_proposals(
+                        refreshed
+                    )
+                    if item.selection_context is not None
+                    and item.selection_context.decision_required
+                ]
+                if proposals:
+                    return ScanCreateResponse(
+                        project_id=payload.project_id,
+                        status="requires_boundary_decision",
+                        boundary_proposals=proposals,
+                    )
+            raise
+        if selection.pending_proposals:
+            return ScanCreateResponse(
+                project_id=payload.project_id,
+                status="requires_boundary_decision",
+                boundary_proposals=list(selection.pending_proposals),
+                preflight_request_id=payload.preflight_request_id,
+            )
+        if selection.inventory is None:
+            raise ValueError("Inventory selection was not materialized")
+        inventory = selection.inventory
+        selection_summary = selection.summary
+        proposals = []
+    except InventorySelectionError as exc:
+        raise HTTPException(
+            status_code=exc.http_status,
+            detail=inventory_error_detail(exc),
+        ) from exc
+    except (InventoryEnumerationError, ScanInventoryRulesError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=inventory_system_error_detail(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -93,13 +265,11 @@ def create_scan(
             project_id=payload.project_id,
             status="requires_boundary_decision",
             boundary_proposals=proposals,
+            preflight_request_id=payload.preflight_request_id,
         )
 
     try:
-        inventory_policy = boundary_service.for_decisions(
-            project_id=payload.project_id,
-            decisions=payload.boundary_decisions,
-        )
+        inventory_policy = None
         snapshot = snapshot_service.scan_and_save(
             project_id=payload.project_id,
             project_root=project.project_path,
@@ -122,6 +292,16 @@ def create_scan(
             build_id=build_id,
             build_reason="initial_scan",
         )
+    except InventorySelectionError as exc:
+        raise HTTPException(
+            status_code=exc.http_status,
+            detail=inventory_error_detail(exc),
+        ) from exc
+    except (InventoryEnumerationError, ScanInventoryRulesError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=inventory_system_error_detail(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if result.status == "ok":
@@ -153,6 +333,8 @@ def create_scan(
         project_id=payload.project_id,
         status="completed" if result.status == "ok" else "error",
         build_result=result,
+        preflight_request_id=payload.preflight_request_id,
+        inventory_selection_summary=selection_summary,
     )
 
 

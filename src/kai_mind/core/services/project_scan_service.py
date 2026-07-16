@@ -29,6 +29,9 @@ from kai_mind.core.providers.docker_compose_provider import (
 from kai_mind.core.providers.filesystem_provider import FilesystemProvider
 from kai_mind.core.services.logging_service import safe_log_event
 from kai_mind.core.services.path_safety_service import redact_local_paths
+from kai_mind.core.services.scan_inventory_rule_loader import (
+    ScanInventoryRuleLoader,
+)
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
 PROJECT_SCAN_STAGE: Literal["project_scan"] = "project_scan"
@@ -107,6 +110,13 @@ class ProjectScanService:
     def build_inventory(self, project_root: Path) -> FileInventory:
         return self._filesystem_provider.build_inventory(project_root)
 
+    @property
+    def inventory_rule_loader(self) -> ScanInventoryRuleLoader | None:
+        loader = getattr(
+            self._filesystem_provider, "inventory_rule_loader", None
+        )
+        return loader if isinstance(loader, ScanInventoryRuleLoader) else None
+
     def scan_inventory(
         self,
         project_root: Path,
@@ -124,6 +134,18 @@ class ProjectScanService:
             warnings=list(inventory.warnings),
             files_scanned=inventory.files_scanned,
             files_skipped=inventory.files_skipped,
+            inventory_policy_schema_version=(
+                inventory.inventory_policy_schema_version
+            ),
+            inventory_policy_digest=inventory.inventory_policy_digest,
+            candidate_set_digest=inventory.candidate_set_digest,
+            filesystem_safety_version=inventory.filesystem_safety_version,
+            boundary_decision_digest=inventory.boundary_decision_digest,
+            final_inventory_digest=inventory.final_inventory_digest,
+            inventory_run_digest=inventory.inventory_run_digest,
+            inventory_source_mode=inventory.source.value,
+            inventory_policy_audit=list(inventory.inventory_policy_audit),
+            inventory_selection_summary=inventory.inventory_selection_summary,
         )
 
         for provider in self._providers:

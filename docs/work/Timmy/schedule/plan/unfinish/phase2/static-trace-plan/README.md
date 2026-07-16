@@ -30,6 +30,7 @@ Phase2 primary HTTP surface（current runtime 尚未全部實作；見 API-GUIDE
 
 ```http
 POST /api/projects/import
+POST /api/projects/{project_id}/scan-preflights
 POST /api/scans
 GET  /api/projects/{project_id}/map-builds
 GET  /api/projects/{project_id}/map-builds/latest
@@ -39,9 +40,8 @@ POST /api/map-builds/{build_id}/detail-scans
 POST /api/map-builds/{build_id}/trace
 ```
 
-Plan `20` 規劃 additive `POST /api/projects/{project_id}/scan-preflights`；在 Plan 20 Task 9
-同步 `docs/API-GUIDE.md` 且 contract tests 通過前，它仍是 planned target，不是 current
-canonical HTTP surface。
+Plan `20` 已交付 additive `POST /api/projects/{project_id}/scan-preflights`；current payload、
+typed error 與 one-run selection lifecycle 以 `docs/API-GUIDE.md` 為 canonical HTTP contract。
 
 Step 9 review / manual decision 仍使用 current runtime 的
 `POST /api/mapping-proposals`、`POST /api/mapping-proposals/{proposal_id}/decision`、
@@ -149,7 +149,7 @@ capability assessment 與 Step 7 projection 混在一起。
 
 | Pipeline step | Owner plan | 語意 | TOML / Python 邊界 |
 |---|---|---|---|
-| Step 2 Boundary | `19`（inventory selection policy catalog）+ `20`（metadata-only preflight / one-run exact-file與bounded recursive-directory override）；`16` Task 2 是後續獨立 UA enrichment | Plan 20 只完成 default inventory、可覆寫 soft exclusion、不可覆寫 safety與final allowlist；**不接 UA** | TOML 擁有 default path policy；Python 擁有preflight、bounded directory expansion、decision overlay、safety與final inventory；frontend只回傳scope decisions；UA adapter/request/parity由Plan 16另行負責 |
+| Step 2 Boundary | `19`（已實作的 inventory selection policy catalog）+ `20`（metadata-only preflight / one-run exact-file與bounded recursive-directory override）；`16` Task 2 是後續獨立 UA enrichment | Plan 19 保存 schema/digest/audit/run digest；Plan 20 只完成 default inventory、可覆寫 soft exclusion、不可覆寫 safety與final allowlist；**不接 UA** | TOML 擁有 default path policy；Python 擁有preflight、bounded directory expansion、decision overlay、safety與final inventory；frontend只回傳scope decisions；UA adapter/request/parity由Plan 16另行負責 |
 | Step 3 Scan | Phase A：既有 KAI providers；Phase B：`16`；Phase C：`18` | Phase A 以 TOML facts 打通 E2E；Phase B 改為 UA structural primary + TOML parity；Phase C 退役 TOML 主掃描路徑 | 所有階段禁止 scan layer 寫 `plane_id` / `reference_node_id` |
 | Step 4 Bridge 1 | `01B` + `01` + `03A` | `rule_id + evidence` → repo component / `unmapped_components[]` / candidate input | Python `component_bridge_registry.py`；risk/next-check TOML 只放文案 |
 | Step 5 Index | `05`～`09` | validated map 的 read-only lookup | 不寫檔、不 validate、不 infer capability |
@@ -245,8 +245,9 @@ static-trace-plan/
    產出 `GraphViewModel` projection，讓 frontend 只 render 不重算。
 4. `s1-track-b-profile-rules/`：整理 profile / capability metadata 的 TOML 邊界；TOML 放 label
    與文案，五態判斷仍留在 Python。
-5. `s1-track-d-inventory/`：補 Step 2 inventory include / ignore metadata，為後續 UA sidecar
-   與 scan boundary 提供穩定檔案清單基礎。
+5. `s1-track-d-inventory/`：Step 2 executable inventory selection policy catalog、source mode、
+   audit 與 reproducibility digest。這是 Plan 16 `files[]` provenance 前置：未來 UA request
+   必須使用同一份 final inventory，並攜帶 snapshot 保存的 policy digest，不得重新列檔。
 6. `s1-track-d-inventory-review/`：在 Plan 19 default policy 上新增 metadata-only preflight、
    exact-file與bounded recursive-directory one-run override、不可覆寫 safety 與 frontend decision
    handoff；current scanner只消費同一 final inventory。**Plan 20 不接 UA**；UA integration由
@@ -304,7 +305,7 @@ static-trace-plan/
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 19 | [19-add-scan-inventory-rules-toml.md](./s1-track-d-inventory/19-add-scan-inventory-rules-toml.md) | Step 2 `scan_inventory_rules.toml`（include / ignore boundary metadata） | 無 hard gate |
+| 19 | [19-add-scan-inventory-rules-toml.md](./s1-track-d-inventory/19-add-scan-inventory-rules-toml.md) | Step 2 executable `scan_inventory_rules.toml`、audit/provenance/digest（已實作） | 無 hard gate |
 
 ### S1 Track-D Review — `s1-track-d-inventory-review/`（Plan 19 後；不接 UA）
 

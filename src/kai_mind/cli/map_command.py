@@ -7,6 +7,10 @@ from typing import Annotated, Literal
 
 import typer
 
+from kai_mind.core.models.errors import (
+    InventoryEnumerationError,
+    ScanInventoryRulesError,
+)
 from kai_mind.core.models.map_build import MapBuildRequest
 from kai_mind.core.services.map_build_service import MapBuildService
 
@@ -55,15 +59,19 @@ def map_command(
 ) -> None:
     """Build a validated ai-system-map artifact (active output remains v1)."""
 
-    result = MapBuildService().build(
-        MapBuildRequest(
-            project_path=project_path,
-            output=output,
-            redact_root_path=redact_root_path,
-            no_snippets=no_snippets,
-            system_map_schema_version=system_map_schema_version,
+    try:
+        result = MapBuildService().build(
+            MapBuildRequest(
+                project_path=project_path,
+                output=output,
+                redact_root_path=redact_root_path,
+                no_snippets=no_snippets,
+                system_map_schema_version=system_map_schema_version,
+            )
         )
-    )
+    except (InventoryEnumerationError, ScanInventoryRulesError) as exc:
+        typer.echo(f"Map build failed: {exc.code.value}", err=True)
+        raise typer.Exit(code=1) from exc
     if result.status == "error":
         if result.error is not None:
             typer.echo(

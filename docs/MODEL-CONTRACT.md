@@ -175,6 +175,61 @@ Render（3）— export / report；不參與 scoring；Viewer 主畫布不依賴
 | `mappings/{mapping_id}.json` | 9 | `mapping_id` | 使用者 confirmed manual mapping；**下次 build 輸入**，非 sidecar 輸出 |
 | `project.json`、`builds/.../manifest.json` | 1 / 7 | project / build | state metadata；非 public artifact set |
 
+### 3.1 Step 2 inventory provenance
+
+`scan_inventory_rules.toml` 是 KAI-owned default path policy 的唯一 executable source of
+truth。Git、recursive 與 Git-error fallback 共用 ordered last-match-wins matcher；Python只保留
+outside-root symlink、binary、size、unreadable與Git metadata等不可覆寫 safety。
+
+| Candidate source | 行為與刻意差異 |
+|---|---|
+| `git` | `git ls-files --cached --others --exclude-standard`；tracked file 即使命中 ignore仍保留，並套用 `.git/info/exclude` / configured global excludes |
+| `recursive` | 只讀 target tree內 `.gitignore`，不讀 Git private/global state |
+| `fallback_after_git_error` | Git listing失敗後的 recursive結果；source mode與run digest不得冒充正常Git |
+
+每次新 inventory / snapshot 保存 `inventory_policy_schema_version`、
+`inventory_policy_digest`、`candidate_set_digest`、`filesystem_safety_version`、
+`boundary_decision_digest`、`final_inventory_digest`、`inventory_source_mode`、
+`inventory_run_digest` 與 content-free `inventory_policy_audit[]`。Run digest綁定candidate set、
+catalog bytes、filesystem safety version、帶 `selection_scope`／fingerprint 的runtime decisions與
+final result。
+
+Plan 20在default policy之上增加 **one-run delta**，不是永久偏好或Manual Mapping：
+
+```text
+metadata-only preflight
+  → included / soft_excluded / hard_blocked / missing
+  → exact_file 或 bounded recursive_directory proposal
+  → re-enumerate + metadata/manifest revalidation
+  → hard safety > exact > deepest directory > ancestor > default
+  → post-decision openat/no-follow + fstat + binary probe + content hash
+  → one final FileInventory → current providers → snapshot
+```
+
+只有`soft_excluded`可被`scan_this_run`重新納入；filesystem `hard_blocked`不可覆寫。
+Directory hard bounds固定5,000 observed regular files、500,000,000 selectable bytes、64層，
+同preflight最多20 scopes；parent/child overlap以canonical file path去重。Preflight proposal的file
+fingerprint只含`path + target_type + size_bytes + mtime_ns`；directory fingerprint則涵蓋完整
+metadata manifest、policy digest與safety version。兩者在使用者決定前都不讀內容。
+
+Final `FileRecord`可攜帶internal `metadata_fingerprint`與`content_fingerprint`。Content SHA-256
+只在decision/default outcome確定納入後，從已通過逐層no-follow與`fstat`的同一file handle建立；
+snapshot寫入前再次透過相同adapter比對，不使用`Path.read_bytes()`重新開啟。Snapshot的
+`file_fingerprints`是detail-scan stale check的content binding，不輸出file content。
+
+Git tracked-but-missing path保留為`base_outcome="missing"`／`reason="missing_at_scan"`，並計入
+preflight `missing_count`；它沒有actionable proposal，未被decision指向時不阻擋其他檔案。
+
+`InventoryPolicyAuditEntry` additive保存`base_outcome`、`effective_outcome`、
+`decision_origin`、`boundary_decision`、`decision_target_path`、`decision_scope`、
+`decision_fingerprint`、`override_applied`與`preflight_request_id`。Directory decision展開成
+per-file audit；每筆`path`是實際file，而`decision_target_path`保留winning directory。
+`inventory_selection_summary`只由final audit投影，不是第二份inventory truth。
+
+舊 snapshot 缺上述欄位時仍可讀，`inventory_provenance_status` 必須是
+`legacy_inventory_policy_unknown`；不得以目前catalog digest回填歷史scan。新snapshot與
+manifest使用`recorded`。
+
 Gate-1 active output 中，6 個 derived JSON siblings（profile、readiness、4 個 static
 execution）共享 `scan_id`、`build_id`、`environment_id`、`generated_from_build_id`
 （同 build 時 **MUST** `generated_from_build_id === build_id`）。Canonical
@@ -382,7 +437,8 @@ Gate-1 不輸出 `release_verdict`、`severity` 或 `finding_registry_version`�
 State store（${KAI_MIND_STATE_DIR}/projects/{project_id}/）
   project.json
   mappings/{mapping_id}.json     ← ManualMapping（Step 9 決策）
-  scans/{scan_id}/snapshot.json  ← ScanSnapshot（Step 3）
+  scans/{scan_id}/snapshot.json  ← ScanSnapshot（Step 3，含 inventory provenance）
+  scans/{scan_id}/manifest.json  ← schema/digest/source mode/run digest摘要
   builds/{build_id}/manifest.json
   latest.json
 
