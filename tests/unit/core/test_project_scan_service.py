@@ -15,6 +15,7 @@ from kai_mind.core.models.filesystem import (
 )
 from kai_mind.core.models.scan import ProviderScanResult, ScanFact
 from kai_mind.core.models.system_map import Evidence
+from kai_mind.core.providers.filesystem_provider import FilesystemProvider
 from kai_mind.core.services import project_scan_service
 from kai_mind.core.services.project_scan_service import ProjectScanService
 
@@ -421,3 +422,39 @@ def test_scan_result_stays_at_raw_fact_boundary(tmp_path: Path) -> None:
     assert not hasattr(result, "endpoints")
     assert not hasattr(result, "risk_hints")
     assert not hasattr(result, "flows")
+
+
+def test_scan_result_preserves_inventory_policy_provenance(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "app.py").write_text(
+        "print('ok')\n",
+        encoding="utf-8",
+    )
+    inventory = FilesystemProvider().build_inventory(project_root)
+
+    result = ProjectScanService(
+        filesystem_provider=FakeFilesystemProvider(inventory),
+        providers=[],
+    ).scan(project_root)
+
+    assert result.inventory_policy_schema_version == (
+        inventory.inventory_policy_schema_version
+    )
+    assert result.inventory_policy_digest == inventory.inventory_policy_digest
+    assert result.candidate_set_digest == inventory.candidate_set_digest
+    assert result.filesystem_safety_version == (
+        inventory.filesystem_safety_version
+    )
+    assert result.boundary_decision_digest == (
+        inventory.boundary_decision_digest
+    )
+    assert result.final_inventory_digest == inventory.final_inventory_digest
+    assert result.inventory_run_digest == inventory.inventory_run_digest
+    assert result.inventory_source_mode == inventory.source
+    assert result.inventory_policy_audit == inventory.inventory_policy_audit
+    assert result.inventory_selection_summary == (
+        inventory.inventory_selection_summary
+    )

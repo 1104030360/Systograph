@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import stat
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -15,6 +16,10 @@ from kai_mind.core.models.filesystem import (
     SkippedFile,
     SkipReason,
 )
+from kai_mind.core.models.inventory_provenance import (
+    InventoryPolicyAuditOutcome,
+)
+from kai_mind.core.models.inventory_selection import InventoryPreflightState
 from kai_mind.core.models.scan_boundary import (
     MAX_BOUNDARY_EVIDENCE_SNIPPET_CHARS,
     MAX_BOUNDARY_EVIDENCE_VALUE_CHARS,
@@ -26,6 +31,16 @@ from kai_mind.core.models.scan_boundary import (
     ScanBoundaryTarget,
 )
 from kai_mind.core.models.system_map import Evidence
+from kai_mind.core.services.inventory_metadata_service import (
+    InventoryMetadataService,
+)
+from kai_mind.core.services.inventory_provenance_service import (
+    InventoryProvenanceService,
+)
+from kai_mind.core.services.inventory_risk_service import InventoryRiskService
+from kai_mind.core.services.inventory_selection_proposal_service import (
+    InventorySelectionProposalService,
+)
 from kai_mind.core.services.path_safety_service import (
     PathSafetyError,
     is_project_relative_posix_path,
@@ -34,81 +49,7 @@ from kai_mind.core.services.path_safety_service import (
 )
 from kai_mind.core.services.secret_masking_service import SecretMaskingService
 
-FINGERPRINT_SAMPLE_BYTES = 4096
 MAX_BOUNDARY_EVIDENCE_ITEMS = 12
-SECRET_LIKE_FILENAMES = {
-    ".env",
-    ".env.local",
-    ".env.development",
-    ".env.production",
-    ".env.test",
-}
-SECRET_LIKE_SUFFIXES = {
-    ".key",
-    ".pem",
-    ".p12",
-    ".pfx",
-    ".keystore",
-    ".jks",
-}
-SECRET_LIKE_MARKERS = (
-    "secret",
-    "token",
-    "credential",
-    "apikey",
-    "api_key",
-    "password",
-)
-VECTOR_PERSISTENCE_MARKERS = {
-    "chroma",
-    "faiss",
-    "milvus",
-    "qdrant",
-    "weaviate",
-    "vector",
-    "vectors",
-    "vector_store",
-    "vectorstore",
-}
-VECTOR_PERSISTENCE_SUFFIXES = {
-    ".ann",
-    ".db",
-    ".duckdb",
-    ".faiss",
-    ".hnsw",
-    ".index",
-    ".npy",
-    ".npz",
-    ".sqlite",
-    ".sqlite3",
-}
-SOURCE_OR_DOC_SUFFIXES = {
-    ".c",
-    ".cc",
-    ".cpp",
-    ".cs",
-    ".go",
-    ".h",
-    ".hpp",
-    ".java",
-    ".js",
-    ".jsx",
-    ".json",
-    ".kt",
-    ".md",
-    ".php",
-    ".py",
-    ".rb",
-    ".rs",
-    ".scala",
-    ".swift",
-    ".toml",
-    ".ts",
-    ".tsx",
-    ".txt",
-    ".yaml",
-    ".yml",
-}
 
 
 @dataclass(frozen=True)
@@ -157,6 +98,16 @@ class ScanBoundaryReviewService:
         self._secret_masking_service = (
             secret_masking_service or SecretMaskingService()
         )
+        self._inventory_provenance_service = InventoryProvenanceService()
+        self._inventory_risk_service = InventoryRiskService()
+        self._inventory_metadata_service = InventoryMetadataService()
+        self._selection_proposals = InventorySelectionProposalService()
+
+    def create_selection_proposals(
+        self,
+        preflight_state: InventoryPreflightState,
+    ) -> list[ScanBoundaryProposal]:
+        return self._selection_proposals.create(preflight_state)
 
     def create_proposals(
         self,
@@ -228,6 +179,9 @@ class ScanBoundaryReviewService:
         decisions_by_path = self._decisions_by_path(decisions)
         kept_files: list[FileRecord] = []
         overlay_skipped: list[SkippedFile] = []
+        audit_by_path = {
+            entry.path: entry for entry in inventory.inventory_policy_audit
+        }
 
         for file_record in inventory.files:
             risk_type = self._risk_type_for_file(file_record.path)
@@ -258,10 +212,32 @@ class ScanBoundaryReviewService:
                         size_bytes=file_record.size_bytes,
                     )
                 )
+                audit_by_path[file_record.path] = (
+                    self._inventory_provenance_service.runtime_boundary_entry(
+                        existing=audit_by_path.get(file_record.path),
+                        path=file_record.path,
+                        source_mode=inventory.source,
+                        outcome=InventoryPolicyAuditOutcome.PENDING_REVIEW,
+                        reason=SkipReason.PENDING_BOUNDARY_REVIEW.value,
+                        boundary_decision=None,
+                        target_fingerprint=target.fingerprint,
+                    )
+                )
                 continue
 
             if decision.decision == ScanBoundaryDecisionAction.SCAN_THIS_RUN:
                 kept_files.append(file_record)
+                audit_by_path[file_record.path] = (
+                    self._inventory_provenance_service.runtime_boundary_entry(
+                        existing=audit_by_path.get(file_record.path),
+                        path=file_record.path,
+                        source_mode=inventory.source,
+                        outcome=InventoryPolicyAuditOutcome.INCLUDED,
+                        reason=decision.decision.value,
+                        boundary_decision=decision.decision.value,
+                        target_fingerprint=target.fingerprint,
+                    )
+                )
                 continue
 
             overlay_skipped.append(
@@ -271,16 +247,31 @@ class ScanBoundaryReviewService:
                     size_bytes=file_record.size_bytes,
                 )
             )
+            audit_by_path[file_record.path] = (
+                self._inventory_provenance_service.runtime_boundary_entry(
+                    existing=audit_by_path.get(file_record.path),
+                    path=file_record.path,
+                    source_mode=inventory.source,
+                    outcome=InventoryPolicyAuditOutcome.SKIPPED,
+                    reason=SkipReason.SKIPPED_BY_POLICY_OVERLAY.value,
+                    boundary_decision=decision.decision.value,
+                    target_fingerprint=target.fingerprint,
+                )
+            )
 
         skipped_files = sorted(
             [*inventory.skipped, *overlay_skipped],
             key=lambda item: (item.path, item.reason.value),
         )
-        return inventory.model_copy(
+        overlaid = inventory.model_copy(
             update={
                 "files": kept_files,
                 "skipped": skipped_files,
             }
+        )
+        return self._inventory_provenance_service.finalize_boundary(
+            overlaid,
+            audit=list(audit_by_path.values()),
         )
 
     def for_decisions(
@@ -319,11 +310,7 @@ class ScanBoundaryReviewService:
         return sorted(candidates.values(), key=lambda item: item.path)
 
     def _risk_type_for_file(self, path: str) -> str | None:
-        if _is_secret_like_path(path):
-            return "secret_like_config"
-        if _is_vector_persistence_path(path):
-            return "model_or_vector_persistence"
-        return None
+        return self._inventory_risk_service.risk_type(path)
 
     def _reason_for_risk(self, risk_type: str) -> str:
         reasons = {
@@ -363,36 +350,16 @@ class ScanBoundaryReviewService:
         target: ScanBoundaryTarget,
         evidence: Iterable[Evidence],
     ) -> ScanBoundaryEvidencePacket:
-        matching = [item for item in evidence if item.file == target.path][
-            :MAX_BOUNDARY_EVIDENCE_ITEMS
-        ]
+        del evidence
         return ScanBoundaryEvidencePacket(
             project_id=project_id,
             target_path=target.path,
             risk_type=target.risk_type,
             reason=target.reason,
-            evidence_ids=[item.id for item in matching],
-            rule_ids=sorted(
-                {item.rule_id for item in matching if item.rule_id is not None}
-            ),
-            masked_evidence_values=[
-                self._bounded_masked_text(
-                    item.value,
-                    project_root=project_root,
-                    limit=MAX_BOUNDARY_EVIDENCE_VALUE_CHARS,
-                )
-                for item in matching
-                if item.value is not None
-            ],
-            masked_snippets=[
-                self._bounded_masked_text(
-                    item.snippet,
-                    project_root=project_root,
-                    limit=MAX_BOUNDARY_EVIDENCE_SNIPPET_CHARS,
-                )
-                for item in matching
-                if item.snippet is not None
-            ],
+            evidence_ids=[],
+            rule_ids=[],
+            masked_evidence_values=[],
+            masked_snippets=[],
             context_limits={
                 "max_evidence_items": MAX_BOUNDARY_EVIDENCE_ITEMS,
                 "max_value_chars": MAX_BOUNDARY_EVIDENCE_VALUE_CHARS,
@@ -461,45 +428,30 @@ class ScanBoundaryReviewService:
 
     def _fingerprint(self, project_root: Path, path: str) -> str:
         safe_path = _safe_relative_path(path)
-        local_path = (project_root / safe_path).resolve()
+        local_path = project_root / safe_path
         try:
-            local_path.relative_to(project_root)
-        except ValueError as exc:
-            message = "Scan boundary path escapes project root"
-            raise ValueError(message) from exc
-
-        digest = hashlib.sha256()
-        digest.update(safe_path.encode("utf-8"))
-        try:
-            stat_result = local_path.stat()
+            stat_result = local_path.lstat()
         except OSError:
-            digest.update(b"missing")
-            return f"sha256:{digest.hexdigest()}"
-
-        digest.update(str(stat_result.st_size).encode("utf-8"))
-        digest.update(str(stat_result.st_mtime_ns).encode("utf-8"))
-        if local_path.is_file():
-            digest.update(self._bounded_file_hash(local_path).encode("utf-8"))
+            return self._inventory_metadata_service.file_fingerprint(
+                path=safe_path,
+                target_type="missing",
+                size_bytes=None,
+                mtime_ns=None,
+            )
+        if stat.S_ISREG(stat_result.st_mode):
+            target_type = "regular_file"
+        elif stat.S_ISDIR(stat_result.st_mode):
+            target_type = "directory"
+        elif stat.S_ISLNK(stat_result.st_mode):
+            target_type = "symlink"
         else:
-            digest.update(b"not-file")
-        return f"sha256:{digest.hexdigest()}"
-
-    def _bounded_file_hash(self, local_path: Path) -> str:
-        digest = hashlib.sha256()
-        with local_path.open("rb") as handle:
-            head = handle.read(FINGERPRINT_SAMPLE_BYTES)
-            digest.update(head)
-            try:
-                handle.seek(
-                    max(
-                        0,
-                        local_path.stat().st_size - FINGERPRINT_SAMPLE_BYTES,
-                    )
-                )
-            except OSError:
-                return digest.hexdigest()
-            digest.update(handle.read(FINGERPRINT_SAMPLE_BYTES))
-        return digest.hexdigest()
+            target_type = "special"
+        return self._inventory_metadata_service.file_fingerprint(
+            path=safe_path,
+            target_type=target_type,
+            size_bytes=stat_result.st_size,
+            mtime_ns=stat_result.st_mtime_ns,
+        )
 
     def _reject_unsafe_payload(
         self,
@@ -522,36 +474,6 @@ def _safe_relative_path(path: str) -> str:
     if not is_project_relative_posix_path(safe):
         raise ValueError("Scan boundary path must be project-relative")
     return safe
-
-
-def _is_secret_like_path(path: str) -> bool:
-    safe = _safe_relative_path(path)
-    name = Path(safe).name.lower()
-    normalized = safe.lower().replace("-", "_")
-    return (
-        name in SECRET_LIKE_FILENAMES
-        or any(name.endswith(suffix) for suffix in SECRET_LIKE_SUFFIXES)
-        or any(marker in normalized for marker in SECRET_LIKE_MARKERS)
-    )
-
-
-def _is_vector_persistence_path(path: str) -> bool:
-    safe = _safe_relative_path(path)
-    path_obj = Path(safe)
-    suffix = path_obj.suffix.lower()
-    if suffix in SOURCE_OR_DOC_SUFFIXES:
-        return False
-
-    path_parts = {
-        part.lower().replace("-", "_").lstrip(".") for part in path_obj.parts
-    }
-    stem = path_obj.stem.lower().replace("-", "_")
-    has_marker = bool(
-        VECTOR_PERSISTENCE_MARKERS.intersection(path_parts)
-    ) or any(marker in stem for marker in VECTOR_PERSISTENCE_MARKERS)
-    return has_marker and (
-        suffix in VECTOR_PERSISTENCE_SUFFIXES or suffix == ""
-    )
 
 
 def _require_text(name: str, value: str) -> None:

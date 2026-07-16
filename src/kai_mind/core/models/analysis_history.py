@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kai_mind.core.models.inventory_selection import InventorySelectionSummary
 from kai_mind.core.models.scan import ProjectScanResult
 
 BuildReason = Literal[
@@ -25,7 +26,27 @@ class ScanSnapshot(AnalysisHistoryModel):
     generated_at: datetime
     inventory_digest: str
     scan_result: ProjectScanResult
+    inventory_provenance_status: Literal[
+        "recorded",
+        "legacy_inventory_policy_unknown",
+    ] = "legacy_inventory_policy_unknown"
+    inventory_policy_schema_version: str | None = None
+    inventory_policy_digest: str | None = None
+    candidate_set_digest: str | None = None
+    filesystem_safety_version: str | None = None
+    boundary_decision_digest: str | None = None
+    final_inventory_digest: str | None = None
+    inventory_run_digest: str | None = None
+    inventory_source_mode: (
+        Literal[
+            "git",
+            "recursive",
+            "fallback_after_git_error",
+        ]
+        | None
+    ) = None
     file_fingerprints: dict[str, str] = Field(default_factory=dict)
+    inventory_selection_summary: InventorySelectionSummary | None = None
     ua_analysis_result: dict[str, Any] | None = None
 
 
@@ -37,6 +58,26 @@ class ScanSnapshotManifest(AnalysisHistoryModel):
     scan_id: str
     generated_at: datetime
     inventory_digest: str
+    inventory_provenance_status: Literal[
+        "recorded",
+        "legacy_inventory_policy_unknown",
+    ] = "legacy_inventory_policy_unknown"
+    inventory_policy_schema_version: str | None = None
+    inventory_policy_digest: str | None = None
+    candidate_set_digest: str | None = None
+    filesystem_safety_version: str | None = None
+    boundary_decision_digest: str | None = None
+    final_inventory_digest: str | None = None
+    inventory_run_digest: str | None = None
+    inventory_source_mode: (
+        Literal[
+            "git",
+            "recursive",
+            "fallback_after_git_error",
+        ]
+        | None
+    ) = None
+    inventory_selection_summary: InventorySelectionSummary | None = None
     ua_analysis_available: bool = False
 
 

@@ -9,6 +9,7 @@ from kai_mind.core.models.analysis_history import (
     LatestBuildPointer,
     MapBuildLineage,
     ScanSnapshot,
+    ScanSnapshotManifest,
 )
 from kai_mind.core.models.scan import ProjectScanResult
 
@@ -84,3 +85,32 @@ def test_latest_pointer_revision_is_monotonic_positive() -> None:
     )
 
     assert pointer.revision == 1
+
+
+def test_legacy_snapshot_models_mark_unknown_inventory_policy() -> None:
+    snapshot = ScanSnapshot.model_validate(
+        {
+            "project_id": "project:demo",
+            "scan_id": "scan:s1",
+            "generated_at": "2026-07-04T10:30:00Z",
+            "inventory_digest": "sha256:inventory",
+            "scan_result": {"files_scanned": 1},
+        }
+    )
+    manifest = ScanSnapshotManifest.model_validate(
+        {
+            "project_id": "project:demo",
+            "scan_id": "scan:s1",
+            "generated_at": "2026-07-04T10:30:00Z",
+            "inventory_digest": "sha256:inventory",
+        }
+    )
+
+    assert snapshot.inventory_provenance_status == (
+        "legacy_inventory_policy_unknown"
+    )
+    assert manifest.inventory_provenance_status == (
+        "legacy_inventory_policy_unknown"
+    )
+    assert snapshot.inventory_policy_digest is None
+    assert manifest.inventory_run_digest is None

@@ -1,7 +1,20 @@
 # User-controlled Scan Inventory Selection 實作計畫
 
-Status: planned（須先通過 Plan 19 non-UA TOML baseline gate；**執行範圍 = Backend only**；
-Frontend deferred to Meeting-Sync 2026-07-15）
+Status: complete（2026-07-16；Plan 19 non-UA TOML baseline 與 Plan 20 Backend DoD 均已驗收；
+Frontend implementation 仍 deferred to Meeting-Sync 2026-07-15）
+
+## 2026-07-16 執行結果
+
+- 完成 metadata-only preflight、exact file／bounded recursive directory selection、typed errors、
+  post-decision safe-open、final inventory materialization、snapshot provenance 與 API／CLI 整合。
+- TDD／BDD 覆蓋 5,000／5,001 files、500,000,000／500,000,001 bytes、64／65 depth、
+  20／21 scopes、overlap dedupe、stale／conflict／hard block、Apply／Rescan 與 target unchanged。
+- 最終驗證：`972 passed`、ruff clean、mypy `181 source files` clean、shell portability passed、
+  `git diff --check` passed、wheel 內含 catalog 且隔離安裝可載入 17 rules、真實 API trace passed。
+- 沒有修改 `frontend/src`，沒有建立 UA import／request／service／parity runtime；
+  `frontend/API_CONTRACT.md` 僅同步 backend HTTP contract。
+- 計畫中的 commit 邊界保留為未勾選，因本次保留未提交 worktree 供使用者審閱；這不影響
+  Backend DoD 與功能驗收結果。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:executing-plans` 逐 task 執行，並在每個 task 內遵守
@@ -125,6 +138,32 @@ candidate enumeration -> project/Git-ignore semantics
   另案讀取已穩定的 final inventory contract。
 - Windows 與 macOS 都以同一 project-relative POSIX、case-sensitive contract 判定；只有實際
   filesystem lookup 受平台影響，API/audit 語意不得漂移。
+
+## 2026-07-16 repo truth-check（Plan 19 後的實作基線）
+
+- Baseline：`uv run pytest -q` = `850 passed`；ruff與mypy均通過。Plan 20 RED tests必須從這個
+  baseline開始，不能把既有失敗誤認為新契約證據。
+- `ProjectScanService.scan_inventory()` 已有 `InventoryPolicyOverlay` protocol，
+  `ScanBoundaryReviewService.for_decisions()` 也已有same-run adapter；Plan 20應把final inventory
+  materialization接在這個現有 seam，不建立第二套provider scan入口。
+- `ScanBoundaryReviewService.create_proposals()` 目前只走 `inventory.files`，且
+  `_fingerprint()` 會讀候選檔頭尾；metadata-only preflight必須替換這個讀取時點，但保留舊client
+  exact-file decision的additive compatibility。
+- `ScanCreateResponse.scan_id` 在 backend Pydantic schema已是optional且pending response已由
+  `tests/web/test_scan_boundary_routes.py` 鎖定「欄位 absent、無snapshot/build」。Plan 20不再新增
+  重複backend修正，也不新增frontend parser test；`frontend/API_CONTRACT.md` 的舊範例改由Task 9
+  文件同步修正。
+- `FilesystemProvider` 目前把Git default candidates與recursive skipped audit混在同一個
+  `FileInventory`，被ignore的directory會過早prune；Plan 20需要 richer candidate set與requested
+  directory manifest，但所有current providers仍只接final `FileInventory`。
+- 共用 `normalize_project_relative_path()` 刻意拒絕 `.`，因為canonical map file path不得是root。
+  Plan 20的project-root selection必須使用inventory-selection專用parser，不得放寬全域path safety
+  contract。
+- `filesystem_provider.py` 與 `scan_boundary_review_service.py` 已超過250 pure LOC。新增candidate
+  enumeration、manifest、overlay與digest邏輯分別放入新service；舊檔只保留薄整合與相容入口，
+  不繼續堆疊特殊分支。
+- 本計畫不修改 `frontend/src`、不跑frontend CI作為DoD，也不新增任何UA import／request／
+  parity runtime。
 
 ---
 
@@ -368,7 +407,7 @@ Current runtime 已有可重用基礎，但還不能實作這個 feature：
 | `ScanBoundaryReviewService` fingerprint | 讀檔頭尾建立 content-derived fingerprint | 使用者決定前已讀候選內容，不符合 metadata-only preflight |
 | `_classify_files()` | `not path.is_file()` 時 silent continue | tracked-but-missing 沒有穩定 missing audit/error |
 | `POST /api/scans` | enumeration 後直接 proposal／scan | 沒有可分頁、可新增 exact file/directory scope 的 review surface |
-| `ScanCreateResponse` backend | pending 時 `scan_id` 可省略 | Frontend Zod 目前把 `scan_id` 設為必填，pending response 會 parse fail |
+| `ScanCreateResponse` backend | pending 時已省略 `scan_id`，且web test已鎖定 | `frontend/API_CONTRACT.md`仍把pending `scan_id`寫成必填；本計畫只同步文件，frontend parser另案處理 |
 | `BoundaryDecisionModal` | 可決定敏感 candidates | 沒有soft-excluded、hard-blocked、file/directory scope summary或stale UX |
 
 因此 Plan 20 必須在 final `FileInventory` 前保留 richer candidate outcomes，不能只把
@@ -1732,13 +1771,13 @@ integration fixtures，不能用 path resolve一次後無條件 open。
 
 ### Start Gate：Task 0 前先驗收 Plan 19 non-UA baseline
 
-- [ ] Default `scan_inventory_rules.toml`已涵蓋product支援categories、reason、priority與precedence。
-- [ ] Loader/schema/unknown-field/duplicate-id/missing/invalid fail-closed tests通過。
-- [ ] Git／recursive／fallback parity與macOS／Windows path contract tests通過。
-- [ ] Default inventory可在沒有optional override時deterministically建立，且policy/audit/run digests
+- [x] Default `scan_inventory_rules.toml`已涵蓋product支援categories、reason、priority與precedence。
+- [x] Loader/schema/unknown-field/duplicate-id/missing/invalid fail-closed tests通過。
+- [x] Git／recursive／fallback parity與macOS／Windows path contract tests通過。
+- [x] Default inventory可在沒有optional override時deterministically建立，且policy/audit/run digests
   可回讀。
-- [ ] Python無hidden default path list；filesystem safety仍是獨立、不可覆寫的Python contract。
-- [ ] 此gate不等待Plan 16 UA request、adapter或parity；Plan 20仍不接UA。
+- [x] Python無hidden default path list；filesystem safety仍是獨立、不可覆寫的Python contract。
+- [x] 此gate不等待Plan 16 UA request、adapter或parity；Plan 20仍不接UA。
 
 任一項未通過時，Plan 20保持blocked；不得先做file picker讓使用者人工彌補catalog gap。
 
@@ -1749,18 +1788,16 @@ Files:
 - Modify: `tests/unit/core/test_filesystem_provider.py`
 - Modify: `tests/unit/core/test_scan_boundary_review_service.py`
 - Modify: `tests/web/test_project_scan_routes.py`
-- Create: `frontend/src/services/projectScanApi.test.ts`
 
 Steps:
 
-- [ ] 寫 characterization test：Git default query不含 ignored untracked file。
-- [ ] 寫 characterization test：current boundary service只對 `inventory.files`建立 proposal。
-- [ ] 寫 pending response contract test：沒有 `scan_id`、沒有 snapshot/build state。
-- [ ] 寫 frontend failing test，證明目前 Zod無法 parse pending response。
-- [ ] 執行：
+- [x] 寫 characterization test：Git default query不含 ignored untracked file。
+- [x] 寫 characterization test：current boundary service只對 `inventory.files`建立 proposal。
+- [x] Existing pending response contract test已證明沒有 `scan_id`、沒有 snapshot/build state；保留
+  該test作為compatibility guard，不重寫相同測試。
+- [x] 執行：
   `uv run pytest tests/unit/core/test_filesystem_provider.py tests/unit/core/test_scan_boundary_review_service.py tests/web/test_project_scan_routes.py -q`
-- [ ] 執行：`cd frontend && pnpm test -- projectScanApi.test.ts`。
-- [ ] Commit：`test(scan): characterize inventory boundary preflight gaps`
+- [ ] Commit：`test(scan): characterize inventory boundary preflight gaps`（未執行：保留未提交 worktree 供使用者審閱）
 
 ### Task 1：建立 richer candidate model 與 metadata fingerprint
 
@@ -1773,18 +1810,18 @@ Files:
 
 Steps:
 
-- [ ] 先寫`InventorySelectionScope`、target kind、directory manifest/summary、canonical sorting、
+- [x] 先寫`InventorySelectionScope`、target kind、directory manifest/summary、canonical sorting、
   unknown field與path normalization tests。
-- [ ] 寫file metadata fingerprint deterministic test；path/type/size/mtime任一改變都改digest。
-- [ ] 寫directory manifest fingerprint test；任一descendant新增/刪除/rename/type/size/mtime、
+- [x] 寫file metadata fingerprint deterministic test；path/type/size/mtime任一改變都改digest。
+- [x] 寫directory manifest fingerprint test；任一descendant新增/刪除/rename/type/size/mtime、
   policy/safety outcome、risk或decision requirement改變都改digest，只改directory mtime但manifest
   entries不變則不影響結果。
-- [ ] 寫 test證明 fingerprint不含 absolute root或 content bytes。
-- [ ] 實作 frozen Pydantic internal models與 additive `selection_context`；API view留給web schema
+- [x] 寫 test證明 fingerprint不含 absolute root或 content bytes。
+- [x] 實作 frozen Pydantic internal models與 additive `selection_context`；API view留給web schema
   adapter，core不得import web layer。
-- [ ] 保留舊 `ScanBoundaryProposal` fixture可讀，`selection_context=None`。
-- [ ] 執行：`uv run pytest tests/unit/core/test_inventory_selection_models.py tests/unit/core/test_scan_boundary_review_service.py -q`。
-- [ ] Commit：`feat(scan): define inventory selection candidate contract`
+- [x] 保留舊 `ScanBoundaryProposal` fixture可讀，`selection_context=None`。
+- [x] 執行：`uv run pytest tests/unit/core/test_inventory_selection_models.py tests/unit/core/test_scan_boundary_review_service.py -q`。
+- [ ] Commit：`feat(scan): define inventory selection candidate contract`（未執行：保留未提交 worktree 供使用者審閱）
 
 ### Task 2：枚舉 ignored candidates與bounded recursive directory manifests
 
@@ -1797,25 +1834,25 @@ Files:
 
 Steps:
 
-- [ ] 建 Git fixture：default、ignored file、ignored directory、tracked+ignored、tracked missing。
-- [ ] 建recursive fixture：nested `.gitignore`、collapsed ignored directory、exact file lookup與
+- [x] 建 Git fixture：default、ignored file、ignored directory、tracked+ignored、tracked missing。
+- [x] 建recursive fixture：nested `.gitignore`、collapsed ignored directory、exact file lookup與
   exact directory full expansion。
-- [ ] 寫 `git check-ignore -z -v` 解析 tests，並證明 global exclude absolute source path 不進
+- [x] 寫 `git check-ignore -z -v` 解析 tests，並證明 global exclude absolute source path 不進
   API/audit。
-- [ ] 寫 unmatched ignore pattern test：無 candidate、無 per-file audit、scan不失敗。
-- [ ] 寫exact directory tests：`.` project root、soft-excluded `node_modules/` traversal、`.git/**`
+- [x] 寫 unmatched ignore pattern test：無 candidate、無 per-file audit、scan不失敗。
+- [x] 寫exact directory tests：`.` project root、soft-excluded `node_modules/` traversal、`.git/**`
   hard prune、outside-root symlink不follow、FIFO/special child hard block。
-- [ ] 寫5,000 files可通過、5,001 files fail；500,000,000 bytes可通過、500,000,001 bytes fail；
+- [x] 寫5,000 files可通過、5,001 files fail；500,000,000 bytes可通過、500,000,001 bytes fail；
   depth 64可通過、65 fail的boundary tests，並驗證無truncated proposal。
-- [ ] 寫20 directory scopes可進入expansion、21 scopes在walker前fail；parent/child overlap只計一次，
+- [x] 寫20 directory scopes可進入expansion、21 scopes在walker前fail；parent/child overlap只計一次，
   non-overlap aggregate第5,001 file／500,000,001 byte整個preflight fail且無partial results。
-- [ ] 加 ignored Git query並保存 directory summary；不得把 raw Git stderr放進 warning。
-- [ ] 實作exact requested path resolver：regular file→`exact_file`、directory→完整
+- [x] 加 ignored Git query並保存 directory summary；不得把 raw Git stderr放進 warning。
+- [x] 實作exact requested path resolver：regular file→`exact_file`、directory→完整
   `DirectorySelectionManifest`、glob/traversal/symlink/special→typed result。
-- [ ] 把 current silent `not path.is_file()`改為 typed missing/non-regular outcome。
-- [ ] 驗證 Git/recursive/fallback刻意差異與 shared policy parity。
-- [ ] 執行：`uv run pytest tests/unit/core/test_filesystem_provider.py tests/integration/test_phase7_filesystem_provider_behaviors.py -q`。
-- [ ] Commit：`feat(scan): enumerate reviewable excluded inventory targets`
+- [x] 把 current silent `not path.is_file()`改為 typed missing/non-regular outcome。
+- [x] 驗證 Git/recursive/fallback刻意差異與 shared policy parity。
+- [x] 執行：`uv run pytest tests/unit/core/test_filesystem_provider.py tests/integration/test_phase7_filesystem_provider_behaviors.py -q`。
+- [ ] Commit：`feat(scan): enumerate reviewable excluded inventory targets`（未執行：保留未提交 worktree 供使用者審閱）
 
 ### Task 3：實作 metadata-only preflight service
 
@@ -1835,19 +1872,19 @@ Interfaces:
 
 Steps:
 
-- [ ] 先寫四 outcome、proposal grouping、stable ordering與digest tests。
-- [ ] 寫 no-content-read spy test；preflight期間任何 candidate `open/read_bytes`都必須讓 test失敗。
-- [ ] 寫required sensitive、soft-excluded、exact included、recursive directory、hard blocked/
+- [x] 先寫四 outcome、proposal grouping、stable ordering與digest tests。
+- [x] 寫 no-content-read spy test；preflight期間任何 candidate `open/read_bytes`都必須讓 test失敗。
+- [x] 寫required sensitive、soft-excluded、exact included、recursive directory、hard blocked/
   missing/empty/over-limit matrix。
-- [ ] 寫baseline projection test：`requested_paths=[]`時的default included/soft-excluded outcome、
+- [x] 寫baseline projection test：`requested_paths=[]`時的default included/soft-excluded outcome、
   policy version與digest全部來自Plan 19，preflight不得發明hidden defaults。
-- [ ] 寫directory summary counts、root `.` normalization、manifest fingerprint與no-content-read tests。
-- [ ] 寫 exact requested reviewable result inline proposal與跨section `proposal_id`去重 test。
-- [ ] 寫 pagination/cursor binding tests；cursor不得洩漏 path，跨 project/digest不可重用。
-- [ ] 實作 stateless preflight id與bounded response。
-- [ ] `masked_evidence_values`/`masked_snippets`固定空 array。
-- [ ] 執行：`uv run pytest tests/unit/core/test_inventory_preflight_service.py tests/unit/core/test_scan_boundary_review_service.py -q`。
-- [ ] Commit：`feat(scan): add metadata-only inventory preflight service`
+- [x] 寫directory summary counts、root `.` normalization、manifest fingerprint與no-content-read tests。
+- [x] 寫 exact requested reviewable result inline proposal與跨section `proposal_id`去重 test。
+- [x] 寫 pagination/cursor binding tests；cursor不得洩漏 path，跨 project/digest不可重用。
+- [x] 實作 stateless preflight id與bounded response。
+- [x] `masked_evidence_values`/`masked_snippets`固定空 array。
+- [x] 執行：`uv run pytest tests/unit/core/test_inventory_preflight_service.py tests/unit/core/test_scan_boundary_review_service.py -q`。
+- [ ] Commit：`feat(scan): add metadata-only inventory preflight service`（未執行：保留未提交 worktree 供使用者審閱）
 
 ### Task 4：實作 per-run overlay 與 post-decision safety
 
@@ -1861,25 +1898,25 @@ Files:
 
 Steps:
 
-- [ ] 先寫precedence matrix所有rows：hard safety、exact file、deepest directory、ancestor
+- [x] 先寫precedence matrix所有rows：hard safety、exact file、deepest directory、ancestor
   directory、default outcome。
-- [ ] 寫 duplicate/conflict、unknown target、hard-block decision、stale fingerprint tests。
-- [ ] 寫soft-excludedfile/directory `scan_this_run`進final inventory、included file/directory
+- [x] 寫 duplicate/conflict、unknown target、hard-block decision、stale fingerprint tests。
+- [x] 寫soft-excludedfile/directory `scan_this_run`進final inventory、included file/directory
   `skip_this_run`移出tests。
-- [ ] 寫directory scan + exact child skip、ancestor scan + deeper directory skip與同scope conflict tests。
-- [ ] 寫client以多次preflight累積individually-valid directory proposals後，submit仍重算aggregate並
+- [x] 寫directory scan + exact child skip、ancestor scan + deeper directory skip與同scope conflict tests。
+- [x] 寫client以多次preflight累積individually-valid directory proposals後，submit仍重算aggregate並
   拒絕超過5,000 unique files／500,000,000 unique selectable bytes的decisions。
-- [ ] 寫 no-optional-decision parity test：effective result等於Plan 19 default outcome；required
+- [x] 寫 no-optional-decision parity test：effective result等於Plan 19 default outcome；required
   sensitive candidate仍維持pending，不可因Plan 20自動scan或skip。
-- [ ] 將 current content-derived proposal fingerprint改為 metadata fingerprint；legacy/non-preflight
+- [x] 將 current content-derived proposal fingerprint改為 metadata fingerprint；legacy/non-preflight
   sensitive flow也不得在decision前讀candidate內容或產snippet。
-- [ ] 使用者同意後才做bounded binary probe、safe-open/fstat與absolute cap；directory manifest先
+- [x] 使用者同意後才做bounded binary probe、safe-open/fstat與absolute cap；directory manifest先
   整體revalidate，再逐child safe-open。
-- [ ] Exact-file post-decision block fail closed；directory child block只跳該child並增加audit/count；
+- [x] Exact-file post-decision block fail closed；directory child block只跳該child並增加audit/count；
   directory 0 final files回`inventory_selection_directory_no_scannable_files`。
-- [ ] 同 decisions重算結果idempotent，audit不重複。
-- [ ] 執行：`uv run pytest tests/unit/core/test_scan_boundary_review_service.py tests/unit/core/test_inventory_selection_safety.py -q`。
-- [ ] Commit：`feat(scan): apply safe one-run inventory selection overlay`
+- [x] 同 decisions重算結果idempotent，audit不重複。
+- [x] 執行：`uv run pytest tests/unit/core/test_scan_boundary_review_service.py tests/unit/core/test_inventory_selection_safety.py -q`。
+- [ ] Commit：`feat(scan): apply safe one-run inventory selection overlay`（未執行：保留未提交 worktree 供使用者審閱）
 
 ### Task 5：新增 preflight API並擴充 scan request
 
@@ -1893,21 +1930,21 @@ Files:
 
 Steps:
 
-- [ ] 先寫preflight happy path、pagination、requested file/directory、root `.`、404/422 tests。
-- [ ] 寫missing/invalid catalog contract test：preflight fail closed、沒有candidate/proposal payload、
+- [x] 先寫preflight happy path、pagination、requested file/directory、root `.`、404/422 tests。
+- [x] 寫missing/invalid catalog contract test：preflight fail closed、沒有candidate/proposal payload、
   沒有`scan_id`，且exact path input不能繞過。
-- [ ] 寫`InventoryRequestedTargetView` web schema與projection contract test：directory只回
+- [x] 寫`InventoryRequestedTargetView` web schema與projection contract test：directory只回
   summary+manifest fingerprint，不序列化internal `DirectorySelectionManifest.entries[]`；core layer
   不import web schema。
-- [ ] 寫`POST /api/scans` file fingerprint、directory manifest、scope mismatch、stale/missing/
+- [x] 寫`POST /api/scans` file fingerprint、directory manifest、scope mismatch、stale/missing/
   changed/limit/blocked error contract tests。
-- [ ] 寫 pending invariant：無 `scan_id`、無 snapshot/build/latest pointer/output directory。
-- [ ] 寫completed invariant：final inventory才進snapshot/build，response
+- [x] 寫 pending invariant：無 `scan_id`、無 snapshot/build/latest pointer/output directory。
+- [x] 寫completed invariant：final inventory才進snapshot/build，response
   `inventory_selection_summary.directory_scope_results[]`與final audit counts一致。
-- [ ] Add optional `preflight_request_id`到 request/response，舊 request仍可走 current sensitive flow。
-- [ ] Error detail使用 typed object與stable code；不得只回 raw exception string。
-- [ ] 執行：`uv run pytest tests/web/test_project_scan_routes.py tests/web/test_scan_boundary_routes.py -q`。
-- [ ] Commit：`feat(api): expose inventory preflight and selection decisions`
+- [x] Add optional `preflight_request_id`到 request/response，舊 request仍可走 current sensitive flow。
+- [x] Error detail使用 typed object與stable code；不得只回 raw exception string。
+- [x] 執行：`uv run pytest tests/web/test_project_scan_routes.py tests/web/test_scan_boundary_routes.py -q`。
+- [ ] Commit：`feat(api): expose inventory preflight and selection decisions`（未執行：保留未提交 worktree 供使用者審閱）
 
 ### Task 6：保存 audit、digest並鎖住 downstream allowlist
 
@@ -1923,19 +1960,19 @@ Files:
 
 Steps:
 
-- [ ] 先寫 snapshot round-trip與legacy optional-field tests。
-- [ ] 寫decision/final/run digest deterministic與change-detection tests；decision digest納入
+- [x] 先寫 snapshot round-trip與legacy optional-field tests。
+- [x] 寫decision/final/run digest deterministic與change-detection tests；decision digest納入
   `selection_scope`與directory manifest fingerprint。
-- [ ] 寫 provider spy：只可看到 final `FileInventory.files`。
-- [ ] 寫skipped ignored/explicit-skip file或directory descendants不被任何provider open的test。
-- [ ] 寫directory decision展開per-file audit，且每筆保存相同decision target/scope的round-trip test。
-- [ ] 寫 audit/log/snapshot不含 absolute path、secret value、snippet的 contract test。
-- [ ] 以 changed-file review與`rg`驗證本計畫diff沒有UA imports、service calls、request adapter、
+- [x] 寫 provider spy：只可看到 final `FileInventory.files`。
+- [x] 寫skipped ignored/explicit-skip file或directory descendants不被任何provider open的test。
+- [x] 寫directory decision展開per-file audit，且每筆保存相同decision target/scope的round-trip test。
+- [x] 寫 audit/log/snapshot不含 absolute path、secret value、snippet的 contract test。
+- [x] 以 changed-file review與`rg`驗證本計畫diff沒有UA imports、service calls、request adapter、
   parity fixture或Plan 16檔案變更；本task不新增UA-specific test。
-- [ ] 驗證 Apply沿用 snapshot且 filesystem/preflight spy零呼叫；Rescan建立新 digest。
-- [ ] 執行：
+- [x] 驗證 Apply沿用 snapshot且 filesystem/preflight spy零呼叫；Rescan建立新 digest。
+- [x] 執行：
   `uv run pytest tests/integration/test_scan_snapshot_materialization.py tests/unit/core/test_project_scan_service.py tests/contracts/test_secret_snapshot_safety.py -q`
-- [ ] Commit：`feat(scan): persist inventory selection provenance`
+- [ ] Commit：`feat(scan): persist inventory selection provenance`（未執行：保留未提交 worktree 供使用者審閱）
 
 ### Task 7：Frontend schema與API client — **DEFERRED（不做）**
 
@@ -1988,18 +2025,18 @@ Files:
 
 Steps:
 
-- [ ] 將本文件API payload/error codes同步到三份canonical contract；不得只留在 plan。
-- [ ] 明列 preflight不是 scan、pending無 `scan_id`、Apply vs Rescan lifecycle。
-- [ ] E2E fixture含：normal source、ignored exact file、bounded ignored directory、nested exact
+- [x] 將本文件API payload/error codes同步到三份canonical contract；不得只留在 plan。
+- [x] 明列 preflight不是 scan、pending無 `scan_id`、Apply vs Rescan lifecycle。
+- [x] E2E fixture含：normal source、ignored exact file、bounded ignored directory、nested exact
   override、sensitive child、hard binary/symlink child、unmatched ignore rule、preflight後directory
   child新增/刪除。
-- [ ] E2E驗證directory `scan_this_run`納入所有soft-excluded safe descendants、exact child skip勝出、
+- [x] E2E驗證directory `scan_this_run`納入所有soft-excluded safe descendants、exact child skip勝出、
   hard-blocked child不被讀取，completed summary與snapshot audit counts一致。
-- [ ] E2E驗證target repo tree與Git status前後完全不變。
-- [ ] 執行：`uv run pytest tests/e2e/test_inventory_selection_scan_flow.py -q`。
-- [ ] 執行 backend 全套：`uv run pytest -q`（**不要**跑 `pnpm test`／frontend lint／build 作為本
+- [x] E2E驗證target repo tree與Git status前後完全不變。
+- [x] 執行：`uv run pytest tests/e2e/test_inventory_selection_scan_flow.py -q`。
+- [x] 執行 backend 全套：`uv run pytest -q`（**不要**跑 `pnpm test`／frontend lint／build 作為本
   task 通過條件）。
-- [ ] Commit：`docs(scan): document user-controlled inventory selection`
+- [ ] Commit：`docs(scan): document user-controlled inventory selection`（未執行：保留未提交 worktree 供使用者審閱）
 
 ---
 
@@ -2086,40 +2123,40 @@ build 通過是後續 frontend task 的條件，**不是**本計畫 rollback 移
 
 ### 16.1 Backend DoD（本計畫必須通過）
 
-- [ ] Plan 19 non-UA TOML baseline gate先通過；Plan 20不是missing/invalid/incomplete catalog的fallback。
-- [ ] 沒有optional runtime decisions時沿用KAI推薦default outcome；caller只提交本次delta，不需從
+- [x] Plan 19 non-UA TOML baseline gate先通過；Plan 20不是missing/invalid/incomplete catalog的fallback。
+- [x] 沒有optional runtime decisions時沿用KAI推薦default outcome；caller只提交本次delta，不需從
   空白inventory逐檔建立選擇。
-- [ ] Preflight／scan HTTP 可回傳 required sensitive、soft-excluded、hard-blocked/missing 摘要
+- [x] Preflight／scan HTTP 可回傳 required sensitive、soft-excluded、hard-blocked/missing 摘要
   （pytest／API 驗證即可；**不要求** React UI 已渲染）。
-- [ ] Caller可用exact project-relative path要求backend解析regular file或directory；directory
+- [x] Caller可用exact project-relative path要求backend解析regular file或directory；directory
   path建立bounded `recursive_directory` proposal。
-- [ ] `.gitignore`/Git exclude/catalog soft exclusion可被`scan_this_run`單次覆寫。
-- [ ] Default-included exact path可被`skip_this_run`單次排除。
-- [ ] Directory `scan_this_run`納入其下所有通過hard safety的regular files，包含soft-excluded
+- [x] `.gitignore`/Git exclude/catalog soft exclusion可被`scan_this_run`單次覆寫。
+- [x] Default-included exact path可被`skip_this_run`單次排除。
+- [x] Directory `scan_this_run`納入其下所有通過hard safety的regular files，包含soft-excluded
   descendants；directory `skip_this_run`排除其下所有selectable descendants，hard-blocked outcome
   不被改寫。
-- [ ] Exact-file decision勝過deepest/ancestor directory decisions；同一scope conflict fail closed。
-- [ ] Collapsed directory summary可要求backend展開；hard safety、missing、empty/over-limit
+- [x] Exact-file decision勝過deepest/ancestor directory decisions；同一scope conflict fail closed。
+- [x] Collapsed directory summary可要求backend展開；hard safety、missing、empty/over-limit
   directory不可覆寫。
-- [ ] Directory summary、manifest fingerprint、final selection summary與per-file audit可回溯實際
+- [x] Directory summary、manifest fingerprint、final selection summary與per-file audit可回溯實際
   included/blocked counts，不宣稱hard-blocked entries已掃描。
-- [ ] Ignore pattern存在但檔案不存在時，不建立phantom candidate/proposal/per-file audit。
-- [ ] Preflight不讀candidate內容、不建立snippet、不建立scan/snapshot/build。
-- [ ] Backend重新enumeration並驗證preflight id與metadata fingerprint，stale不得自動沿用。
-- [ ] Decision只形成in-memory overlay；不改`.gitignore`、TOML、target file或manual mapping state。
-- [ ] 所有 current providers 只讀同一 final `FileInventory`；Plan 20 runtime 不 import、不呼叫
+- [x] Ignore pattern存在但檔案不存在時，不建立phantom candidate/proposal/per-file audit。
+- [x] Preflight不讀candidate內容、不建立snippet、不建立scan/snapshot/build。
+- [x] Backend重新enumeration並驗證preflight id與metadata fingerprint，stale不得自動沿用。
+- [x] Decision只形成in-memory overlay；不改`.gitignore`、TOML、target file或manual mapping state。
+- [x] 所有 current providers 只讀同一 final `FileInventory`；Plan 20 runtime 不 import、不呼叫
   UA，UA integration 明確 deferred 到 Plan 16。
-- [ ] Snapshot保存base/effective outcome、decision、policy/candidate/final/run digests與安全audit。
-- [ ] Pending與pre-snapshot selection error沒有`scan_id`；snapshot已建立後的existing build
+- [x] Snapshot保存base/effective outcome、decision、policy/candidate/final/run digests與安全audit。
+- [x] Pending與pre-snapshot selection error沒有`scan_id`；snapshot已建立後的existing build
   error可帶真實`scan_id`，completed則回`scan_id`與build result。
-- [ ] Directory超過5,000 files／500MB／64 depth時fail closed，不得silent truncate前N筆；
+- [x] Directory超過5,000 files／500MB／64 depth時fail closed，不得silent truncate前N筆；
   `scan_this_run`與`skip_this_run`共用同一上限。
-- [ ] 整庫 default-included 檔數 >5,000 且未對該大目錄做 recursive decision 時，一般scan不得因
+- [x] 整庫 default-included 檔數 >5,000 且未對該大目錄做 recursive decision 時，一般scan不得因
   此directory bound失敗；僅collapsed、未展開的soft-excluded大目錄亦不因此讓preflight失敗。
-- [ ] Contract docs 區分：TOML+gitignore=預設略過政策；Plan 20=one-run overlay；非Manual Mapping。
-- [ ] Apply不重新preflight或讀repo；Rescan產新preflight且不沿用舊decision。
-- [ ] macOS/Windows path normalization、安全open與case contract有tests。
-- [ ] Backend pytest／contract／e2e通過；target repo unchanged。
+- [x] Contract docs 區分：TOML+gitignore=預設略過政策；Plan 20=one-run overlay；非Manual Mapping。
+- [x] Apply不重新preflight或讀repo；Rescan產新preflight且不沿用舊decision。
+- [x] macOS/Windows path normalization、安全open與case contract有tests。
+- [x] Backend pytest／contract／e2e通過；target repo unchanged。
 
 ### 16.2 Frontend（明確不在本計畫驗收）
 
@@ -2155,7 +2192,7 @@ build 通過是後續 frontend task 的條件，**不是**本計畫 rollback 移
 
 ---
 
-## 18. 外部研究依據（查證日：2026-07-15）
+## 18. 外部研究依據（查證日：2026-07-16）
 
 - [Git `git-ls-files` 官方文件](https://git-scm.com/docs/git-ls-files)：使用
   `--cached --others --exclude-standard`建立default source，並用

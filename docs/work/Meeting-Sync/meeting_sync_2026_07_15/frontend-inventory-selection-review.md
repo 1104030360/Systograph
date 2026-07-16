@@ -1,9 +1,8 @@
 # 前端工作：Scan Inventory Review 與 per-run override
 
-Status: isolated frontend preparation may start；integration blocked until Plan 19 non-UA TOML baseline
-gate passes and backend preflight schema is available
+Status: backend contract ready；frontend implementation／integration pending
 
-Last updated: 2026-07-15（對齊 Plan 20 §1.5：可見範圍、fail closed、5,000 範圍）
+Last updated: 2026-07-16（Plan 19／20 backend gate、Pydantic samples 與 live API trace 已通過）
 
 ## 目的
 
@@ -78,6 +77,10 @@ Canonical plan：
 - `POST /api/scans.preflight_request_id`；
 - stable error `detail.code`；
 - pending response無`scan_id`的contract test。
+
+以上 backend prerequisites 已於 2026-07-16 全部提供；8 份 Step 2 JSON samples 已通過 current
+Pydantic validation，backend regression 為 `972 passed`。Frontend 仍需自行完成 Zod、flow state、
+accessibility、browser E2E 與 build gate，不能把 backend 綠燈視為 UI 已完成。
 
 Frontend可以先獨立完成現有bug修正：把
 `scanCreateResponseSchema.scan_id`從required改為optional，並補pending parse test。

@@ -134,101 +134,166 @@ Response `200`：
 }
 ```
 
+### POST /api/projects/{project_id}/scan-preflights
+
+建立可重試、無持久化副作用的 metadata-only inventory preflight。它會先套用
+`scan_inventory_rules.toml`、Git／`.gitignore` 與不可覆寫的 filesystem safety，再回傳 KAI
+建議預設、必要敏感檔確認、可單次覆寫的 soft exclusions，以及 exact path 查詢結果。
+Preflight 不讀候選檔內容、不產 snippet，也不建立 `scan_id`、snapshot、build 或 output。
+
+```json
+{
+  "scan_depth": "system",
+  "requested_paths": ["ignored/custom.py", "node_modules/local-package"],
+  "reviewable_excluded_cursor": null,
+  "reviewable_excluded_limit": 100
+}
+```
+
+- Path 一律是 project-relative POSIX；root 只能寫 `.`，不接受 absolute、traversal 或 glob。
+- Regular file 產生 `exact_file` proposal；directory 產生 bounded
+  `recursive_directory` manifest。單一 scope 最多 5,000 個 observed regular files、
+  500,000,000 selectable bytes、64 層；每次 request 最多 20 個 directory scopes。
+- Directory payload 只回 summary 與 manifest fingerprint，不回 internal `entries[]`。
+- `preflight_request_id` 綁定 project、candidate set、policy digest 與 safety version；它是 stale
+  token，不是 authorization token。
+- Git index仍列出但worktree已刪除的tracked path會計入`missing_count`，並以
+  `tracked_missing_candidate_observed` warning呈現；不會讓其他安全檔案停止scan。
+
+Response 主要欄位：
+
+```ts
+{
+  preflight_request_id: string;
+  project_id: string;
+  source_mode: "git" | "recursive" | "fallback_after_git_error";
+  inventory_policy_schema_version: string;
+  inventory_policy_digest: string;
+  candidate_set_digest: string;
+  filesystem_safety_version: string;
+  summary: {
+    default_included_file_count: number;
+    required_review_count: number;
+    reviewable_excluded_count: number;
+    hard_blocked_count: number;
+    missing_count: number;
+    collapsed_directory_count: number;
+  };
+  required_boundary_proposals: ScanBoundaryProposal[];
+  reviewable_excluded_page: {
+    items: ScanBoundaryProposal[];
+    next_cursor: string | null;
+    total: number;
+  };
+  requested_target_results: InventoryRequestedTargetView[];
+  blocked_summaries: Array<{path: string; reason_code: string; can_expand: boolean}>;
+  warnings: string[];
+}
+```
+
 ### POST /api/scans
 
-用已 import 的 `project_id` 執行 L1 系統掃描（同步）。正式掃描前會先做 scan boundary preflight；若有 `.env`、secret-like config、vector persistence path 等需要使用者確認的 target，response 會先回 `requires_boundary_decision`，不產生 map、不寫 artifact、不更新 `/api/map`。使用者在同一個 endpoint 帶本次 `boundary_decisions` 後，才會正式掃描並更新 `/api/map`。
-
-> **Current S1：** project-scoped scan/build 產生持久化 `scan_id` + `build_id`，並透過
-> `GET /api/projects/{project_id}/map-builds/latest` 或 `GET /api/map-builds/{build_id}` 讀取；
-> **不得**再依賴更新 process-wide `/api/map` 作為正式讀取入口。Boundary preflight
-> 尚未完成時不得建立 domain `scan_id`、Build 或 artifacts；若 transport 需要追蹤 id，
-> 應使用 `preflight_request_id`，不得冒充 scan identity。
-
-Current runtime 仍使用現有 KAI scan providers。Phase B/C target 才會在 Step 2
-boundary 完成後呼叫 Understand-Anything sidecar 作為 Step 3 primary source；
-屆時 UA sidecar 無效會 fail closed 並以 `status:"error"` / build error 呈現。
-
-```http
-POST /api/scans
-```
+帶 `preflight_request_id` 與本次 delta decisions 開始正式 scan。Backend 會重新 enumeration、
+驗證 file metadata／directory manifest、套用 `hard safety > exact file > deepest directory >
+ancestor directory > default policy`，通過 post-decision safe-open／binary probe 後才建立唯一的
+final `FileInventory`。所有 current providers 只收到這份 final allowlist；此 runtime 不呼叫 UA。
+Safe-open會以directory handle逐層使用no-follow lookup，open後以`fstat`重驗type／size／mtime／
+identity，並在同一file handle建立content SHA-256；snapshot保存前會用相同adapter重驗，禁止退回
+一般path-based second read。平台沒有必要primitive時fail closed。
 
 ```json
 {
   "project_id": "project:<uuid>",
   "scan_depth": "system",
   "output": "outputs",
-  "redact_root_path": true,
-  "no_snippets": false,
-  "boundary_decisions": []
+  "preflight_request_id": "preflight:<digest>",
+  "boundary_decisions": [
+    {
+      "target_path": "node_modules/local-package",
+      "fingerprint": "sha256:<manifest>",
+      "decision": "scan_this_run",
+      "selection_scope": "recursive_directory"
+    },
+    {
+      "target_path": "node_modules/local-package/private.py",
+      "fingerprint": "sha256:<metadata>",
+      "decision": "skip_this_run",
+      "selection_scope": "exact_file"
+    }
+  ]
 }
 ```
 
-若不需要人工決定，或已提供完整本次 decisions，Response `200`：
+`scan_this_run`／`skip_this_run` 只作用於這次 scan，不改 `.gitignore`、TOML 或 Manual Mapping。
+Directory decision涵蓋所有 selectable descendants；hard-blocked child仍保持 blocked，exact child
+decision優先。沒有 optional decision 時維持 KAI default；缺 required sensitive decision 時回
+`requires_boundary_decision`。
 
-```ts
-{
-  scan_id: string;
-  project_id: string;
-  status: "completed" | "error";
-  build_result: MapBuildResult; // 見 POST /api/map/build
-  boundary_proposals: [];
-  available_boundary_actions: ["scan_this_run", "skip_this_run"];
-}
-```
-
-若需要使用者先決定本次掃不掃，Response `200`。此 pending response 不含
-`scan_id`；boundary 完成前也不建立 persisted snapshot、build、artifact 或 latest pointer：
+Pending response 不含 `scan_id`，也沒有 snapshot/build/latest pointer：
 
 ```ts
 {
   project_id: string;
   status: "requires_boundary_decision";
+  preflight_request_id?: string;
   build_result: null;
   boundary_proposals: ScanBoundaryProposal[];
   available_boundary_actions: ["scan_this_run", "skip_this_run"];
 }
 ```
 
-把本次 decision 送回同一個 endpoint：
+Completed response會回真實 `scan_id`、build與由 final audit投影的 summary：
 
-```json
+```ts
 {
-  "project_id": "project:<uuid>",
-  "scan_depth": "system",
-  "output": "outputs",
-  "redact_root_path": true,
-  "no_snippets": false,
-  "boundary_decisions": [
-    {
-      "target_path": ".env",
-      "fingerprint": "sha256:...",
-      "decision": "scan_this_run",
-      "reason": "Need this config for the current scan."
-    }
-  ]
+  scan_id: string;
+  project_id: string;
+  status: "completed" | "error";
+  preflight_request_id?: string;
+  build_result: MapBuildResult;
+  inventory_selection_summary?: {
+    included_file_count: number;
+    skipped_file_count: number;
+    directory_scope_results: Array<{
+      target_path: string;
+      decision: "scan_this_run" | "skip_this_run";
+      observed_file_count: number;
+      included_file_count: number;
+      hard_blocked_file_count: number;
+      post_decision_blocked_file_count: number;
+    }>;
+  };
 }
 ```
 
-- `scan_this_run`：只讓該 target 在這一次 scan 進入 Step 3 scan input。
-- `skip_this_run`：只在這一次 scan 把該 target 從 Step 3 scan input 排除。API-visible 結果是本次 `files_scanned` 下降、`files_skipped` 上升；內部 inventory reason 為 `skipped_by_policy_overlay`，不會作為前端可依賴的 canonical map 欄位輸出。
-- Decision 必須 match `target_path + fingerprint`；檔案內容或 metadata 改變時，舊 decision 不套用，API 會重新回 `requires_boundary_decision`。
-- Decision 不會保存成歷史偏好，也不會影響下一次 scan。
-- 已由 deterministic scanner hard-skip 的 large/binary/generated/log、dependency/cache、model weights 等 target 只留在 skipped audit trail，不產生使用者 decision proposal。
+未傳 `preflight_request_id` 的舊 client仍可走 sensitive-file compatibility flow；該 pending
+階段同樣是 metadata-only，且只能決定 current required sensitive targets，不能藉此覆寫 soft
+exclusions。Apply 重用保存的 snapshot，不重新 preflight或讀 repo；Rescan必須建立新 preflight，
+不自動沿用上次 decisions。
 
-前端建議流程：
+Typed error body固定為 `{detail:{code,message,retryable,context}}`。主要 code：
 
-1. 使用者按「開始掃描」後，前端先送一次 `POST /api/scans`。
-2. 若 response 是 `requires_boundary_decision`，前端一次列出 `boundary_proposals` 內所有項目，不要逐項呼叫 API。
-3. 使用者針對所有項目選完 `scan_this_run` / `skip_this_run` 後，前端用同一個 `POST /api/scans` 一次送回完整 `boundary_decisions`。
-4. 第二次 response 是 `completed` 時才顯示正式掃描結果；若再次回 `requires_boundary_decision`，代表 decision 不足或 fingerprint 已 stale，前端應重新顯示新的確認清單。
-5. UI 文案：「確認本次掃描範圍」／「確認並繼續掃描」（非「重新上傳」）。
+| HTTP | code | 意義 |
+| ---: | --- | --- |
+| 404 | `project_not_found` | project不存在 |
+| 409 | `inventory_preflight_stale` | candidate set已變；刷新 preflight |
+| 409 | `inventory_selection_target_missing` | target已刪除；刷新 preflight |
+| 409 | `inventory_selection_target_changed` | file metadata或directory manifest已變 |
+| 422 | `inventory_selection_path_invalid` | absolute／traversal／glob／blank path |
+| 422 | `inventory_selection_scope_invalid` | path type與scope不符 |
+| 422 | `inventory_selection_duplicate_decision` | 同一 path/scope重複 |
+| 422 | `inventory_selection_conflicting_decision` | 同一 path/scope決策衝突 |
+| 422 | `inventory_selection_override_not_allowed` | hard/missing/未展開 target不可覆寫 |
+| 422 | `inventory_selection_directory_limit_exceeded` | directory hard bound超限 |
+| 422 | `inventory_selection_directory_no_scannable_files` | directory最後無安全child |
+| 422 | `inventory_selection_post_decision_blocked` | exact file未通過內容安全 |
+| 422 | `inventory_preflight_review_limit_exceeded` | required review超過200 |
+| 422 | `inventory_rules_unavailable`／`inventory_rules_invalid` | policy catalog fail closed |
+| 422 | `inventory_enumeration_failed` | candidate enumeration fail closed |
 
-Trace scripts：`scripts/trace_scan_boundary_policy_overlay.sh`、`scripts/trace_scan_boundary_multi_decision_gate.sh`。
-
-| 錯誤 | 狀態 | 說明 |
-| --- | --- | --- |
-| `Project not found` | 404 | `project_id` 未曾 import、state root 不同或 state record 不存在 |
-| 驗證失敗 | 422 | `boundary_decisions` action/path/fingerprint payload 不合法 |
+Trace scripts：`scripts/trace_scan_boundary_policy_overlay.sh`、
+`scripts/trace_scan_boundary_multi_decision_gate.sh`、
+`scripts/trace_inventory_selection_preflight.sh`。
 
 ### GET /api/scan/events
 

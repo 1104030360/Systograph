@@ -64,6 +64,22 @@ class LocalJsonHistoryRepository:
                     scan_id=safe.scan_id,
                     generated_at=safe.generated_at,
                     inventory_digest=safe.inventory_digest,
+                    inventory_provenance_status=(
+                        safe.inventory_provenance_status
+                    ),
+                    inventory_policy_schema_version=(
+                        safe.inventory_policy_schema_version
+                    ),
+                    inventory_policy_digest=safe.inventory_policy_digest,
+                    candidate_set_digest=safe.candidate_set_digest,
+                    filesystem_safety_version=(safe.filesystem_safety_version),
+                    boundary_decision_digest=(safe.boundary_decision_digest),
+                    final_inventory_digest=safe.final_inventory_digest,
+                    inventory_run_digest=safe.inventory_run_digest,
+                    inventory_source_mode=safe.inventory_source_mode,
+                    inventory_selection_summary=(
+                        safe.inventory_selection_summary
+                    ),
                     ua_analysis_available=safe.ua_analysis_result is not None,
                 ),
             )

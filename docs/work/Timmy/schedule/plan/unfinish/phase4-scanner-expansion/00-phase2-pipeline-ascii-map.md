@@ -4,7 +4,7 @@ Status: design reference（Phase2 target · 2026-07-07 UA 整合決策已套用 
 
 Audience: backend、scanner expansion、reviewer
 
-Last aligned: 2026-07-07 · `docs/work/Timmy/schedule/plan/unfinish/phase2/`、`ref-opensource/kai-mind-understand-anything-integration-boundary.md`
+Last aligned: 2026-07-16 · `docs/work/Timmy/schedule/plan/unfinish/phase2/`、`ref-opensource/kai-mind-understand-anything-integration-boundary.md`
 
 ## 文件目的
 
@@ -72,17 +72,15 @@ Step 3 掃描層（UA structural adapter 與過渡期 TOML）**不** 直接寫 `
 
 ```text
 Step 1  Import          登記 repo
-Step 2  Boundary        哪些路徑能掃（inventory policy）
-                        + UA enrichment（語言 / category / 行數，移植自 scan-project）
-        │
-        ▼ 呼叫 UA sidecar（掃一次；structural 接回 Step 3）
-        │   extract-import-map → compute-batches
-        │   → extract-structure
-        │   → file-analyzer / ua-analysis-result deferred（不執行）
+Step 2  Boundary        metadata-only candidate enumeration
+                        → TOML / Git ignore default outcome
+                        → exact_file / bounded recursive_directory preflight
+                        → one-run decisions + hard safety revalidation
+                        → openat/no-follow + fstat + same-handle content hash
+                        → final FileInventory + audit / digests
         ▼
-Step 3  Scan            structural → facts / evidence → ProjectScanResult
-semantic   → reserved nullable internal sidecar（Phase2 不產生、不消費）
-                        [UA-primary；過渡期 KAI TOML providers 並跑 parity]
+Step 3  Scan            current KAI providers → facts / evidence → ProjectScanResult
+                        UA request / sidecar / parity runtime deferred（Plan 16）
         │
         ▼
 Step 4  Materialize     系統地圖 ★                         [橋接 1 · Python]
@@ -95,8 +93,8 @@ Step 9  Review（可選）   對不上项 → 人工確認 → Apply
 ```
 
 ```text
-Rescan   Step 2→3→4→5→6→7→8     新 snapshot（UA 重跑），掃描事實會變
-Apply    跳 Step 3，4→5→6→7→8   同 snapshot（UA 不重跑，只重放 scan_result），只改解讀方式
+Rescan   新 preflight → Step 2→3→4→5→6→7→8  新 snapshot，不沿用舊 decisions
+Apply    不 preflight／不讀 repo；4→5→6→7→8  同 snapshot，只改解讀方式
 ```
 
 Step 8 的 Phase2 primary API 使用 `project_id` / `build_id`：一般開啟專案時呼叫
@@ -159,15 +157,15 @@ flowchart TB
 
   subgraph S2["Step 2 · Boundary"]
     direction TB
-    S2a["2-1 建立 file inventory<br/>+ UA enrichment（語言/category/行數）"]
-    S2b["2-2 ScanBoundaryReview"]
-    S2c{"2-3 邊界決策"}
-    S2d["blocked → proposals"]
-    S2e["completed → inventory_policy"]
-    S2toml["📦 scan_inventory_rules.toml<br/>待建 · Plan 19 · 哪些路徑可掃 / ignore"]:::toml
+    S2a["2-1 CandidateSet<br/>Git / recursive + catalog + pre-content safety"]
+    S2b["2-2 metadata-only preflight<br/>required / soft excluded / exact path / directory manifest"]
+    S2c{"2-3 one-run decisions<br/>exact > deepest directory > ancestor > default"}
+    S2d["pending / stale / invalid<br/>無 scan_id · snapshot · build"]
+    S2e["2-4 openat/no-follow + fstat + content hash<br/>final FileInventory + per-file audit / digests"]
+    S2toml["📦 scan_inventory_rules.toml<br/>已實作 · schema/digest/audit"]:::toml
     S2a --> S2b --> S2c
-    S2c -->|blocked| S2d
-    S2c -->|completed| S2e
+    S2c -->|pending / invalid| S2d
+    S2c -->|complete| S2e
     S2toml -.-> S2a
   end
 
@@ -182,7 +180,7 @@ flowchart TB
     S3adapt["3-2 Structural Adapter<br/>→ facts / evidence / issues"]:::py
     S3parity["3-3 過渡期 parity：Config / Docker /<br/>Dependency / CodePattern TOML providers<br/>（Plan 14 通過後退役）"]:::toml
     S3f["3-4 合併 · 去重 · masking"]
-    S3g["3-5 ProjectScanResult / snapshot<br/>semantic sidecar slot（nullable deferred）"]
+    S3g["3-5 ProjectScanResult / safe re-hash / snapshot<br/>semantic sidecar slot（nullable deferred）"]
     S3note["structural 不寫 plane_id / 底圖格 id<br/>semantic 不進 canonical facts"]:::noToml
     S3ua --> S3ua1 --> S3ua2 --> S3ua3 --> S3ua4 --> S3ua5 --> S3adapt --> S3f
     S3parity -.-> S3f
@@ -278,7 +276,7 @@ flowchart TB
   end
 
   S1 --> S2
-  S2 -->|"allowlisted inventory → UA sidecar"| S3
+  S2 -->|"final FileInventory → current providers（UA deferred）"| S3
   S3out["snapshot.json<br/>含 ua-analysis-result sidecar"]:::artifact
   S3g --> S3out -->|"Core 接手 materialize"| S4
   S4out["ai_system_map.json<br/>含 unmapped_components"]:::canon
@@ -297,8 +295,8 @@ flowchart TB
 | Step | 擴充方式 | 檔案 / 模組 | 擴什麼 | 不該放什麼 |
 |------|----------|------|--------|------------|
 | **1** | ❌ | — | — | scan 匹配規則 |
-| **2** | ✅ TOML 待建（Plan 19） | `scan_inventory_rules.toml` | include / ignore、掃描邊界 | component 對位 |
-| **2** | 🐍 | inventory enrichment（移植自 UA scan-project） | 語言偵測、fileCategory、行數 | 掃描邊界決策（仍在 policy） |
+| **2** | ✅ executable catalog（Plan 19） | `scan_inventory_rules.toml` | ordered include / exclude、policy digest | component 對位、filesystem safety |
+| **2** | 🐍 Plan 20 | `InventoryCandidateService` / `InventoryPreflightService` / `InventorySelectionService` | metadata-only preflight、directory manifest、one-run overlay、final allowlist | UA request、Manual Mapping、永久偏好 |
 | **3** | 🔵 **主力** | UA sidecar（`kai-mind-analyze.mjs` + `UnderstandAnythingAnalysisService`） | import map、structure、call hints、semantic nodes/edges | `plane_id`、五態、`confidence` |
 | **3** | 🐍 | `UaStructuralAdapter` | UA 輸出 → facts / evidence / issues | 語意升格為 canonical |
 | **3** | ⚠️ 過渡期 | `code_pattern` / `dependency_manifest` / `docker_image` / config TOML | parity 對比 only；Plan 14 通過後退役 | 新增主掃描規則（改擴充 UA adapter） |
@@ -314,7 +312,7 @@ flowchart TB
 | **9** | ⚙️ runtime config | `llm_proposal.toml` | provider / model / endpoint / timeout / generation / prompt template | deterministic proposal 邏輯、secret value |
 | **9** | 🐍 | `MappingProposalService` | 由 unmapped 產 pending proposal | 寫入 canonical map |
 
-**repo 現況（`src/kai_mind/core/rules/`）：** 已有 `code_pattern`、`dependency_manifest`、`docker_image`、`risk_hint`、`recommended_next_check` 五個 TOML。前三個為 **過渡期 parity 用**，Plan 14 通過後退出主掃描路徑；`risk_hint`、`recommended_next_check` 為文案 metadata，**保留**。`scan_inventory_rules.toml`（Plan 19）、`capability_reference_map.toml`（Plan 01A）、`profile_registry.toml`（Plan 11）仍在 Phase2 plan 中；runtime/provider config `src/kai_mind/core/configs/llm_proposal.toml` 已存在，供 Step 9 optional LLM proposal。`UnderstandAnythingAnalysisService`、`ProfileInferenceService` 尚未實作；`AssessmentOrchestrator` 經 2026-07-07 修訂決議 **不建立**（Plan 17 已標 deferred；AI 評估路徑 deferred）。
+**repo 現況（`src/kai_mind/core/rules/`）：** `scan_inventory_rules.toml` 已是 Step 2 executable inventory selection policy catalog；Plan 20已接上`POST /api/projects/{project_id}/scan-preflights`、exact file／bounded directory selection、post-decision safety與final inventory audit。Snapshot保存policy、candidate、safety、decision、final與run digests。`capability_reference_map.toml`、`profile_registry.toml`只承載Step 6 metadata。UA enrichment/request/parity仍由Plan 16後續負責，Plan 19/20沒有UA runtime。
 
 **Phase4 原 scanner 擴充計畫（31～36）定位變更：** 原「Step 3 TOML 擴充」路線由 UA sidecar 取代；Plan 31 fixtures 轉為 UA parity 驗證 corpus，Plan 34 AST 與 UA `extract-structure` 職責需擇一（避免兩套 AST visitor），`contextual_security_rules.toml`（Plan 35）依賴的 AST observations 改接 UA structural 輸出。
 
@@ -648,8 +646,8 @@ Step 9：`MappingProposal` → 人工確認 → `Apply` 重跑 Step 4～7（跳 
 
 | 層 | 掃描 / 邏輯來源 | 綁底圖？ |
 |----|-------------|----------|
-| Step 2 | `scan_inventory_rules.toml`（待建）+ inventory enrichment（Python，移植自 UA scan-project） | ❌ |
-| Step 3 | **UA sidecar（primary）** + `UaStructuralAdapter`；`code_pattern` / `dependency_manifest` / `docker_image` 過渡期 parity（Plan 14 後退役） | ❌ 只產掃描事實 |
+| Step 2 | `scan_inventory_rules.toml` + metadata-only preflight + Python enumeration/safety + one-run selection；UA deferred 至 Plan 16 | ❌ |
+| Step 3 | **目前：** KAI providers；**target：** UA sidecar + `UaStructuralAdapter`（Plan 16後續，Plan 20未建立runtime） | ❌ 只產掃描事實 |
 | Step 4 | Python 橋接 1（專門 registry module，可用 list + deterministic loop）+ `risk_hint` / `recommended_next_check` 文案 | ❌ |
 | Step 6 | `capability_reference_map.toml`（52 格 **metadata only**） | ✅ 座標，非比對規則 |
 | Step 6 | Python 橋接 2（`ProfileInferenceService` 能力評估規則） | ✅ 對位與五態定案 |
@@ -673,7 +671,7 @@ Step 9：`MappingProposal` → 人工確認 → `Apply` 重跑 Step 4～7（跳 
 
 | ID | 何時變 |
 |----|--------|
-| `scan_id` | 每次 Rescan；代表一次 immutable read-only repo scan snapshot，UA sidecar 隨之重跑 |
+| `scan_id` | 每次 Rescan；代表一次 immutable read-only repo scan snapshot；目前不含UA runtime |
 | `build_id` | 每次 Step 4 成功 materialize（含 Apply；Apply 不重跑 UA） |
 | `mapping_id` | Step 9 人工確認 |
 

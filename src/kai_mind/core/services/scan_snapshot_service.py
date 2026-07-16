@@ -9,10 +9,20 @@ from typing import Any, Protocol
 from uuid import uuid4
 
 from kai_mind.core.models.analysis_history import ScanSnapshot
+from kai_mind.core.models.errors import (
+    InventorySelectionError,
+    InventorySelectionErrorCode,
+)
 from kai_mind.core.models.filesystem import FileInventory
+from kai_mind.core.services.inventory_post_decision_safety_service import (
+    InventoryPostDecisionSafetyService,
+)
 from kai_mind.core.services.project_scan_service import (
     InventoryPolicyOverlay,
     ProjectScanService,
+)
+from kai_mind.core.services.scan_inventory_rule_loader import (
+    ScanInventoryRuleLoader,
 )
 
 Clock = Callable[[], datetime]
@@ -31,11 +41,16 @@ class ScanSnapshotService:
         repository: SnapshotWriter,
         clock: Clock | None = None,
         scan_id_factory: ScanIdFactory | None = None,
+        content_safety_service: InventoryPostDecisionSafetyService
+        | None = None,
     ) -> None:
         self._scanner = project_scan_service or ProjectScanService()
         self._repository = repository
         self._clock = clock or (lambda: datetime.now(UTC))
         self._scan_id_factory = scan_id_factory or (lambda: f"scan:{uuid4()}")
+        self._content_safety = (
+            content_safety_service or InventoryPostDecisionSafetyService()
+        )
 
     def scan_and_save(
         self,
@@ -69,9 +84,34 @@ class ScanSnapshotService:
             generated_at=self._clock(),
             inventory_digest=f"sha256:{digest}",
             scan_result=scan_result,
+            inventory_provenance_status=(
+                "recorded"
+                if all(
+                    (
+                        scan_result.inventory_policy_schema_version,
+                        scan_result.inventory_policy_digest,
+                        scan_result.inventory_run_digest,
+                        scan_result.inventory_source_mode,
+                    )
+                )
+                else "legacy_inventory_policy_unknown"
+            ),
+            inventory_policy_schema_version=(
+                scan_result.inventory_policy_schema_version
+            ),
+            inventory_policy_digest=scan_result.inventory_policy_digest,
+            candidate_set_digest=scan_result.candidate_set_digest,
+            filesystem_safety_version=scan_result.filesystem_safety_version,
+            boundary_decision_digest=scan_result.boundary_decision_digest,
+            final_inventory_digest=scan_result.final_inventory_digest,
+            inventory_run_digest=scan_result.inventory_run_digest,
+            inventory_source_mode=scan_result.inventory_source_mode,
             file_fingerprints=self._file_fingerprints(
                 project_root,
                 inventory,
+            ),
+            inventory_selection_summary=(
+                scan_result.inventory_selection_summary
             ),
             ua_analysis_result=ua_analysis_result,
         )
@@ -80,8 +120,12 @@ class ScanSnapshotService:
     def build_inventory(self, project_root: Path) -> FileInventory:
         return self._scanner.build_inventory(project_root)
 
-    @staticmethod
+    @property
+    def inventory_rule_loader(self) -> ScanInventoryRuleLoader | None:
+        return self._scanner.inventory_rule_loader
+
     def _file_fingerprints(
+        self,
         project_root: Path,
         inventory: FileInventory | None,
     ) -> dict[str, str]:
@@ -89,12 +133,30 @@ class ScanSnapshotService:
             return {}
         fingerprints: dict[str, str] = {}
         for record in inventory.files:
-            path = project_root / record.path
-            try:
-                content = path.read_bytes()
-            except OSError:
-                continue
-            fingerprints[record.path] = (
-                "sha256:" + hashlib.sha256(content).hexdigest()
+            result = self._content_safety.fingerprint_record(
+                project_root,
+                path=record.path,
+                expected_size_bytes=record.size_bytes,
+                expected_metadata_fingerprint=record.metadata_fingerprint,
             )
+            if not result.allowed or result.content_fingerprint is None:
+                raise InventorySelectionError(
+                    (
+                        InventorySelectionErrorCode.TARGET_CHANGED
+                        if result.changed
+                        else InventorySelectionErrorCode.POST_DECISION_BLOCKED
+                    ),
+                    http_status=409 if result.changed else 422,
+                    retryable=result.changed,
+                )
+            if (
+                record.content_fingerprint is not None
+                and record.content_fingerprint != result.content_fingerprint
+            ):
+                raise InventorySelectionError(
+                    InventorySelectionErrorCode.TARGET_CHANGED,
+                    http_status=409,
+                    retryable=True,
+                )
+            fingerprints[record.path] = result.content_fingerprint
         return fingerprints

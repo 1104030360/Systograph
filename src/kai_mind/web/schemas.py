@@ -10,6 +10,14 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from kai_mind.core.models.analysis_history import MapBuildManifest
 from kai_mind.core.models.apply_confirmations import ApplyConfirmationsResult
+from kai_mind.core.models.inventory_selection import (
+    InventoryDirectoryLimitContext,
+    InventoryPreflightRequest,
+    InventoryPreflightSummary,
+    InventoryRequestedTargetStatus,
+    InventorySelectionSummary,
+    InventoryTargetKind,
+)
 from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
 from kai_mind.core.models.mapping import (
     ManualMapping,
@@ -217,6 +225,7 @@ class ScanCreateRequest(WebSchema):
     boundary_decisions: list[ScanBoundaryDecisionRequest] = Field(
         default_factory=list
     )
+    preflight_request_id: str | None = None
 
 
 class ScanCreateResponse(WebSchema):
@@ -236,6 +245,79 @@ class ScanCreateResponse(WebSchema):
             ScanBoundaryDecisionAction.SKIP_THIS_RUN,
         ]
     )
+    preflight_request_id: str | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
+    inventory_selection_summary: InventorySelectionSummary | None = None
+
+
+class InventoryPreflightApiRequest(WebSchema):
+    scan_depth: Literal["system"] = "system"
+    requested_paths: tuple[str, ...] = ()
+    reviewable_excluded_cursor: str | None = None
+    reviewable_excluded_limit: int = Field(default=100, ge=1, le=200)
+
+    def to_core(self) -> InventoryPreflightRequest:
+        return InventoryPreflightRequest.model_validate(
+            self.model_dump(mode="python")
+        )
+
+
+class InventoryRequestedTargetView(WebSchema):
+    target_path: str
+    target_kind: InventoryTargetKind
+    status: InventoryRequestedTargetStatus
+    proposal: ScanBoundaryProposal | None = None
+    reason_code: str | None = None
+    limit_context: InventoryDirectoryLimitContext | None = None
+
+
+class InventoryReviewableExcludedPageView(WebSchema):
+    items: list[ScanBoundaryProposal] = Field(default_factory=list)
+    next_cursor: str | None = None
+    total: int
+
+
+class InventoryBlockedSummaryView(WebSchema):
+    path: str
+    reason_code: str
+    outcome: Literal["hard_blocked", "collapsed_directory"]
+    can_expand: bool = False
+
+
+class InventoryPreflightResponse(WebSchema):
+    preflight_request_id: str
+    project_id: str
+    generated_at: str
+    source_mode: Literal[
+        "git",
+        "recursive",
+        "fallback_after_git_error",
+    ]
+    inventory_policy_schema_version: str
+    inventory_policy_digest: str
+    candidate_set_digest: str
+    filesystem_safety_version: str
+    summary: InventoryPreflightSummary
+    required_boundary_proposals: list[ScanBoundaryProposal] = Field(
+        default_factory=list
+    )
+    reviewable_excluded_page: InventoryReviewableExcludedPageView
+    requested_target_results: list[InventoryRequestedTargetView] = Field(
+        default_factory=list
+    )
+    blocked_summaries: list[InventoryBlockedSummaryView] = Field(
+        default_factory=list
+    )
+    warnings: list[str] = Field(default_factory=list)
+
+
+class InventoryApiErrorDetail(WebSchema):
+    code: str
+    message: str
+    retryable: bool = False
+    context: dict[str, str | int] | None = None
 
 
 class ScanProgressEvent(WebSchema):

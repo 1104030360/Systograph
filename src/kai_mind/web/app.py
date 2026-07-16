@@ -25,6 +25,15 @@ from kai_mind.core.services.detail_scan_build_service import (
     DetailScanBuildService,
 )
 from kai_mind.core.services.detail_scan_service import DetailScanService
+from kai_mind.core.services.inventory_candidate_service import (
+    InventoryCandidateService,
+)
+from kai_mind.core.services.inventory_preflight_service import (
+    InventoryPreflightService,
+)
+from kai_mind.core.services.inventory_selection_service import (
+    InventorySelectionService,
+)
 from kai_mind.core.services.manual_mapping_service import (
     ManualMappingService,
 )
@@ -110,6 +119,8 @@ def create_app(
     query_trace_service: QueryTraceService | None = None,
     scan_boundary_review_service: ScanBoundaryReviewService | None = None,
     scan_snapshot_service: ScanSnapshotService | None = None,
+    inventory_preflight_service: InventoryPreflightService | None = None,
+    inventory_selection_service: InventorySelectionService | None = None,
     viewer_session_service: ViewerSessionService | None = None,
     session_store: SessionStore | None = None,
     state_dir: Path | None = None,
@@ -141,6 +152,27 @@ def create_app(
     )
     app.state.scan_boundary_review_service = (
         scan_boundary_review_service or ScanBoundaryReviewService()
+    )
+    if inventory_preflight_service is not None:
+        app.state.inventory_preflight_service = inventory_preflight_service
+    elif (
+        scan_snapshot_service is not None
+        and scan_snapshot_service.inventory_rule_loader is not None
+    ):
+        app.state.inventory_preflight_service = InventoryPreflightService(
+            candidate_service=InventoryCandidateService(
+                inventory_rule_loader=(
+                    scan_snapshot_service.inventory_rule_loader
+                )
+            )
+        )
+    else:
+        app.state.inventory_preflight_service = InventoryPreflightService()
+    app.state.inventory_selection_service = (
+        inventory_selection_service
+        or InventorySelectionService(
+            preflight_service=app.state.inventory_preflight_service,
+        )
     )
     shared_scanner = ProjectScanService()
     app.state.map_build_service = map_build_service or MapBuildService(

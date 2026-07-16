@@ -4,11 +4,16 @@ import inspect
 import json
 from pathlib import Path
 
+import pytest
 from tests.helpers.fixtures import rag_project_fixture_path
 from typer.testing import CliRunner
 
 from kai_mind.cli import main as cli_main
 from kai_mind.cli import map_command
+from kai_mind.core.models.errors import (
+    ScanInventoryRulesError,
+    ScanInventoryRulesErrorCode,
+)
 from kai_mind.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
@@ -76,3 +81,33 @@ def test_map_command_is_thin_adapter_without_provider_logic() -> None:
     assert "FilesystemProvider" not in source
     assert "ConfigParseProvider" not in source
     assert "DockerComposeProvider" not in source
+
+
+def test_map_command_reports_inventory_catalog_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FailingMapBuildService:
+        def build(self, request: object) -> object:
+            del request
+            raise ScanInventoryRulesError(ScanInventoryRulesErrorCode.INVALID)
+
+    monkeypatch.setattr(
+        map_command,
+        "MapBuildService",
+        FailingMapBuildService,
+    )
+
+    result = CliRunner().invoke(
+        cli_main.app,
+        [
+            "map",
+            str(tmp_path),
+            "--output",
+            str(tmp_path / "outputs"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Map build failed: inventory_rules_invalid" in result.stderr
+    assert not (tmp_path / "outputs" / "ai_system_map.json").exists()

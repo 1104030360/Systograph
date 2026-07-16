@@ -15,6 +15,7 @@ from kai_mind.core.models.scan_boundary import (
     ScanBoundaryProposalStatus,
 )
 from kai_mind.core.models.system_map import Evidence
+from kai_mind.core.providers.filesystem_provider import FilesystemProvider
 from kai_mind.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
@@ -43,7 +44,7 @@ def build_inventory(project_root: Path) -> FileInventory:
     )
 
 
-def test_create_proposals_uses_masked_bounded_packets_and_fingerprints(
+def test_create_proposals_uses_metadata_only_packets_and_fingerprints(
     tmp_path: Path,
 ) -> None:
     project_root = tmp_path / "project"
@@ -87,7 +88,8 @@ def test_create_proposals_uses_masked_bounded_packets_and_fingerprints(
         "scan_this_run",
         "skip_this_run",
     ]
-    assert proposal.evidence_packet.masked_evidence_values == ["[MASKED]"]
+    assert proposal.evidence_packet.masked_evidence_values == []
+    assert proposal.evidence_packet.masked_snippets == []
     assert "sk-live-secret-value" not in proposal.model_dump_json()
     assert str(tmp_path) not in proposal.model_dump_json()
 
@@ -207,6 +209,11 @@ def test_skip_this_run_decision_skips_matching_file_for_current_overlay(
     assert [(item.path, item.reason) for item in overlaid.skipped] == [
         (".env", SkipReason.SKIPPED_BY_POLICY_OVERLAY)
     ]
+    assert overlaid.inventory_policy_audit[0].outcome == "skipped"
+    assert overlaid.inventory_policy_audit[0].source == "runtime_boundary"
+    assert overlaid.inventory_policy_audit[0].boundary_decision == (
+        "skip_this_run"
+    )
 
 
 def test_stale_decision_returns_pending_proposal_and_holds_file(
@@ -280,8 +287,22 @@ def test_skipped_targets_do_not_create_user_decision_proposals(
         project_root=project_root,
         inventory=inventory,
     )
+    overlaid = ScanBoundaryReviewService().apply_decisions(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+        decisions=[
+            ScanBoundaryDecisionRequest(
+                target_path="models/llm.gguf",
+                fingerprint="sha256:untrusted",
+                decision=ScanBoundaryDecisionAction.SCAN_THIS_RUN,
+            )
+        ],
+    )
 
     assert proposals == []
+    assert overlaid.files == []
+    assert overlaid.skipped == inventory.skipped
 
 
 def test_vector_source_code_is_not_treated_as_persistence_artifact(
@@ -333,3 +354,81 @@ def test_removed_long_term_policy_actions_are_not_valid_decisions() -> None:
     valid_actions = {action.value for action in ScanBoundaryDecisionAction}
 
     assert valid_actions == {"scan_this_run", "skip_this_run"}
+
+
+def test_runtime_overlay_updates_audit_and_reproducibility_digest(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / ".env").write_text(
+        "PLACEHOLDER=redacted\n",
+        encoding="utf-8",
+    )
+    (project_root / "app.py").write_text(
+        "print('ok')\n",
+        encoding="utf-8",
+    )
+    persistence_path = project_root / "data" / "vector_store"
+    persistence_path.mkdir(parents=True)
+    (persistence_path / "index.faiss").write_bytes(b"faiss-index")
+    inventory = FilesystemProvider().build_inventory(project_root)
+    service = ScanBoundaryReviewService()
+    proposals = service.create_proposals(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )
+    assert {item.path for item in inventory.files} == {
+        ".env",
+        "app.py",
+        "data/vector_store/index.faiss",
+    }
+    assert [item.target.path for item in proposals] == [
+        ".env",
+        "data/vector_store/index.faiss",
+    ]
+    proposal = proposals[0]
+    scan_decision = ScanBoundaryDecisionRequest(
+        target_path=".env",
+        fingerprint=proposal.target.fingerprint,
+        decision=ScanBoundaryDecisionAction.SCAN_THIS_RUN,
+    )
+
+    pending = service.apply_decisions(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+    )
+    included = service.apply_decisions(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=inventory,
+        decisions=[scan_decision],
+    )
+    replayed = service.apply_decisions(
+        project_id="project:demo",
+        project_root=project_root,
+        inventory=included,
+        decisions=[scan_decision],
+    )
+
+    pending_entry = next(
+        entry
+        for entry in pending.inventory_policy_audit
+        if entry.path == ".env"
+    )
+    included_entry = next(
+        entry
+        for entry in included.inventory_policy_audit
+        if entry.path == ".env"
+    )
+    assert pending_entry.outcome == "pending_review"
+    assert pending_entry.source == "runtime_boundary"
+    assert pending_entry.target_fingerprint == proposal.target.fingerprint
+    assert included_entry.outcome == "included"
+    assert included_entry.boundary_decision == "scan_this_run"
+    assert included.inventory_run_digest != inventory.inventory_run_digest
+    assert included.inventory_run_digest != pending.inventory_run_digest
+    assert replayed.inventory_policy_audit == included.inventory_policy_audit
+    assert replayed.inventory_run_digest == included.inventory_run_digest
