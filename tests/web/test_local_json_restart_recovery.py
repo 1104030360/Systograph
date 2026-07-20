@@ -80,7 +80,7 @@ def test_reimport_same_canonical_path_reuses_project_identity(
     assert imported["reused"] is True
 
 
-def test_v2_opt_in_metadata_survives_restart(tmp_path: Path) -> None:
+def test_v2_active_metadata_survives_restart(tmp_path: Path) -> None:
     state_dir = tmp_path / "state"
     project_root = tmp_path / "project"
     project_root.mkdir()
@@ -105,6 +105,8 @@ def test_v2_opt_in_metadata_survives_restart(tmp_path: Path) -> None:
 
     assert recovered.status_code == 200
     payload = recovered.json()["build_result"]
-    assert payload["active_schema_version"] == "ai-system-map/v1"
+    assert payload["active_schema_version"] == "ai-system-map/v2"
     assert payload["requested_schema_version"] == "ai-system-map/v2"
+    assert payload["source_schema_version"] == "ai-system-map/v2"
+    assert payload["operator_rollback_active"] is False
     assert payload["migration_warnings"] == original["migration_warnings"]

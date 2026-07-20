@@ -16,7 +16,15 @@ class GraphMermaidRenderer:
         groups: dict[str, list[GraphNodeModel]] = defaultdict(list)
         for node in graph.nodes:
             groups[node.plane_id or "semantic_overlay"].append(node)
-        lines = ["flowchart LR"]
+        lines = [
+            "flowchart LR",
+            "%% "
+            f"build={graph.build_id or 'unscoped'} "
+            f"scan={graph.scan_id or 'unscoped'} "
+            f"environment={graph.environment_id or 'unscoped'} "
+            "artifact_set="
+            f"{graph.artifact_set_version or 'unscoped'}",
+        ]
         for group_id, nodes in groups.items():
             lines.append(
                 "  subgraph "

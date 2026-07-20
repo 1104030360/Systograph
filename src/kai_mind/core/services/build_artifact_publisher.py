@@ -15,11 +15,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from pydantic import BaseModel
+
 from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.profile_signal import ProfileInferenceResult
 from kai_mind.core.models.readiness_report import ReadinessReport
 from kai_mind.core.models.scan import OutputRun
-from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.models.viewer import ViewerLoadResult
 from kai_mind.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
@@ -84,8 +85,8 @@ class BuildArtifactPublisher:
     def publish(
         self,
         *,
-        system_map: RagSystemMap,
-        normalized_system_map: AiSystemMapV2,
+        system_map: AiSystemMapV2,
+        artifact_map: BaseModel | None = None,
         profile_result: ProfileInferenceResult,
         readiness_report: ReadinessReport,
         execution: StaticExecutionArtifacts,
@@ -94,7 +95,7 @@ class BuildArtifactPublisher:
         try:
             return self._publish(
                 system_map=system_map,
-                normalized_system_map=normalized_system_map,
+                artifact_map=artifact_map,
                 profile_result=profile_result,
                 readiness_report=readiness_report,
                 execution=execution,
@@ -114,21 +115,20 @@ class BuildArtifactPublisher:
     def _publish(
         self,
         *,
-        system_map: RagSystemMap,
-        normalized_system_map: AiSystemMapV2,
+        system_map: AiSystemMapV2,
+        artifact_map: BaseModel | None,
         profile_result: ProfileInferenceResult,
         readiness_report: ReadinessReport,
         execution: StaticExecutionArtifacts,
         output_run: OutputRun,
     ) -> PublishedBuildArtifacts:
         map_json_path = self.output_provider.write_json(
-            system_map,
+            artifact_map or system_map,
             output_run=output_run,
         )
-        viewer = self._projection.build(
+        viewer = self._projection.build_canonical(
             system_map,
             map_json_path=map_json_path,
-            normalized_system_map=normalized_system_map,
             profile_result=profile_result,
         )
         graph = viewer.graph_view_model

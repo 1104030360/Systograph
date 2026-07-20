@@ -86,6 +86,28 @@ def test_map_report_route_can_return_download_attachment(
     )
 
 
+def test_map_build_route_rejects_public_v1_selection(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "outputs"
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/api/map/build",
+        json={
+            "project_path": str(
+                rag_project_fixture_path("basic_qdrant_ollama_rag")
+            ),
+            "output": str(output_dir),
+            "system_map_schema_version": "ai-system-map/v1",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "legacy_output_not_selectable"
+    assert not output_dir.exists()
+
+
 def test_map_report_route_before_build_returns_404() -> None:
     client = TestClient(create_app())
 

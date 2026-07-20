@@ -38,7 +38,6 @@ def _build_packet(
     unmapped_component: UnmappedComponent,
     evidence: list[Evidence],
     available_slots: list[str],
-    available_extensions: list[str] | None = None,
     confirmed_component_ids: list[str] | None = None,
     user_description: str | None = None,
 ) -> MappingEvidencePacket:
@@ -91,7 +90,6 @@ def _build_packet(
         index=SystemMapIndex.from_map(canonical),
         unmapped_id=unmapped_component.id,
         available_slots=available_slots,
-        available_extensions=available_extensions,
         confirmed_component_ids=confirmed_component_ids,
         user_description=user_description,
     )
@@ -111,7 +109,6 @@ def test_builder_consumes_normalized_index_facts_without_mutation() -> None:
         index=index,
         unmapped_id=unmapped.unmapped_id,
         available_slots=["retriever"],
-        available_extensions=[],
         confirmed_component_ids=[],
     )
 
@@ -149,7 +146,6 @@ def test_builder_masks_evidence_and_keeps_traceable_metadata() -> None:
             )
         ],
         available_slots=["retriever", "vector_store"],
-        available_extensions=["extension:reranker"],
         confirmed_component_ids=["component:retriever:main"],
     )
 
@@ -170,7 +166,6 @@ def test_builder_masks_evidence_and_keeps_traceable_metadata() -> None:
         "OPENAI_API_KEY=sk-l...7890\nclass QueryRouter: ..."
     ]
     assert packet.available_slots == ["retriever", "vector_store"]
-    assert packet.available_extensions == ["extension:reranker"]
     assert packet.confirmed_component_ids == ["component:retriever:main"]
     assert packet.context_limits["source"] == "system_map_index"
 

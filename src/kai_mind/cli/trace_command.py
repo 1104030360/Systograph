@@ -8,16 +8,16 @@ from typing import Annotated
 
 import typer
 
+from kai_mind.core.services.canonical_map_loader import (
+    CanonicalMapLoader,
+    CanonicalMapLoadError,
+)
 from kai_mind.core.services.query_trace_config_loader import (
     QueryTraceConfig,
     QueryTraceConfigError,
     QueryTraceConfigLoader,
 )
 from kai_mind.core.services.query_trace_service import QueryTraceService
-from kai_mind.core.services.system_map_validation_service import (
-    SystemMapValidationError,
-    SystemMapValidationService,
-)
 
 
 def register(app: typer.Typer) -> None:
@@ -67,13 +67,13 @@ def trace_command(
 
     try:
         data = json.loads(map_json_path.read_text(encoding="utf-8"))
-        system_map = SystemMapValidationService().validate(data)
+        system_map = CanonicalMapLoader().load(data).normalized
         trace_config = _load_trace_config(project_root)
     except (
         OSError,
         json.JSONDecodeError,
         QueryTraceConfigError,
-        SystemMapValidationError,
+        CanonicalMapLoadError,
     ) as exc:
         typer.echo(f"Trace failed: {exc}", err=True)
         raise typer.Exit(code=1) from exc

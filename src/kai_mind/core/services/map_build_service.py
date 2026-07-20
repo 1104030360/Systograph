@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.analysis_history import (
     BuildReason,
     MapBuildLineage,
@@ -21,16 +22,22 @@ from kai_mind.core.models.analysis_history import (
 from kai_mind.core.models.capability_candidate import (
     CapabilityCandidateComponent,
 )
-from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
+from kai_mind.core.models.map_build import (
+    MapBuildRequest,
+    MapBuildResult,
+    SystemMapSchemaSelection,
+)
 from kai_mind.core.models.scan import OutputRun
-from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
 from kai_mind.core.services.build_artifact_publisher import (
     BuildArtifactPublisher,
 )
-from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
+from kai_mind.core.services.canonical_output_configuration import (
+    canonical_output_version_from_env,
+    require_public_v2_selection,
+)
 from kai_mind.core.services.component_detection_service import (
     ComponentDetectionService,
 )
@@ -45,6 +52,9 @@ from kai_mind.core.services.graph_markdown_renderer import (
 )
 from kai_mind.core.services.graph_mermaid_renderer import (
     GraphMermaidRenderer,
+)
+from kai_mind.core.services.legacy_v1_rollback_service import (
+    LegacyV1RollbackService,
 )
 from kai_mind.core.services.manual_mapping_service import ManualMappingService
 from kai_mind.core.services.map_build_orchestration import (
@@ -69,11 +79,14 @@ from kai_mind.core.services.static_execution_artifact_service import (
 from kai_mind.core.services.system_map_materialization_service import (
     SystemMapMaterializationService,
 )
-from kai_mind.core.services.system_map_normalize_service import (
-    SystemMapNormalizeService,
+from kai_mind.core.services.system_map_v2_materialization_service import (
+    SystemMapV2MaterializationService,
 )
-from kai_mind.core.services.system_map_validation_service import (
-    SystemMapValidationService,
+from kai_mind.core.services.system_map_v2_normalize_service import (
+    SystemMapV2NormalizeService,
+)
+from kai_mind.core.services.system_map_v2_validation_service import (
+    SystemMapV2ValidationService,
 )
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
 
@@ -96,24 +109,26 @@ class MapBuildService:
         risk_hint_service: RiskHintService | None = None,
         flow_derivation_service: FlowDerivationService | None = None,
         manual_mapping_service: ManualMappingService | None = None,
-        normalize_service: SystemMapNormalizeService | None = None,
+        normalize_service: SystemMapV2NormalizeService | None = None,
         graph_markdown_renderer: GraphMarkdownRenderer | None = None,
         graph_mermaid_renderer: GraphMermaidRenderer | None = None,
         projection_service: ViewerSessionService | None = None,
-        validation_service: SystemMapValidationService | None = None,
-        canonical_map_loader: CanonicalMapLoader | None = None,
+        validation_service: SystemMapV2ValidationService | None = None,
         profile_inference_service: ProfileInferenceService | None = None,
         readiness_report_service: ReadinessReportService | None = None,
         static_execution_artifact_service: (
             StaticExecutionArtifactService | None
         ) = None,
-        materialization_service: SystemMapMaterializationService | None = None,
+        materialization_service: SystemMapV2MaterializationService
+        | None = None,
         artifact_publisher: BuildArtifactPublisher | None = None,
+        canonical_output_version: SystemMapSchemaSelection | None = None,
+        legacy_v1_rollback_service: LegacyV1RollbackService | None = None,
     ) -> None:
         output_provider = output_artifact_provider or OutputArtifactProvider()
         materializer = (
             materialization_service
-            or SystemMapMaterializationService(
+            or SystemMapV2MaterializationService(
                 component_detection_service=component_detection_service,
                 endpoint_detection_service=endpoint_detection_service,
                 risk_hint_service=risk_hint_service,
@@ -130,12 +145,28 @@ class MapBuildService:
             projection_service=projection_service,
         )
         self._manual_mapping_service = manual_mapping_service
+        self._canonical_output_version = (
+            canonical_output_version or canonical_output_version_from_env()
+        )
+        rollback_service = (
+            legacy_v1_rollback_service
+            or LegacyV1RollbackService(
+                materialization_service=SystemMapMaterializationService(
+                    component_detection_service=component_detection_service,
+                    endpoint_detection_service=endpoint_detection_service,
+                    risk_hint_service=risk_hint_service,
+                    flow_derivation_service=flow_derivation_service,
+                    manual_mapping_service=manual_mapping_service,
+                )
+            )
+        )
         self._scanner = project_scan_service or ProjectScanService()
         self._output_provider = publisher.output_provider
         self._pipeline = MapBuildPipeline(
             materialization_service=materializer,
             artifact_publisher=publisher,
-            canonical_map_loader=canonical_map_loader,
+            canonical_output_version=self._canonical_output_version,
+            legacy_v1_rollback_service=rollback_service,
             profile_inference_service=profile_inference_service,
             readiness_report_service=readiness_report_service,
             static_execution_artifact_service=static_execution_artifact_service,
@@ -153,6 +184,7 @@ class MapBuildService:
         project_id: str | None = None,
         inventory_policy: InventoryPolicyOverlay | None = None,
     ) -> MapBuildResult:
+        require_public_v2_selection(request.system_map_schema_version)
         precondition = self._output_provider.check_preconditions(
             project_path=request.project_path,
             output_dir=request.output,
@@ -217,6 +249,7 @@ class MapBuildService:
         based_on_build_id: str | None = None,
         mapping_ids: tuple[str, ...] = (),
     ) -> MapBuildResult:
+        require_public_v2_selection(request.system_map_schema_version)
         active_build_id = build_id or f"build:{uuid4()}"
         lineage = MapBuildLineage(
             project_id=snapshot.project_id,
@@ -248,7 +281,7 @@ class MapBuildService:
         self,
         snapshot: ScanSnapshot,
         *,
-        system_map: RagSystemMap,
+        system_map: AiSystemMapV2,
         capability_candidates: tuple[CapabilityCandidateComponent, ...],
         request: MapBuildRequest,
         output_run: OutputRun,
@@ -256,6 +289,7 @@ class MapBuildService:
         applied_mapping_ids: tuple[str, ...] = (),
         build_id: str | None = None,
     ) -> MapBuildResult:
+        require_public_v2_selection(request.system_map_schema_version)
         active_build_id = build_id or f"build:{uuid4()}"
         lineage = MapBuildLineage(
             project_id=snapshot.project_id,

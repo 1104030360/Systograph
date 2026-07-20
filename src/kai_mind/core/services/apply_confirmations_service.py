@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 from pathlib import Path
 from uuid import uuid4
 
@@ -11,7 +10,6 @@ from kai_mind.core.models.apply_confirmations import ApplyConfirmationsResult
 from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
 from kai_mind.core.models.mapping import ManualMapping, ManualMappingDecision
 from kai_mind.core.models.scan import OutputRun
-from kai_mind.core.providers.local_json_state_errors import StateConflictError
 from kai_mind.core.services.apply_confirmations_contracts import (
     ApplyBuildError,
     ApplyRepository,
@@ -20,6 +18,10 @@ from kai_mind.core.services.apply_confirmations_contracts import (
     BuildIdFactory,
     BuildNotFoundError,
     MappingNotFoundError,
+)
+from kai_mind.core.services.build_commit_service import (
+    BuildCommitError,
+    BuildCommitService,
 )
 from kai_mind.core.services.build_manifest_service import BuildManifestService
 from kai_mind.core.services.map_build_service import MapBuildService
@@ -41,11 +43,16 @@ class ApplyConfirmationsService:
         repository: ApplyRepository,
         map_build_service: MapBuildService,
         manifest_service: BuildManifestService,
+        build_commit_service: BuildCommitService | None = None,
         build_id_factory: BuildIdFactory | None = None,
     ) -> None:
         self._repository = repository
         self._map_build_service = map_build_service
         self._manifest_service = manifest_service
+        self._build_commit = build_commit_service or BuildCommitService(
+            repository=repository,
+            manifest_service=manifest_service,
+        )
         self._build_id_factory = build_id_factory or (
             lambda: f"build:{uuid4()}"
         )
@@ -90,34 +97,37 @@ class ApplyConfirmationsService:
         build_id = self._build_id_factory()
         output_root = Path(base.output_dir).parent
         output_dir = output_root / build_id.replace(":", "_")
-        try:
-            result = self._map_build_service.build_from_snapshot(
+
+        def build(output_run: OutputRun) -> MapBuildResult:
+            return self._map_build_service.build_from_snapshot(
                 snapshot,
                 request=MapBuildRequest(
                     project_path=Path(project.canonical_path),
                     output=output_root,
                     system_map_schema_version=base.requested_schema_version,
                 ),
-                output_run=OutputRun(root_dir=output_dir),
+                output_run=output_run,
                 build_id=build_id,
                 based_on_build_id=base_build_id,
                 build_reason="apply_confirmations",
                 mapping_ids=tuple(sorted(mapping_ids)),
             )
-            if result.status != "ok" or result.viewer_load_result is None:
-                raise ApplyBuildError("apply build did not complete")
-            self._manifest_service.persist(
-                result,
-                apply_request_digest=request_digest,
-            )
-            self._repository.promote_latest_build(
+
+        try:
+            result = self._build_commit.commit(
                 project_id=project_id,
                 build_id=build_id,
+                final_output_dir=output_dir,
                 expected_latest_build_id=base_build_id,
                 expected_revision=latest.revision,
+                build=build,
+                apply_request_digest=request_digest,
             )
-        except StateConflictError as exc:
-            self._discard(project_id, build_id, output_dir)
+            if result.status != "ok" or result.viewer_load_result is None:
+                raise ApplyBuildError("apply build did not complete")
+        except BuildCommitError as exc:
+            if exc.code != "stale_latest_revision":
+                raise ApplyBuildError(exc.code) from exc
             winner = self._idempotent_result(
                 project_id,
                 base_build_id=base_build_id,
@@ -126,9 +136,6 @@ class ApplyConfirmationsService:
             if winner is not None:
                 return winner
             raise BaseBuildNotLatestError("base_build_not_latest") from exc
-        except Exception:
-            self._discard(project_id, build_id, output_dir)
-            raise
         return self._result(result)
 
     @staticmethod
@@ -182,19 +189,6 @@ class ApplyConfirmationsService:
             ):
                 return self._result(self._manifest_service.load(manifest))
         return None
-
-    def _discard(
-        self,
-        project_id: str,
-        build_id: str,
-        output_dir: Path,
-    ) -> None:
-        try:
-            self._repository.discard_unpublished_build(project_id, build_id)
-        except StateConflictError:
-            return
-        if output_dir.is_dir():
-            shutil.rmtree(output_dir)
 
     @staticmethod
     def _request_digest(

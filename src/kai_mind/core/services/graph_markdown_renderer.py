@@ -26,6 +26,7 @@ class GraphMarkdownRenderer:
             f"- Scan: `{graph.scan_id or 'unscoped'}`",
             f"- Build: `{graph.build_id or 'unscoped'}`",
             f"- Environment: `{graph.environment_id or 'unscoped'}`",
+            f"- Artifact set: `{graph.artifact_set_version or 'unscoped'}`",
             f"- Reference map: `{graph.reference_map_version or 'unknown'}`",
         ]
         completeness = graph.mapping_completeness
@@ -238,7 +239,7 @@ class GraphMarkdownRenderer:
         ]
         if profile_checks:
             lines.extend(
-                f"- `{_cell(node_id)}`: {_cell(check)}"
+                f"- [ ] `{_cell(node_id)}`: {_cell(check)}"
                 for node_id, check in profile_checks
             )
             lines.append("")

@@ -455,7 +455,6 @@ def test_reranker_fact_becomes_non_baseline_confirmation_item() -> None:
 
     result = detect([reranker_fact])
 
-    assert result.extensions == []
     assert len(result.unmapped_components) == 1
     assert result.unmapped_components[0].observed_kind == "reranker_candidate"
     assert result.unmapped_components[0].status == "needs_confirmation"

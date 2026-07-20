@@ -121,6 +121,47 @@ def test_v1_viewer_characterization_preserves_order_and_public_shape() -> None:
     ]
 
 
+def test_v1_viewer_characterization_preserves_recommended_next_checks() -> (
+    None
+):
+    result = ViewerSessionService().load_map(FIXTURE_PATH)
+
+    assert [
+        check.model_dump(mode="json")
+        for check in result.graph_view_model.recommended_next_checks
+    ] == [
+        {
+            "id": "next_check:confirm-reranker",
+            "target_type": "unmapped_component",
+            "target": "unmapped:src-rag-rerank",
+            "reason": (
+                "Confirm whether rerank.py should appear as a retriever "
+                "extension in the graph."
+            ),
+            "action": "manual_mapping_confirmation",
+        },
+        {
+            "id": "next_check:review-qdrant-port",
+            "target_type": "component_instance",
+            "target": "component:vector_store:qdrant",
+            "reason": (
+                "Published vector database port may affect release readiness."
+            ),
+            "action": "review_network_exposure",
+        },
+        {
+            "id": "next_check:run-query-trace",
+            "target_type": "endpoint",
+            "target": "endpoint:local:chat-query",
+            "reason": (
+                "A local query endpoint was detected and can be used for "
+                "opt-in replay."
+            ),
+            "action": "run_query_trace",
+        },
+    ]
+
+
 def test_load_map_projects_full_graph_without_layout_or_second_truth() -> None:
     load_result = ViewerSessionService().load_map(FIXTURE_PATH)
 

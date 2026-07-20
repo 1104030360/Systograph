@@ -148,7 +148,7 @@ def test_rejected_mapping_keeps_unmapped_component_out_of_slots() -> None:
     assert len(result.unmapped_components) == 1
 
 
-def test_confirmed_extension_mapping_replays_live_candidate() -> None:
+def test_confirmed_reranker_mapping_replays_as_capability_candidate() -> None:
     fact, evidence = reranker_extension_candidate()
     manual_mapping_service = ManualMappingService(
         repository=InMemoryManualMappingRepository(),
@@ -157,14 +157,14 @@ def test_confirmed_extension_mapping_replays_live_candidate() -> None:
     manual_mapping_service.create_mapping(
         ManualMappingCreate(
             project_id="project:demo",
-            mapping_type=ManualMappingType.NEW_EXTENSION,
+            mapping_type=(ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE),
             decision=ManualMappingDecision.CONFIRMED,
             source_file="src/rerank.py",
             observed_kind="code_pattern",
             evidence_ids=[evidence.id],
-            extension_id="extension:src_rerank_py:reranker",
-            extension_name="Reranker",
-            extension_kind="reranker",
+            capability_candidate_id="capability-candidate:reranker",
+            capability_candidate_name="Reranker",
+            capability_candidate_kind="reranker",
         )
     )
 
@@ -177,12 +177,15 @@ def test_confirmed_extension_mapping_replays_live_candidate() -> None:
     )
 
     assert result.unmapped_components == []
-    assert result.extensions[0].id == "extension:src_rerank_py:reranker"
-    assert result.extensions[0].status == "confirmed"
-    assert result.extensions[0].confirmed_by_user is True
+    assert result.capability_candidate_components[0].id == (
+        "capability-candidate:reranker"
+    )
+    assert result.capability_candidate_components[0].status == (
+        "confirmed_non_baseline"
+    )
 
 
-def test_confirmed_extension_mapping_replays_unmapped_candidate() -> None:
+def test_confirmed_router_mapping_replays_as_capability_candidate() -> None:
     fact, evidence = router_unmapped_candidate()
     manual_mapping_service = ManualMappingService(
         repository=InMemoryManualMappingRepository(),
@@ -191,7 +194,7 @@ def test_confirmed_extension_mapping_replays_unmapped_candidate() -> None:
     manual_mapping_service.create_mapping(
         ManualMappingCreate(
             project_id="project:demo",
-            mapping_type=ManualMappingType.NEW_EXTENSION,
+            mapping_type=(ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE),
             decision=ManualMappingDecision.CONFIRMED,
             source_unmapped_id=(
                 "unmapped:src_query_router_py:"
@@ -200,9 +203,9 @@ def test_confirmed_extension_mapping_replays_unmapped_candidate() -> None:
             source_file="src/query_router.py",
             observed_kind="code_pattern",
             evidence_ids=[evidence.id],
-            extension_id="extension:query_router",
-            extension_name="Query Router",
-            extension_kind="routing_orchestration",
+            capability_candidate_id="capability-candidate:query_router",
+            capability_candidate_name="Query Router",
+            capability_candidate_kind="routing_orchestration",
         )
     )
 
@@ -215,9 +218,12 @@ def test_confirmed_extension_mapping_replays_unmapped_candidate() -> None:
     )
 
     assert result.unmapped_components == []
-    assert result.extensions[0].id == "extension:query_router"
-    assert result.extensions[0].status == "confirmed"
-    assert result.extensions[0].confirmed_by_user is True
+    assert result.capability_candidate_components[0].id == (
+        "capability-candidate:query_router"
+    )
+    assert result.capability_candidate_components[0].status == (
+        "confirmed_non_baseline"
+    )
 
 
 def test_confirmed_non_baseline_mapping_replays_as_capability_candidate() -> (
@@ -255,7 +261,6 @@ def test_confirmed_non_baseline_mapping_replays_as_capability_candidate() -> (
     )
 
     assert result.unmapped_components == []
-    assert result.extensions == []
     assert result.capability_candidate_components[0].id == (
         "capability-candidate:query_router"
     )

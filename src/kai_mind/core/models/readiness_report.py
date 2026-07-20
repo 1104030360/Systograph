@@ -4,6 +4,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from kai_mind.core.models.artifact_scope import (
+    PHASE2_P0_ARTIFACT_SET_VERSION,
+    ArtifactSetVersion,
+)
 from kai_mind.core.models.profile_signal import (
     ActivationState,
     MappingCompleteness,
@@ -53,6 +57,7 @@ class ReadinessReport(ReadinessModel):
     build_id: str
     scan_id: str
     environment_id: str
+    artifact_set_version: ArtifactSetVersion = PHASE2_P0_ARTIFACT_SET_VERSION
     generated_from_build_id: str
     mapping_completeness: MappingCompleteness
     grounding: GroundingReadinessSummary

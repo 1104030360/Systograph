@@ -10,7 +10,6 @@ from pydantic import BaseModel
 
 from kai_mind.core.models.errors import PreconditionError
 from kai_mind.core.models.scan import OutputRun, PreconditionResult
-from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.providers.output_artifact_policy import (
     Clock,
     OutputArtifactPolicy,
@@ -55,7 +54,7 @@ class OutputArtifactProvider:
 
     def write_json(
         self,
-        system_map: RagSystemMap,
+        system_map: BaseModel,
         *,
         output_run: OutputRun,
     ) -> Path:

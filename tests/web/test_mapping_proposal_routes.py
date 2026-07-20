@@ -56,7 +56,7 @@ def import_and_scan_weak_project(
     ).json()
     unmapped_id = scan_payload["build_result"]["ai_system_map"][
         "unmapped_components"
-    ][0]["id"]
+    ][0]["unmapped_id"]
     return project_id, unmapped_id
 
 

@@ -172,8 +172,6 @@ class ManualMappingService:
                 require_text("component_name", draft.component_name)
                 if target_slot not in self._allowed_slots:
                     raise ValueError(f"Unknown target slot: {target_slot}")
-            case ManualMappingType.NEW_EXTENSION:
-                self._validate_extension(draft)
             case ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE:
                 require_text(
                     "capability_candidate_id", draft.capability_candidate_id
@@ -188,16 +186,3 @@ class ManualMappingService:
                 )
             case unreachable:
                 assert_never(unreachable)
-
-    def _validate_extension(self, draft: ManualMappingCreate) -> None:
-        extension_id = require_text("extension_id", draft.extension_id)
-        require_text("extension_name", draft.extension_name)
-        require_text("extension_kind", draft.extension_kind)
-        endpoints = set(self._allowed_slots)
-        endpoints.add(extension_id)
-        for edge in draft.extension_edges:
-            for key in ("from", "to"):
-                if edge.get(key) not in endpoints:
-                    raise ValueError(
-                        "Extension edge references unknown endpoint"
-                    )

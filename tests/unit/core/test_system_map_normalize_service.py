@@ -199,7 +199,6 @@ def test_normalize_uses_deterministic_ordering() -> None:
         components_by_slot=dict(
             reversed(result.components.components_by_slot.items())
         ),
-        extensions=list(reversed(result.components.extensions)),
         unmapped_components=list(
             reversed(result.components.unmapped_components)
         ),
@@ -269,7 +268,6 @@ def test_recommended_next_checks_deduplicate_by_check_and_target() -> None:
         raw_scan=ProjectScanResult(),
         components=ComponentDetectionResult(
             components_by_slot={},
-            extensions=[],
             unmapped_components=[],
         ),
         endpoints=[],
@@ -309,7 +307,6 @@ def test_privacy_endpoint_without_component_falls_back_to_endpoint() -> None:
         raw_scan=ProjectScanResult(),
         components=ComponentDetectionResult(
             components_by_slot={},
-            extensions=[],
             unmapped_components=[],
         ),
         endpoints=[endpoint],

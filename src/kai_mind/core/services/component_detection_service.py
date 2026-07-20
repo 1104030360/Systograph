@@ -12,7 +12,6 @@ from kai_mind.core.models.system_map import (
     ComponentInstance,
     ComponentSlot,
     Evidence,
-    ExtensionComponent,
     SlotStatus,
     UnmappedComponent,
 )
@@ -30,7 +29,6 @@ from kai_mind.core.services.component_bridge_registry import (
 @dataclass(frozen=True)
 class ComponentDetectionResult:
     components_by_slot: dict[str, ComponentSlot]
-    extensions: list[ExtensionComponent]
     unmapped_components: list[UnmappedComponent]
     capability_candidate_components: list[CapabilityCandidateComponent] = (
         field(default_factory=list)
@@ -91,7 +89,6 @@ class ComponentDetectionService:
             components_by_slot=self._build_slots(
                 template, candidates.values()
             ),
-            extensions=[],
             unmapped_components=sorted(
                 unmapped.values(), key=lambda item: item.id
             ),

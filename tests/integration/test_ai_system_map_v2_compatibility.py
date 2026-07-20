@@ -3,12 +3,30 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
+from kai_mind.core.models.ai_system_map_v2 import (
+    AiSystemMapV2,
+    CanonicalCandidateFact,
+    CanonicalComponent,
+    CanonicalEdge,
+    CanonicalEndpoint,
+    CanonicalEvidence,
+    CanonicalProject,
+    CanonicalRiskHint,
+    CanonicalUnmappedComponent,
+)
+from kai_mind.core.models.readiness_report import ReadinessFinding
 from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
+from kai_mind.core.services.profile_inference_service import (
+    ProfileInferenceService,
+)
+from kai_mind.core.services.readiness_report_service import (
+    ReadinessReportService,
+)
 from kai_mind.core.services.system_map_v1_to_v2_adapter import (
     SystemMapV1ToV2Adapter,
 )
@@ -23,10 +41,27 @@ V1_RICH = Path(
     "tests/fixtures/ai_system_map/valid_rich_frontend_sample.v1.json"
 )
 V2_DIR = Path("tests/fixtures/ai_system_map/v2")
+V1_SEMANTIC = Path(
+    "tests/fixtures/ai_system_map/grounded_rag_equivalent.v1.json"
+)
+V2_SEMANTIC = V2_DIR / "grounded_rag_equivalent.v2.json"
 REPORT_PATH = Path(
     "docs/work/Timmy/schedule/report/"
     "2026-07-10-ai-system-map-v2-compatibility-gate.md"
 )
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalFactSignature:
+    project: CanonicalProject
+    components: tuple[CanonicalComponent, ...]
+    edges: tuple[CanonicalEdge, ...]
+    evidence: tuple[CanonicalEvidence, ...]
+    endpoints: tuple[CanonicalEndpoint, ...]
+    risk_hints: tuple[CanonicalRiskHint, ...]
+    unmapped_components: tuple[CanonicalUnmappedComponent, ...]
+    candidate_facts: tuple[CanonicalCandidateFact, ...]
+    readiness_findings: tuple[ReadinessFinding, ...]
 
 
 def test_v1_fixture_adapter_preserves_resolvable_evidence_locations() -> None:
@@ -62,6 +97,45 @@ def test_dual_read_loader_keeps_v1_and_v2_clients_compatible() -> None:
     # Active artifact contract for v1 clients remains the original payload.
     assert v1_payload["schema_version"] == "ai-system-map/v1"
     assert "components_by_slot" in v1_payload
+
+
+def test_fact_equivalent_v1_and_native_v2_have_identical_readiness() -> None:
+    # Given
+    loader = CanonicalMapLoader()
+    v1_map = loader.load(
+        json.loads(V1_SEMANTIC.read_text(encoding="utf-8"))
+    ).normalized
+    v2_map = loader.load(
+        json.loads(V2_SEMANTIC.read_text(encoding="utf-8"))
+    ).normalized
+
+    # When
+    signatures = tuple(
+        _readiness_findings(system_map) for system_map in (v1_map, v2_map)
+    )
+
+    # Then
+    assert signatures[0] == signatures[1]
+
+
+def test_paired_v1_and_native_v2_have_identical_canonical_facts() -> None:
+    # Given
+    loader = CanonicalMapLoader()
+    v1_map = loader.load(
+        json.loads(V1_SEMANTIC.read_text(encoding="utf-8"))
+    ).normalized
+    v2_map = loader.load(
+        json.loads(V2_SEMANTIC.read_text(encoding="utf-8"))
+    ).normalized
+
+    # When
+    signatures = tuple(
+        _canonical_fact_signature(system_map)
+        for system_map in (v1_map, v2_map)
+    )
+
+    # Then
+    assert signatures[0] == signatures[1]
 
 
 @pytest.mark.parametrize(
@@ -105,3 +179,68 @@ def test_compatibility_gate_report_exists_with_consumer_matrix() -> None:
     assert "等价" in text or "等價" in text or "equivalent" in text.lower()
     assert "Plan 13" in text
     assert "active output" in text.lower() or "active output" in text
+
+
+def _canonical_fact_signature(
+    system_map: AiSystemMapV2,
+) -> CanonicalFactSignature:
+    return CanonicalFactSignature(
+        project=system_map.project,
+        components=tuple(
+            sorted(
+                system_map.components,
+                key=lambda item: item.component_id,
+            )
+        ),
+        edges=tuple(sorted(system_map.edges, key=lambda item: item.edge_id)),
+        evidence=tuple(
+            sorted(
+                system_map.evidence,
+                key=lambda item: item.evidence_id,
+            )
+        ),
+        endpoints=tuple(
+            sorted(
+                system_map.endpoints,
+                key=lambda item: item.endpoint_id,
+            )
+        ),
+        risk_hints=tuple(
+            sorted(
+                system_map.risk_hints,
+                key=lambda item: item.risk_id,
+            )
+        ),
+        unmapped_components=tuple(
+            sorted(
+                system_map.unmapped_components,
+                key=lambda item: item.unmapped_id,
+            )
+        ),
+        candidate_facts=tuple(
+            sorted(
+                system_map.candidate_facts,
+                key=lambda item: item.candidate_fact_id,
+            )
+        ),
+        readiness_findings=_readiness_findings(system_map),
+    )
+
+
+def _readiness_findings(
+    system_map: AiSystemMapV2,
+) -> tuple[ReadinessFinding, ...]:
+    profiles = ProfileInferenceService().infer(
+        system_map,
+        build_id="build:semantic-equivalence",
+        scan_id="scan:semantic-equivalence",
+        environment_id="environment:default-static",
+    )
+    return (
+        ReadinessReportService()
+        .build(
+            system_map=system_map,
+            profile_result=profiles,
+        )
+        .findings
+    )

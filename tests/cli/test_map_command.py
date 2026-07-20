@@ -14,8 +14,8 @@ from kai_mind.core.models.errors import (
     ScanInventoryRulesError,
     ScanInventoryRulesErrorCode,
 )
-from kai_mind.core.services.system_map_validation_service import (
-    SystemMapValidationService,
+from kai_mind.core.services.canonical_map_loader import (
+    CanonicalMapLoader,
 )
 
 
@@ -46,10 +46,9 @@ def test_map_command_builds_same_canonical_artifact_contract(
     assert str(map_markdown_path) in result.stdout
     assert str(profile_signals_path) in result.stdout
     artifact_data = json.loads(map_json_path.read_text(encoding="utf-8"))
-    assert (
-        SystemMapValidationService().validate(artifact_data).schema_version
-        == "ai-system-map/v1"
-    )
+    loaded = CanonicalMapLoader().load(artifact_data)
+    assert loaded.active_schema_version == "ai-system-map/v2"
+    assert loaded.normalized.schema_version == "ai-system-map/v2"
 
 
 def test_map_command_reports_missing_project_without_success_artifacts(
@@ -111,3 +110,25 @@ def test_map_command_reports_inventory_catalog_failure(
     assert result.exit_code == 1
     assert "Map build failed: inventory_rules_invalid" in result.stderr
     assert not (tmp_path / "outputs" / "ai_system_map.json").exists()
+
+
+def test_map_command_rejects_public_v1_selection_without_artifacts(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "outputs"
+
+    result = CliRunner().invoke(
+        cli_main.app,
+        [
+            "map",
+            str(rag_project_fixture_path("basic_qdrant_ollama_rag")),
+            "--output",
+            str(output_dir),
+            "--system-map-schema-version",
+            "ai-system-map/v1",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "legacy_output_not_selectable" in result.stderr
+    assert not output_dir.exists()

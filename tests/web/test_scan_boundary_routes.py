@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 from kai_mind.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
@@ -39,6 +40,37 @@ def scan_project(
     response = client.post("/api/scans", json=payload)
     assert response.status_code == 200
     return cast(dict[str, Any], response.json())
+
+
+def test_committed_scan_survives_session_projection_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    app = create_app(state_dir=tmp_path / "state")
+    client = TestClient(app)
+    project_id = import_project(client, project_root)
+
+    def fail_save(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise RuntimeError("injected session projection failure")
+
+    monkeypatch.setattr(
+        app.state.session_store,
+        "save_build_result",
+        fail_save,
+    )
+
+    completed = scan_project(client, project_id, tmp_path / "outputs")
+    build_id = completed["build_result"]["lineage"]["build_id"]
+
+    assert completed["status"] == "completed"
+    assert (
+        "session_projection_save_failed"
+        in (completed["build_result"]["warnings"])
+    )
+    assert client.get(f"/api/map-builds/{build_id}").status_code == 200
 
 
 def test_scan_requires_boundary_decision_before_building_map(
@@ -110,12 +142,7 @@ def test_scan_this_run_decision_builds_map_for_current_scan_only(
 
     assert completed["status"] == "completed"
     assert completed["boundary_proposals"] == []
-    assert (
-        completed["build_result"]["ai_system_map"]["scan_summary"][
-            "files_scanned"
-        ]
-        == 2
-    )
+    assert completed["inventory_selection_summary"]["included_file_count"] == 2
     assert "sk-live-secret-value" not in str(completed)
     assert "OPENAI_API_KEY" in str(completed)
     assert next_scan["status"] == "requires_boundary_decision"
@@ -152,18 +179,9 @@ def test_skip_this_run_decision_builds_map_without_current_file(
     )
 
     assert completed["status"] == "completed"
-    assert (
-        completed["build_result"]["ai_system_map"]["scan_summary"][
-            "files_scanned"
-        ]
-        == 1
-    )
-    assert (
-        completed["build_result"]["ai_system_map"]["scan_summary"][
-            "files_skipped"
-        ]
-        >= 1
-    )
+    summary = completed["inventory_selection_summary"]
+    assert summary["included_file_count"] == 1
+    assert summary["skipped_file_count"] >= 1
     assert "OPENAI_API_KEY" not in str(completed)
     assert "sk-live-secret-value" not in str(completed)
 

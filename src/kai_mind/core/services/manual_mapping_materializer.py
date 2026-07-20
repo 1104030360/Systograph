@@ -10,7 +10,6 @@ from kai_mind.core.models.mapping import ManualMapping, ManualMappingType
 from kai_mind.core.models.system_map import (
     ComponentInstance,
     ComponentSlot,
-    ExtensionComponent,
 )
 from kai_mind.core.services.component_detection_service import (
     ComponentDetectionResult,
@@ -30,17 +29,14 @@ def materialize_mappings(
     if not mappings:
         return result
     components_by_slot = deepcopy(result.components_by_slot)
-    extensions = list(result.extensions)
     unmapped = list(result.unmapped_components)
     candidates = list(result.capability_candidate_components)
     for mapping in mappings:
-        if not has_live_evidence(mapping, unmapped, extensions):
+        if not has_live_evidence(mapping, unmapped):
             continue
         match mapping.mapping_type:
             case ManualMappingType.EXISTING_SLOT:
                 _apply_existing_slot(mapping, components_by_slot)
-            case ManualMappingType.NEW_EXTENSION:
-                extensions = _apply_extension(mapping, extensions)
             case ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE:
                 candidates = _apply_capability_candidate(mapping, candidates)
             case unreachable:
@@ -48,7 +44,6 @@ def materialize_mappings(
         unmapped = remove_mapped_unmapped(mapping, unmapped)
     return ComponentDetectionResult(
         components_by_slot=components_by_slot,
-        extensions=sorted(extensions, key=lambda item: item.id),
         unmapped_components=sorted(unmapped, key=lambda item: item.id),
         capability_candidate_components=sorted(
             candidates,
@@ -84,24 +79,6 @@ def _apply_existing_slot(
         status="detected",
         instances=sorted(instances, key=lambda item: item.id),
     )
-
-
-def _apply_extension(
-    mapping: ManualMapping,
-    extensions: list[ExtensionComponent],
-) -> list[ExtensionComponent]:
-    extension_id = require_text("extension_id", mapping.extension_id)
-    extension = ExtensionComponent(
-        id=extension_id,
-        name=require_text("extension_name", mapping.extension_name),
-        kind=require_text("extension_kind", mapping.extension_kind),
-        status="confirmed",
-        confirmed_by_user=True,
-        evidence_ids=sorted(mapping.evidence_ids),
-    )
-    return [item for item in extensions if item.id != extension.id] + [
-        extension
-    ]
 
 
 def _apply_capability_candidate(

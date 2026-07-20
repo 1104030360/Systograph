@@ -9,8 +9,8 @@ from tests.unit.core.test_detail_scan_service import (
     build_router_project,
 )
 
+from kai_mind.core.models.ai_system_map_v2 import CanonicalEndpoint
 from kai_mind.core.models.map_build import MapBuildResult
-from kai_mind.core.models.system_map import Endpoint
 from kai_mind.core.providers.endpoint_call_provider import EndpointCallResult
 from kai_mind.core.services.query_trace_service import QueryTraceService
 from kai_mind.web.app import create_app
@@ -20,12 +20,14 @@ from kai_mind.web.session_store import InMemorySessionStore
 @dataclass
 class RecordingEndpointProvider:
     result: EndpointCallResult
-    calls: list[tuple[Endpoint, str, float]] = field(default_factory=list)
+    calls: list[tuple[CanonicalEndpoint, str, float]] = field(
+        default_factory=list
+    )
 
     def call(
         self,
         *,
-        endpoint: Endpoint,
+        endpoint: CanonicalEndpoint,
         query: str,
         timeout_seconds: float,
     ) -> EndpointCallResult:
@@ -55,7 +57,9 @@ def test_trace_route_returns_endpoint_not_found_without_writing_map(
     build_result = store.build_result(project_id)
     assert build_result is not None
     assert build_result.ai_system_map is not None
-    assert build_result.ai_system_map.query_trace_events == []
+    assert build_result.ai_system_map.endpoints[0].endpoint_id == (
+        "endpoint:chat"
+    )
 
 
 def test_trace_route_masks_success_response(tmp_path: Path) -> None:
@@ -208,17 +212,19 @@ def create_trace_test_client(
             pyproject_text,
             encoding="utf-8",
         )
-    system_map = base_map()
-    system_map.endpoints = [
-        Endpoint(
-            id="endpoint:chat",
-            value="http://rag.local/chat",
-            endpoint_type="local",
-            method="POST",
-            slot="retriever",
-            evidence_id="evidence:l1-router",
-        )
-    ]
+    system_map = base_map().model_copy(
+        update={
+            "endpoints": [
+                CanonicalEndpoint(
+                    endpoint_id="endpoint:chat",
+                    value="http://rag.local/chat",
+                    endpoint_type="local",
+                    method="POST",
+                    evidence_ids=["evidence:l1-router"],
+                )
+            ]
+        }
+    )
     store = InMemorySessionStore()
     project = store.import_project(
         project_path=project_root,

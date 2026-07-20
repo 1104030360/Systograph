@@ -55,7 +55,6 @@ def components_with_slots(
         )
     return ComponentDetectionResult(
         components_by_slot=components_by_slot,
-        extensions=[],
         unmapped_components=[],
     )
 

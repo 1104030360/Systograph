@@ -135,7 +135,12 @@ class StaticExecutionArtifactService:
                 generated_from_build_id=build_id,
                 rows=rows,
             ),
-            execution_map_mermaid=self._mermaid("Execution map", nodes, edges),
+            execution_map_mermaid=self._mermaid(
+                "Execution map",
+                nodes,
+                edges,
+                system_map=system_map,
+            ),
         )
 
     # 做什麼：依 unmapped evidence + manual mapping decisions 算 review_state。
@@ -173,8 +178,18 @@ class StaticExecutionArtifactService:
         title: str,
         nodes: tuple[ArtifactNode, ...],
         edges: tuple[ArtifactEdge, ...],
+        *,
+        system_map: AiSystemMapV2,
     ) -> str:
-        lines = [f"---\ntitle: {title}\n---", "flowchart LR"]
+        lines = [
+            f"---\ntitle: {title}\n---",
+            "%% "
+            f"build={system_map.build_id or 'unscoped'} "
+            f"scan={system_map.scan_id or 'unscoped'} "
+            f"environment={system_map.environment_id} "
+            f"artifact_set={system_map.artifact_set_version}",
+            "flowchart LR",
+        ]
         for node in nodes:
             node_id = StaticExecutionArtifactService._id(node.node_id)
             lines.append(f'  {node_id}["{node.kind}"]')

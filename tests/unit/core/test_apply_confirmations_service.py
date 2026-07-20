@@ -315,7 +315,15 @@ def test_concurrent_identical_apply_publishes_one_child(
 
     assert len(set(build_ids)) == 1
     assert state.get_latest_build_id("project:demo") == build_ids[0]
-    assert len(state.list_build_manifests("project:demo")) == 2
+    manifests = state.list_build_manifests("project:demo")
+    assert len(manifests) == 3
+    assert (
+        sum(
+            item.lineage.build_reason == "apply_confirmations"
+            for item in manifests
+        )
+        == 2
+    )
 
 
 def test_apply_build_failure_preserves_latest_and_discards_output(

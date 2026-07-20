@@ -4,6 +4,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from kai_mind.core.models.artifact_scope import (
+    PHASE2_P0_ARTIFACT_SET_VERSION,
+    ArtifactSetVersion,
+)
+
 
 class ExecutionArtifactModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -26,6 +31,7 @@ class ScopedExecutionArtifact(ExecutionArtifactModel):
     build_id: str
     scan_id: str
     environment_id: str
+    artifact_set_version: ArtifactSetVersion = PHASE2_P0_ARTIFACT_SET_VERSION
     generated_from_build_id: str
 
 

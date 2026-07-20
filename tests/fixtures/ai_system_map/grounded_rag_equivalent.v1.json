@@ -1,0 +1,218 @@
+{
+  "schema_version": "ai-system-map/v1",
+  "system_type": "rag",
+  "classification": {
+    "mode": "user_selected_or_default",
+    "selected_template": "rag-core-v1"
+  },
+  "project": {
+    "name": "grounded-rag",
+    "root_path": "<project_root>",
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted",
+    "system_map_schema_version": "ai-system-map/v1"
+  },
+  "reference_architecture": {
+    "id": "rag-core-v1",
+    "version": "1.0.0",
+    "slots": [
+      "data_sources",
+      "document_loader",
+      "chunking",
+      "embedding_model",
+      "vector_store",
+      "app_api_or_orchestrator",
+      "query_processing",
+      "retriever",
+      "prompt_builder",
+      "llm",
+      "citation_or_response_composer",
+      "guardrails",
+      "observability"
+    ],
+    "flows": ["query_answer"]
+  },
+  "scan_depth": "system",
+  "components_by_slot": {
+    "data_sources": {
+      "slot": "data_sources",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "document_loader": {
+      "slot": "document_loader",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "chunking": {
+      "slot": "chunking",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "embedding_model": {
+      "slot": "embedding_model",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "vector_store": {
+      "slot": "vector_store",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "app_api_or_orchestrator": {
+      "slot": "app_api_or_orchestrator",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:api:chat",
+          "slot": "app_api_or_orchestrator",
+          "kind": "api_input",
+          "name": "Chat API",
+          "evidence_ids": ["evidence:api-route"]
+        }
+      ]
+    },
+    "query_processing": {
+      "slot": "query_processing",
+      "required_for_rag": false,
+      "status": "not_configured",
+      "instances": []
+    },
+    "retriever": {
+      "slot": "retriever",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:retriever:qdrant",
+          "slot": "retriever",
+          "kind": "retriever",
+          "name": "Qdrant Retriever",
+          "evidence_ids": ["evidence:retriever"]
+        }
+      ]
+    },
+    "prompt_builder": {
+      "slot": "prompt_builder",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "llm": {
+      "slot": "llm",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:llm:openai",
+          "slot": "llm",
+          "kind": "llm",
+          "name": "OpenAI Chat",
+          "evidence_ids": ["evidence:llm"]
+        }
+      ]
+    },
+    "citation_or_response_composer": {
+      "slot": "citation_or_response_composer",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "guardrails": {
+      "slot": "guardrails",
+      "required_for_rag": false,
+      "status": "not_configured",
+      "instances": []
+    },
+    "observability": {
+      "slot": "observability",
+      "required_for_rag": false,
+      "status": "not_configured",
+      "instances": []
+    }
+  },
+  "evidence": [
+    {
+      "id": "evidence:api-route",
+      "kind": "source_code",
+      "file": "src/api/chat.py",
+      "line_start": 12,
+      "line_end": 12,
+      "path": "app.post('/chat')",
+      "value": "FastAPI route detected.",
+      "rule_id": "py.fastapi.route"
+    },
+    {
+      "id": "evidence:retriever",
+      "kind": "source_code",
+      "file": "src/rag/pipeline.py",
+      "line_start": 40,
+      "line_end": 42,
+      "path": "retrieve",
+      "value": "Retriever call detected.",
+      "rule_id": "py.vectorstore.retriever"
+    },
+    {
+      "id": "evidence:llm",
+      "kind": "source_code",
+      "file": "src/rag/pipeline.py",
+      "line_start": 70,
+      "line_end": 72,
+      "path": "invoke",
+      "value": "LLM invoke detected.",
+      "rule_id": "py.llm.invoke"
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "endpoint:chat",
+      "value": "/chat",
+      "endpoint_type": "local",
+      "method": "POST",
+      "slot": "app_api_or_orchestrator",
+      "component_instance_id": "component:api:chat",
+      "evidence_id": "evidence:api-route"
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow:query_answer",
+      "name": "Query Answer Flow",
+      "flow_type": "query_answer",
+      "edges": [
+        {
+          "id": "edge:api-to-retriever",
+          "flow_id": "flow:query_answer",
+          "from_slot": "app_api_or_orchestrator",
+          "to_slot": "retriever",
+          "from_component_id": "component:api:chat",
+          "to_component_id": "component:retriever:qdrant",
+          "relationship": "data_flow",
+          "evidence_ids": ["evidence:retriever"]
+        },
+        {
+          "id": "edge:retriever-to-llm",
+          "flow_id": "flow:query_answer",
+          "from_slot": "retriever",
+          "to_slot": "llm",
+          "from_component_id": "component:retriever:qdrant",
+          "to_component_id": "component:llm:openai",
+          "relationship": "context_flow",
+          "evidence_ids": ["evidence:llm"]
+        }
+      ]
+    }
+  ],
+  "extensions": [],
+  "unmapped_components": [],
+  "detail_scans": [],
+  "risk_hints": [],
+  "recommended_next_checks": [],
+  "query_trace_events": []
+}

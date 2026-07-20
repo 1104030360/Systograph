@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+
+from kai_mind.core.models.analysis_history import ScanSnapshot
+from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
+from kai_mind.core.models.scan import OutputRun, ProjectScanResult
+from kai_mind.core.services.canonical_map_loader import (
+    CanonicalMapLoader,
+    CanonicalMapLoadError,
+)
+from kai_mind.core.services.canonical_output_configuration import (
+    CanonicalOutputConfigurationError,
+)
+from kai_mind.core.services.legacy_v1_rollback_service import (
+    LegacyV1RollbackError,
+)
+from kai_mind.core.services.map_build_service import MapBuildService
+from kai_mind.web.app import create_app
+
+
+def _build(
+    tmp_path: Path,
+    *,
+    service: MapBuildService | None = None,
+    request: MapBuildRequest | None = None,
+) -> MapBuildResult:
+    snapshot = ScanSnapshot(
+        project_id="project:v2-cutover",
+        scan_id="scan:v2-cutover",
+        generated_at=datetime(2026, 7, 17, tzinfo=UTC),
+        inventory_digest="sha256:v2-cutover",
+        scan_result=ProjectScanResult(),
+    )
+    return (service or MapBuildService()).build_from_snapshot(
+        snapshot,
+        request=request or MapBuildRequest(project_path=tmp_path / "project"),
+        output_run=OutputRun(root_dir=tmp_path / "build"),
+        build_reason="initial_scan",
+        build_id="build:v2-cutover",
+    )
+
+
+def test_normal_build_defaults_to_one_native_v2_canonical_map(
+    tmp_path: Path,
+) -> None:
+    # Given
+    request = MapBuildRequest(project_path=tmp_path)
+
+    # When
+    result = _build(tmp_path)
+
+    # Then
+    assert request.system_map_schema_version == "ai-system-map/v2"
+    assert "normalized_ai_system_map" not in MapBuildResult.model_fields
+    assert result.ai_system_map is not None
+    assert result.ai_system_map.schema_version == "ai-system-map/v2"
+    assert result.ai_system_map.system_type == "ai_system"
+    assert result.ai_system_map.source_schema_version == "ai-system-map/v2"
+    assert result.active_schema_version == "ai-system-map/v2"
+    assert result.source_schema_version == "ai-system-map/v2"
+    assert result.operator_rollback_active is False
+
+
+def test_normal_v2_artifact_has_no_legacy_or_rag_only_shape(
+    tmp_path: Path,
+) -> None:
+    # Given
+    result = _build(tmp_path)
+    assert result.map_json_path is not None
+
+    # When
+    payload = json.loads(result.map_json_path.read_text(encoding="utf-8"))
+
+    # Then
+    assert payload["schema_version"] == "ai-system-map/v2"
+    assert payload["system_type"] == "ai_system"
+    assert payload["source_schema_version"] == "ai-system-map/v2"
+    assert (
+        not {
+            "components_by_slot",
+            "extensions",
+            "reference_architecture",
+            "classification",
+        }
+        & payload.keys()
+    )
+    assert all(
+        component.get("canonical_type") != "slot_placeholder"
+        for component in payload["components"]
+    )
+
+
+def test_unknown_schema_version_uses_stable_cutover_error_code() -> None:
+    with pytest.raises(
+        CanonicalMapLoadError,
+        match="unsupported_system_map_schema_version",
+    ):
+        CanonicalMapLoader().load({"schema_version": "ai-system-map/v999"})
+
+
+def test_operator_v1_rollback_writes_one_v1_artifact_but_returns_v2(
+    tmp_path: Path,
+) -> None:
+    # Given
+    service = MapBuildService(canonical_output_version="ai-system-map/v1")
+
+    # When
+    result = _build(tmp_path, service=service)
+    assert result.map_json_path is not None
+    artifact = json.loads(result.map_json_path.read_text(encoding="utf-8"))
+
+    # Then
+    assert artifact["schema_version"] == "ai-system-map/v1"
+    assert result.ai_system_map is not None
+    assert result.ai_system_map.schema_version == "ai-system-map/v2"
+    assert result.ai_system_map.source_schema_version == "ai-system-map/v1"
+    assert result.active_schema_version == "ai-system-map/v1"
+    assert result.source_schema_version == "ai-system-map/v1"
+    assert result.operator_rollback_active is True
+    assert "operator_rollback_active" in result.migration_warnings
+    json_names = [
+        path.name for path in result.map_json_path.parent.glob("*.json")
+    ]
+    assert json_names.count("ai_system_map.json") == 1
+
+
+def test_public_v1_selection_fails_before_writing_artifacts(
+    tmp_path: Path,
+) -> None:
+    # Given
+    request = MapBuildRequest(
+        project_path=tmp_path / "project",
+        system_map_schema_version="ai-system-map/v1",
+    )
+
+    # When
+    raised = pytest.raises(
+        CanonicalOutputConfigurationError,
+        match="legacy_output_not_selectable",
+    )
+
+    # Then
+    with raised:
+        _build(tmp_path, request=request)
+    assert not (tmp_path / "build").exists()
+
+
+def test_invalid_operator_version_prevents_app_startup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "KAI_MIND_CANONICAL_OUTPUT_VERSION",
+        "ai-system-map/v999",
+    )
+
+    with pytest.raises(
+        CanonicalOutputConfigurationError,
+        match="invalid_canonical_output_version",
+    ):
+        create_app()
+
+
+def test_operator_rollback_rejects_native_v2_enrichment_without_output(
+    tmp_path: Path,
+) -> None:
+    normal = _build(tmp_path)
+    assert normal.ai_system_map is not None
+    snapshot = ScanSnapshot(
+        project_id="project:rollback-preflight",
+        scan_id="scan:rollback-preflight",
+        generated_at=datetime(2026, 7, 17, tzinfo=UTC),
+        inventory_digest="sha256:rollback-preflight",
+        scan_result=ProjectScanResult(),
+    )
+    output_dir = tmp_path / "rollback-build"
+
+    with pytest.raises(
+        LegacyV1RollbackError,
+        match="legacy_rollback_not_representable",
+    ):
+        MapBuildService(
+            canonical_output_version="ai-system-map/v1"
+        ).build_from_enriched_map(
+            snapshot,
+            system_map=normal.ai_system_map,
+            capability_candidates=(),
+            request=MapBuildRequest(project_path=tmp_path),
+            output_run=OutputRun(root_dir=output_dir),
+            based_on_build_id="build:parent",
+        )
+
+    assert not output_dir.exists()

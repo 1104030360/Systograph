@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.analysis_history import ScanSnapshot
+from kai_mind.core.models.analysis_history import (
+    MapBuildLineage,
+    MapBuildManifest,
+    ScanSnapshot,
+)
 from kai_mind.core.models.map_build import (
     MapBuildRequest,
     MapBuildResult,
@@ -23,11 +27,16 @@ from kai_mind.core.services.build_manifest_service import (
 )
 from kai_mind.core.services.map_build_service import MapBuildService
 
+V2_FIXTURE = Path("tests/fixtures/ai_system_map/v2/grounded_rag.v2.json")
+V1_FIXTURE = Path(
+    "tests/fixtures/ai_system_map/valid_rich_frontend_sample.v1.json"
+)
+
 
 def built_result(
     tmp_path: Path,
     *,
-    schema_version: SystemMapSchemaSelection = "ai-system-map/v1",
+    schema_version: SystemMapSchemaSelection = "ai-system-map/v2",
 ) -> MapBuildResult:
     snapshot = ScanSnapshot(
         project_id="project:demo",
@@ -77,6 +86,14 @@ def test_persisted_manifest_reloads_build_from_artifact_refs(
         "system_map.mmd",
         "execution_map.mmd",
     }
+    assert manifest.artifact_set_version == "phase2-p0/v1"
+    assert manifest.environment_id == "environment:default-static"
+    assert set(manifest.artifacts) == set(manifest.artifact_digests)
+    assert all(item.size_bytes > 0 for item in manifest.artifacts.values())
+    assert all(
+        item.schema_status == "validated"
+        for item in manifest.artifacts.values()
+    )
 
 
 def test_manifest_reload_preserves_schema_selection_metadata(
@@ -90,7 +107,101 @@ def test_manifest_reload_preserves_schema_selection_metadata(
 
     assert loaded.active_schema_version == result.active_schema_version
     assert loaded.requested_schema_version == result.requested_schema_version
+    assert loaded.source_schema_version == result.source_schema_version
+    assert loaded.operator_rollback_active == result.operator_rollback_active
     assert loaded.migration_warnings == result.migration_warnings
+
+
+def test_native_v2_manifest_reloads_into_normalized_viewer(
+    tmp_path: Path,
+) -> None:
+    # Given
+    output_dir = tmp_path / "build"
+    output_dir.mkdir()
+    map_path = output_dir / "ai_system_map.json"
+    map_path.write_bytes(V2_FIXTURE.read_bytes())
+    manifest = MapBuildManifest(
+        lineage=MapBuildLineage(
+            project_id="project:native-v2",
+            scan_id="scan:native-v2",
+            build_id="build:native-v2",
+            build_reason="initial_scan",
+            generated_at=datetime(2026, 7, 17, tzinfo=UTC),
+        ),
+        output_dir=str(output_dir),
+        artifact_digests={"ai_system_map.json": digest(map_path)},
+        active_schema_version="ai-system-map/v2",
+        requested_schema_version="ai-system-map/v2",
+    )
+    service = BuildManifestService(
+        repository=LocalJsonStateProvider(tmp_path / "state")
+    )
+
+    # When
+    loaded = service.load(manifest)
+
+    # Then
+    assert loaded.ai_system_map is not None
+    assert loaded.ai_system_map.schema_version == "ai-system-map/v2"
+    assert loaded.viewer_load_result is not None
+    assert loaded.viewer_load_result.loaded is True
+    assert (
+        loaded.viewer_load_result.graph_view_model.source_schema_version
+        == "ai-system-map/v2"
+    )
+    assert (
+        loaded.viewer_load_result.ai_system_map["schema_version"]
+        == "ai-system-map/v2"
+    )
+    assert (
+        loaded.viewer_load_result.ai_system_map["scan_id"]
+        == manifest.lineage.scan_id
+    )
+    assert (
+        loaded.viewer_load_result.ai_system_map["build_id"]
+        == manifest.lineage.build_id
+    )
+
+
+@pytest.mark.parametrize(
+    ("artifact_fixture", "manifest_schema"),
+    [
+        (V1_FIXTURE, "ai-system-map/v2"),
+        (V2_FIXTURE, "ai-system-map/v1"),
+    ],
+    ids=["v1-artifact-v2-badge", "v2-artifact-v1-badge"],
+)
+def test_manifest_reload_rejects_schema_badge_artifact_mismatch(
+    tmp_path: Path,
+    artifact_fixture: Path,
+    manifest_schema: SystemMapSchemaSelection,
+) -> None:
+    output_dir = tmp_path / "build"
+    output_dir.mkdir()
+    map_path = output_dir / "ai_system_map.json"
+    map_path.write_bytes(artifact_fixture.read_bytes())
+    manifest = MapBuildManifest(
+        lineage=MapBuildLineage(
+            project_id="project:schema-mismatch",
+            scan_id="scan:schema-mismatch",
+            build_id="build:schema-mismatch",
+            build_reason="initial_scan",
+            generated_at=datetime(2026, 7, 17, tzinfo=UTC),
+        ),
+        output_dir=str(output_dir),
+        artifact_digests={"ai_system_map.json": digest(map_path)},
+        active_schema_version=manifest_schema,
+        requested_schema_version=manifest_schema,
+    )
+    service = BuildManifestService(
+        repository=LocalJsonStateProvider(tmp_path / "state")
+    )
+
+    with pytest.raises(
+        BuildArtifactLoadError,
+        match="manifest schema version does not match artifact",
+    ):
+        service.load(manifest)
 
 
 def test_missing_profile_sidecar_degrades_without_hiding_base_graph(
@@ -197,6 +308,38 @@ def test_semantically_invalid_canonical_map_fails_with_valid_digest(
     )
 
     # When / Then
+    with pytest.raises(
+        BuildArtifactLoadError,
+        match="canonical map is invalid",
+    ):
+        service.load(manifest)
+
+
+@pytest.mark.parametrize(
+    "invalid_json",
+    ["[]", "null", '"not-a-map"', "42"],
+    ids=["array", "null", "string", "number"],
+)
+def test_manifest_reload_wraps_non_object_canonical_map_root(
+    tmp_path: Path,
+    invalid_json: str,
+) -> None:
+    service = BuildManifestService(
+        repository=LocalJsonStateProvider(tmp_path / "state")
+    )
+    result = built_result(tmp_path)
+    manifest = service.persist(result)
+    assert result.map_json_path is not None
+    result.map_json_path.write_text(invalid_json, encoding="utf-8")
+    manifest = manifest.model_copy(
+        update={
+            "artifact_digests": {
+                **manifest.artifact_digests,
+                "ai_system_map.json": digest(result.map_json_path),
+            }
+        }
+    )
+
     with pytest.raises(
         BuildArtifactLoadError,
         match="canonical map is invalid",
