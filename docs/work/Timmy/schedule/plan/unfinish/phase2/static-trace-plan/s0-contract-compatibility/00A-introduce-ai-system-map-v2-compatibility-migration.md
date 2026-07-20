@@ -233,26 +233,31 @@ Expected：現行 v1 tests 全部通過，作為 adapter regression baseline。
   提供 normalized v2 view。
 - [x] Map build 新增 explicit opt-in contract selection；compatibility 階段預設仍為
   v1，禁止 silent cutover。
-- [ ] Viewer、profile inference、readiness renderer 逐步改讀 normalized view，不在
+- [x] Viewer、profile inference、readiness renderer 逐步改讀 normalized view，不在
   routes 各自判斷 schema version。
-  （00A 僅提供 loader / normalized map；Viewer / profile / readiness 仍直接吃 v1，
-  見 2026-07-10 REP 剩餘風險。不可當 Gate-0 已通過證據。）
+  （2026-07-17 Stage A：Viewer projection 統一投影 loader 產出的 normalized v2；
+  manifest 先經唯一 loader，native v1/v2 reload 均通過。legacy source payload 僅保留
+  response compatibility，不在 Viewer 重建或 dispatch schema。非 object JSON root 與
+  manifest badge/artifact schema mismatch 均以 typed error fail closed。）
 - [x] CLI/API 回傳實際 active schema version 與 migration warnings。
 
 ## Task 5：Compatibility Gate
 
 - [x] v1 fixture 經 adapter 後，所有 evidence ids 與 project-relative locations
   可解析。
-- [ ] v1/v2 對同一 grounded fixture 的 generic components、edges、evidence 與
+- [x] v1/v2 對同一 grounded fixture 的 generic components、edges、evidence 與
   readiness findings 可回溯且語意等價。
-  （components/edges/evidence 等價已覆蓋；readiness findings equivalence 仍 deferred，
-  不在 00A 完成範圍。）
+  （2026-07-17 Stage A：獨立保存的 grounded v1/native-v2 fixtures 會比較 project
+  semantics、components、edges、evidence、endpoints、risk hints、unmapped components、
+  candidate facts，以及 readiness finding id、status、evidence refs；native v2 不在測試內
+  由 adapter 產生。）
 - [x] v2 的非 grounded fixtures 不被強迫填入 RAG slots。
 - [x] v1 viewer/API clients 仍可使用既有 payload。
 - [x] Windows/macOS path fixtures 都通過。
 - [x] 完整 backend contract/unit/web tests、Ruff、Mypy 通過。
   （2026-07-10 初版 REP 宣稱通過，但 review 發現 E501 / Literal.__args__ 未過；
-  已由 2026-07-10-00a-review-p1-fixes 補齊並重新驗證。）
+  已由 2026-07-10-00a-review-p1-fixes 補齊；2026-07-17 Stage A final audit repair 後
+  重新驗證 `987 passed`、Ruff、Mypy。）
 - [x] 產生 compatibility report，列出已等價、需降級、尚未遷移的 consumers。
 
 ## Acceptance Criteria
