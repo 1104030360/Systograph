@@ -27,7 +27,10 @@ from kai_mind.web.schemas import (
     MapBuildHistorySummary,
     MapBuildScopedResponse,
 )
-from kai_mind.web.session_store import SessionStore
+from kai_mind.web.session_store import (
+    SessionStore,
+    save_committed_build_projection,
+)
 
 router = APIRouter(tags=["map-builds"])
 
@@ -64,10 +67,12 @@ def apply_confirmations(
             status_code=503,
             detail="project_state_busy",
         ) from exc
-    store.save_build_result(
+    build_result = save_committed_build_projection(
+        store,
         result.build_result,
         project_id=result.project_id,
     )
+    result = result.model_copy(update={"build_result": build_result})
     return ApplyConfirmationsResponse.from_domain(result)
 
 

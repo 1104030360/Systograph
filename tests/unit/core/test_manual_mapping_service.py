@@ -104,27 +104,24 @@ def test_unmasked_secret_like_payload_is_rejected() -> None:
         )
 
 
-def test_extension_edge_with_unknown_endpoint_is_rejected() -> None:
-    with pytest.raises(ValueError, match="unknown endpoint"):
-        service().create_mapping(
-            ManualMappingCreate(
-                project_id="project:demo",
-                mapping_type=ManualMappingType.NEW_EXTENSION,
-                decision=ManualMappingDecision.CONFIRMED,
-                source_file="src/router.py",
-                evidence_ids=["evidence:router"],
-                extension_id="extension:query_router",
-                extension_name="Query Router",
-                extension_kind="routing_orchestration",
-                extension_edges=[
-                    {
-                        "from": "app_api_or_orchestrator",
-                        "to": "missing_extension",
-                        "relationship": "routes_query",
-                    }
-                ],
-            )
+def test_confirmed_non_baseline_candidate_is_persisted_without_edges() -> None:
+    mapping = service().create_mapping(
+        ManualMappingCreate(
+            project_id="project:demo",
+            mapping_type=(ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE),
+            decision=ManualMappingDecision.CONFIRMED,
+            source_file="src/router.py",
+            evidence_ids=["evidence:router"],
+            capability_candidate_id="capability-candidate:query-router",
+            capability_candidate_name="Query Router",
+            capability_candidate_kind="routing_orchestration",
         )
+    )
+
+    assert mapping.capability_candidate_id == (
+        "capability-candidate:query-router"
+    )
+    assert "extension_edges" not in mapping.model_dump(mode="json")
 
 
 def test_list_for_project_does_not_leak_other_projects() -> None:

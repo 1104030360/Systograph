@@ -19,7 +19,6 @@ from kai_mind.core.models.system_map import (
     DetailScanResult,
     Endpoint,
     Evidence,
-    ExtensionComponent,
     Flow,
     Project,
     QueryTraceEvent,
@@ -332,7 +331,7 @@ class SystemMapNormalizeService:
             evidence=self._sort_evidence(raw_scan.evidence),
             endpoints=sorted(endpoints, key=lambda item: item.id),
             flows=sorted(flows, key=lambda item: item.id),
-            extensions=self._sort_extensions(components.extensions),
+            extensions=[],
             unmapped_components=self._sort_unmapped(
                 components.unmapped_components
             ),
@@ -420,12 +419,6 @@ class SystemMapNormalizeService:
 
     def _sort_evidence(self, evidence: Sequence[Evidence]) -> list[Evidence]:
         return sorted(evidence, key=lambda item: item.id)
-
-    def _sort_extensions(
-        self,
-        extensions: Sequence[ExtensionComponent],
-    ) -> list[ExtensionComponent]:
-        return sorted(extensions, key=lambda item: item.id)
 
     def _sort_unmapped(
         self,

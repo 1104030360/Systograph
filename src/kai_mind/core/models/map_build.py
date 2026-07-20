@@ -7,7 +7,7 @@
 #     → MapBuildService.build() / build_from_snapshot() /
 # build_from_enriched_map()
 #     → MapBuildPipeline.materialize*()
-#     → 回傳 MapBuildResult（含路徑、v1/v2 map、profile、readiness、viewer…）
+#     → 回傳 MapBuildResult（路徑、canonical v2、profile、readiness、viewer）
 """Models for core map build orchestration."""
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from kai_mind.core.models.analysis_history import MapBuildLineage
 from kai_mind.core.models.errors import PreconditionError
 from kai_mind.core.models.profile_signal import ProfileInferenceResult
 from kai_mind.core.models.readiness_report import ReadinessReport
-from kai_mind.core.models.system_map import RagSystemMap
+from kai_mind.core.models.system_map import DetailScanResult
 from kai_mind.core.models.viewer import ViewerLoadResult
 
 SystemMapSchemaSelection = Literal["ai-system-map/v1", "ai-system-map/v2"]
@@ -44,13 +44,14 @@ class MapBuildModel(BaseModel):
 #   - CLI：map_command 轉成這個 request
 #   - Web：scan_routes / apply_confirmations / materialization 組 request
 #   - MapBuildService.build*() 當入口參數
-# 內含：無巢狀 map；schema 選擇決定輸出偏 v1 或走 v2 相容路徑。
+# 內含：無巢狀 map；public v1 value 只保留到 Plan 15 作穩定拒絕，實際
+# output version 由 process-level operator setting 決定。
 class MapBuildRequest(MapBuildModel):
     project_path: Path
     output: Path = Path("outputs")
     redact_root_path: bool = True
     no_snippets: bool = False
-    system_map_schema_version: SystemMapSchemaSelection = "ai-system-map/v1"
+    system_map_schema_version: SystemMapSchemaSelection = "ai-system-map/v2"
 
 
 # 做什麼：一次 map build 的完整結果（成功/失敗、產物路徑、記憶體內 map 與報告）
@@ -60,11 +61,10 @@ class MapBuildRequest(MapBuildModel):
 #   - ApplyConfirmations / BuildManifest / DetailScanBuild 讀取結果與路徑
 #   - CLI / Web 把結果呈現或寫入 history
 # 內含：
-#   - ai_system_map → RagSystemMap（v1）
-#   - normalized_ai_system_map → AiSystemMapV2（canonical）
+#   - ai_system_map → 唯一 normalized AiSystemMapV2 canonical truth
 #   - profile_inference_result / readiness_report / viewer_load_result /
 # lineage
-#   - 各種 *_path → 磁碟上的 artifact
+#   - 各種 *_path → 磁碟上的 10 個 sibling artifacts
 #   - error → PreconditionError（失敗時）
 # 自己呼叫：無方法；純資料承載。
 class MapBuildResult(MapBuildModel):
@@ -83,13 +83,15 @@ class MapBuildResult(MapBuildModel):
     system_map_mermaid_path: Path | None = None
     execution_map_mermaid_path: Path | None = None
     viewer_load_result: ViewerLoadResult | None = None
-    ai_system_map: RagSystemMap | None = None
-    normalized_ai_system_map: AiSystemMapV2 | None = None
+    ai_system_map: AiSystemMapV2 | None = None
     profile_inference_result: ProfileInferenceResult | None = None
     readiness_report: ReadinessReport | None = None
+    detail_scan_results: list[DetailScanResult] = Field(default_factory=list)
     lineage: MapBuildLineage | None = None
-    active_schema_version: SystemMapSchemaSelection = "ai-system-map/v1"
-    requested_schema_version: SystemMapSchemaSelection = "ai-system-map/v1"
+    active_schema_version: SystemMapSchemaSelection = "ai-system-map/v2"
+    requested_schema_version: SystemMapSchemaSelection = "ai-system-map/v2"
+    source_schema_version: SystemMapSchemaSelection = "ai-system-map/v2"
+    operator_rollback_active: bool = False
     migration_warnings: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     error: PreconditionError | None = None

@@ -1,7 +1,9 @@
 # ai-system-map/v2 Active Cutover 實作計畫
 
-Status: **blocked**（2026-07-15 live truth-check：00A normalized consumer migration 與
-readiness semantic-equivalence 仍未完成；不得執行 active default flip）
+Status: **backend-complete / frontend-handoff-required**（2026-07-17：normal backend output
+已切為 `ai-system-map/v2`，public v1 selection、operator rollback 與 10-artifact atomic
+visibility 已通過；依使用者 ownership boundary，所有 frontend 修改已還原，5 筆 active
+frontend legacy hits 留待前端負責人遷移）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` or `superpowers:executing-plans` to
@@ -12,7 +14,7 @@ readiness semantic-equivalence 仍未完成；不得執行 active default flip�
 migration adapter，以及到 Plan 15 才移除的 operator-only v1 rollback writer。
 
 **Architecture:** 本計畫是 expand-and-contract 的 **cutover 階段**，不是 final removal。
-所有正常 producer 與 active consumer 都改用 00A 的 `AiSystemMapV2`、
+所有正常 backend producer 與 active backend consumer 都改用 00A 的 `AiSystemMapV2`、
 `CanonicalMapLoader` 與 normalized view；v1 只保留為 legacy input 與隔離的 operator
 rollback output。Plan 15 才是移除 rollback writer 與 migration-only surface 的 contract 階段。
 
@@ -64,19 +66,58 @@ active default cutover 與 legacy write-path isolation；physical removal 留給
 
 任一條不成立，都必須回到 00A 修正，不得在 13 直接繞過。
 
-### 2026-07-15 verified blocker evidence
+### 2026-07-17 Stage A gate evidence
 
-- `00A-introduce-ai-system-map-v2-compatibility-migration.md` Task 4 的 Viewer/profile/
-  readiness normalized consumer migration 仍為 `[ ]`。
-- 同一計畫 Task 5 的 readiness findings semantic-equivalence 仍為 `[ ]`。
-- `docs/work/Timmy/schedule/report/2026-07-10-00a-review-p1-fixes-REP.md` 仍把上述兩點列為
-  remaining risks。
-- Live code 的 normal map build 仍回傳 `active_schema_version="ai-system-map/v1"`；
-  `BuildManifestService.load()` 仍在 `CanonicalMapLoader` 前直接呼叫 v1-only
-  `SystemMapValidationService`。
+- Profile inference 與 readiness 維持消費 normalized `AiSystemMapV2`；Viewer 由
+  `build_loaded()` 統一投影 loader 產出的 normalized map。legacy v1 source payload 可留在
+  compatibility response，但 Viewer 不再自行看 badge 或重建 `RagSystemMap`。
+- `BuildManifestService.load()` 先呼叫 `CanonicalMapLoader`；native v1/v2 runtime reload
+  均回傳 usable `MapBuildResult` 與 Viewer，native v2 不經 v2-to-v1 downgrade。
+- 獨立保存的 grounded v1/native-v2 fixtures 已比較 project semantics、components、edges、
+  evidence、endpoints、risk hints、unmapped components、candidate facts，以及 readiness
+  finding id/status/evidence refs；測試不在 runtime 由 adapter 產生 native v2 fixture。
+- `tests/contracts/test_v2_cutover_consumer_allowlist.py` 固定 51 筆 direct hits：35
+  `migrate`、15 `migration_only`、1 `remove`；Python production AST、frontend runtime
+  `.ts/.tsx/.json` 與 operational `scripts/*.sh` 都在 executable scope，每筆都有
+  path/symbol/classification/removal plan，未知、新增與 stale hit 皆 fail closed。
+  Census SHA-256：
+  `34d9f531636bef94e67db32664063af014500eb8af832586cc46ce380f457e6f`。
+- `CanonicalMapLoader` 對 array/null/string/number JSON roots 回 typed error；manifest active
+  badge 與 artifact schema 不一致時，v1→v2、v2→v1 兩方向都 fail closed。
+- Viewer v1 compatibility helpers 已移到 no-I/O module；recommended-next-check
+  characterization 鎖定完整欄位與順序，`ViewerSessionService` 為 243 physical / 218 AST
+  statement-span LOC。
+- Live normal build 仍回傳 `active_schema_version="ai-system-map/v1"`，且
+  `MapBuildResult` 仍保留 v1 `ai_system_map` 與 v2 `normalized_ai_system_map`。這是 Task 1B/2
+  的待遷移 contract，不是 Stage A 已退休項目。
+- 2026-07-17 final audit repair 後 backend `987 passed`、Ruff 與 Mypy 通過；native v1/v2
+  reload、non-object root 與雙向 badge mismatch runtime probes 通過。
 
-這些是目前 blocked 證據，不是永久事實。每次準備執行 Plan 13 前必須重新跑 census、
-tests 與 runtime reload probe；只有 code、test 與 gate report 同時通過才能改 Status。
+每次進入下一階段前仍須重跑 census、tests 與 runtime reload probe；`ready` 只表示可開始
+Task 1B/2，不表示 cutover 已完成。
+
+### 2026-07-17 backend completion / frontend handoff evidence
+
+- Normal CLI/API build 已直接產生唯一 normalized `AiSystemMapV2`；public v1 selection 回
+  `legacy_output_not_selectable`，非法 operator env 回
+  `invalid_canonical_output_version` 並阻止啟動。
+- Persisted mapping migration 已驗證 dry-run 零寫入、apply、restart idempotence、owner-only
+  backup、project lock、atomic replace、manual-review quarantine 與 secret redaction。
+- Initial scan、Apply 與 Detail Scan 共用 `BuildCommitService`；10 個 public sibling artifacts
+  通過 same-parent staging、rename、complete manifest、latest CAS 與逐 boundary fault injection。
+- Executable consumer census 為 `35 records / 35 hits`：`migrate=5`、
+  `migration_only=22`、`operator_rollback=8`。5 筆 `migrate` 全部位於原始 frontend，
+  SHA-256 為
+  `59fa4f066a0e37c9f73ce488e64da96cccab7c8a9e6a429b0c073a738544714b`。
+- Final backend gate 為 `1031 passed`，scoped Plan 13 gate 為 `977 passed`；Ruff、Mypy、
+  shell syntax與 live CLI/FastAPI restart 均通過。Frontend 已回復原始 tree，原始 Vitest為
+  `3 files / 7 tests passed`，build／lint exit 0；先前對暫時 frontend cutover 的
+  Playwright結果不再作 current completion evidence。Windows 本輪由跨平台
+  fixtures/contracts 覆蓋，未宣稱 Windows host live QA。
+- 完整實作、問題修復與 remaining warnings 記錄於
+  `docs/work/Timmy/schedule/report/2026-07-17-phase2-plan13-v2-cutover-REP.md`。
+- Frontend 要做的 4 個檔案、原因、實作順序與驗收清單記錄於
+  `docs/work/Meeting-Sync/meeting_sync_2026_07_15/frontend-ai-system-map-v2-cutover.md`。
 
 ### 相關檔案
 
@@ -250,99 +291,99 @@ canonical schema。
 
 ## Preconditions：審核 00A Compatibility Gate
 
-| Gate evidence | 2026-07-15 state | Exit condition |
+| Gate evidence | 2026-07-17 state | Exit condition |
 | --- | --- | --- |
-| Direct reader/writer census | partial；本計畫已補 baseline，但尚未有 executable allowlist | `test_v2_cutover_consumer_allowlist.py` 通過，所有 hit 有分類 |
+| Direct reader/writer census | passed；51 筆都有分類與 removal plan，涵蓋 production Python、frontend runtime JSON/TS 與 operational shell scripts | `test_v2_cutover_consumer_allowlist.py` 通過，所有 hit 有分類 |
 | v1 adapter evidence/location preservation | 00A 已覆蓋 | regression tests 維持通過 |
-| Viewer/profile/readiness normalized consumers | blocked；00A Task 4 仍 `[ ]` | normal consumer 不直接接 v1 model，reload probe 通過 |
-| Grounded readiness semantic equivalence | blocked；00A Task 5 仍 `[ ]` | v1-adapted 與 native-v2 fixture 的 finding ids/status/evidence refs 等價 |
+| Viewer/profile/readiness normalized consumers | passed for 00A；Viewer projection 與 manifest reload 先經唯一 loader，legacy active inputs留在 census 的 `migrate` 類 | native-v1/v2 reload probe 都通過，Viewer 不自行 schema dispatch/reconstruct |
+| Grounded canonical facts/readiness semantic equivalence | passed；獨立 paired fixtures regression 通過 | v1-adapted 與 native-v2 paired fixture 的 project/components/edges/evidence/endpoints 與 readiness facts 等價 |
 | Non-grounded/tool/workflow fixtures | 00A 已覆蓋 | schema + loader + consumer tests 維持通過 |
 | Windows/macOS path fixtures | 00A 已覆蓋 | CI matrix 維持通過 |
-| Backend tests、Ruff、Mypy | 需在當次 cutover 重跑 | 全部 exit 0，報告附 command/output summary |
-| Rollback configuration | 尚未實作 | operator env、invalid value、v1 rollback、切回 v2 都實測 |
+| Backend tests、Ruff、Mypy | final audit repair 後 987 passed；Ruff/Mypy exit 0 | mutation 後全部再 exit 0，報告附 command/output summary |
 
-- [ ] `00A-introduce-ai-system-map-v2-compatibility-migration.md` Task 4/5 對應 checkbox 已由
+- [x] `00A-introduce-ai-system-map-v2-compatibility-migration.md` Task 4/5 對應 checkbox 已由
   新測試證據改成 `[x]`。
-- [ ] `docs/work/Timmy/schedule/report/2026-07-10-00a-review-p1-fixes-REP.md` 已追加最新
+- [x] `docs/work/Timmy/schedule/report/2026-07-10-00a-review-p1-fixes-REP.md` 已追加最新
   verification，remaining risks 不再包含 normalized consumer/readiness equivalence。
-- [ ] 本計畫的 consumer census 與 live `rg`/AST facts 一致。
-- [ ] 保存切換前的 v1 default config、operator rollback command 與 rollback stop condition。
+- [x] 本計畫的 consumer census 與 live AST/text facts 一致。
+- [x] 已保存切換前 normal v1 default 證據；operator rollback command、invalid value 與
+  rollback stop condition 保留給 Tasks 2/7，不在 Stage A 假造未實作命令。
 
-只有上表全數通過，才可把本檔 Status 從 `blocked` 改成 `ready`。Blocked 期間只允許執行
-Task 1A 的 green characterization/census；不得先加入預期失敗的 v2 cutover assertion，也不得執行
-Task 2 之後的 mutation。Status=`ready` 後才執行 Task 1B 的 red test，接著立刻以 Task 2
-把它轉綠。
+上表 Stage A gate 已全數通過，因此本檔可由 `blocked` 改成 `ready`。Rollback configuration
+是 cutover implementation/acceptance，不是啟動 Task 1B 的先決條件；仍須先執行 Task 1B
+的 red test，再以 Task 2 轉綠，不得跳過測試直接切 default。
 
 ## Task 1：凍結 Cutover Gate 與 Executable Consumer Census
 
 ### Task 1A：Blocked 期間可完成的 green baseline
 
-- [ ] 先建立 `tests/contracts/test_v2_cutover_consumer_allowlist.py`；由 deterministic
+- [x] 先建立 `tests/contracts/test_v2_cutover_consumer_allowlist.py`；由 deterministic
   `rg`/AST search 列出所有 `RagSystemMap`、`ExtensionComponent`、
   `new_extension_component`、`ai-system-map/v1` 與直接 v1 validator hit。
-- [ ] allowlist 每筆必須包含 `path`、`symbol`、`classification` 與 `removal_plan`；只接受
+- [x] allowlist 每筆必須包含 `path`、`symbol`、`classification` 與 `removal_plan`；只接受
   `migrate`、`operator_rollback`、`migration_only`、`remove` 四種分類，未知或新增 hit
   直接使測試失敗。
-- [ ] characterization tests 先鎖定目前 v1 default、dual-read reload 與 direct consumer
+- [x] characterization tests 先鎖定目前 v1 default、dual-read reload 與 direct consumer
   baseline，並保持全套 quality gates green；報告保存 command、exit code 與 census digest。
 
 ### Task 1B：Status=`ready` 後的 red cutover contract
 
-- [ ] 先寫 failing tests，要求正常 build 的 `schema_version` 為 `ai-system-map/v2`，且
+- [x] 先寫 failing tests，要求正常 build 的 `schema_version` 為 `ai-system-map/v2`，且
   `MapBuildResult` 只暴露一個 normalized canonical map，不再同時保留 v1
   `ai_system_map` 與 v2 `normalized_ai_system_map` 兩份 truth。
-- [ ] 測試 v2 output 不含 `extensions`、RAG-only required slots 或
+- [x] 測試 v2 output 不含 `extensions`、RAG-only required slots 或
   `system_type="rag"` 限制。
-- [ ] 測試 v1 input 仍由 loader + adapter 轉成 normalized v2；未知 schema version
+- [x] 測試 v1 input 仍由 loader + adapter 轉成 normalized v2；未知 schema version
   fail closed 並回傳 stable `unsupported_system_map_schema_version`。
-- [ ] 只允許上述新 cutover assertions 因尚未 flip 而 red；先確認失敗訊息正是 v1 default／
+- [x] 只允許上述新 cutover assertions 因尚未 flip 而 red；先確認失敗訊息正是 v1 default／
   dual-result contract，再立即進 Task 2。不得以 `xfail`、skip 或放寬 assertion 隱藏紅燈。
 
 ## Task 2：切換 Canonical Producer Default，隔離 Rollback Writer
 
-- [ ] `MapBuildService`、`MapBuildPipeline` 與 `SystemMapNormalizeService` 正常模式直接建立、
+- [x] `MapBuildService`、`MapBuildPipeline` 與 `SystemMapNormalizeService` 正常模式直接建立、
   驗證並回傳 00A 的 `AiSystemMapV2`；`MapBuildResult.ai_system_map` 是唯一 normalized
   canonical field，移除 `normalized_ai_system_map` 雙真相。
-- [ ] 即使 operator rollback writer 輸出 v1 檔案，process 內的 `MapBuildResult` 與下游
+- [x] 即使 operator rollback writer 輸出 v1 檔案，process 內的 `MapBuildResult` 與下游
   consumer 仍只接 normalized v2；只有 manifest 的 `active_schema_version` 與實際
   `ai_system_map.json` schema 反映 rollback output。
-- [ ] 一般 CLI/API 的 `system_map_schema_version` 不再選擇 output。要求 v1 時回傳
+- [x] 一般 CLI/API 的 `system_map_schema_version` 不再選擇 output。要求 v1 時回傳
   `legacy_output_not_selectable`；新 manifest 不再把 `requested_schema_version` 當決策欄位，
   舊 manifest 讀取時只視為 compatibility provenance。
-- [ ] composition root 讀取 `KAI_MIND_CANONICAL_OUTPUT_VERSION`，只接受
+- [x] composition root 讀取 `KAI_MIND_CANONICAL_OUTPUT_VERSION`，只接受
   `ai-system-map/v2` 或 `ai-system-map/v1`；缺省為 v2，非法值以 stable
   `invalid_canonical_output_version` 阻止 process 啟動。
-- [ ] 將現有 v1 materialization 封裝成 `LegacyV1RollbackService` operator-only boundary；normal
+- [x] 將現有 v1 materialization 封裝成 `LegacyV1RollbackService` operator-only boundary；normal
   producer 不建立 `RagSystemMap` 或 `ExtensionComponent`，同一次 build 不得 dual-write。
-- [ ] operator rollback branch 呼叫隔離的 legacy v1 materializer，寫出 v1 後立即透過 loader/
+- [x] operator rollback branch 呼叫隔離的 legacy v1 materializer，寫出 v1 後立即透過 loader/
   adapter 得到 `MapBuildResult.ai_system_map: AiSystemMapV2`；不得建立 v2→v1 downgrade adapter。
-- [ ] rollback preflight 對 v2-only fact fail closed，回傳
+- [x] rollback preflight 對 v2-only fact fail closed，回傳
   `legacy_rollback_not_representable`；測試證明失敗時沒有 manifest、latest promotion 或被截斷的
   v1 artifact。
-- [ ] `SystemMapValidationService` 保留為 v1 validator，不擴張成第二個 dispatcher；只有
+- [x] `SystemMapValidationService` 保留為 v1 validator，不擴張成第二個 dispatcher；只有
   `CanonicalMapLoader` 依 schema badge 委派 v1/v2 validator，再回傳 normalized v2。
-- [ ] manifest 記錄 `active_schema_version`、`source_schema_version`、
+- [x] manifest 記錄 `active_schema_version`、`source_schema_version`、
   `operator_rollback_active` 與 migration warnings，consumer 不得從檔案 shape 猜版本。
 
 ## Task 3：遷移所有 Active Consumers
 
-- [ ] `BuildManifestService.load()` 先呼叫 `CanonicalMapLoader`，不得在 loader 前直接呼叫
+- [x] `BuildManifestService.load()` 先呼叫 `CanonicalMapLoader`，不得在 loader 前直接呼叫
   v1-only `SystemMapValidationService`；restart 後載入既有 v1 與新 v2 build 都回傳
   normalized v2。
-- [ ] Viewer、`SystemMapIndex`、graph projection、CLI/Web viewer、profile inference、
+- [x] Viewer、`SystemMapIndex`、graph projection、CLI/Web viewer、profile inference、
   readiness engine、static execution recoverers 與 renderers 只接 `AiSystemMapV2` 或
   `GraphViewModel`。
-- [ ] detail scan input/output 改用 v2，不建立或回傳 `ExtensionComponent`；query trace 改以
+- [x] detail scan input/output 改用 v2，不建立或回傳 `ExtensionComponent`；query trace 改以
   v2 `endpoints[]` 與 `SystemMapIndex.endpoint_by_id` 尋找 endpoint。
-- [ ] mapping proposal、manual mapping 與 component detection 只建立 existing-slot、
-  non-baseline capability candidate、needs-more-information 或 skip 類型；routes 與 frontend
-  不自行判斷 v1/v2 shape。
-- [ ] v1 compatibility metadata 只作 provenance、migration warning/debug，不得形成產品分類、
+- [x] Backend mapping proposal、manual mapping 與 component detection 只建立 existing-slot、
+  non-baseline capability candidate、needs-more-information 或 skip 類型；routes 不自行判斷
+  v1/v2 shape。
+- [ ] Frontend contract 仍保留 legacy proposal type與 v1 sample，由前端負責人另行遷移。
+- [x] v1 compatibility metadata 只作 provenance、migration warning/debug，不得形成產品分類、
   UI filter 或 readiness verdict；`primary_map_type` 只能由 report/projection 推導。
-- [ ] `rag-core-v1` 只保留為 legacy input grounding 或 operator rollback boundary；v2 不輸出
+- [x] `rag-core-v1` 只保留為 legacy input grounding 或 operator rollback boundary；v2 不輸出
   compatibility-derived product verdict。citation/source mapping 留在
   `readiness_report.json.source_traceability`，不成為 canonical RAG-only hard requirement。
-- [ ] 若 `MarkdownSummaryService` 無 active caller，移除或降為 migration-only test helper；
+- [x] 若 `MarkdownSummaryService` 無 active caller，移除或降為 migration-only test helper；
   不得保留未測試、可被正常路徑誤用的 v1 renderer。
 
 ## Task 4：遷移 Persisted Legacy Extension Mappings
@@ -351,12 +392,12 @@ Task 2 之後的 mutation。Status=`ready` 後才執行 Task 1B 的 red test，�
 `ManualMappingType.NEW_EXTENSION`，包含 `mapping_type="new_extension_component"` 的既有專案
 會在 restart/load 階段直接失敗；因此 migration 必須在 enum 與 active loader 收斂前完成。
 
-- [ ] 建立 `LegacyManualMappingDTO` 與
+- [x] 建立 `LegacyManualMappingDTO` 與
   `LegacyManualMappingMigrationService`，先以隔離 DTO 讀 raw JSON，再轉成 active
   `ManualMapping`；normal repository 不得長期接受 legacy shape。
-- [ ] 建立 `migrate-legacy-mappings` CLI。預設只做 `--dry-run` 且零寫入；必須明確傳入
+- [x] 建立 `migrate-legacy-mappings` CLI。預設只做 `--dry-run` 且零寫入；必須明確傳入
   `--apply` 才能更新 KAI-Mind state directory，禁止修改被掃描的 target project。
-- [ ] 轉換矩陣固定如下，實作者不得自行推測：
+- [x] 轉換矩陣固定如下，實作者不得自行推測：
 
 | Legacy row | Active result | 必須保留／禁止 |
 | --- | --- | --- |
@@ -369,45 +410,48 @@ Task 2 之後的 mutation。Status=`ready` 後才執行 Task 1B 的 red test，�
 完整且 confirmed 的 row 仍可轉 capability candidate，但其中的 `extension_edges` 一律隔離，絕不
 偷偷轉成 v2 canonical edge。
 
-- [ ] migration 使用固定 `migration_version`，且必須 idempotent：成功轉換時只更新一次
+- [x] migration 使用固定 `migration_version`，且必須 idempotent：成功轉換時只更新一次
   `updated_at` 與 `mapping_digest`；重跑相同輸入回報 `already_migrated`，不得重複產生 row。
-- [ ] `--apply` 先在 KAI-Mind state directory 建立原始 mapping backup 與 index。Backup 可能含
+- [x] `--apply` 先在 KAI-Mind state directory 建立原始 mapping backup 與 index。Backup 可能含
   legacy free-text，因此必須使用平台可提供的 owner-only access、不得寫入 target repo，也不得把
   payload 複製到 log/report；report 只記 opaque ref 與 digest。
-- [ ] 在 project-level lock 內以 same-directory temp + replace 原子更新每個 mapping file；單檔
+- [x] 在 project-level lock 內以 same-directory temp + replace 原子更新每個 mapping file；單檔
   失敗不得留下半份 JSON，並回傳 stable `legacy_mapping_migration_failed`。若同一 project
   多檔 migration 中途失敗，標成 `partial_requires_retry` 並阻擋 cutover；idempotent rerun 從
   digest 判斷已完成 rows，不重複轉換。
-- [ ] migration report 至少包含 `scanned`、`converted`、`already_migrated`、
+- [x] migration report 至少包含 `scanned`、`converted`、`already_migrated`、
   `requires_manual_review`、`failed`、input/output digest 與 masked error；不得印出完整 evidence
   snippet、secret 或原始 payload。
-- [ ] normal API/UI 立即拒絕新 `new_extension_component` request，回傳
-  `legacy_mapping_type_read_only`。所有 `CONFIRMED` legacy rows 都完成轉換後才可 flip v2；
+- [x] Normal API 立即拒絕新 `new_extension_component` request，回傳
+  `legacy_mapping_type_read_only`。所有 `CONFIRMED` legacy rows 都完成轉換後才可 flip backend v2；
   其他 unresolved quarantined rows 可以留作 migration evidence，但會繼續阻擋 Plan 15 cleanup。
-- [ ] migration apply 完成且 reload gate 通過後，從 active `ManualMappingType` 移除
+- [ ] Frontend UI 仍可組出 legacy request；backend會 fail closed，但 UI contract需由前端負責人
+  遷移。
+- [x] migration apply 完成且 reload gate 通過後，從 active `ManualMappingType` 移除
   `NEW_EXTENSION`；相同字串只留在 migration-only `LegacyManualMappingDTO` enum。Plan 15 再刪
-  DTO/command/quarantine，而不是把 active enum/API/UI removal 延後。
-- [ ] 先測 dry-run 零寫入，再測 apply/restart、idempotence、crash recovery、backup、digest、
+  DTO/command/quarantine，而不是把 active backend enum/API removal 延後。
+- [x] 先測 dry-run 零寫入，再測 apply/restart、idempotence、crash recovery、backup、digest、
   concurrent project lock、缺欄位與 secret redaction。
 
 ## Task 5：停止正常 Extension Write Surface
 
-- [ ] 新 scan、manual mapping、mapping proposal、component detection 與 frontend schema 不再建立
+- [x] Backend新 scan、manual mapping、mapping proposal與component detection不再建立
   top-level `extensions` 或接受 `NEW_EXTENSION` / `new_extension_component`。
-- [ ] 未確認 component 保留為 generic unmapped/candidate fact；使用者確認 non-baseline 後只寫入
+- [ ] Frontend schema、mock與sample仍保留legacy extension/v1 contract，等待前端handoff。
+- [x] 未確認 component 保留為 generic unmapped/candidate fact；使用者確認 non-baseline 後只寫入
   capability candidate，不建立 extension 類別或 legacy edge。
-- [ ] v1 schema/fixture、Legacy DTO、adapter 與 operator rollback serializer 明確標示
+- [x] v1 schema/fixture、Legacy DTO、adapter 與 operator rollback serializer 明確標示
   legacy/read-only；normal build path 不得 import。
-- [ ] Task 1 allowlist 是 executable gate；下列 search 只能命中
-  `operator_rollback`、`migration_only` 或測試／文件明列的 legacy evidence：
+- [x] Task 1 allowlist 是 executable gate；backend hit只能命中`operator_rollback`、
+  `migration_only`或測試明列的legacy evidence；frontend-owned active hit分類為`migrate`：
 
 ```bash
 rg -n "RagSystemMap|ExtensionComponent|new_extension_component|ai-system-map/v1" \
   src tests frontend docs
 ```
 
-Expected：active producer、consumer、request schema 與 frontend hit 為零；每個保留 hit 都能在
-allowlist 找到相同 path/symbol/classification。
+Current backend-only boundary：`35 records / 35 hits`，其中5筆`migrate`全在frontend；每個hit
+都能在allowlist找到相同path/symbol/classification，未知或stale仍fail closed。
 
 ## Task 6：以 Staging Directory + Manifest + Latest Pointer 定義 Atomic Visibility
 
@@ -424,7 +468,7 @@ allowlist 找到相同 path/symbol/classification。
 latest**的 build；latest reader 在 pointer CAS 前永遠仍讀舊 build。這不是所有 reader 同時切換的
 global transaction，但任何 supported reader 都不會看到 partial artifact set。
 
-- [ ] 建立 `BuildCommitService`，讓 initial scan、apply-confirmations 與 detail-scan build 共用
+- [x] 建立 `BuildCommitService`，讓 initial scan、apply-confirmations 與 detail-scan build 共用
   同一 state machine，不再由各 route 自行排列 persist/promote/session-store 呼叫：
 
 ```text
@@ -438,14 +482,14 @@ PREPARING
   -> expose result through API/session                     # ACTIVE
 ```
 
-- [ ] Final build directory 必須是新 path；若已存在就以 `build_output_conflict` fail closed，禁止
+- [x] Final build directory 必須是新 path；若已存在就以 `build_output_conflict` fail closed，禁止
   overwrite。Staging/final 必須位於同一 filesystem parent；無法保證 atomic rename 時以
   `atomic_artifact_publish_unavailable` 中止，不退回逐檔公開。
-- [ ] `MapBuildQueryService.get/list` 只從 repository 的 complete manifest 找 build，不能掃描 raw
+- [x] `MapBuildQueryService.get/list` 只從 repository 的 complete manifest 找 build，不能掃描 raw
   output directory；`latest()` 必須先讀 CAS pointer，再載入該 manifest。Low-level path reader 不在
   supported-reader guarantee 內。
 
-- [ ] 同一 validated build result 產生 Phase2 P0 sibling set（對齊
+- [x] 同一 validated build result 產生 Phase2 P0 sibling set（對齊
   `docs/MODEL-CONTRACT.md`；**7 JSON + 3 render，共 10 檔**；`GraphViewModel` 是 ephemeral
   API projection，不是 required on-disk sibling）：
   - Canonical + assessment：`ai_system_map.json`、`profile_signals.json`、
@@ -453,15 +497,15 @@ PREPARING
   - Static execution：`call_graph.json`、`dataflow_hints.json`、`execution_paths.json`、
     `evidence_table.json`。
   - Render outputs：`ai_system_map.md`、`system_map.mmd`、`execution_map.mmd`。
-- [ ] 10 個 sibling 與 manifest 共用同一 `scan_id`、`build_id`、`environment_id` 與
+- [x] 10 個 sibling 與 manifest 共用同一 `scan_id`、`build_id`、`environment_id` 與
   `artifact_set_version`；manifest 保存每檔 digest/size/schema status。finding、component、edge、
   signal 與 execution step 只能引用存在的 evidence id。
-- [ ] producer 不重跑 scanner、UA 或 LLM 來補 canonical facts；所有 sibling 都由同一 immutable
+- [x] producer 不重跑 scanner、UA 或 LLM 來補 canonical facts；所有 sibling 都由同一 immutable
   build result/projection 產生。
-- [ ] initial scan、apply-confirmations 與 detail-scan 都把開始時讀到的 latest id/revision 傳入
+- [x] initial scan、apply-confirmations 與 detail-scan 都把開始時讀到的 latest id/revision 傳入
   `BuildCommitService`；若另一 build 先 promote，stale CAS 回傳 `stale_latest_revision`，新完整
   artifact set 可保留成 non-latest history 或依明確 cleanup policy 清除，但不得覆蓋較新 latest。
-- [ ] failure/recovery contract 固定如下：
+- [x] failure/recovery contract 固定如下：
 
 | Failure point | Reader-visible result | Recovery |
 | --- | --- | --- |
@@ -471,23 +515,23 @@ PREPARING
 | complete manifest 已保存、pointer 尚未 promote | build-id/history 可讀完整新 build；latest 仍是舊 build | 以原 expected revision 重試 promote；CAS stale 則保留 non-latest 或清除 |
 | pointer CAS 已 promote | history/latest 都可讀完整新 build | API/session 寫入失敗不得破壞 committed build；回 stable warning 並可重建 projection |
 
-- [ ] 新 build 在 feature enabled 時缺任何 required sibling、scope id 不一致、reference dangling
+- [x] 新 build 在 feature enabled 時缺任何 required sibling、scope id 不一致、reference dangling
   或 digest mismatch 都 fail closed，且不得 promote。舊 build 缺 optional sidecar 時可載入 base v2
   graph 並回傳 stable degraded warning；不得把舊 5-file subset 改寫成新 product contract。
-- [ ] fault-injection 測試覆蓋 10 個 artifact 的每個 write boundary、directory rename 前後、
+- [x] fault-injection 測試覆蓋 10 個 artifact 的每個 write boundary、directory rename 前後、
   manifest 前後、pointer CAS 前後、concurrent build/reader 與 process restart；macOS/Windows 都
   驗證 same-parent staging rename、same-directory file replace 與 latest pointer 語意。直接指定任意
   檔案的低階 `validate-map` 不在 atomic visibility 保證內。
 
 ## Task 7：Rollback、Regression 與 Cutover Report
 
-- [ ] 在 staging fixture 流程執行 active v2 canary，驗證 CLI/API/viewer/detail/trace/reload 與
+- [x] 在 staging fixture 流程執行 active v2 canary，驗證 CLI/API/viewer/detail/trace/reload 與
   10-artifact lifecycle。
-- [ ] 以 operator env 執行一次 v1 rollback build，確認同一 binary 仍能讀取既有 v1/v2、沒有
+- [x] 以 operator env 執行一次 v1 rollback build，確認同一 binary 仍能讀取既有 v1/v2、沒有
   資料破壞、manifest/warning 可稽核；再移除 env 切回 v2並確認 output deterministic。
-- [ ] 測試 invalid env fail startup，以及 public CLI/API v1 selection 回傳
+- [x] 測試 invalid env fail startup，以及 public CLI/API v1 selection 回傳
   `legacy_output_not_selectable`。
-- [ ] 執行 scoped contract/unit/integration/web/frontend gates：
+- [x] 執行 scoped contract/unit/integration/web/frontend gates：
 
 ```bash
 .venv/bin/pytest tests/contracts tests/unit/core tests/integration tests/web -q
@@ -496,39 +540,39 @@ PREPARING
 cd frontend && npm run build && npm run lint
 ```
 
-- [ ] 更新 compatibility report 為 cutover report，至少記錄 gate/census digest、active version、
+- [x] 更新 compatibility report 為 cutover report，至少記錄 gate/census digest、active version、
   persisted mapping migration counts、legacy read coverage、artifact commit/fault-injection、rollback
-  結果與 remaining warnings。只有報告可回讀且所有 exit condition 通過，才把 Status 改為
-  `complete`。
+  結果與 remaining warnings。
+- [ ] 待 frontend handoff 的5筆active hits歸零後，才把Status改為`complete`。
 
 ## 驗收標準
 
 - [ ] Status 只有在 00A Task 4/5、executable consumer allowlist、reload probe 與完整 quality
   gates 通過後才可由 `blocked` 改成 `ready`；完成 Task 7 report 後才可改成 `complete`。
-- [ ] 新 build 預設輸出 `ai-system-map/v2`；一般 CLI/API 無法要求 v1，operator rollback
+- [x] 新 build 預設輸出 `ai-system-map/v2`；一般 CLI/API 無法要求 v1，operator rollback
   預設關閉、可稽核且不 dual-write。
-- [ ] operator rollback 使用隔離 v1 producer 再 normalize，不做 v2→v1 downgrade；v2-only fact
+- [x] operator rollback 使用隔離 v1 producer 再 normalize，不做 v2→v1 downgrade；v2-only fact
   以 `legacy_rollback_not_representable` fail closed，沒有靜默資料遺失。
-- [ ] `MapBuildResult` 只有一個 normalized v2 canonical field；active consumer 不直接接
+- [x] `MapBuildResult` 只有一個 normalized v2 canonical field；active consumer 不直接接
   `RagSystemMap` 或 v1 validator。
-- [ ] v2 是 generic AI system map，不預設 RAG/Agent 類別。
-- [ ] v1 artifacts 仍可透過唯一 loader/adapter path 讀取。
-- [ ] 所有 persisted `CONFIRMED` legacy extension mappings 已依轉換矩陣遷移；缺資料者會
+- [x] v2 是 generic AI system map，不預設 RAG/Agent 類別。
+- [x] v1 artifacts 仍可透過唯一 loader/adapter path 讀取。
+- [x] 所有 persisted `CONFIRMED` legacy extension mappings 已依轉換矩陣遷移；缺資料者會
   `requires_manual_review` 並阻擋 cutover，不會被猜測補值。
-- [ ] active code/API/UI 不建立或接受 `extensions` / `new_extension_component`；legacy hits
-  全部在 executable allowlist 的 operator rollback、migration-only、fixture/test boundary；active
-  `ManualMappingType` 已不含 `NEW_EXTENSION`。
-- [ ] Phase2 P0 **10 public sibling artifacts**（7 JSON + 3 render）來自同一 validated v2
+- [x] Active backend code/API不建立或接受`extensions` / `new_extension_component`；active
+  `ManualMappingType` 已不含`NEW_EXTENSION`。
+- [ ] Frontend仍有5筆active legacy hits；須完成handoff後才能宣稱API/UI全鏈路退場。
+- [x] Phase2 P0 **10 public sibling artifacts**（7 JSON + 3 render）來自同一 validated v2
   build result；staging directory rename 前任何 supported reader 都不可見 partial set，complete
   manifest 後 history 可讀完整 build，pointer CAS 後 latest 才切換。若 dynamic `00` 尚未啟用，
   cutover report 必須明列 execution subset 為 `not_enabled`，但不得把 5-file subset 當成新的
   product contract。
-- [ ] 10 個 artifact write boundary、manifest/pointer 前後、concurrent reader 與 restart
+- [x] 10 個 artifact write boundary、manifest/pointer 前後、concurrent reader 與 restart
   fault-injection tests 證明 latest 永不指向 partial/invalid set。
-- [ ] 五態 status、evidence traceability 與禁止 numeric confidence 的規則未破壞。
-- [ ] v1 rollback、v1/v2 reload、invalid env、切回 v2與 deterministic output 都已實測，cutover
+- [x] 五態 status、evidence traceability 與禁止 numeric confidence 的規則未破壞。
+- [x] v1 rollback、v1/v2 reload、invalid env、切回 v2與 deterministic output 都已實測，cutover
   report 已保存。
-- [ ] Plan 14 依賴本計畫完成，不再接受 v1-only output 作 final success。
+- [ ] Plan 14 需等frontend handoff完成後，才可把本計畫視為full-stack complete。
 
 ## 風險與注意事項
 
@@ -541,8 +585,8 @@ cd frontend && npm run build && npm run lint
   完整，complete manifest 開放 history lookup，latest pointer CAS 才切 active build。任何 reader
   直接掃 raw output directory，都會繞過 supported visibility 保證。
 - operator v1 rollback writer 與 Legacy DTO/command 只在 Plan 13/14 暫存；Plan 15 必須依 report
-  清除 env、writer、migration DTO/quarantine，不能把 rollback 變成永久第二輸出模式。Active
-  enum/API/UI 的停寫不得拖到 Plan 15。
+  清除 env、writer、migration DTO/quarantine，不能把 rollback 變成永久第二輸出模式。Backend
+  enum/API已停寫；frontend handoff必須在宣告full-stack complete前完成，不得誤列為Plan 15工作。
 
 ## Out Of Scope
 

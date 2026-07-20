@@ -336,6 +336,11 @@ POST /api/map/build
 }
 ```
 
+`system_map_schema_version` 是 Plan 15 前保留的 deprecated input。省略或指定
+`ai-system-map/v2` 才能正常建置；public request 指定 v1 會回 `422` +
+`legacy_output_not_selectable`。v1 rollback 不透過 request，而由 process 啟動前的 operator
+setting 控制。
+
 Current runtime response `200`（`MapBuildResult`）：
 
 ```ts
@@ -355,12 +360,13 @@ Current runtime response `200`（`MapBuildResult`）：
   system_map_mermaid_path: string | null;
   execution_map_mermaid_path: string | null;
   viewer_load_result: ViewerLoadResult; // 見 GET /api/map
-  ai_system_map: object;                // active public canonical v1
-  normalized_ai_system_map: object;     // internal v2 assessment view
+  ai_system_map: object;                // 唯一 normalized v2 canonical truth
   profile_inference_result: ProfileInferenceResult;
   readiness_report: ReadinessReport;
-  active_schema_version: "ai-system-map/v1";
+  active_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
   requested_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+  source_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+  operator_rollback_active: boolean;
   migration_warnings: string[];
   warnings: string[];
   error: object | null;
@@ -462,6 +468,8 @@ type MapBuildScopedResponse = {
     project_name: string;
     active_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
     requested_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+    source_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+    operator_rollback_active: boolean;
     migration_warnings: string[];
     warnings: string[];
     profile_signals_available: boolean;
@@ -476,8 +484,9 @@ type MapBuildScopedResponse = {
 `profile_inference_result` 缺失或 invalid 時：`build_result.profile_inference_result:null`，
 `build_result.warnings` 含 `profile_signals_missing_or_invalid`；canonical map 仍可 load。
 Readiness 對應 warning 為 `readiness_report_missing_or_invalid`。
-Manifest 會保存 `active_schema_version`、`requested_schema_version` 與
-`migration_warnings`；同一 `build_id` 在 restart 前後不得改寫這三個欄位。
+Manifest 會保存 `active_schema_version`、`requested_schema_version`、
+`source_schema_version`、`operator_rollback_active`、`artifact_set_version` 與
+`migration_warnings`；同一 `build_id` 在 restart 前後不得改寫這些欄位。
 
 Current build-scoped response 不包含 server-local absolute path，也尚未包含
 `artifact_refs`。Plan 06 加入 refs 後，frontend 只能依 stable artifact id/type 與受控 API
@@ -494,8 +503,8 @@ Current build-scoped response 不包含 server-local absolute path，也尚未�
 | static execution 四件套 | — | current 不 inline；Plan 06 `artifact_refs[]` lazy load |
 | `*.md` / `*.mmd` render | — | current 不 inline；Plan 06 `artifact_refs[]` lazy load |
 
-**主畫布 ≠ merge 六份 Step 6 JSON**。Current canvas 是 v1 base projection；Plan 06 才把
-6-1 Profile Inference 透過 `GraphProjectionService` 投影進 canvas。
+**主畫布 ≠ merge 六份 Step 6 JSON**。Current canvas 由 backend 將 normalized v2 與
+6-1 Profile Inference 透過 `GraphProjectionService` 投影，不由 frontend 重建。
 Build 磁碟上 atomic publish **10** public siblings（7 JSON + 3 render）；`snapshot.json`、
 manual mapping 屬 project state，**不**計入 7 JSON。見 MODEL-CONTRACT §3、§7.0、§9.1。
 
@@ -531,7 +540,8 @@ Frontend **不得**重算五態、activation、Mapping Completeness。Sidecar �
 ```
 
 Apply publish 失敗時：**不得**切換 `latest_build_id`；pending confirmations 保留。
-Child build 沿用 parent 的 `requested_schema_version`，不因 Apply 回到預設 v1。
+成功的 public child build 維持 v2 request provenance；Apply 不會自行切成 v1。Operator
+rollback 若啟用，則只由 process-level setting 決定實際 artifact version並留下稽核欄位。
 
 ### POST /api/map-builds/{build_id}/detail-scans（later alias，未實作）
 
@@ -975,7 +985,7 @@ Response `200`：
 | 404 | 目標不存在 | `resource_not_found`（malformed typed state id）、`project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
 | 409 | 狀態衝突 | `base_build_not_latest`、`latest_build_changed`、`scan_snapshot_stale`、`profile_sidecar_unavailable` |
 | 413 | request body 超過本機 API resource limit | `request_too_large` |
-| 422 | 輸入不合法 / 驗證失敗 | `target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、validation 陣列 |
+| 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、validation 陣列 |
 | 500 | 未預期後端錯誤，回應會遮蔽 raw path / secret | `internal_server_error` |
 | 503 | project state lock timeout | `project_state_busy` |
 

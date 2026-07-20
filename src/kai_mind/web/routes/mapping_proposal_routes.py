@@ -11,7 +11,7 @@ from kai_mind.core.models.mapping import (
     MappingProposal,
     MappingProposalDecisionResult,
 )
-from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
+from kai_mind.core.services.manual_mapping_support import template_slots
 from kai_mind.core.services.mapping_evidence_packet_builder import (
     MappingEvidencePacketBuilder,
 )
@@ -23,6 +23,7 @@ from kai_mind.web.dependencies import (
     mapping_proposal_service,
     session_store,
 )
+from kai_mind.web.legacy_mapping_guards import reject_legacy_mapping_type
 from kai_mind.web.schemas import (
     MappingProposalCreateRequest,
     MappingProposalDecisionRequest,
@@ -74,14 +75,17 @@ def create_mapping_proposal(
     if index.unmapped_by_id(payload.source_unmapped_id) is None:
         raise HTTPException(status_code=404, detail="unmapped_not_found")
 
-    compatibility = _compatibility_projection(normalized)
+    confirmed_component_ids = [
+        component.component_id
+        for component in normalized.components
+        if component.metadata.get("semantic_kind") == "repo_component"
+    ]
     packet = MappingEvidencePacketBuilder().build(
         project_id=payload.project_id,
         index=index,
         unmapped_id=payload.source_unmapped_id,
-        available_slots=compatibility["slots"],
-        available_extensions=compatibility["extensions"],
-        confirmed_component_ids=compatibility["components"],
+        available_slots=sorted(template_slots()),
+        confirmed_component_ids=confirmed_component_ids,
         user_description=payload.user_description,
     )
     try:
@@ -93,6 +97,7 @@ def create_mapping_proposal(
 @router.post(
     "/api/mapping-proposals/{proposal_id}/decision",
     response_model=MappingProposalDecisionResult,
+    dependencies=[Depends(reject_legacy_mapping_type)],
 )
 def decide_mapping_proposal(
     proposal_id: str,
@@ -119,38 +124,6 @@ def _normalized_map_for_project(
     project_id: str,
 ) -> AiSystemMapV2 | None:
     result = store.build_result(project_id)
-    if result is None:
+    if result is None or result.ai_system_map is None:
         return None
-    if result.normalized_ai_system_map is not None:
-        return result.normalized_ai_system_map
-    if result.ai_system_map is None:
-        return None
-    return (
-        CanonicalMapLoader()
-        .load(result.ai_system_map.model_dump(mode="json"))
-        .normalized
-    )
-
-
-def _compatibility_projection(
-    system_map: AiSystemMapV2,
-) -> dict[str, list[str]]:
-    slots: list[str] = []
-    extensions: list[str] = []
-    components: list[str] = []
-    for component in system_map.components:
-        metadata = component.metadata
-        slot = metadata.get("legacy_slot")
-        extension = metadata.get("source_extension_id")
-        semantic_kind = metadata.get("semantic_kind")
-        if isinstance(slot, str):
-            slots.append(slot)
-        if isinstance(extension, str):
-            extensions.append(extension)
-        if semantic_kind == "repo_component":
-            components.append(component.component_id)
-    return {
-        "slots": list(dict.fromkeys(slots)),
-        "extensions": list(dict.fromkeys(extensions)),
-        "components": list(dict.fromkeys(components)),
-    }
+    return result.ai_system_map

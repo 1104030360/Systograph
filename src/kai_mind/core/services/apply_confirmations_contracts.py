@@ -19,6 +19,10 @@ class ApplyRepository(Protocol):
         self, build_id: str
     ) -> MapBuildManifest | None: ...
 
+    def get_build_manifest(
+        self, project_id: str, build_id: str
+    ) -> MapBuildManifest | None: ...
+
     def list_build_manifests(
         self, project_id: str
     ) -> tuple[MapBuildManifest, ...]: ...

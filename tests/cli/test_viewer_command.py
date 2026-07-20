@@ -39,6 +39,13 @@ def test_validate_map_command_reports_invalid_map_error() -> None:
     assert "confidence" in result.output
 
 
+def test_validate_map_help_describes_dual_read_contract() -> None:
+    result = CliRunner().invoke(cli_main.app, ["validate-map", "--help"])
+
+    assert result.exit_code == 0
+    assert "ai-system-map/v1 or ai-system-map/v2" in result.output
+
+
 def test_validate_map_command_is_thin_adapter_without_provider_logic() -> None:
     source = inspect.getsource(viewer_command)
 

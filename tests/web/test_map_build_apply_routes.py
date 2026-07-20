@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 from kai_mind.core.models.map_build import SystemMapSchemaSelection
 from kai_mind.web.app import create_app
@@ -15,7 +16,7 @@ def prepare_apply(
     client: TestClient,
     tmp_path: Path,
     *,
-    schema_version: SystemMapSchemaSelection = "ai-system-map/v1",
+    schema_version: SystemMapSchemaSelection = "ai-system-map/v2",
 ) -> tuple[str, str, str]:
     project_root = tmp_path / "project"
     project_root.mkdir()
@@ -44,7 +45,7 @@ def prepare_apply(
             "project_id": project_id,
             "mapping_type": "existing_slot_mapping",
             "decision": "confirmed",
-            "source_unmapped_id": unmapped["id"],
+            "source_unmapped_id": unmapped["unmapped_id"],
             "source_file": unmapped["source_file"],
             "observed_kind": unmapped["observed_kind"],
             "evidence_ids": unmapped["evidence_ids"],
@@ -104,6 +105,35 @@ def test_apply_route_creates_build_and_read_routes(tmp_path: Path) -> None:
         payload["build_id"],
     ]
     assert "output_dir" not in str(history.json())
+
+
+def test_committed_apply_survives_session_projection_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    app = create_app(state_dir=tmp_path / "state")
+    client = TestClient(app)
+    _, base_build_id, mapping_id = prepare_apply(client, tmp_path)
+
+    def fail_save(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise RuntimeError("injected session projection failure")
+
+    monkeypatch.setattr(
+        app.state.session_store,
+        "save_build_result",
+        fail_save,
+    )
+
+    response = apply(client, base_build_id, mapping_id)
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert (
+        "session_projection_save_failed" in payload["build_result"]["warnings"]
+    )
+    committed = client.get(f"/api/map-builds/{payload['build_id']}")
+    assert committed.status_code == 200
 
 
 def test_apply_preserves_parent_schema_selection(tmp_path: Path) -> None:

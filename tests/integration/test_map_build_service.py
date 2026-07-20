@@ -10,6 +10,7 @@ import pytest
 from pydantic import BaseModel
 from tests.helpers.fixtures import rag_project_fixture_path
 
+from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.errors import PreconditionFailureReason
 from kai_mind.core.models.map_build import MapBuildRequest
 from kai_mind.core.models.scan import OutputRun, ProjectScanResult, ScanFact
@@ -17,12 +18,12 @@ from kai_mind.core.models.system_map import (
     ComponentInstance,
     ComponentSlot,
     Evidence,
-    RagSystemMap,
 )
 from kai_mind.core.models.template import RagTemplate
 from kai_mind.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
+from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
 from kai_mind.core.services.component_detection_service import (
     ComponentDetectionResult,
     ComponentDetectionService,
@@ -36,8 +37,8 @@ from kai_mind.core.services.project_scan_service import (
     InventoryPolicyOverlay,
     ProjectScanService,
 )
-from kai_mind.core.services.system_map_validation_service import (
-    SystemMapValidationService,
+from kai_mind.core.services.system_map_v2_validation_service import (
+    SystemMapV2ValidationService,
 )
 
 
@@ -106,17 +107,16 @@ class InjectedVectorStoreDetector(ComponentDetectionService):
         )
         return ComponentDetectionResult(
             components_by_slot=slots,
-            extensions=[],
             unmapped_components=[],
         )
 
 
-class RecordingValidationService(SystemMapValidationService):
+class RecordingValidationService(SystemMapV2ValidationService):
     def __init__(self) -> None:
         super().__init__()
         self.calls: list[Mapping[str, Any]] = []
 
-    def validate(self, data: Mapping[str, Any]) -> RagSystemMap:
+    def validate(self, data: Mapping[str, Any]) -> AiSystemMapV2:
         self.calls.append(data)
         return super().validate(data)
 
@@ -181,8 +181,9 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     artifact_data = json.loads(
         result.map_json_path.read_text(encoding="utf-8")
     )
-    validated = SystemMapValidationService().validate(artifact_data)
-    assert validated.schema_version == "ai-system-map/v1"
+    loaded = CanonicalMapLoader().load(artifact_data)
+    assert loaded.active_schema_version == "ai-system-map/v2"
+    assert loaded.normalized.schema_version == "ai-system-map/v2"
     assert "viewer_load_result" not in artifact_data
     assert "graph_view_model" not in artifact_data
 
@@ -238,7 +239,7 @@ def test_map_build_service_validates_after_request_options_by_default(
     assert validation_service.calls[0]["project"]["path_mode"] == "redacted"
 
 
-def test_map_build_service_validates_after_request_options_when_modified(
+def test_map_build_service_keeps_v2_path_safe_when_options_are_modified(
     tmp_path: Path,
 ) -> None:
     project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
@@ -256,9 +257,10 @@ def test_map_build_service_validates_after_request_options_when_modified(
     assert result.status == "ok"
     assert len(validation_service.calls) == 1
     validated_data = validation_service.calls[0]
-    assert validated_data["project"]["path_mode"] == "absolute"
+    assert validated_data["project"]["path_mode"] == "redacted"
     assert all(
-        item.get("snippet") is None for item in validated_data["evidence"]
+        item.get("extract_summary") is None
+        for item in validated_data["evidence"]
     )
 
 
@@ -396,6 +398,10 @@ def test_project_mapping_preserves_injected_component_detector(
     assert result.status == "ok"
     assert detector.called
     assert result.ai_system_map is not None
-    vector_store = result.ai_system_map.components_by_slot["vector_store"]
+    vector_store = next(
+        component
+        for component in result.ai_system_map.components
+        if component.metadata.get("legacy_slot") == "vector_store"
+    )
     assert vector_store.status == "detected"
-    assert vector_store.instances[0].name == "Injected Vector Store"
+    assert vector_store.display_name == "Injected Vector Store"

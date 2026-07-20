@@ -8,10 +8,7 @@ from pathlib import PurePosixPath
 from typing import assert_never
 
 from kai_mind.core.models.mapping import ManualMapping, ManualMappingType
-from kai_mind.core.models.system_map import (
-    ExtensionComponent,
-    UnmappedComponent,
-)
+from kai_mind.core.models.system_map import UnmappedComponent
 from kai_mind.core.services.rag_template_service import RagTemplateService
 
 SECRET_VALUE_PATTERN = re.compile(
@@ -66,13 +63,8 @@ def now() -> str:
 def has_live_evidence(
     mapping: ManualMapping,
     unmapped: list[UnmappedComponent],
-    extensions: list[ExtensionComponent],
 ) -> bool:
     match mapping.mapping_type:
-        case ManualMappingType.NEW_EXTENSION:
-            return has_live_extension_evidence(
-                mapping, extensions
-            ) or has_live_unmapped_evidence(mapping, unmapped)
         case (
             ManualMappingType.EXISTING_SLOT
             | ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE
@@ -90,18 +82,6 @@ def has_live_unmapped_evidence(
     return any(
         mapping_evidence.intersection(component.evidence_ids)
         for component in unmapped
-    )
-
-
-def has_live_extension_evidence(
-    mapping: ManualMapping,
-    extensions: list[ExtensionComponent],
-) -> bool:
-    mapping_evidence = set(mapping.evidence_ids)
-    return any(
-        extension.id == mapping.extension_id
-        and mapping_evidence.intersection(extension.evidence_ids)
-        for extension in extensions
     )
 
 

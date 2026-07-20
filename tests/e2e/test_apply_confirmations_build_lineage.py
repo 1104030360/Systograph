@@ -117,7 +117,7 @@ def create_mapping(
             "project_id": project_id,
             "mapping_type": "existing_slot_mapping",
             "decision": "confirmed",
-            "source_unmapped_id": unmapped["id"],
+            "source_unmapped_id": unmapped["unmapped_id"],
             "source_file": unmapped["source_file"],
             "observed_kind": unmapped["observed_kind"],
             "evidence_ids": unmapped["evidence_ids"],
@@ -160,12 +160,10 @@ def assert_build_artifacts(
     )
 
     loaded = BuildManifestService(repository=repository).load(manifest)
-    assert loaded.normalized_ai_system_map is not None
+    assert loaded.ai_system_map is not None
     assert loaded.profile_inference_result is not None
     assert loaded.readiness_report is not None
-    evidence_ids = {
-        item.evidence_id for item in loaded.normalized_ai_system_map.evidence
-    }
+    evidence_ids = {item.evidence_id for item in loaded.ai_system_map.evidence}
     assert all(
         set(item.evidence_ids) <= evidence_ids
         for item in loaded.profile_inference_result.profiles

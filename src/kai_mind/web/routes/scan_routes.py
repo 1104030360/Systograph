@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Annotated
@@ -18,13 +17,15 @@ from kai_mind.core.models.errors import (
     ScanInventoryRulesError,
 )
 from kai_mind.core.models.inventory_selection import InventoryPreflightRequest
-from kai_mind.core.models.map_build import MapBuildRequest
+from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
 from kai_mind.core.models.scan import OutputRun
-from kai_mind.core.providers.local_json_state_errors import StateConflictError
 from kai_mind.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.services.build_manifest_service import BuildManifestService
+from kai_mind.core.services.build_commit_service import (
+    BuildCommitError,
+    BuildCommitService,
+)
 from kai_mind.core.services.inventory_preflight_service import (
     InventoryPreflightService,
 )
@@ -37,7 +38,7 @@ from kai_mind.core.services.scan_boundary_review_service import (
 )
 from kai_mind.core.services.scan_snapshot_service import ScanSnapshotService
 from kai_mind.web.dependencies import (
-    build_manifest_service,
+    build_commit_service,
     inventory_preflight_service,
     inventory_selection_service,
     map_build_service,
@@ -61,7 +62,10 @@ from kai_mind.web.schemas import (
     ScanCreateResponse,
     ScanProgressEvent,
 )
-from kai_mind.web.session_store import SessionStore
+from kai_mind.web.session_store import (
+    SessionStore,
+    save_committed_build_projection,
+)
 
 router = APIRouter(tags=["scans"])
 
@@ -143,9 +147,9 @@ def create_scan(
         ScanSnapshotService,
         Depends(scan_snapshot_service),
     ],
-    manifest_service: Annotated[
-        BuildManifestService,
-        Depends(build_manifest_service),
+    commit_service: Annotated[
+        BuildCommitService,
+        Depends(build_commit_service),
     ],
     repository: Annotated[
         LocalJsonStateProvider,
@@ -279,19 +283,46 @@ def create_scan(
         )
         build_id = f"build:{uuid4()}"
         output_dir = Path(payload.output) / build_id.replace(":", "_")
-        result = service.build_from_snapshot(
-            snapshot,
-            request=MapBuildRequest(
-                project_path=project.project_path,
-                output=Path(payload.output),
-                redact_root_path=payload.redact_root_path,
-                no_snippets=payload.no_snippets,
-                system_map_schema_version=payload.system_map_schema_version,
-            ),
-            output_run=OutputRun(root_dir=output_dir),
+        pointer = repository.get_latest_pointer(payload.project_id)
+        expected_id = pointer.latest_build_id if pointer else None
+        expected_revision = pointer.revision if pointer else 0
+
+        def build(output_run: OutputRun) -> MapBuildResult:
+            return service.build_from_snapshot(
+                snapshot,
+                request=MapBuildRequest(
+                    project_path=project.project_path,
+                    output=Path(payload.output),
+                    redact_root_path=payload.redact_root_path,
+                    no_snippets=payload.no_snippets,
+                    system_map_schema_version=(
+                        payload.system_map_schema_version
+                    ),
+                ),
+                output_run=output_run,
+                build_id=build_id,
+                build_reason="initial_scan",
+            )
+
+        result = commit_service.commit(
+            project_id=payload.project_id,
             build_id=build_id,
-            build_reason="initial_scan",
+            final_output_dir=output_dir,
+            expected_latest_build_id=expected_id,
+            expected_revision=expected_revision,
+            build=build,
         )
+    except BuildCommitError as exc:
+        status_code = (
+            409
+            if exc.code
+            in {
+                "build_output_conflict",
+                "stale_latest_revision",
+            }
+            else 500
+        )
+        raise HTTPException(status_code=status_code, detail=exc.code) from exc
     except InventorySelectionError as exc:
         raise HTTPException(
             status_code=exc.http_status,
@@ -305,29 +336,11 @@ def create_scan(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if result.status == "ok":
-        pointer = repository.get_latest_pointer(payload.project_id)
-        expected_id = pointer.latest_build_id if pointer else None
-        expected_revision = pointer.revision if pointer else 0
-        manifest_service.persist(result)
-        try:
-            repository.promote_latest_build(
-                project_id=payload.project_id,
-                build_id=build_id,
-                expected_latest_build_id=expected_id,
-                expected_revision=expected_revision,
-            )
-        except StateConflictError as exc:
-            repository.discard_unpublished_build(
-                payload.project_id,
-                build_id,
-            )
-            if output_dir.is_dir():
-                shutil.rmtree(output_dir)
-            raise HTTPException(
-                status_code=409,
-                detail="latest_build_changed",
-            ) from exc
-        store.save_build_result(result, project_id=payload.project_id)
+        result = save_committed_build_projection(
+            store,
+            result,
+            project_id=payload.project_id,
+        )
     return ScanCreateResponse(
         scan_id=snapshot.scan_id,
         project_id=payload.project_id,

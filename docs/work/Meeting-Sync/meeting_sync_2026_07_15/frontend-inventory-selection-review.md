@@ -331,7 +331,8 @@ requires_boundary_decision
 completed
   -> 清除preflight/choices/requested paths
   -> 可顯示backend inventory_selection_summary.directory_scope_results
-  -> 呼叫existing loadApiViewerPayload()
+  -> 呼叫GET /api/projects/{project_id}/map-builds/latest
+  -> 保存response的scan_id/build_id並切換viewer_load_result
   -> 不從decisions自行patch graph
 
 inventory_preflight_stale / target_changed / target_missing

@@ -8,6 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from kai_mind.core.models.map_build import MapBuildResult
 from kai_mind.core.models.viewer import ViewerPayload
+from kai_mind.core.services.canonical_output_configuration import (
+    CanonicalOutputConfigurationError,
+)
 from kai_mind.core.services.map_build_service import MapBuildService
 from kai_mind.web.dependencies import map_build_service, session_store
 from kai_mind.web.schemas import MapBuildApiRequest
@@ -23,7 +26,10 @@ def build_map(
     store: Annotated[SessionStore, Depends(session_store)],
 ) -> MapBuildResult:
     """掃描指定專案，產出 AI 系統地圖，並暫存最新的 viewer payload。"""
-    result = service.build(payload.to_core_request())
+    try:
+        result = service.build(payload.to_core_request())
+    except CanonicalOutputConfigurationError as exc:
+        raise HTTPException(status_code=422, detail=exc.code) from exc
     store.save_build_result(result)
     return result
 

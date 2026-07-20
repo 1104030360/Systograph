@@ -151,7 +151,7 @@ def test_confirmed_mapping_takes_effect_on_next_scan(
             "project_id": project_id,
             "mapping_type": "existing_slot_mapping",
             "decision": "confirmed",
-            "source_unmapped_id": unmapped["id"],
+            "source_unmapped_id": unmapped["unmapped_id"],
             "source_file": unmapped["source_file"],
             "observed_kind": unmapped["observed_kind"],
             "evidence_ids": unmapped["evidence_ids"],
@@ -170,13 +170,11 @@ def test_confirmed_mapping_takes_effect_on_next_scan(
     ).json()
     second_map = second_scan["build_result"]["ai_system_map"]
 
-    assert second_map["components_by_slot"]["vector_store"]["status"] == (
-        "detected"
+    vector_store = next(
+        component
+        for component in second_map["components"]
+        if component["metadata"].get("legacy_slot") == "vector_store"
     )
-    assert (
-        second_map["components_by_slot"]["vector_store"]["instances"][0][
-            "name"
-        ]
-        == "Chroma"
-    )
+    assert vector_store["status"] == "detected"
+    assert vector_store["display_name"] == "Chroma"
     assert second_map["unmapped_components"] == []

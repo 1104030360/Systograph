@@ -52,7 +52,7 @@ def test_manual_mapping_accepts_confirmed_non_baseline_candidate() -> None:
     ("invalid_field", "invalid_value", "message"),
     [
         ("target_slot", "retriever", "must not include target_slot"),
-        ("extension_id", "extension:router", "extension fields"),
+        ("extension_id", "extension:router", "Extra inputs are not permitted"),
     ],
 )
 def test_manual_mapping_rejects_legacy_targets_for_non_baseline_candidate(

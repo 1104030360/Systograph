@@ -20,20 +20,17 @@ from typing import Any
 
 from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.profile_signal import ProfileInferenceResult
-from kai_mind.core.models.system_map import (
-    RagSystemMap,
-    RiskHint,
-)
+from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.models.viewer import (
     GraphDetailsModel,
     GraphFiltersModel,
-    GraphRecommendedNextCheckModel,
     GraphViewModel,
     ViewerLoadResult,
 )
 from kai_mind.core.services.canonical_map_loader import (
     CanonicalMapLoader,
     CanonicalMapLoadError,
+    CanonicalMapLoadResult,
 )
 from kai_mind.core.services.graph_projection_service import (
     GRAPH_SCHEMA_VERSION,
@@ -44,6 +41,11 @@ from kai_mind.core.services.path_safety_service import (
 )
 from kai_mind.core.services.system_map_validation_service import (
     SystemMapValidationService,
+)
+from kai_mind.core.services.viewer_legacy_compatibility import (
+    _graph_recommended_next_checks,
+    _preserve_legacy_edge_order,
+    _with_legacy_details,
 )
 
 
@@ -74,8 +76,7 @@ class ViewerSessionService:
     # 做什麼：從磁碟讀 ai_system_map.json → validate/load → 投影成
     # ViewerLoadResult。
     # 被誰呼叫：viewer_routes.POST /api/viewer/load。
-    # 自己呼叫：CanonicalMapLoader.load；v1 → build()；v2 →
-    # _build_normalized_payload()。
+    # 自己呼叫：CanonicalMapLoader.load → build_loaded。
     # 失敗：回 empty(error_reason=...)，不丟未處理例外給 API。
     def load_map(self, map_json_path: Path) -> ViewerLoadResult:
         """Read, validate, and project one ai_system_map.json file."""
@@ -93,17 +94,56 @@ class ViewerSessionService:
         except CanonicalMapLoadError as exc:
             return self.empty(error_reason=f"invalid_map: {exc}")
 
-        if loaded.active_schema_version == "ai-system-map/v1":
-            system_map = RagSystemMap.model_validate(parsed)
-            return self.build(
-                system_map,
-                normalized_system_map=loaded.normalized,
-                map_json_path=map_json_path,
+        return self.build_loaded(
+            loaded,
+            map_json_path=map_json_path,
+        )
+
+    def build_loaded(
+        self,
+        loaded: CanonicalMapLoadResult,
+        *,
+        map_json_path: Path | None = None,
+        profile_result: ProfileInferenceResult | None = None,
+    ) -> ViewerLoadResult:
+        normalized = loaded.normalized
+        legacy_source = loaded.legacy_source_map
+        recommended_next_checks = []
+        if legacy_source is not None:
+            normalized = _preserve_legacy_edge_order(
+                legacy_source,
+                normalized,
             )
-        return self._build_normalized_payload(
-            ai_system_map=dict(parsed),
-            normalized_system_map=loaded.normalized,
+            recommended_next_checks = _graph_recommended_next_checks(
+                legacy_source
+            )
+        graph = self._graph_projection.project(
+            normalized,
+            profile_result=profile_result,
             artifact_ref=_safe_artifact_ref(map_json_path),
+            recommended_next_checks=recommended_next_checks,
+        )
+        if legacy_source is not None:
+            graph = _with_legacy_details(graph, legacy_source)
+        return self._result(
+            ai_system_map=loaded.source_map.model_dump(mode="json"),
+            graph=graph,
+        )
+
+    def build_canonical(
+        self,
+        system_map: AiSystemMapV2,
+        *,
+        map_json_path: Path | None = None,
+        profile_result: ProfileInferenceResult | None = None,
+    ) -> ViewerLoadResult:
+        loaded = self._canonical_loader.load(
+            system_map.model_dump(mode="json")
+        )
+        return self.build_loaded(
+            loaded,
+            map_json_path=map_json_path,
+            profile_result=profile_result,
         )
 
     # 做什麼：對已驗證的 v1 RagSystemMap 做投影，回完整 ViewerLoadResult。
@@ -122,24 +162,15 @@ class ViewerSessionService:
     ) -> ViewerLoadResult:
         """Return a complete viewer load result for a validated map."""
 
-        normalized = (
-            normalized_system_map
-            or self._canonical_loader.load(
-                system_map.model_dump(mode="json")
-            ).normalized
+        loaded = self._canonical_loader.load(
+            system_map.model_dump(mode="json")
         )
-        normalized = _preserve_legacy_edge_order(system_map, normalized)
-        graph = self._graph_projection.project(
-            normalized,
+        if normalized_system_map is not None:
+            loaded = loaded.with_normalized(normalized_system_map)
+        return self.build_loaded(
+            loaded,
+            map_json_path=map_json_path,
             profile_result=profile_result,
-            artifact_ref=_safe_artifact_ref(map_json_path),
-            recommended_next_checks=_graph_recommended_next_checks(system_map),
-        )
-        graph = _with_legacy_details(graph, system_map)
-        system_map_data = system_map.model_dump(mode="json")
-        return self._result(
-            ai_system_map=system_map_data,
-            graph=graph,
         )
 
     # 做什麼：只回 GraphViewModel（不要完整 ViewerLoadResult）。
@@ -164,26 +195,9 @@ class ViewerSessionService:
         )
         return _with_legacy_details(graph, system_map)
 
-    # 做什麼：原生 v2 payload 路徑；直接投影 normalized map（不走 v1 legacy
-    # details）。
-    # 被誰呼叫：load_map（當 active_schema_version 是 v2）。
-    # 自己呼叫：GraphProjectionService.project → _result。
-    def _build_normalized_payload(
-        self,
-        *,
-        ai_system_map: dict[str, Any],
-        normalized_system_map: AiSystemMapV2,
-        artifact_ref: str | None,
-    ) -> ViewerLoadResult:
-        graph = self._graph_projection.project(
-            normalized_system_map,
-            artifact_ref=artifact_ref,
-        )
-        return self._result(ai_system_map=ai_system_map, graph=graph)
-
     # 做什麼：組成功的 ViewerLoadResult（loaded=True + map JSON 字串 + graph）
     # 。
-    # 被誰呼叫：build / _build_normalized_payload。
+    # 被誰呼叫：build_loaded。
     # 自己呼叫：json.dumps（排序 key，確定性輸出）。
     @staticmethod
     def _result(
@@ -243,79 +257,3 @@ def _safe_artifact_ref(map_json_path: Path | None) -> str | None:
     if is_project_relative_posix_path(candidate):
         return candidate
     return map_json_path.name
-
-
-# 做什麼：依 v1 flows 的邊順序重排 normalized.edges（保留舊 viewer 順序）。
-# 被誰呼叫：build / project_to_graph。
-# 自己呼叫：model_copy(update={"edges": ...})。
-def _preserve_legacy_edge_order(
-    system_map: RagSystemMap,
-    normalized: AiSystemMapV2,
-) -> AiSystemMapV2:
-    edges_by_id = {edge.edge_id: edge for edge in normalized.edges}
-    ordered_ids = [edge.id for flow in system_map.flows for edge in flow.edges]
-    ordered_edges = [
-        edges_by_id[edge_id]
-        for edge_id in ordered_ids
-        if edge_id in edges_by_id
-    ]
-    ordered_id_set = set(ordered_ids)
-    ordered_edges.extend(
-        edge for edge in normalized.edges if edge.edge_id not in ordered_id_set
-    )
-    return normalized.model_copy(update={"edges": ordered_edges})
-
-
-# 做什麼：把 v1 recommended_next_checks 轉成 graph additive 欄位。
-# 被誰呼叫：build / project_to_graph。
-# 自己呼叫：GraphRecommendedNextCheckModel。
-def _graph_recommended_next_checks(
-    system_map: RagSystemMap,
-) -> list[GraphRecommendedNextCheckModel]:
-    return [
-        GraphRecommendedNextCheckModel(
-            id=check.id,
-            target_type=check.target_type,
-            target=check.target,
-            reason=check.reason,
-            action=check.action,
-        )
-        for check in system_map.recommended_next_checks
-    ]
-
-
-# 做什麼：用 v1 map 的 evidence / risk_hints 覆寫
-# graph.details（相容舊前端形狀）。
-# 被誰呼叫：build / project_to_graph。
-# 自己呼叫：_risk_detail。
-def _with_legacy_details(
-    graph: GraphViewModel,
-    system_map: RagSystemMap,
-) -> GraphViewModel:
-    return graph.model_copy(
-        update={
-            "details": graph.details.model_copy(
-                update={
-                    "evidence_by_id": {
-                        evidence.id: evidence.model_dump(mode="json")
-                        for evidence in system_map.evidence
-                    },
-                    "risk_hints_by_id": {
-                        risk.id: _risk_detail(risk)
-                        for risk in system_map.risk_hints
-                    },
-                },
-            )
-        }
-    )
-
-
-# 做什麼：把 v1 RiskHint 補上 title / severity / description 給側欄顯示。
-# 被誰呼叫：_with_legacy_details。
-# 自己呼叫：model_dump。
-def _risk_detail(risk: RiskHint) -> dict[str, Any]:
-    detail = risk.model_dump(mode="json")
-    detail["title"] = risk.type.replace("_", " ").title()
-    detail["severity"] = risk.severity_hint or "review"
-    detail["description"] = risk.rationale
-    return detail

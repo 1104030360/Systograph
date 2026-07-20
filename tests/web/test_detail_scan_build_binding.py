@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 from kai_mind.core.models.map_build import SystemMapSchemaSelection
 from kai_mind.web.app import create_app
@@ -13,7 +14,7 @@ def prepare_detail_scan(
     client: TestClient,
     tmp_path: Path,
     *,
-    schema_version: SystemMapSchemaSelection = "ai-system-map/v1",
+    schema_version: SystemMapSchemaSelection = "ai-system-map/v2",
 ) -> tuple[str, str, str, str, Path]:
     project_root = tmp_path / "project"
     project_root.mkdir()
@@ -36,7 +37,7 @@ def prepare_detail_scan(
         project_id,
         scan["scan_id"],
         build["lineage"]["build_id"],
-        build["ai_system_map"]["unmapped_components"][0]["id"],
+        build["ai_system_map"]["unmapped_components"][0]["unmapped_id"],
         target_file,
     )
 
@@ -76,6 +77,45 @@ def test_detail_scan_creates_child_build_without_mutating_parent(
     assert child["build_reason"] == "detail_scan"
     assert child["based_on_build_id"] == base_build_id
     assert latest["build_id"] == payload["build_id"]
+
+
+def test_committed_detail_build_survives_session_projection_failure(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    app = create_app(state_dir=tmp_path / "state")
+    client = TestClient(app)
+    project_id, _, base_build_id, target_id, _ = prepare_detail_scan(
+        client,
+        tmp_path,
+    )
+
+    def fail_save(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise RuntimeError("injected session projection failure")
+
+    monkeypatch.setattr(
+        app.state.session_store,
+        "save_build_result",
+        fail_save,
+    )
+
+    response = client.post(
+        "/api/detail-scans",
+        json={
+            "project_id": project_id,
+            "build_id": base_build_id,
+            "target_type": "unmapped_component",
+            "target": target_id,
+            "scan_depth": "component",
+        },
+    )
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert "session_projection_save_failed" in payload["warnings"]
+    committed = client.get(f"/api/map-builds/{payload['build_id']}")
+    assert committed.status_code == 200
 
 
 def test_detail_scan_rejects_file_changed_since_snapshot(

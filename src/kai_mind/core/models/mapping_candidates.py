@@ -26,7 +26,6 @@ MAX_USER_DESCRIPTION_CHARS = 1000
 
 class MappingCandidateType(StrEnum):
     EXISTING_SLOT = "existing_slot_mapping"
-    NEW_EXTENSION = "new_extension_component"
     NON_BASELINE_CAPABILITY_CANDIDATE = "non_baseline_capability_candidate"
     NEEDS_MORE_INFORMATION = "needs_more_information"
     SKIP_FOR_NOW = "skip_for_now"
@@ -59,7 +58,6 @@ class MappingEvidencePacket(MappingModel):
     call_like_signals: list[str] = Field(default_factory=list)
     context_limits: dict[str, str | int | bool] = Field(default_factory=dict)
     available_slots: list[str] = Field(default_factory=list)
-    available_extensions: list[str] = Field(default_factory=list)
     confirmed_component_ids: list[str] = Field(default_factory=list)
 
 
@@ -84,18 +82,6 @@ class MappingCandidate(MappingModel):
     provider: str | None = Field(
         default=None,
         max_length=MAX_PROVIDER_NAME_CHARS,
-    )
-    proposed_extension_id: str | None = Field(
-        default=None,
-        max_length=MAX_MAPPING_REF_CHARS,
-    )
-    proposed_extension_name: str | None = Field(
-        default=None,
-        max_length=MAX_COMPONENT_NAME_CHARS,
-    )
-    proposed_extension_kind: str | None = Field(
-        default=None,
-        max_length=MAX_COMPONENT_KIND_CHARS,
     )
     proposed_capability_candidate_id: str | None = Field(
         default=None,
@@ -134,14 +120,6 @@ class MappingCandidate(MappingModel):
 
     @model_validator(mode="after")
     def validate_shape(self) -> MappingCandidate:
-        extension_fields_present = any(
-            value is not None
-            for value in (
-                self.proposed_extension_id,
-                self.proposed_extension_name,
-                self.proposed_extension_kind,
-            )
-        )
         capability_fields_present = any(
             value is not None
             for value in (
@@ -156,32 +134,9 @@ class MappingCandidate(MappingModel):
                     raise ValueError(
                         "existing_slot_mapping requires target_slot"
                     )
-                if extension_fields_present:
-                    raise ValueError(
-                        "existing slot candidate cannot include "
-                        "extension fields"
-                    )
                 if capability_fields_present:
                     raise ValueError(
                         "existing_slot_mapping must not include capability "
-                        "candidate fields"
-                    )
-            case MappingCandidateType.NEW_EXTENSION:
-                if not extension_fields_present or (
-                    self.proposed_extension_id is None
-                    or self.proposed_extension_name is None
-                    or self.proposed_extension_kind is None
-                ):
-                    raise ValueError(
-                        "new_extension_component requires extension fields"
-                    )
-                if self.target_slot is not None:
-                    raise ValueError(
-                        "new_extension_component must not include target_slot"
-                    )
-                if capability_fields_present:
-                    raise ValueError(
-                        "new_extension_component must not include capability "
                         "candidate fields"
                     )
             case MappingCandidateType.NON_BASELINE_CAPABILITY_CANDIDATE:
@@ -198,11 +153,6 @@ class MappingCandidate(MappingModel):
                         "non_baseline_capability_candidate must not include "
                         "target_slot"
                     )
-                if extension_fields_present:
-                    raise ValueError(
-                        "non_baseline_capability_candidate must not include "
-                        "extension fields"
-                    )
                 if self.suggested_edges:
                     raise ValueError(
                         "non_baseline_capability_candidate must not include "
@@ -214,7 +164,6 @@ class MappingCandidate(MappingModel):
             ):
                 if (
                     self.target_slot is not None
-                    or extension_fields_present
                     or capability_fields_present
                     or self.suggested_edges
                 ):

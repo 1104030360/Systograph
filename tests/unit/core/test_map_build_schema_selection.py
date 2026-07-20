@@ -1,5 +1,3 @@
-"""Unit tests for opt-in v2 map build contract selection."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,10 +14,10 @@ from kai_mind.core.providers.output_artifact_provider import (
 from kai_mind.core.services.map_build_service import MapBuildService
 
 
-def test_map_build_request_defaults_to_v1_active_schema() -> None:
+def test_map_build_request_defaults_to_v2_active_schema() -> None:
     request = MapBuildRequest(project_path=Path("sample"))
 
-    assert request.system_map_schema_version == "ai-system-map/v1"
+    assert request.system_map_schema_version == "ai-system-map/v2"
 
 
 def test_map_build_request_accepts_explicit_v2_opt_in() -> None:
@@ -31,24 +29,24 @@ def test_map_build_request_accepts_explicit_v2_opt_in() -> None:
     assert request.system_map_schema_version == "ai-system-map/v2"
 
 
-def test_map_build_result_exposes_active_schema_and_migration_warnings() -> (
-    None
-):
+def test_map_build_result_exposes_operator_rollback_metadata() -> None:
     result = MapBuildResult(
         status="ok",
         project_name="sample",
         active_schema_version="ai-system-map/v1",
         requested_schema_version="ai-system-map/v2",
+        source_schema_version="ai-system-map/v1",
+        operator_rollback_active=True,
         migration_warnings=[
-            "active_output_remains_v1_until_plan_13",
+            "operator_rollback_active",
         ],
     )
 
     assert result.active_schema_version == "ai-system-map/v1"
     assert result.requested_schema_version == "ai-system-map/v2"
-    assert (
-        "active_output_remains_v1_until_plan_13" in result.migration_warnings
-    )
+    assert result.source_schema_version == "ai-system-map/v1"
+    assert result.operator_rollback_active is True
+    assert "operator_rollback_active" in result.migration_warnings
 
 
 class _FailingPreconditionProvider(OutputArtifactProvider):
@@ -84,4 +82,4 @@ def test_precondition_error_preserves_requested_schema_version(
 
     assert result.status == "error"
     assert result.requested_schema_version == "ai-system-map/v2"
-    assert result.active_schema_version == "ai-system-map/v1"
+    assert result.active_schema_version == "ai-system-map/v2"

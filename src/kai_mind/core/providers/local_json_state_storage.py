@@ -43,19 +43,30 @@ class LocalJsonStateStorage:
             raise ProjectStateBusyError("project_state_busy") from exc
 
     def write_model(self, path: Path, model: BaseModel) -> None:
+        self.write_json(path, model.model_dump(mode="json"))
+
+    def write_json(
+        self,
+        path: Path,
+        payload: object,
+        *,
+        mode: int | None = None,
+    ) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
         with temporary.open("w", encoding="utf-8") as handle:
-            handle.write(self.serialize(model))
+            handle.write(self.serialize(payload))
             handle.flush()
             os.fsync(handle.fileno())
+        if mode is not None:
+            os.chmod(temporary, mode)
         os.replace(temporary, path)
 
     @staticmethod
-    def serialize(model: BaseModel) -> str:
+    def serialize(payload: object) -> str:
         return (
             json.dumps(
-                model.model_dump(mode="json"),
+                payload,
                 ensure_ascii=False,
                 indent=2,
                 sort_keys=True,

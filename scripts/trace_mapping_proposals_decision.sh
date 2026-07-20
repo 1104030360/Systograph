@@ -86,7 +86,7 @@ if [[ -z "$PROPOSAL_ID" ]]; then
     CANDIDATE_ID="$(echo "$PROPOSAL_JSON" | jq -r '
       [.candidates[]
        | select(.candidate_id != null)
-       | select(.candidate_type == "existing_slot_mapping" or .candidate_type == "new_extension_component")
+       | select(.candidate_type == "existing_slot_mapping" or .candidate_type == "non_baseline_capability_candidate")
        | .candidate_id][0] // empty')"
     [[ -n "$CANDIDATE_ID" ]] \
       || kai_die "No acceptable candidate to auto-select; use --decision skip_for_now or pass --candidate-id"

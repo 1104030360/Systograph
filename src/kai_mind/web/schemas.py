@@ -8,6 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.analysis_history import MapBuildManifest
 from kai_mind.core.models.apply_confirmations import ApplyConfirmationsResult
 from kai_mind.core.models.inventory_selection import (
@@ -35,7 +36,7 @@ from kai_mind.core.models.scan_boundary import (
     ScanBoundaryDecisionRequest,
     ScanBoundaryProposal,
 )
-from kai_mind.core.models.system_map import DetailScanResult, RagSystemMap
+from kai_mind.core.models.system_map import DetailScanResult
 from kai_mind.core.models.viewer import ViewerLoadResult, ViewerPayload
 
 
@@ -53,7 +54,7 @@ class MapBuildApiRequest(WebSchema):
     system_map_schema_version: Literal[
         "ai-system-map/v1",
         "ai-system-map/v2",
-    ] = "ai-system-map/v1"
+    ] = "ai-system-map/v2"
 
     def to_core_request(self) -> MapBuildRequest:
         return MapBuildRequest(
@@ -93,6 +94,8 @@ class Phase2MapBuildResult(WebSchema):
     project_name: str
     active_schema_version: Literal["ai-system-map/v1", "ai-system-map/v2"]
     requested_schema_version: Literal["ai-system-map/v1", "ai-system-map/v2"]
+    source_schema_version: Literal["ai-system-map/v1", "ai-system-map/v2"]
+    operator_rollback_active: bool
     migration_warnings: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     profile_signals_available: bool
@@ -107,6 +110,8 @@ class Phase2MapBuildResult(WebSchema):
             project_name=result.project_name,
             active_schema_version=result.active_schema_version,
             requested_schema_version=result.requested_schema_version,
+            source_schema_version=result.source_schema_version,
+            operator_rollback_active=result.operator_rollback_active,
             migration_warnings=result.migration_warnings,
             warnings=result.warnings,
             profile_signals_available=(
@@ -221,7 +226,7 @@ class ScanCreateRequest(WebSchema):
     system_map_schema_version: Literal[
         "ai-system-map/v1",
         "ai-system-map/v2",
-    ] = "ai-system-map/v1"
+    ] = "ai-system-map/v2"
     boundary_decisions: list[ScanBoundaryDecisionRequest] = Field(
         default_factory=list
     )
@@ -351,7 +356,7 @@ class DetailScanCreateRequest(WebSchema):
 class DetailScanResponse(WebSchema):
     project_id: str
     detail_scan: DetailScanResult
-    ai_system_map: RagSystemMap
+    ai_system_map: AiSystemMapV2
     source_build_id: str | None = None
     build_id: str | None = None
     scan_id: str | None = None

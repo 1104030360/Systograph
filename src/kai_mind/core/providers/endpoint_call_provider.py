@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import BaseModel, ConfigDict
 
-from kai_mind.core.models.system_map import Endpoint
+from kai_mind.core.models.ai_system_map_v2 import CanonicalEndpoint
 from kai_mind.core.security.egress_policy import (
     EgressDecision,
     EgressPolicy,
@@ -74,7 +74,7 @@ class EndpointCallProvider:
     def call(
         self,
         *,
-        endpoint: Endpoint,
+        endpoint: CanonicalEndpoint,
         query: str,
         timeout_seconds: float,
     ) -> EndpointCallResult:

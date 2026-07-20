@@ -90,8 +90,6 @@ class ProposalManualMappingFactory:
             match candidate.candidate_type:
                 case MappingCandidateType.EXISTING_SLOT:
                     return ManualMappingType.EXISTING_SLOT
-                case MappingCandidateType.NEW_EXTENSION:
-                    return ManualMappingType.NEW_EXTENSION
                 case MappingCandidateType.NON_BASELINE_CAPABILITY_CANDIDATE:
                     return ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE
                 case (
@@ -125,29 +123,6 @@ class ProposalManualMappingFactory:
                         candidate.component_kind or packet.observed_kind
                     ),
                     provider=candidate.provider,
-                    proposal_id=proposal.proposal_id,
-                    decision_source="proposal_accept",
-                )
-            case MappingCandidateType.NEW_EXTENSION:
-                return ManualMappingCreate(
-                    project_id=proposal.project_id,
-                    mapping_type=ManualMappingType.NEW_EXTENSION,
-                    decision=ManualMappingDecision.CONFIRMED,
-                    source_unmapped_id=proposal.source_unmapped_id,
-                    source_file=packet.source_file,
-                    observed_kind=packet.observed_kind,
-                    evidence_ids=list(candidate.evidence_ids),
-                    extension_id=candidate.proposed_extension_id,
-                    extension_name=candidate.proposed_extension_name,
-                    extension_kind=candidate.proposed_extension_kind,
-                    extension_edges=[
-                        {
-                            "from": edge.source_ref,
-                            "to": edge.target_ref,
-                            "relationship": edge.relationship,
-                        }
-                        for edge in candidate.suggested_edges
-                    ],
                     proposal_id=proposal.proposal_id,
                     decision_source="proposal_accept",
                 )

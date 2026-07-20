@@ -55,7 +55,6 @@ def test_custom_router_fixture_preserves_unmapped_component() -> None:
 def test_reranker_fixture_creates_non_baseline_confirmation_item() -> None:
     result = detect_fixture("reranker_extension_rag")
 
-    assert result.extensions == []
     assert result.unmapped_components
     assert result.unmapped_components[0].observed_kind == "reranker_candidate"
     assert "confirm_mapping" in result.unmapped_components[0].suggested_actions

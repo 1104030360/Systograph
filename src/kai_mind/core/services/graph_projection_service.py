@@ -123,6 +123,7 @@ class GraphProjectionService:
             scan_id=system_map.scan_id,
             build_id=system_map.build_id,
             environment_id=system_map.environment_id,
+            artifact_set_version=system_map.artifact_set_version,
             generated_from_build_id=system_map.generated_from_build_id,
             reference_map_version=REFERENCE_MAP_VERSION,
             mapping_completeness=overlay.mapping_completeness,
