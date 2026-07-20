@@ -11,6 +11,7 @@ from kai_mind.core.models.artifact_scope import (
 )
 from kai_mind.core.models.inventory_selection import InventorySelectionSummary
 from kai_mind.core.models.scan import ProjectScanResult
+from kai_mind.core.models.system_map import DetailScanResult
 
 BuildReason = Literal[
     "initial_scan",
@@ -155,5 +156,6 @@ class MapBuildManifest(AnalysisHistoryModel):
     ) = None
     operator_rollback_active: bool = False
     migration_warnings: tuple[str, ...] = ()
+    detail_scan_results: tuple[DetailScanResult, ...] = ()
     apply_request_digest: str | None = None
     status: Literal["complete"] = "complete"

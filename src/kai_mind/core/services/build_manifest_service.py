@@ -109,6 +109,7 @@ class BuildManifestService:
             source_schema_version=result.source_schema_version,
             operator_rollback_active=result.operator_rollback_active,
             migration_warnings=tuple(result.migration_warnings),
+            detail_scan_results=tuple(result.detail_scan_results),
             apply_request_digest=apply_request_digest,
         )
         return self._repository.save_build_manifest(manifest)
@@ -185,6 +186,7 @@ class BuildManifestService:
             ),
             operator_rollback_active=manifest.operator_rollback_active,
             migration_warnings=list(manifest.migration_warnings),
+            detail_scan_results=list(manifest.detail_scan_results),
             warnings=warnings,
             map_json_path=existing_path(paths["ai_system_map.json"]),
             profile_signals_path=existing_path(paths["profile_signals.json"]),

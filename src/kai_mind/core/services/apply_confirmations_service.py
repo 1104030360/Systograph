@@ -104,7 +104,7 @@ class ApplyConfirmationsService:
                 request=MapBuildRequest(
                     project_path=Path(project.canonical_path),
                     output=output_root,
-                    system_map_schema_version=base.requested_schema_version,
+                    system_map_schema_version="ai-system-map/v2",
                 ),
                 output_run=output_run,
                 build_id=build_id,
