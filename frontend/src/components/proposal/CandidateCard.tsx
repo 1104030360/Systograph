@@ -30,6 +30,10 @@ export function CandidateCard({
 }) {
   const w = useWording();
   const isRecommended = cand.recommendation_level === "recommended";
+  const isMaterializable =
+    cand.candidate_type === "existing_slot_mapping" ||
+    cand.candidate_type === "non_baseline_capability_candidate";
+  const candidateName = cand.component_name ?? cand.proposed_capability_candidate_name ?? cand.label ?? "Candidate";
   return (
     <div
       className={"mp-cand" + (selected ? " is-selected" : "") + (isRecommended ? " is-recommended" : "")}
@@ -46,7 +50,7 @@ export function CandidateCard({
       </div>
       <div className="mp-cand-body">
         <p className="mp-verdict">
-          {w.verdictPre} <b>{cand.component_name}</b>
+          {w.verdictPre} <b>{candidateName}</b>
           {w.verdictPost}
         </p>
         <p className="mp-why">
@@ -61,12 +65,16 @@ export function CandidateCard({
         ) : null}
       </div>
       <div className="mp-cand-actions" onClick={(e) => e.stopPropagation()}>
-        <button className="btn primary" type="button" disabled={busy} onClick={onAccept}>
-          <Check size={14} /> {w.acceptBtn}
-        </button>
-        <button className="btn" type="button" disabled={busy} onClick={onEditOpen}>
-          <Pencil size={14} /> {w.editBtn}
-        </button>
+        {isMaterializable ? (
+          <>
+            <button className="btn primary" type="button" disabled={busy} onClick={onAccept}>
+              <Check size={14} /> {w.acceptBtn}
+            </button>
+            <button className="btn" type="button" disabled={busy} onClick={onEditOpen}>
+              <Pencil size={14} /> {w.editBtn}
+            </button>
+          </>
+        ) : null}
         <span className="spacer" />
         <button className="btn danger" type="button" disabled={busy} onClick={onReject}>
           <X size={14} /> {w.rejectBtn}

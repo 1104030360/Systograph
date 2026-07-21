@@ -59,7 +59,7 @@ describe("ReadinessPanel", () => {
 
     expect(screen.getByRole("dialog", { name: "Readiness" })).toBeInTheDocument();
     expect(screen.getAllByText("Undetermined").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Grounding Undetermined/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Grounding" })).toBeInTheDocument();
     expect(screen.getByText("Capability readiness: rag-grounding")).toBeInTheDocument();
     expect(screen.getByText("Review the missing deterministic capability signals.")).toBeInTheDocument();
     expect(screen.getByText("Run a detail scan on the retrieval components.")).toBeInTheDocument();
@@ -71,6 +71,17 @@ describe("ReadinessPanel", () => {
     render(<ReadinessPanel report={null} graph={graph} onClose={() => {}} />);
 
     expect(screen.getByText(/does not include a readiness report/)).toBeInTheDocument();
+    expect(screen.getByText(/UI example only/)).toBeInTheDocument();
+    expect(screen.getByText(/not a scan result/)).toBeInTheDocument();
+  });
+
+  it("switches to safe plain-text Markdown source", () => {
+    render(<ReadinessPanel report={report} graph={graph} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Markdown" }));
+
+    expect(screen.getByText(/^# Readiness report/)).toBeInTheDocument();
+    expect(screen.getByText(/build:sample/)).toBeInTheDocument();
   });
 
   it("degrades on an unsupported report contract", () => {

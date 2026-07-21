@@ -82,7 +82,7 @@ describe("DetailPanel plane chip", () => {
     const chip = container.querySelector(".plane-chip");
     expect(chip).not.toBeNull();
     expect(chip).toHaveTextContent("Control");
-    const icon = chip?.querySelector("svg");
+    const icon = chip?.querySelector(".prototype-icon-control");
     expect(icon).not.toBeNull();
     expect(icon).toHaveAttribute("aria-hidden", "true");
   });
@@ -99,7 +99,7 @@ describe("DetailPanel plane chip", () => {
     const chip = container.querySelector(".plane-chip");
     expect(chip).not.toBeNull();
     expect(chip).toHaveTextContent("Trust Boundary");
-    expect(chip?.querySelector("svg")).toBeNull();
+    expect(chip?.querySelector(".prototype-icon")).toBeNull();
   });
 
   it("surfaces backend assessment scope, typed evidence, conflicts, and next checks", () => {

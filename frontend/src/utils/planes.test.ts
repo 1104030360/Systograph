@@ -19,9 +19,9 @@ function flowNodes(rawNodes: Array<Record<string, unknown>>) {
 }
 
 describe("layoutPlaneBands", () => {
-  it("recognizes a backend reference projection even when its canonical source was v1", () => {
+  it("recognizes a backend reference projection from the active v2 canonical source", () => {
     const graph = graphViewModelSchema.parse({
-      source_schema_version: "ai-system-map/v1",
+      source_schema_version: "ai-system-map/v2",
       reference_map_version: "1",
       nodes: [{ id: "reference:planner", label: "Planner", plane_id: "control" }],
       edges: [],
@@ -38,9 +38,9 @@ describe("layoutPlaneBands", () => {
     expect(hasBackendPlaneProjection(graph)).toBe(true);
   });
 
-  it("keeps a legacy graph without backend plane metadata on auto layout", () => {
+  it("keeps a graph without backend plane metadata on auto layout", () => {
     const graph = graphViewModelSchema.parse({
-      source_schema_version: "ai-system-map/v1",
+      source_schema_version: "ai-system-map/v2",
       nodes: [{ id: "node:legacy", label: "Legacy" }],
       edges: [],
       details: {

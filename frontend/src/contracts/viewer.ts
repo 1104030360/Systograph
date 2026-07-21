@@ -83,7 +83,7 @@ const profileFindingSchema = z
 const profileInferenceResultSchema = z
   .object({
     schema_version: z.literal("profile-signals/v1"),
-    source_schema_version: z.enum(["ai-system-map/v1", "ai-system-map/v2"]),
+    source_schema_version: z.literal("ai-system-map/v2"),
     scan_id: z.string(),
     build_id: z.string(),
     environment_id: z.string(),
@@ -141,7 +141,7 @@ const capabilityReadinessSummarySchema = z
 export const readinessReportSchema = z
   .object({
     schema_version: z.literal("readiness-report/v1"),
-    source_schema_version: z.enum(["ai-system-map/v1", "ai-system-map/v2"]),
+    source_schema_version: z.literal("ai-system-map/v2"),
     scan_id: z.string(),
     build_id: z.string(),
     environment_id: z.string(),
@@ -226,8 +226,8 @@ const phase2MapBuildResultSchema = z
   .object({
     status: z.enum(["ok", "error"]),
     project_name: z.string(),
-    active_schema_version: z.enum(["ai-system-map/v1", "ai-system-map/v2"]),
-    requested_schema_version: z.enum(["ai-system-map/v1", "ai-system-map/v2"]),
+    active_schema_version: z.literal("ai-system-map/v2"),
+    requested_schema_version: z.literal("ai-system-map/v2"),
     migration_warnings: z.array(z.string()).default([]),
     warnings: z.array(z.string()).default([]),
     profile_signals_available: z.boolean(),

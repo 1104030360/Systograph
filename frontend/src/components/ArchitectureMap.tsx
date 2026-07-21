@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { ArrowRight, Boxes, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import type { GraphNodeModel, GraphViewModel, Selection } from "../types";
-import { getPlaneIcon } from "../icons/registry";
+import { PrototypeIcon } from "../icons/PrototypeIcon";
+import { getPlanePrototypeIconKind } from "../icons/prototypeIconRegistry";
 import { nodeStatusKey, nodeStatusLabel } from "../utils/assessment";
 import type { ArchitectureViewId, ArchitectureViewModel } from "../utils/architectureViews";
 import { PLANE_PRESENTATION_ORDER, hasBackendPlaneProjection, planeLabel } from "../utils/planes";
@@ -220,13 +221,13 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
           {PLANE_PRESENTATION_ORDER.map((planeId, index) => {
           const nodes = nodesByPlane.get(planeId) ?? [];
           const focusedCount = nodes.filter(nodeMatches).length;
-          const PlaneIcon = getPlaneIcon(planeId);
+              const planeIconKind = getPlanePrototypeIconKind(planeId);
           return (
             <section className={`dr-plane dr-plane-${planeId}`} key={planeId} data-plane-id={planeId}>
               <header className="dr-plane-heading">
                 <span className="dr-plane-index">{String(index + 1).padStart(2, "0")}</span>
                 <span className="dr-plane-icon" aria-hidden="true">
-                  {PlaneIcon ? <PlaneIcon size={17} /> : null}
+                  {planeIconKind ? <PrototypeIcon kind={planeIconKind} size={18} /> : null}
                 </span>
                 <span>
                   <strong>{planeLabel(planeId)}</strong>

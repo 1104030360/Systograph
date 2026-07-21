@@ -512,13 +512,23 @@ export const skippedDecisionRowSchema = z.object({
    ========================================================================== */
 export const mappingCandidateSchema = z.object({
   candidate_id: z.string(),
-  candidate_type: z.enum(["existing_slot_mapping", "new_extension_component"]),
-  recommendation_level: z.enum(["recommended", "alternative", "fallback"]).optional(),
+  candidate_type: z.enum([
+    "existing_slot_mapping",
+    "non_baseline_capability_candidate",
+    "needs_more_information",
+    "skip_for_now",
+  ]),
+  recommendation_level: z.string().optional(),
   source: z.enum(["ai_suggested", "fallback_rule", "deterministic"]).optional(),
-  target_slot: z.string(),
-  component_name: z.string(),
-  component_kind: z.string(),
-  provider: z.string(),
+  target_slot: z.string().nullable().optional(),
+  component_name: z.string().nullable().optional(),
+  component_kind: z.string().nullable().optional(),
+  provider: z.string().nullable().optional(),
+  proposed_capability_candidate_id: z.string().nullable().optional(),
+  proposed_capability_candidate_name: z.string().nullable().optional(),
+  proposed_capability_candidate_kind: z.string().nullable().optional(),
+  label: z.string().optional(),
+  rank: z.number().int().positive().optional(),
   // The backend may still send a confidence score, but the UI does not surface
   // it for already-detected components — it lists the cited evidence instead.
   confidence: z.number().min(0).max(1).optional(),
@@ -549,13 +559,16 @@ export const mappingProposalSchema = z.object({
 // edited_mapping body from API-GUIDE §4/§5 (ManualMappingCreate, confirmed)
 export const manualMappingCreateSchema = z.object({
   project_id: z.string(),
-  mapping_type: z.enum(["existing_slot_mapping", "new_extension_component"]),
+  mapping_type: z.enum(["existing_slot_mapping", "non_baseline_capability_candidate"]),
   decision: z.literal("confirmed"),
   source_unmapped_id: z.string(),
   evidence_ids: z.array(z.string()).default([]),
-  target_slot: z.string(),
-  component_name: z.string(),
-  component_kind: z.string(),
+  target_slot: z.string().nullable().optional(),
+  component_name: z.string().nullable().optional(),
+  component_kind: z.string().nullable().optional(),
+  capability_candidate_id: z.string().nullable().optional(),
+  capability_candidate_name: z.string().nullable().optional(),
+  capability_candidate_kind: z.string().nullable().optional(),
   reason: z.string().optional(),
 });
 

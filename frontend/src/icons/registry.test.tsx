@@ -37,13 +37,15 @@ describe("icon registry", () => {
 });
 
 describe("BrandMark", () => {
-  it("is decorative and inherits color instead of hard-coding a palette", () => {
+  it("is decorative and preserves the original prototype palette", () => {
     const { container } = render(<BrandMark />);
     const svg = container.querySelector("svg");
     expect(svg).not.toBeNull();
     expect(svg).toHaveAttribute("aria-hidden", "true");
     expect(svg).toHaveAttribute("focusable", "false");
-    expect(svg).toHaveAttribute("stroke", "currentColor");
-    expect(container.innerHTML).not.toMatch(/#[0-9a-fA-F]{3,8}/);
+    expect(container.innerHTML).toContain("#256ee8");
+    expect(container.innerHTML).toContain("#22b35d");
+    expect(container.innerHTML).toContain("#ff9f1c");
+    expect(container.innerHTML).toContain("#8a45d7");
   });
 });

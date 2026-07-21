@@ -40,40 +40,12 @@ class ConsumerRecord(NamedTuple):
 
 CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
     ConsumerRecord(
-        path="frontend/src/components/proposal/EditForm.tsx",
-        symbol="new_extension_component",
-        classification="migrate",
-        removal_plan=(
-            "Frontend owner removes this active legacy decision branch."
-        ),
-    ),
-    ConsumerRecord(
         path="frontend/src/data/frontend-json-sample.json",
         symbol="ai-system-map/v1",
         classification="migrate",
         removal_plan=(
             "Frontend owner replaces the active v1 sample in its handoff."
         ),
-    ),
-    ConsumerRecord(
-        path="frontend/src/data/frontend-json-sample.json",
-        symbol="new_extension_component",
-        classification="migrate",
-        removal_plan=(
-            "Frontend owner replaces the active legacy sample contract."
-        ),
-    ),
-    ConsumerRecord(
-        path="frontend/src/data/scanTemplate.mock.ts",
-        symbol="new_extension_component",
-        classification="migrate",
-        removal_plan=("Frontend owner migrates this active proposal fixture."),
-    ),
-    ConsumerRecord(
-        path="frontend/src/types.ts",
-        symbol="new_extension_component",
-        classification="migrate",
-        removal_plan=("Frontend owner migrates this active public UI type."),
     ),
     ConsumerRecord(
         path=(

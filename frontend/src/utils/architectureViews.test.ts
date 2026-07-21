@@ -5,7 +5,7 @@ import { ARCHITECTURE_VIEW_DEFINITIONS, buildArchitectureViews } from "./archite
 function graphFixture(referenceMapVersion: string | null = "1"): GraphViewModel {
   return graphViewModelSchema.parse({
     schema_version: "ai-system-graph/v2",
-    source_schema_version: "ai-system-map/v1",
+    source_schema_version: "ai-system-map/v2",
     reference_map_version: referenceMapVersion,
     nodes: [
       {

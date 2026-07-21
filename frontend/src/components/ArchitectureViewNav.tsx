@@ -1,23 +1,5 @@
-import {
-  Activity,
-  ArrowRightLeft,
-  BrainCircuit,
-  CircleAlert,
-  CircleDot,
-  Database,
-  FileCode2,
-  GitBranch,
-  LayoutGrid,
-  Network,
-  PackageOpen,
-  Puzzle,
-  Search,
-  SearchCheck,
-  ShieldCheck,
-  TriangleAlert,
-  Workflow,
-  type LucideIcon,
-} from "lucide-react";
+import { Search } from "lucide-react";
+import { PrototypeIcon, type PrototypeIconKind } from "../icons/PrototypeIcon";
 import { PHASE2_STATUS_LEGEND } from "../utils/assessment";
 import type { ArchitectureViewId, ArchitectureViewModel } from "../utils/architectureViews";
 
@@ -29,23 +11,23 @@ type Props = {
   onSearchChange: (value: string) => void;
 };
 
-const ICONS: Record<ArchitectureViewId, LucideIcon> = {
-  overview: LayoutGrid,
-  dataflow: ArrowRightLeft,
-  control: Workflow,
-  ingestion: PackageOpen,
-  retrieval: SearchCheck,
-  memory: Database,
-  governance: ShieldCheck,
-  runtime: Activity,
-  variants: GitBranch,
-  known: CircleDot,
-  extensions: Puzzle,
-  unmapped: CircleAlert,
-  reasoning: BrainCircuit,
-  topology: Network,
-  source: FileCode2,
-  risk: TriangleAlert,
+const ICONS: Record<ArchitectureViewId, PrototypeIconKind> = {
+  overview: "overview",
+  dataflow: "data",
+  control: "control",
+  ingestion: "ingestion",
+  retrieval: "retrieval",
+  memory: "memory",
+  governance: "governance",
+  runtime: "runtime",
+  variants: "variant",
+  known: "known",
+  extensions: "extension",
+  unmapped: "unmapped",
+  reasoning: "mode",
+  topology: "topology",
+  source: "source",
+  risk: "risk",
 };
 
 export function ArchitectureViewNav({ views, activeViewId, search, onSelect, onSearchChange }: Props) {
@@ -69,7 +51,7 @@ export function ArchitectureViewNav({ views, activeViewId, search, onSelect, onS
       <div className="dr-filter-scroll">
         <div className="dr-filter-stack" role="group" aria-label="Architecture filter views">
           {views.map((view) => {
-            const Icon = ICONS[view.id];
+            const iconKind = ICONS[view.id];
             const active = activeViewId === view.id;
             const description = view.supported ? view.description : view.unavailableReason ?? view.description;
             return (
@@ -90,9 +72,7 @@ export function ArchitectureViewNav({ views, activeViewId, search, onSelect, onS
                 title={description}
                 onClick={() => onSelect(view.id)}
               >
-                <span className="dr-filter-icon" aria-hidden="true">
-                  <Icon size={15} />
-                </span>
+                <PrototypeIcon className="dr-filter-icon" kind={iconKind} size={23} />
                 <span className="dr-filter-copy">
                   <strong>{view.label}</strong>
                   <span id={`filter-description-${view.id}`} className="sr-only">{description}</span>

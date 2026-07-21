@@ -198,15 +198,19 @@ export const PROPOSALS: Record<string, MappingProposal> = {
       },
       {
         candidate_id: "candidate:3",
-        candidate_type: "new_extension_component",
+        candidate_type: "non_baseline_capability_candidate",
         recommendation_level: "fallback",
         source: "fallback_rule",
-        target_slot: "ui_extension",
-        component_name: "UserProfile (new UI extension)",
-        component_kind: "react_view",
+        target_slot: null,
+        component_name: null,
+        component_kind: null,
         provider: "deterministic",
+        proposed_capability_candidate_id: "capability-candidate:user-profile",
+        proposed_capability_candidate_name: "User Profile",
+        proposed_capability_candidate_kind: "react_view",
+        label: "Review as a non-baseline UI capability",
         rationale:
-          "Deterministic fallback: no existing-slot match found, so propose registering it as a new UI extension component.",
+          "No existing slot matches this evidence. Keep it explicit as a non-baseline capability candidate for user review.",
         evidence_ids: ["evidence:path:components-dir"],
         evidence_refs: [
           {
@@ -234,7 +238,6 @@ export const SLOT_OPTIONS = [
   { value: "reranker", label: "Reranker" },
   { value: "ui_account_view", label: "UI · Account View" },
   { value: "ui_settings_panel", label: "UI · Settings Panel" },
-  { value: "ui_extension", label: "UI · New extension" },
 ];
 
 export const COMPONENT_KINDS = [

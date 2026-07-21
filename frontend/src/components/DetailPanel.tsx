@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { CheckCircle2, Clipboard, FileCode2, Info, Route, X } from "lucide-react";
 import type { GraphEdgeModel, GraphNodeModel, GraphViewModel, Selection, ViewerPayload } from "../types";
-import { getPlaneIcon } from "../icons/registry";
+import { PrototypeIcon } from "../icons/PrototypeIcon";
+import { getPlanePrototypeIconKind } from "../icons/prototypeIconRegistry";
 import { compactId, formatValue, titleCase } from "../utils/format";
 import { planeLabel } from "../utils/planes";
 
@@ -223,7 +224,7 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
   ];
 
   // Plane chip renders only when the backend published plane_id; no inference.
-  const PlaneIcon = getPlaneIcon(node?.plane_id);
+  const planeIconKind = getPlanePrototypeIconKind(node?.plane_id);
 
   return (
     <>
@@ -232,7 +233,7 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
           <span className={isNode ? "kind-tag node" : "kind-tag edge"}>{isNode ? "Node" : "Edge"}</span>
           {node?.plane_id ? (
             <span className="plane-chip" title="Backend-declared plane">
-              {PlaneIcon ? <PlaneIcon size={12} aria-hidden="true" /> : null}
+              {planeIconKind ? <PrototypeIcon kind={planeIconKind} size={13} /> : null}
               {planeLabel(node.plane_id)}
             </span>
           ) : null}

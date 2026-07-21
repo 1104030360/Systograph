@@ -18,10 +18,11 @@ export function EditForm({
   onCancel: () => void;
   onSubmit: (edited: ManualMappingCreate) => void;
 }) {
+  const isCapabilityCandidate = cand.candidate_type === "non_baseline_capability_candidate";
   const [form, setForm] = useState({
-    target_slot: cand.target_slot,
-    component_name: cand.component_name,
-    component_kind: cand.component_kind,
+    target_slot: cand.target_slot ?? "",
+    component_name: cand.component_name ?? cand.proposed_capability_candidate_name ?? cand.label ?? "",
+    component_kind: cand.component_kind ?? cand.proposed_capability_candidate_kind ?? "other",
     reason: "",
   });
   const [errors, setErrors] = useState<{ target_slot?: string; component_name?: string }>({});
@@ -30,18 +31,21 @@ export function EditForm({
   function submit() {
     const e: typeof errors = {};
     if (!form.component_name.trim()) e.component_name = "Component name is required.";
-    if (!form.target_slot) e.target_slot = "Pick a target slot.";
+    if (!isCapabilityCandidate && !form.target_slot) e.target_slot = "Pick a target slot.";
     setErrors(e);
     if (Object.keys(e).length) return;
     onSubmit({
       project_id: PROJECT.project_id,
-      mapping_type: form.target_slot === "ui_extension" ? "new_extension_component" : "existing_slot_mapping",
+      mapping_type: isCapabilityCandidate ? "non_baseline_capability_candidate" : "existing_slot_mapping",
       decision: "confirmed",
       source_unmapped_id: node.unmapped_id,
       evidence_ids: cand.evidence_ids,
-      target_slot: form.target_slot,
-      component_name: form.component_name.trim(),
-      component_kind: form.component_kind,
+      target_slot: isCapabilityCandidate ? null : form.target_slot,
+      component_name: isCapabilityCandidate ? null : form.component_name.trim(),
+      component_kind: isCapabilityCandidate ? null : form.component_kind,
+      capability_candidate_id: isCapabilityCandidate ? cand.proposed_capability_candidate_id : null,
+      capability_candidate_name: isCapabilityCandidate ? form.component_name.trim() : null,
+      capability_candidate_kind: isCapabilityCandidate ? form.component_kind : null,
       reason: form.reason.trim() || undefined,
     });
   }
@@ -52,17 +56,19 @@ export function EditForm({
         <Pencil size={13} /> Edit mapping before confirming
       </div>
       <div className="mp-field-row">
-        <div className={"mp-field" + (errors.target_slot ? " has-error" : "")}>
-          <label>Target slot</label>
-          <select value={form.target_slot} onChange={(e) => set("target_slot", e.target.value)}>
-            {SLOT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          {errors.target_slot ? <span className="mp-err">{errors.target_slot}</span> : null}
-        </div>
+        {!isCapabilityCandidate ? (
+          <div className={"mp-field" + (errors.target_slot ? " has-error" : "")}>
+            <label>Target slot</label>
+            <select value={form.target_slot} onChange={(e) => set("target_slot", e.target.value)}>
+              {SLOT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            {errors.target_slot ? <span className="mp-err">{errors.target_slot}</span> : null}
+          </div>
+        ) : null}
         <div className="mp-field">
           <label>Component kind</label>
           <select value={form.component_kind} onChange={(e) => set("component_kind", e.target.value)}>

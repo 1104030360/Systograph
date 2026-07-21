@@ -45,6 +45,8 @@ describe("ArchitectureViewNav", () => {
     expect(screen.getByRole("button", { name: /Runtime.*metadata is unavailable/ })).toBeDisabled();
     expect(container.querySelector(".dr-schema-card")).toBeNull();
     expect(container.querySelector(".dr-filter-scroll")).not.toBeNull();
+    expect(container.querySelector(".prototype-icon-overview")).not.toBeNull();
+    expect(container.querySelector(".dr-filter-icon svg")).toBeNull();
     const legend = screen.getByRole("group", { name: "Assessment and node kind legend" });
     expect(legend).toHaveTextContent("Detected");
     expect(legend).toHaveTextContent("Partial");

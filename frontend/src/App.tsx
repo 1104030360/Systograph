@@ -10,10 +10,10 @@ import { BuildHistoryMenu } from "./components/BuildHistoryMenu";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
 import { MapStatusBar } from "./components/MapStatusBar";
+import { MappingProfileDialog } from "./components/MappingProfileDialog";
 import { ProgressStrip } from "./components/ProgressStrip";
 import { ReadinessPanel } from "./components/ReadinessPanel";
 import { StateOverlay, type ViewerState } from "./components/StateOverlay";
-import { ScanTemplatePage } from "./pages/ScanTemplatePage";
 import { ProposalModal, type ProposalTarget } from "./components/proposal/ProposalModal";
 import { WordingProvider } from "./wording";
 import { viewerPayload as sampleViewerPayload } from "./data/sampleMap";
@@ -523,7 +523,7 @@ export default function App() {
 
       <WordingProvider>
         {view === "scan-template" ? (
-          <ScanTemplatePage
+          <MappingProfileDialog
             onClose={() => setView("viewer")}
             onOpenProposal={(row) =>
               setProposalTarget({

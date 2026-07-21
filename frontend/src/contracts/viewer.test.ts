@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import phase2ViewerSample from "../../../docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-08-viewer/frontend-json-sample.json";
+import phase2AiSystemMapSample from "../../../docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-04-normalize-validate/frontend-ai-system-map-sample.json";
+import readinessReportSample from "../../../docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-06-derived-assessment/frontend-readiness-report-sample.json";
+import graphViewModelSample from "../../../docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-07-projection-publication/frontend-graph-view-model-sample.json";
 import legacyViewerSample from "../data/frontend-json-sample.json";
 import {
   extractMappingCompleteness,
@@ -7,6 +9,38 @@ import {
   parseViewerPayload,
   phase2ViewerLoadResultSchema,
 } from "./viewer";
+
+const phase2ViewerSample = {
+  loaded: true,
+  error_reason: null,
+  warnings: [],
+  project_id: "project:sample-ai-health-rag",
+  scan_id: "scan:sample-s1",
+  build_id: "build:sample-b2",
+  environment_id: "environment:default-static",
+  generated_from_build_id: "build:sample-b2",
+  based_on_build_id: null,
+  applied_mapping_ids: [],
+  artifact_refs: [
+    {
+      artifact_id: "artifact:ai-system-map",
+      artifact_type: "ai_system_map",
+      file_name: "ai_system_map.json",
+      media_type: "application/json",
+      sha256: "a".repeat(64),
+      size_bytes: 1,
+    },
+  ],
+  map_json: null,
+  ai_system_map: phase2AiSystemMapSample,
+  profile_inference_result: profileInferenceFixture(),
+  readiness_report: {
+    ...readinessReportSample,
+    build_id: "build:sample-b2",
+    generated_from_build_id: "build:sample-b2",
+  },
+  graph_view_model: graphViewModelSample,
+};
 
 function plan06GraphProjectionFixture() {
   const lens = (id: string, label: string) => ({
@@ -20,9 +54,7 @@ function plan06GraphProjectionFixture() {
 
   return {
     schema_version: "graph-view-model/v1",
-    // PR #250 projects a normalized v2 view even while the active artifact is
-    // still v1, so plane presentation must not key off this field alone.
-    source_schema_version: "ai-system-map/v1",
+    source_schema_version: "ai-system-map/v2",
     project_id: "project:sample-ai-health-rag",
     scan_id: "scan:sample-s1",
     build_id: "build:sample-b2",
@@ -189,6 +221,41 @@ function plan06GraphProjectionFixture() {
   };
 }
 
+function profileInferenceFixture() {
+  return {
+    schema_version: "profile-signals/v1",
+    source_schema_version: "ai-system-map/v2",
+    scan_id: "scan:sample-s1",
+    build_id: "build:sample-b2",
+    environment_id: "environment:default-static",
+    generated_from_build_id: "build:sample-b2",
+    reference_catalog_version: "reference-map/v1",
+    reference_capability_assessments: Array.from({ length: 52 }, (_, index) => ({
+      reference_node_id: `reference:${index + 1}`,
+      plane_id: index === 0 ? "input_intent" : "control",
+      status: "undetermined",
+      activation: "unknown",
+      direct_evidence_ids: [],
+      indirect_evidence_ids: [],
+      explicit_negative_evidence_ids: [],
+    })),
+    mapping_completeness: {
+      numerator: 34,
+      denominator: 52,
+      value: 34 / 52,
+      weights: { detected: 1, partial: 0.5, undetermined: 0, not_detected: 1, conflicted: 0 },
+    },
+    profiles: Array.from({ length: 15 }, (_, index) => ({
+      profile_id: `profile:${index + 1}`,
+      label: `Profile ${index + 1}`,
+      status: "undetermined",
+      activation: "unknown",
+      evidence_ids: [],
+    })),
+    capability_candidate_components: [],
+  };
+}
+
 /* Mimics kai_mind.web.schemas.MapBuildScopedResponse: phase2 lineage +
    validated sidecars (reused from the handoff sample so identities are real)
    around a v1 base graph projection. */
@@ -203,22 +270,19 @@ function mapBuildResponseFixture() {
     build_result: {
       status: "ok",
       project_name: "sample-ai-health-rag",
-      active_schema_version: "ai-system-map/v1",
-      requested_schema_version: "ai-system-map/v1",
-      migration_warnings: ["v1_projection_active"],
-      warnings: ["profile_signals_missing_or_invalid"],
+      active_schema_version: "ai-system-map/v2",
+      requested_schema_version: "ai-system-map/v2",
+      migration_warnings: [],
+      warnings: [],
       profile_signals_available: true,
       readiness_report_available: true,
-      profile_inference_result: structuredClone(phase2ViewerSample.profile_inference_result) as Record<
-        string,
-        unknown
-      > | null,
+      profile_inference_result: profileInferenceFixture() as ReturnType<typeof profileInferenceFixture> | null,
       readiness_report: structuredClone(phase2ViewerSample.readiness_report) as Record<string, unknown> | null,
     },
     viewer_load_result: {
       loaded: true,
       error_reason: null,
-      ai_system_map: { schema_version: "ai-system-map/v1", scan_summary: { status: "ok" } },
+      ai_system_map: structuredClone(phase2AiSystemMapSample),
       graph_view_model: plan06GraphProjectionFixture(),
     },
   };
@@ -231,13 +295,12 @@ describe("viewer contract parsing", () => {
 
     expect(normalized.contract_source).toBe("phase2");
     expect(normalized.viewer_load_result.build_id).toBe("build:sample-b2");
-    expect(normalized.viewer_load_result.artifact_refs).toHaveLength(10);
+    expect(normalized.viewer_load_result.artifact_refs).toHaveLength(1);
     expect(normalized.viewer_load_result.graph_view_model.mapping_completeness?.denominator).toBe(52);
     expect(normalized.viewer_load_result.graph_view_model.nodes[0].activation).toBe("enabled");
-    expect(normalized.viewer_load_result.graph_view_model.nodes[0].semantic_kind).toBe("canonical_component");
+    expect(normalized.viewer_load_result.graph_view_model.nodes[0].semantic_kind).toBe("repo_component");
     expect(parsed.profile_inference_result?.reference_capability_assessments).toHaveLength(52);
     expect(parsed.profile_inference_result?.profiles).toHaveLength(15);
-    expect(parsed.profile_inference_result?.reference_capability_assessments[0].plane_id).toBe("input_intent");
     expect(parsed.readiness_report?.grounding.applicability).toBe("undetermined");
     expect(parsed.readiness_report?.findings.length).toBeGreaterThan(0);
   });
@@ -254,13 +317,13 @@ describe("viewer contract parsing", () => {
     expect(normalized.viewer_load_result.graph_view_model.nodes.length).toBeGreaterThan(0);
   });
 
-  it("preserves Plan 06 projection identity when /api/map wraps a v1 canonical artifact", () => {
+  it("preserves Plan 13 projection identity for the active v2 canonical artifact", () => {
     const normalized = parseViewerPayload({
       viewer_load_result: {
         loaded: true,
         error_reason: null,
         map_json: "ai_system_map.json",
-        ai_system_map: { schema_version: "ai-system-map/v1" },
+        ai_system_map: { schema_version: "ai-system-map/v2" },
         graph_view_model: plan06GraphProjectionFixture(),
       },
     });
@@ -298,7 +361,7 @@ describe("map build scoped parsing", () => {
     expect(result.scan_id).toBe("scan:sample-s1");
     expect(result.build_id).toBe("build:sample-b2");
     expect(result.environment_id).toBe("environment:default-static");
-    expect(result.warnings).toEqual(["profile_signals_missing_or_invalid", "v1_projection_active"]);
+    expect(result.warnings).toEqual([]);
     expect(result.artifact_refs).toEqual([]);
     expect(result.profile_inference_result).not.toBeNull();
     expect(result.readiness_report).not.toBeNull();
