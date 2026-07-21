@@ -192,7 +192,7 @@ export function ReadinessPanel({ report, graph, onClose }: Props) {
       <section className="readiness-dialog" role="dialog" aria-modal="true" aria-labelledby="readiness-dialog-title">
         <header className="readiness-head">
           <div>
-            <span className="eyebrow">Markdown preview</span>
+            <span className="eyebrow">Inline build report</span>
             <h2 id="readiness-dialog-title"><ClipboardCheck aria-hidden="true" size={17} />Readiness</h2>
           </div>
           {displayReport ? <StatusChip status={displayReport.grounding.status} /> : null}
@@ -215,14 +215,20 @@ export function ReadinessPanel({ report, graph, onClose }: Props) {
                 <Eye aria-hidden="true" size={14} /> Preview
               </button>
               <button type="button" role="tab" aria-selected={mode === "source"} className={mode === "source" ? "is-active" : ""} onClick={() => setMode("source")}>
-                <FileText aria-hidden="true" size={14} /> Markdown
+                <FileText aria-hidden="true" size={14} /> Generated Markdown
               </button>
             </div>
             <div className="readiness-body">
               {mode === "preview" ? (
                 <RenderedReport report={displayReport} graph={graph} />
               ) : (
-                <pre className="readiness-markdown-source">{buildReadinessMarkdown(displayReport, graph)}</pre>
+                <div>
+                  <div className="readiness-sample-note" role="note">
+                    <FileText aria-hidden="true" size={15} />
+                    <span>This plain text is generated from the inline <code>readiness-report/v1</code> payload. No standalone Markdown artifact preview or download is available without a safe build-scoped artifact endpoint.</span>
+                  </div>
+                  <pre className="readiness-markdown-source">{buildReadinessMarkdown(displayReport, graph)}</pre>
+                </div>
               )}
             </div>
           </>

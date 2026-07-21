@@ -40,14 +40,6 @@ class ConsumerRecord(NamedTuple):
 
 CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
     ConsumerRecord(
-        path="frontend/src/data/frontend-json-sample.json",
-        symbol="ai-system-map/v1",
-        classification="migrate",
-        removal_plan=(
-            "Frontend owner replaces the active v1 sample in its handoff."
-        ),
-    ),
-    ConsumerRecord(
         path=(
             "src/kai_mind/core/services/"
             "legacy_manual_mapping_migration_service.py"

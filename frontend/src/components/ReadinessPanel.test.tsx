@@ -78,10 +78,12 @@ describe("ReadinessPanel", () => {
   it("switches to safe plain-text Markdown source", () => {
     render(<ReadinessPanel report={report} graph={graph} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Markdown" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Generated Markdown" }));
 
     expect(screen.getByText(/^# Readiness report/)).toBeInTheDocument();
     expect(screen.getByText(/build:sample/)).toBeInTheDocument();
+    expect(screen.getByText(/generated from the inline/)).toBeInTheDocument();
+    expect(screen.getByText(/No standalone Markdown artifact preview or download/)).toBeInTheDocument();
   });
 
   it("degrades on an unsupported report contract", () => {

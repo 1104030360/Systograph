@@ -1,0 +1,135 @@
+{
+  "schema_version": "ai-system-map/v2",
+  "system_type": "ai_system",
+  "scan_id": "scan:sample-s1",
+  "build_id": "build:sample-b2",
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": "build:sample-b2",
+  "source_schema_version": "ai-system-map/v2",
+  "migration_warnings": [],
+  "project": {
+    "project_id": "project:sample-ai-health-rag",
+    "name": "sample-ai-health-rag",
+    "root_path": null,
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted"
+  },
+  "components": [
+    {
+      "component_id": "component:input:api",
+      "display_name": "Chat API",
+      "canonical_type": "api_input",
+      "layer": "input_intent",
+      "status": "detected",
+      "activation": "enabled",
+      "framework": "fastapi",
+      "evidence_ids": ["evidence:api-route"],
+      "metadata": { "route": "/chat" }
+    },
+    {
+      "component_id": "component:retriever:qdrant",
+      "display_name": "Qdrant Retriever",
+      "canonical_type": "retriever",
+      "layer": "retrieval",
+      "status": "detected",
+      "activation": "enabled",
+      "framework": "langchain",
+      "evidence_ids": ["evidence:retriever-call"],
+      "metadata": { "search_k": 5 }
+    },
+    {
+      "component_id": "component:llm:openai-chat",
+      "display_name": "OpenAI Chat Model",
+      "canonical_type": "llm",
+      "layer": "generation",
+      "status": "detected",
+      "activation": "enabled",
+      "framework": "langchain",
+      "evidence_ids": ["evidence:llm-call"],
+      "metadata": { "provider": "openai" }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "edge:api-to-retriever",
+      "source": "component:input:api",
+      "target": "component:retriever:qdrant",
+      "relationship": "data_flow",
+      "status": "observed",
+      "evidence_ids": ["evidence:retriever-call"]
+    },
+    {
+      "edge_id": "edge:retriever-to-llm",
+      "source": "component:retriever:qdrant",
+      "target": "component:llm:openai-chat",
+      "relationship": "context_flow",
+      "status": "undetermined",
+      "evidence_ids": ["evidence:prompt-context"]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evidence:api-route",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": { "path": "src/api/chat.py", "start_line": 12, "end_line": 12, "json_pointer": null, "config_key": null },
+      "extract_summary": "FastAPI POST route detected.",
+      "rule_id": "py.fastapi.route"
+    },
+    {
+      "evidence_id": "evidence:retriever-call",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": { "path": "src/rag/pipeline.py", "start_line": 42, "end_line": 42, "json_pointer": null, "config_key": null },
+      "extract_summary": "Vector retriever call detected.",
+      "rule_id": "py.vectorstore.retriever"
+    },
+    {
+      "evidence_id": "evidence:prompt-context",
+      "artifact_type": "source_code",
+      "evidence_kind": "indirect",
+      "location": { "path": "src/rag/pipeline.py", "start_line": 64, "end_line": 64, "json_pointer": null, "config_key": null },
+      "extract_summary": "Prompt builder appears to receive retrieved documents.",
+      "rule_id": "py.context.prompt_builder"
+    },
+    {
+      "evidence_id": "evidence:reranker-call",
+      "artifact_type": "source_code",
+      "evidence_kind": "indirect",
+      "location": { "path": "src/rag/pipeline.py", "start_line": 58, "end_line": 58, "json_pointer": null, "config_key": null },
+      "extract_summary": "Reranker-like call detected.",
+      "rule_id": "py.reranker.call"
+    },
+    {
+      "evidence_id": "evidence:llm-call",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": { "path": "src/rag/pipeline.py", "start_line": 76, "end_line": 76, "json_pointer": null, "config_key": null },
+      "extract_summary": "LLM invocation detected.",
+      "rule_id": "py.llm.invoke"
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "endpoint:chat",
+      "value": "/chat",
+      "endpoint_type": "local",
+      "method": "POST",
+      "component_id": "component:input:api",
+      "evidence_ids": ["evidence:api-route"]
+    }
+  ],
+  "risk_hints": [],
+  "unmapped_components": [
+    {
+      "unmapped_id": "unmapped:reranker-review",
+      "source_file": "src/rag/pipeline.py",
+      "observed_kind": "reranker",
+      "status": "needs_review",
+      "reason": "Reranker-like evidence is present, but static analysis cannot prove it is part of the active answer path.",
+      "evidence_ids": ["evidence:reranker-call"],
+      "suggested_actions": ["confirm_as_non_baseline_capability_candidate", "skip_for_now"]
+    }
+  ],
+  "candidate_facts": []
+}

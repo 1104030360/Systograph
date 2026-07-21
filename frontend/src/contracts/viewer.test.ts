@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import phase2AiSystemMapSample from "../../../docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-04-normalize-validate/frontend-ai-system-map-sample.json";
+import profileInferenceSample from "../../../docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-06-derived-assessment/frontend-profile-signals-sample.json";
 import readinessReportSample from "../../../docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-06-derived-assessment/frontend-readiness-report-sample.json";
 import graphViewModelSample from "../../../docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-07-projection-publication/frontend-graph-view-model-sample.json";
-import legacyViewerSample from "../data/frontend-json-sample.json";
+import canonicalFrontendMapSample from "../data/frontend-ai-system-map-v2-canonical.json";
+import legacyViewerSample from "../../test-fixtures/compatibility/frontend-viewer.v1-compat.json";
 import {
   extractMappingCompleteness,
   parseMapBuildPayload,
@@ -21,16 +23,14 @@ const phase2ViewerSample = {
   generated_from_build_id: "build:sample-b2",
   based_on_build_id: null,
   applied_mapping_ids: [],
-  artifact_refs: [
-    {
-      artifact_id: "artifact:ai-system-map",
-      artifact_type: "ai_system_map",
-      file_name: "ai_system_map.json",
-      media_type: "application/json",
-      sha256: "a".repeat(64),
-      size_bytes: 1,
-    },
-  ],
+  artifact_refs: [] as Array<{
+    artifact_id: string;
+    artifact_type: string;
+    file_name: string;
+    media_type: string;
+    sha256: string;
+    size_bytes: number;
+  }>,
   map_json: null,
   ai_system_map: phase2AiSystemMapSample,
   profile_inference_result: profileInferenceFixture(),
@@ -221,39 +221,21 @@ function plan06GraphProjectionFixture() {
   };
 }
 
+function scopeHandoffFixtureToBuild(value: unknown, buildId = "build:sample-b2"): unknown {
+  if (Array.isArray(value)) return value.map((item) => scopeHandoffFixtureToBuild(item, buildId));
+  if (value == null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      key === "build_id" || key === "generated_from_build_id"
+        ? buildId
+        : scopeHandoffFixtureToBuild(item, buildId),
+    ]),
+  );
+}
+
 function profileInferenceFixture() {
-  return {
-    schema_version: "profile-signals/v1",
-    source_schema_version: "ai-system-map/v2",
-    scan_id: "scan:sample-s1",
-    build_id: "build:sample-b2",
-    environment_id: "environment:default-static",
-    generated_from_build_id: "build:sample-b2",
-    reference_catalog_version: "reference-map/v1",
-    reference_capability_assessments: Array.from({ length: 52 }, (_, index) => ({
-      reference_node_id: `reference:${index + 1}`,
-      plane_id: index === 0 ? "input_intent" : "control",
-      status: "undetermined",
-      activation: "unknown",
-      direct_evidence_ids: [],
-      indirect_evidence_ids: [],
-      explicit_negative_evidence_ids: [],
-    })),
-    mapping_completeness: {
-      numerator: 34,
-      denominator: 52,
-      value: 34 / 52,
-      weights: { detected: 1, partial: 0.5, undetermined: 0, not_detected: 1, conflicted: 0 },
-    },
-    profiles: Array.from({ length: 15 }, (_, index) => ({
-      profile_id: `profile:${index + 1}`,
-      label: `Profile ${index + 1}`,
-      status: "undetermined",
-      activation: "unknown",
-      evidence_ids: [],
-    })),
-    capability_candidate_components: [],
-  };
+  return scopeHandoffFixtureToBuild(profileInferenceSample) as typeof profileInferenceSample;
 }
 
 /* Mimics kai_mind.web.schemas.MapBuildScopedResponse: phase2 lineage +
@@ -272,6 +254,8 @@ function mapBuildResponseFixture() {
       project_name: "sample-ai-health-rag",
       active_schema_version: "ai-system-map/v2",
       requested_schema_version: "ai-system-map/v2",
+      source_schema_version: "ai-system-map/v2",
+      operator_rollback_active: false,
       migration_warnings: [],
       warnings: [],
       profile_signals_available: true,
@@ -289,13 +273,23 @@ function mapBuildResponseFixture() {
 }
 
 describe("viewer contract parsing", () => {
+  it("keeps the active frontend canonical map identical to Timmy Step 4", () => {
+    expect(canonicalFrontendMapSample).toEqual({
+      ...phase2AiSystemMapSample,
+      source_schema_version: "ai-system-map/v2",
+    });
+    expect(canonicalFrontendMapSample.schema_version).toBe("ai-system-map/v2");
+    expect(canonicalFrontendMapSample.project.root_path).toBeNull();
+    expect(canonicalFrontendMapSample.evidence[0].location.path).toBe("src/api/chat.py");
+  });
+
   it("parses the Phase 2 handoff sample without losing build-scoped fields", () => {
     const parsed = phase2ViewerLoadResultSchema.parse(phase2ViewerSample);
     const normalized = parseViewerPayload(phase2ViewerSample);
 
     expect(normalized.contract_source).toBe("phase2");
     expect(normalized.viewer_load_result.build_id).toBe("build:sample-b2");
-    expect(normalized.viewer_load_result.artifact_refs).toHaveLength(1);
+    expect(normalized.viewer_load_result.artifact_refs).toHaveLength(0);
     expect(normalized.viewer_load_result.graph_view_model.mapping_completeness?.denominator).toBe(52);
     expect(normalized.viewer_load_result.graph_view_model.nodes[0].activation).toBe("enabled");
     expect(normalized.viewer_load_result.graph_view_model.nodes[0].semantic_kind).toBe("repo_component");
@@ -344,7 +338,14 @@ describe("viewer contract parsing", () => {
 
   it("rejects artifact refs that expose a path instead of a basename", () => {
     const invalid = structuredClone(phase2ViewerSample);
-    invalid.artifact_refs[0].file_name = "C:\\private\\ai_system_map.json";
+    invalid.artifact_refs.push({
+      artifact_id: "artifact:ai-system-map",
+      artifact_type: "ai_system_map",
+      file_name: "C:\\private\\ai_system_map.json",
+      media_type: "application/json",
+      sha256: "a".repeat(64),
+      size_bytes: 1,
+    });
 
     expect(() => parseViewerPayload(invalid)).toThrow(/file_name must be a basename/);
   });
@@ -385,6 +386,14 @@ describe("map build scoped parsing", () => {
     invalid.build_result.readiness_report.build_id = "build:other";
 
     expect(() => parseMapBuildPayload(invalid)).toThrow(/readiness_report\.build_id must match/);
+  });
+
+  it("rejects nested profile facts from a different historical build", () => {
+    const invalid = mapBuildResponseFixture();
+    if (!invalid.build_result.profile_inference_result) throw new Error("fixture requires profile inference");
+    invalid.build_result.profile_inference_result.profiles[0].build_id = "build:historical";
+
+    expect(() => parseMapBuildPayload(invalid)).toThrow(/profiles\[0\]\.build_id must match/);
   });
 
   it("rejects a graph projection from a different build", () => {

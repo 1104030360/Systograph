@@ -32,6 +32,17 @@ const phase2GraphViewModelSchema = graphViewModelSchema.extend({
   nodes: z.array(phase2GraphNodeSchema),
 });
 
+const phase2BuildGraphViewModelSchema = graphViewModelSchema.extend({
+  schema_version: z.literal("graph-view-model/v1"),
+  source_schema_version: z.literal("ai-system-map/v2"),
+  project_id: z.string(),
+  scan_id: z.string(),
+  build_id: z.string(),
+  environment_id: z.string(),
+  generated_from_build_id: z.string(),
+  reference_map_version: z.string(),
+});
+
 const phase2AiSystemMapSchema = z
   .object({
     schema_version: z.literal("ai-system-map/v2"),
@@ -64,6 +75,9 @@ const referenceAssessmentSchema = z
     plane_id: z.string(),
     status: assessmentStatusSchema,
     activation: activationStateSchema,
+    scan_id: z.string(),
+    build_id: z.string(),
+    environment_id: z.string(),
     direct_evidence_ids: z.array(z.string()),
     indirect_evidence_ids: z.array(z.string()),
     explicit_negative_evidence_ids: z.array(z.string()),
@@ -76,11 +90,36 @@ const profileFindingSchema = z
     label: z.string(),
     status: assessmentStatusSchema,
     activation: activationStateSchema,
+    scan_id: z.string(),
+    build_id: z.string(),
+    environment_id: z.string(),
+    description: z.string().nullable().default(null),
+    primary_axis: z.string(),
+    secondary_axes: z.array(z.string()).default([]),
+    coverage_detected: z.number().int().nonnegative(),
+    coverage_total: z.number().int().nonnegative(),
+    detected_signals: z.array(z.string()).default([]),
+    missing_signals: z.array(z.string()).default([]),
     evidence_ids: z.array(z.string()),
+    direct_evidence_ids: z.array(z.string()).default([]),
+    indirect_evidence_ids: z.array(z.string()).default([]),
+    explicit_negative_evidence_ids: z.array(z.string()).default([]),
+    implementation_depth_level: z.number().int().nonnegative(),
+    implementation_depth_reason: z.string().nullable().default(null),
+    recommended_next_checks: z.array(z.string()).default([]),
+    related_component_ids: z.array(z.string()).default([]),
+    related_unmapped_component_ids: z.array(z.string()).default([]),
+    related_capability_candidate_component_ids: z.array(z.string()).default([]),
+    related_risk_hint_ids: z.array(z.string()).default([]),
+    evidence_strength: z.string(),
+    uncertainty: z.string().nullable(),
+    source: z.string(),
+    conflict_fields: z.array(z.record(z.unknown())).default([]),
+    not_detected_coverage_gate_passed: z.boolean(),
   })
   .passthrough();
 
-const profileInferenceResultSchema = z
+export const profileInferenceResultSchema = z
   .object({
     schema_version: z.literal("profile-signals/v1"),
     source_schema_version: z.literal("ai-system-map/v2"),
@@ -94,7 +133,31 @@ const profileInferenceResultSchema = z
     profiles: z.array(profileFindingSchema).length(15),
     capability_candidate_components: z.array(z.record(z.unknown())).default([]),
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((value, context) => {
+    const scopedRows = [
+      ...value.reference_capability_assessments.map((row, index) => ({
+        label: "reference_capability_assessments",
+        index,
+        row,
+      })),
+      ...value.profiles.map((row, index) => ({ label: "profiles", index, row })),
+    ];
+    for (const { label, index, row } of scopedRows) {
+      for (const identity of ["scan_id", "build_id", "environment_id"] as const) {
+        if (row[identity] !== value[identity]) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [label, index, identity],
+            message: `${label}[${index}].${identity} must match profile sidecar ${identity}`,
+          });
+        }
+      }
+    }
+  });
+
+export type ProfileInferenceResult = z.infer<typeof profileInferenceResultSchema>;
+export type ProfileFinding = z.infer<typeof profileFindingSchema>;
 
 /* Mirrors kai_mind.core.models.readiness_report — the backend owns this shape;
    the frontend renders it and degrades when parsing fails. */
@@ -228,6 +291,8 @@ const phase2MapBuildResultSchema = z
     project_name: z.string(),
     active_schema_version: z.literal("ai-system-map/v2"),
     requested_schema_version: z.literal("ai-system-map/v2"),
+    source_schema_version: z.literal("ai-system-map/v2"),
+    operator_rollback_active: z.boolean(),
     migration_warnings: z.array(z.string()).default([]),
     warnings: z.array(z.string()).default([]),
     profile_signals_available: z.boolean(),
@@ -251,8 +316,8 @@ export const mapBuildScopedResponseSchema = z
         loaded: z.boolean(),
         error_reason: z.string().nullable().optional(),
         map_json: z.string().nullable().optional(),
-        ai_system_map: z.record(z.unknown()),
-        graph_view_model: graphViewModelSchema,
+        ai_system_map: phase2AiSystemMapSchema,
+        graph_view_model: phase2BuildGraphViewModelSchema,
       })
       .passthrough(),
   })
@@ -297,6 +362,29 @@ export const mapBuildScopedResponseSchema = z
         code: z.ZodIssueCode.custom,
         path: ["viewer_load_result", "graph_view_model", "generated_from_build_id"],
         message: "graph_view_model.generated_from_build_id must equal build_id",
+      });
+    }
+
+    const map = value.viewer_load_result.ai_system_map;
+    const mapIdentity = {
+      project_id: map.project.project_id,
+      scan_id: map.scan_id,
+      build_id: map.build_id,
+    };
+    for (const identity of ["project_id", "scan_id", "build_id"] as const) {
+      if (mapIdentity[identity] !== value[identity]) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["viewer_load_result", "ai_system_map", identity],
+          message: `ai_system_map.${identity} must match build ${identity}`,
+        });
+      }
+    }
+    if (map.generated_from_build_id !== value.build_id) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["viewer_load_result", "ai_system_map", "generated_from_build_id"],
+        message: "ai_system_map.generated_from_build_id must equal build_id",
       });
     }
   });

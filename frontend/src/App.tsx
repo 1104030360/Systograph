@@ -108,9 +108,8 @@ export default function App() {
   const [boundaryDecisions, setBoundaryDecisions] = useState<Record<string, ScanBoundaryAction>>({});
   const [scanBusy, setScanBusy] = useState(false);
   const [scanFlowError, setScanFlowError] = useState<string | undefined>();
-  // Scan Template route (full-bleed overlay) + Mapping Proposal modal (z 60, can
-  // sit over the route or the graph). The selection API does not exist yet, so
-  // the page runs on the scanTemplateApi mock seam.
+  // Mapping Profile is a build-scoped read-only dialog. Mapping Proposal stays
+  // a separate workflow and is not inferred from profile findings.
   const [view, setView] = useState<"viewer" | "scan-template">("viewer");
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
   const [readinessOpen, setReadinessOpen] = useState(false);
@@ -312,7 +311,7 @@ export default function App() {
             </div>
           </div>
 
-          <button className="btn" type="button" onClick={() => setView("scan-template")} title="Scan template & mapping profile">
+          <button className="btn" type="button" aria-haspopup="dialog" onClick={() => setView("scan-template")} title="Project mapping profile">
             <Layers3 size={14} />
             Mapping profile
           </button>
@@ -524,14 +523,14 @@ export default function App() {
       <WordingProvider>
         {view === "scan-template" ? (
           <MappingProfileDialog
+            dataSourceMode={dataSourceMode}
+            buildId={payload?.viewer_load_result.build_id ?? null}
+            profileInference={payload?.viewer_load_result.profile_inference_result ?? null}
+            warnings={payload?.viewer_load_result.warnings ?? []}
+            isProfileLoading={dataSourceMode === "api" && payloadQuery.isFetching && !payload}
+            profileError={dataSourceMode === "api" ? sourceError : undefined}
+            onRetryProfile={() => void payloadQuery.refetch()}
             onClose={() => setView("viewer")}
-            onOpenProposal={(row) =>
-              setProposalTarget({
-                unmapped_id: row.unmapped_id,
-                node_path: row.node_path,
-                node_kind: row.node_kind,
-              })
-            }
           />
         ) : null}
 
