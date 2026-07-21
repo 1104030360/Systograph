@@ -624,7 +624,7 @@ export const skippedDecisionRowSchema = z.object({
    Mapping Proposal  (matches the real /api/mapping-proposals contract)
    ========================================================================== */
 export const mappingCandidateSchema = z.object({
-  candidate_id: z.string(),
+  candidate_id: z.string().nullish().transform((value) => value ?? ""),
   candidate_type: z.enum([
     "existing_slot_mapping",
     "non_baseline_capability_candidate",
@@ -632,7 +632,7 @@ export const mappingCandidateSchema = z.object({
     "skip_for_now",
   ]),
   recommendation_level: z.string().optional(),
-  source: z.enum(["ai_suggested", "fallback_rule", "deterministic"]).optional(),
+  source: z.string().optional(),
   target_slot: z.string().nullable().optional(),
   component_name: z.string().nullable().optional(),
   component_kind: z.string().nullable().optional(),
@@ -653,6 +653,23 @@ export const mappingCandidateSchema = z.object({
   flow_hint: z.string().nullable().optional(),
 });
 
+export const mappingEvidencePacketSchema = z
+  .object({
+    project_id: z.string(),
+    source_unmapped_id: z.string(),
+    source_file: z.string().nullable().optional(),
+    observed_kind: z.string(),
+    reason: z.string(),
+    evidence_ids: z.array(z.string()).default([]),
+    rule_ids: z.array(z.string()).default([]),
+    line_ranges: z.array(z.string()).default([]),
+    masked_evidence_values: z.array(z.string()).default([]),
+    masked_snippets: z.array(z.string()).default([]),
+    available_slots: z.array(z.string()).default([]),
+    context_limits: z.record(z.union([z.string(), z.number(), z.boolean()])).default({}),
+  })
+  .passthrough();
+
 export const mappingProposalSchema = z.object({
   proposal_id: z.string(),
   project_id: z.string(),
@@ -660,7 +677,7 @@ export const mappingProposalSchema = z.object({
   source_path: z.string().optional(),
   status: z.enum(["pending_user_confirmation", "accepted", "edited", "rejected", "skipped"]),
   candidates: z.array(mappingCandidateSchema).default([]),
-  evidence_packet: z.record(z.unknown()).optional(),
+  evidence_packet: mappingEvidencePacketSchema,
   provider_name: z.string(), // "deterministic" | "nvidia-nim"
   provider_error_reason: z.string().nullable().optional(),
   user_description: z.string().nullable().optional(),
@@ -669,12 +686,20 @@ export const mappingProposalSchema = z.object({
   updated_at: z.string(),
 });
 
+export const mappingProposalListResponseSchema = z.object({
+  project_id: z.string(),
+  proposals: z.array(mappingProposalSchema).default([]),
+  available_actions: z.array(z.enum(["accept", "edit", "reject", "skip_for_now"])).default([]),
+});
+
 // edited_mapping body from API-GUIDE §4/§5 (ManualMappingCreate, confirmed)
 export const manualMappingCreateSchema = z.object({
   project_id: z.string(),
   mapping_type: z.enum(["existing_slot_mapping", "non_baseline_capability_candidate"]),
   decision: z.literal("confirmed"),
   source_unmapped_id: z.string(),
+  source_file: z.string().nullable().optional(),
+  observed_kind: z.string().nullable().optional(),
   evidence_ids: z.array(z.string()).default([]),
   target_slot: z.string().nullable().optional(),
   component_name: z.string().nullable().optional(),
@@ -683,7 +708,20 @@ export const manualMappingCreateSchema = z.object({
   capability_candidate_name: z.string().nullable().optional(),
   capability_candidate_kind: z.string().nullable().optional(),
   reason: z.string().optional(),
+  proposal_id: z.string().nullable().optional(),
+  decision_source: z.string().optional(),
+  audit_metadata: z.record(z.string()).optional(),
 });
+
+export const manualMappingSchema = manualMappingCreateSchema
+  .omit({ decision: true })
+  .extend({
+    decision: z.enum(["confirmed", "rejected", "skip_for_now", "not_applicable"]),
+    mapping_id: z.string(),
+    mapping_digest: z.string(),
+    created_at: z.string(),
+    updated_at: z.string(),
+  });
 
 // decision request (POST .../{proposal_id}/decision)
 export const proposalDecisionSchema = z.discriminatedUnion("decision", [
@@ -693,6 +731,11 @@ export const proposalDecisionSchema = z.discriminatedUnion("decision", [
   z.object({ decision: z.literal("skip_for_now"), reason: z.string().optional() }),
 ]);
 
+export const mappingProposalDecisionResultSchema = z.object({
+  proposal: mappingProposalSchema,
+  manual_mapping: manualMappingSchema,
+});
+
 export type EvidenceRef = z.infer<typeof evidenceRefSchema>;
 export type ScanProfile = z.infer<typeof scanProfileSchema>;
 export type ScanTemplateState = z.infer<typeof scanTemplateStateSchema>;
@@ -700,7 +743,11 @@ export type ConfirmedMappingRow = z.infer<typeof confirmedMappingRowSchema>;
 export type PendingProposalRow = z.infer<typeof pendingProposalRowSchema>;
 export type SkippedDecisionRow = z.infer<typeof skippedDecisionRowSchema>;
 export type MappingProposal = z.infer<typeof mappingProposalSchema>;
+export type MappingProposalListResponse = z.infer<typeof mappingProposalListResponseSchema>;
+export type MappingProposalDecisionResult = z.infer<typeof mappingProposalDecisionResultSchema>;
 export type MappingCandidate = z.infer<typeof mappingCandidateSchema>;
+export type MappingEvidencePacket = z.infer<typeof mappingEvidencePacketSchema>;
+export type ManualMapping = z.infer<typeof manualMappingSchema>;
 export type ManualMappingCreate = z.infer<typeof manualMappingCreateSchema>;
 export type ProposalDecision = z.infer<typeof proposalDecisionSchema>;
 export type MappingSource = z.infer<typeof mappingSource>;

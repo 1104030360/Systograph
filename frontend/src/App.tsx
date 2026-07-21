@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ClipboardCheck, Folder, Info, Layers3, MessageCircle, Moon, MoreHorizontal, RotateCcw, Share2, Sun } from "lucide-react";
 import { ArchitectureMap } from "./components/ArchitectureMap";
@@ -95,6 +95,11 @@ export default function App() {
   const traceProjectId = dataSourceMode === "api" ? (payload?.viewer_load_result.project_id ?? null) : null;
   const traceBuildId = dataSourceMode === "api" ? (payload?.viewer_load_result.build_id ?? null) : null;
   const traceScopeKey = `${dataSourceMode}|${apiBaseUrl}|${traceProjectId ?? ""}|${traceBuildId ?? ""}`;
+  const canReviewCurrentMapping =
+    dataSourceMode === "api" &&
+    activeBuildId == null &&
+    traceProjectId != null &&
+    traceBuildId != null;
 
   const selected = useViewerStore((state) => state.selected);
   const isProgressRunning = useViewerStore((state) => state.isProgressRunning);
@@ -125,6 +130,10 @@ export default function App() {
     () => resolveTraceHighlight(replay.activeEvent, graph),
     [graph, replay.activeEvent],
   );
+
+  useEffect(() => {
+    setProposalTarget(null);
+  }, [activeBuildId, activeProjectId, apiBaseUrl, dataSourceMode]);
 
   const sourceError = payloadQuery.error instanceof Error ? payloadQuery.error.message : undefined;
   const scanError = liveProgressEvent?.event === "sse_error";
@@ -464,6 +473,7 @@ export default function App() {
                 selected={selected}
                 detailMode={detailMode}
                 onDetailModeChange={setDetailMode}
+                onReviewMapping={canReviewCurrentMapping ? setProposalTarget : undefined}
                 onClose={() => setSelected(null)}
               />
             ) : (
@@ -565,8 +575,18 @@ export default function App() {
           />
         ) : null}
 
-        {proposalTarget ? (
-          <ProposalModal node={proposalTarget} scenario="ok" onClose={() => setProposalTarget(null)} />
+        {proposalTarget && canReviewCurrentMapping && traceProjectId && traceBuildId ? (
+          <ProposalModal
+            node={proposalTarget}
+            apiBaseUrl={apiBaseUrl}
+            projectId={traceProjectId}
+            buildId={traceBuildId}
+            onApplied={() => {
+              setActiveBuildId(null);
+              setProposalTarget(null);
+            }}
+            onClose={() => setProposalTarget(null)}
+          />
         ) : null}
       </WordingProvider>
     </div>

@@ -54,6 +54,14 @@ const graph = graphViewModelSchema.parse({
       component_id: "component:router",
       evidence_ids: ["evidence:router"],
     },
+    {
+      id: "node:unmapped-worker",
+      label: "Unmapped worker",
+      semantic_kind: "unmapped_component",
+      source_id: "unmapped:worker",
+      type: "worker",
+      evidence_ids: ["evidence:worker"],
+    },
   ],
   edges: [],
   relationships: [
@@ -68,6 +76,7 @@ const graph = graphViewModelSchema.parse({
   details: {
     evidence_by_id: {
       "evidence:router": { title: "Router declaration", file: "src/router.py", value: "raw-secret-value" },
+      "evidence:worker": { title: "Worker declaration", file: "src/worker.py" },
     },
     risk_hints_by_id: {},
     profile_findings_by_id: {},
@@ -113,6 +122,7 @@ function renderPanel(
   detailMode: "overview" | "evidence" | "code_path" = "overview",
   viewerPayload = payload,
   onDetailModeChange = vi.fn(),
+  onReviewMapping?: (target: { unmapped_id: string; node_path: string; node_kind?: string }) => void,
 ) {
   return render(
     <DetailPanel
@@ -121,6 +131,7 @@ function renderPanel(
       selected={{ kind: "node", id: nodeId }}
       detailMode={detailMode}
       onDetailModeChange={onDetailModeChange}
+      onReviewMapping={onReviewMapping}
       onClose={() => {}}
     />,
   );
@@ -135,6 +146,18 @@ describe("DetailPanel plane chip", () => {
       apiBaseUrl: "http://127.0.0.1:8000",
       activeProjectId: "project:p1",
       activeBuildId: null,
+    });
+  });
+
+  it("opens mapping review only from backend-declared unmapped identity", () => {
+    const onReviewMapping = vi.fn();
+    renderPanel("node:unmapped-worker", "overview", currentPayload, vi.fn(), onReviewMapping);
+
+    fireEvent.click(screen.getByRole("button", { name: "Review mapping proposal" }));
+    expect(onReviewMapping).toHaveBeenCalledWith({
+      unmapped_id: "unmapped:worker",
+      node_path: "src/worker.py",
+      node_kind: "worker",
     });
   });
   it("shows an icon plus text label when the backend published plane_id", () => {

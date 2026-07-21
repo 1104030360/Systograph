@@ -30,6 +30,7 @@ type Props = {
   selected: Selection;
   detailMode: DetailMode;
   onDetailModeChange: (mode: DetailMode) => void;
+  onReviewMapping?: (target: { unmapped_id: string; node_path: string; node_kind?: string }) => void;
   onClose: () => void;
 };
 
@@ -383,7 +384,7 @@ function DetailScanSection({
   );
 }
 
-export function DetailPanel({ graph, payload, selected, detailMode, onDetailModeChange, onClose }: Props) {
+export function DetailPanel({ graph, payload, selected, detailMode, onDetailModeChange, onReviewMapping, onClose }: Props) {
   const { dataSourceMode, apiBaseUrl, activeBuildId, setActiveBuildId } = useViewerStore();
   const projectId = payload.viewer_load_result.project_id;
   const buildId = payload.viewer_load_result.build_id;
@@ -418,6 +419,17 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
   const headerDescription = isNode ? (node?.description ?? node?.subtitle) : edge?.relationship;
   const evidenceIds = isNode ? (node?.evidence_ids ?? []) : (edge?.evidence_ids ?? []);
   const riskIds = isNode ? (node?.risk_hint_ids ?? []) : (edge?.risk_hint_ids ?? []);
+  const proposalEvidence = evidenceIds
+    .map((evidenceId) => graph.details.evidence_by_id[evidenceId])
+    .find((evidence) => evidence?.file || evidence?.path);
+  const mappingProposalTarget =
+    node?.semantic_kind === "unmapped_component" && node.source_id
+      ? {
+          unmapped_id: node.source_id,
+          node_path: proposalEvidence?.file ?? proposalEvidence?.path ?? node.label,
+          node_kind: node.type ?? undefined,
+        }
+      : null;
   const projectionRelationshipCount = graph.relationships.filter(
     (relationship) => relationship.source_node_id === selected.id || relationship.target_node_id === selected.id,
   ).length;
@@ -494,6 +506,12 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
             <StateFact label="Assessment" value={isNode ? node?.status : edge?.status} />
             {isNode ? <StateFact label="Activation" value={node?.activation} /> : null}
           </div>
+
+          {mappingProposalTarget && onReviewMapping ? (
+            <button className="btn primary" type="button" onClick={() => onReviewMapping(mappingProposalTarget)}>
+              <CheckCircle2 size={14} aria-hidden="true" /> Review mapping proposal
+            </button>
+          ) : null}
 
           <div className="detail-summary-grid">
             {isNode ? (
