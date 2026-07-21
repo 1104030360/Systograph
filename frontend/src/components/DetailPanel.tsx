@@ -1,8 +1,24 @@
-import { useEffect } from "react";
-import { CheckCircle2, Clipboard, FileCode2, Info, Route, X } from "lucide-react";
-import type { GraphEdgeModel, GraphNodeModel, GraphViewModel, Selection, ViewerPayload } from "../types";
+import { useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Clipboard, FileCode2, Info, LoaderCircle, RefreshCw, X } from "lucide-react";
+import type {
+  DetailScanDepth,
+  DetailScanResult,
+  GraphEdgeModel,
+  GraphNodeModel,
+  GraphViewModel,
+  Selection,
+  ViewerPayload,
+} from "../types";
 import { PrototypeIcon } from "../icons/PrototypeIcon";
 import { getPlanePrototypeIconKind } from "../icons/prototypeIconRegistry";
+import { useDetailScan } from "../hooks/useDetailScan";
+import {
+  targetForEdge,
+  targetForEvidence,
+  targetForNode,
+  type DetailScanTarget,
+} from "../services/detailScanApi";
+import { useViewerStore } from "../store/viewerStore";
 import { compactId, formatValue, titleCase } from "../utils/format";
 import { planeLabel } from "../utils/planes";
 
@@ -81,7 +97,6 @@ function EvidenceItem({ graph, id }: { graph: GraphViewModel; id: string }) {
       <div>
         <div className="et">{evidence?.title ?? compactId(id)}</div>
         <div className="ef">{evidence?.file ?? evidence?.path ?? id}</div>
-        {evidence?.value ? <div className="ev">{evidence.value}</div> : null}
       </div>
     </div>
   );
@@ -102,66 +117,278 @@ function RiskItem({ graph, id }: { graph: GraphViewModel; id: string }) {
   );
 }
 
-function CodeDetails({ payload, targetIds }: { payload: ViewerPayload; targetIds: string[] }) {
-  const sample = payload.detail_scan_result_sample;
-  const proposal = payload.mapping_proposal_result_sample;
-  const sampleTarget = sample ? String(sample.target ?? sample.target_id ?? "") : "";
-  const matchesTarget = sample != null && sampleTarget !== "" && targetIds.includes(sampleTarget);
+type DetailScanState = ReturnType<typeof useDetailScan>;
 
-  if (!matchesTarget) {
-    return (
-      <div className="inspector-body" role="tabpanel" id="inspector-panel-code_path" aria-labelledby="inspector-tab-code_path">
+function requestMatches(
+  detailScan: DetailScanState,
+  target: DetailScanTarget | null,
+  scanDepth: DetailScanDepth,
+) {
+  return (
+    target != null &&
+    detailScan.variables?.target.targetType === target.targetType &&
+    detailScan.variables.target.target === target.target &&
+    detailScan.variables.scanDepth === scanDepth
+  );
+}
+
+function resultFor(
+  detailScan: DetailScanState,
+  target: DetailScanTarget | null,
+  scanDepth: DetailScanDepth,
+  projectId: string | null,
+  buildId: string | null,
+): DetailScanResult | null {
+  if (!target || !projectId || !buildId) return null;
+
+  // Only walk the child lineage proven by responses created in this hook.
+  // An unrelated externally-created latest build therefore cannot inherit a
+  // stale UI result merely because its target id happens to match.
+  const lineageBuildIds = new Set<string>();
+  let cursor: string | null = buildId;
+  while (cursor && !lineageBuildIds.has(cursor)) {
+    lineageBuildIds.add(cursor);
+    const child = detailScan.results.find(
+      (item) => item.response.project_id === projectId && item.response.build_id === cursor,
+    );
+    cursor = child?.response.source_build_id ?? null;
+  }
+
+  return (
+    detailScan.results
+      .filter(
+        (item) =>
+          item.response.project_id === projectId &&
+          item.response.build_id != null &&
+          lineageBuildIds.has(item.response.build_id) &&
+          item.response.detail_scan.scan_depth === scanDepth &&
+          item.response.detail_scan.target_type === target.targetType &&
+          item.response.detail_scan.target === target.target,
+      )
+      .at(-1)?.response.detail_scan ?? null
+  );
+}
+
+function DetailScanResultView({
+  graph,
+  result,
+  scanDepth,
+  onEvidenceDrilldown,
+}: {
+  graph: GraphViewModel;
+  result: DetailScanResult;
+  scanDepth: DetailScanDepth;
+  onEvidenceDrilldown: (evidenceId: string) => void;
+}) {
+  const empty = result.findings.length === 0 && (scanDepth === "component" || result.code_path.length === 0);
+  return (
+    <>
+      <div className="detail-block">
+        <span className="eyebrow">Backend result</span>
+        <KeyValue label="status" value={result.status} tag />
+        <KeyValue label="target" value={compactId(result.target)} />
+        <KeyValue label="target type" value={result.target_type} tag />
+        <KeyValue label="best effort" value={result.best_effort} tag />
+      </div>
+
+      {result.status === "partial" ? (
+        <div className="detail-empty-note" role="status">
+          <AlertTriangle className="ico" size={14} />
+          Backend returned a partial bounded result. The base graph remains available.
+        </div>
+      ) : null}
+      {result.status === "completed" ? (
+        <div className="detail-empty-note" role="status">
+          <CheckCircle2 className="ico" size={14} />
+          Detail Scan completed on immutable child build data.
+        </div>
+      ) : null}
+      {empty ? (
+        <div className="detail-empty-note" role="status">
+          <CheckCircle2 className="ico" size={14} />
+          Scan completed without additional bounded findings for this target.
+        </div>
+      ) : null}
+
+      {scanDepth === "component" && result.findings.length > 0 ? (
         <div className="detail-block">
-          <span className="eyebrow">Code and component scan</span>
+          <span className="eyebrow">L2 findings · {result.findings.length}</span>
+          {result.findings.map((finding, index) => (
+            <div className="risk-item" key={`${finding.kind}-${index}`}>
+              <div className="rt">
+                <span className="rtt">{titleCase(finding.kind)}</span>
+                {finding.best_effort ? <span className="sev review">best effort</span> : null}
+              </div>
+              <div className="rr">{finding.summary}</div>
+              {finding.evidence_ids.map((evidenceId) => {
+                const evidence = graph.details.evidence_by_id[evidenceId];
+                return (
+                  <button
+                    className="btn"
+                    type="button"
+                    key={evidenceId}
+                    onClick={() => onEvidenceDrilldown(evidenceId)}
+                  >
+                    <FileCode2 size={13} />
+                    {evidence?.file ?? evidence?.path ?? compactId(evidenceId)}
+                    <ChevronRight size={13} />
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {scanDepth === "code_path" ? (
+        <div className="detail-block">
+          <span className="eyebrow">L3 project-owned path · {result.code_path.length}</span>
           <div className="detail-empty-note">
             <Info className="ico" size={14} />
-            No component-level or code-path scan result is available for this target yet. Run a backend detail scan to
-            populate this view.
+            Static evidence suggests these bounded hops; this is not runtime traversal proof.
+          </div>
+          {result.code_path.map((step, index) => {
+            const lineRange =
+              step.line_start == null
+                ? ""
+                : step.line_end != null && step.line_end !== step.line_start
+                  ? `:${step.line_start}–${step.line_end}`
+                  : `:${step.line_start}`;
+            return (
+              <div className="evidence-item" key={`${step.file}-${step.symbol ?? ""}-${step.line_start ?? index}`}>
+                <span className="ico"><FileCode2 size={15} /></span>
+                <div>
+                  <div className="et">{step.symbol ?? "Project code"}</div>
+                  <div className="ef">{step.file}{lineRange}</div>
+                  {step.best_effort ? <div className="ru">Best-effort static hint</div> : null}
+                </div>
+              </div>
+            );
+          })}
+          <div className="detail-empty-note">
+            <Info className="ico" size={14} />
+            Paths are backend-validated project-relative POSIX paths on both Windows and macOS; drive, UNC, absolute,
+            backslash and parent-traversal paths are rejected by the frontend contract.
           </div>
         </div>
+      ) : null}
+
+      {result.warnings.length > 0 ? (
+        <div className="detail-block">
+          <span className="eyebrow">Warnings & uncertainty</span>
+          <ul className="detail-check-list">
+            {result.warnings.map((warning) => <li key={warning}>{titleCase(warning)}</li>)}
+          </ul>
+        </div>
+      ) : null}
+
+      {Object.keys(result.context_limits).length > 0 ? (
+        <details className="detail-disclosure">
+          <summary>Backend context limits</summary>
+          <div className="detail-disclosure-body">
+            {Object.entries(result.context_limits).map(([key, value]) => (
+              <KeyValue key={key} label={titleCase(key)} value={value} />
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </>
+  );
+}
+
+function DetailScanSection({
+  graph,
+  mode,
+  projectId,
+  buildId,
+  historical,
+  target,
+  scanDepth,
+  detailScan,
+  onReturnToCurrent,
+  onEvidenceDrilldown,
+}: {
+  graph: GraphViewModel;
+  mode: "sample" | "api";
+  projectId: string | null;
+  buildId: string | null;
+  historical: boolean;
+  target: DetailScanTarget | null;
+  scanDepth: DetailScanDepth;
+  detailScan: DetailScanState;
+  onReturnToCurrent: () => void;
+  onEvidenceDrilldown: (evidenceId: string) => void;
+}) {
+  const matches = requestMatches(detailScan, target, scanDepth);
+  const result = resultFor(detailScan, target, scanDepth, projectId, buildId);
+  const errorMatches = matches && detailScan.requestBuildId === buildId;
+  const run = () => target && detailScan.run({ target, scanDepth });
+
+  if (mode === "sample") {
+    return <div className="detail-empty-note"><Info className="ico" size={14} />Sample mode is read-only.</div>;
+  }
+  if (historical) {
+    return (
+      <div className="detail-empty-note">
+        <Info className="ico" size={14} />Historical builds are immutable. Return to the current build to run Detail Scan.
+        <button className="btn" type="button" onClick={onReturnToCurrent}>View current build</button>
+      </div>
+    );
+  }
+  if (!projectId || !buildId) {
+    return <div className="detail-empty-note"><AlertTriangle className="ico" size={14} />Import and scan a project first.</div>;
+  }
+  if (!target) {
+    return (
+      <div className="detail-empty-note">
+        <AlertTriangle className="ico" size={14} />This projection does not publish a supported canonical Detail Scan target.
+      </div>
+    );
+  }
+  if (matches && detailScan.isPending) {
+    return <div className="detail-empty-note" role="status"><LoaderCircle className="spinner" size={14} />Running bounded scan…</div>;
+  }
+  if (errorMatches && detailScan.isStaleBase) {
+    return (
+      <div className="detail-empty-note" role="alert">
+        <AlertTriangle className="ico" size={14} />The displayed base is stale. Reload the current build before retrying.
+        <button className="btn" type="button" onClick={() => void detailScan.refreshCurrentBuild()}><RefreshCw size={13} />Reload current build</button>
+      </div>
+    );
+  }
+  if (errorMatches && detailScan.error) {
+    return (
+      <div className="detail-empty-note" role="alert">
+        <AlertTriangle className="ico" size={14} />{detailScan.error}
+        <button className="btn" type="button" onClick={run}><RefreshCw size={13} />Retry</button>
       </div>
     );
   }
 
-  const suggestedComponent = proposal?.suggested_component as { name?: string } | undefined;
-  const userActions = Array.isArray(proposal?.user_actions) ? (proposal.user_actions as unknown[]) : [];
-
   return (
-    <div className="inspector-body" role="tabpanel" id="inspector-panel-code_path" aria-labelledby="inspector-tab-code_path">
-      <div className="detail-block">
-        <span className="eyebrow">Code and component scan</span>
-        <KeyValue label="target" value={compactId(sampleTarget)} />
-        <KeyValue label="scan depth" value={sample.scan_depth} tag />
-        <KeyValue label="status" value={sample.status} tag />
-      </div>
-      {proposal ? (
-        <div className="detail-block">
-          <span className="eyebrow">Mapping proposal</span>
-          <div className="proposal-banner">
-            <div className="pb-head">
-              <Route size={14} />
-              {suggestedComponent?.name ?? "Proposed mapping"}
-            </div>
-            <div className="pb-status mono">{String(proposal.status ?? "pending_user_confirmation")}</div>
-            <div className="proposal-actions">
-              {userActions.map((action) => (
-                <button key={String(action)} className={action === "accept" ? "btn primary" : "btn"} type="button">
-                  {titleCase(String(action))}
-                </button>
-              ))}
-            </div>
-          </div>
+    <>
+      {result ? (
+        <DetailScanResultView graph={graph} result={result} scanDepth={scanDepth} onEvidenceDrilldown={onEvidenceDrilldown} />
+      ) : (
+        <div className="detail-empty-note"><Info className="ico" size={14} />No result exists for this target and depth yet.</div>
+      )}
+      {matches && detailScan.data?.hydrationWarning ? (
+        <div className="detail-empty-note" role="status">
+          <AlertTriangle className="ico" size={14} />{detailScan.data.hydrationWarning}
+          <button className="btn" type="button" onClick={() => void detailScan.refreshCurrentBuild()}><RefreshCw size={13} />Reload child build</button>
         </div>
       ) : null}
-      <details className="detail-disclosure">
-        <summary>Raw backend scan result</summary>
-        <pre className="code-block">{formatValue(sample)}</pre>
-      </details>
-    </div>
+      <button className="btn primary" type="button" onClick={run}>{result ? "Run again" : scanDepth === "component" ? "Run L2 Detail Scan" : "Run L3 Code Path"}</button>
+    </>
   );
 }
 
 export function DetailPanel({ graph, payload, selected, detailMode, onDetailModeChange, onClose }: Props) {
+  const { dataSourceMode, apiBaseUrl, activeBuildId, setActiveBuildId } = useViewerStore();
+  const projectId = payload.viewer_load_result.project_id;
+  const buildId = payload.viewer_load_result.build_id;
+  const detailScan = useDetailScan({ apiBaseUrl, projectId, buildId });
+  const [evidenceTargetId, setEvidenceTargetId] = useState<string | null>(null);
   const isOpen = selected != null && selected.kind !== "trace";
 
   useEffect(() => {
@@ -173,6 +400,8 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  useEffect(() => setEvidenceTargetId(null), [selected?.id, selected?.kind]);
+
   if (!selected || selected.kind === "trace") return null;
 
   const isNode = selected.kind === "node";
@@ -183,15 +412,12 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
 
   const node = isNode ? (selectedItem as GraphNodeModel) : null;
   const edge = !isNode ? (selectedItem as GraphEdgeModel) : null;
+  const baseDetailTarget = node ? targetForNode(node) : edge ? targetForEdge(edge) : null;
+  const codePathTarget = evidenceTargetId ? targetForEvidence(evidenceTargetId) : baseDetailTarget;
   const title = isNode ? node?.label : (edge?.label ?? edge?.relationship ?? "Edge");
   const headerDescription = isNode ? (node?.description ?? node?.subtitle) : edge?.relationship;
   const evidenceIds = isNode ? (node?.evidence_ids ?? []) : (edge?.evidence_ids ?? []);
   const riskIds = isNode ? (node?.risk_hint_ids ?? []) : (edge?.risk_hint_ids ?? []);
-  const targetIds = [
-    selected.id,
-    isNode ? node?.component_id : undefined,
-    isNode ? node?.source_id : edge?.source_id,
-  ].filter((value): value is string => typeof value === "string");
   const projectionRelationshipCount = graph.relationships.filter(
     (relationship) => relationship.source_node_id === selected.id || relationship.target_node_id === selected.id,
   ).length;
@@ -219,8 +445,8 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
 
   const tabs: Array<[DetailMode, string]> = [
     ["overview", "Summary"],
-    ["evidence", "Evidence"],
-    ["code_path", "Code"],
+    ["evidence", "L2 Detail"],
+    ["code_path", "L3 Code Path"],
   ];
 
   // Plane chip renders only when the backend published plane_id; no inference.
@@ -302,6 +528,24 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
         </div>
       ) : detailMode === "evidence" ? (
         <div className="inspector-body" role="tabpanel" id="inspector-panel-evidence" aria-labelledby="inspector-tab-evidence">
+          <div className="detail-block">
+            <span className="eyebrow">L2 component detail</span>
+            <DetailScanSection
+              graph={graph}
+              mode={dataSourceMode}
+              projectId={projectId}
+              buildId={buildId}
+              historical={activeBuildId != null}
+              target={baseDetailTarget}
+              scanDepth="component"
+              detailScan={detailScan}
+              onReturnToCurrent={() => setActiveBuildId(null)}
+              onEvidenceDrilldown={(evidenceId) => {
+                setEvidenceTargetId(evidenceId);
+                onDetailModeChange("code_path");
+              }}
+            />
+          </div>
           {isNode ? (
             <details className="detail-disclosure">
               <summary>Assessment details</summary>
@@ -356,7 +600,24 @@ export function DetailPanel({ graph, payload, selected, detailMode, onDetailMode
           ) : null}
         </div>
       ) : (
-        <CodeDetails payload={payload} targetIds={targetIds} />
+        <div className="inspector-body" role="tabpanel" id="inspector-panel-code_path" aria-labelledby="inspector-tab-code_path">
+          <div className="detail-block">
+            <span className="eyebrow">L3 code-path drill-down</span>
+            {evidenceTargetId ? <KeyValue label="selected evidence" value={compactId(evidenceTargetId)} /> : null}
+            <DetailScanSection
+              graph={graph}
+              mode={dataSourceMode}
+              projectId={projectId}
+              buildId={buildId}
+              historical={activeBuildId != null}
+              target={codePathTarget}
+              scanDepth="code_path"
+              detailScan={detailScan}
+              onReturnToCurrent={() => setActiveBuildId(null)}
+              onEvidenceDrilldown={() => undefined}
+            />
+          </div>
+        </div>
       )}
     </>
   );

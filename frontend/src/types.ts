@@ -288,6 +288,81 @@ export const viewerPayloadSchema = z.object({
   invalid_map_error_sample: z.record(z.unknown()).optional(),
 });
 
+export const detailScanDepthSchema = z.enum(["component", "code_path"]);
+export const detailScanTargetTypeSchema = z.enum([
+  "component_slot",
+  "component_instance",
+  "unmapped_component",
+  "edge",
+  "evidence",
+]);
+
+export const detailScanFindingSchema = z.object({
+  kind: z.string(),
+  summary: z.string(),
+  evidence_ids: stringArray,
+  best_effort: z.boolean().nullable().optional(),
+});
+
+function isProjectRelativePosixPath(value: string): boolean {
+  if (!value || value.startsWith("/") || value.startsWith("\\\\") || /^[A-Za-z]:/.test(value)) return false;
+  if (value.includes("\\")) return false;
+  return value.split("/").every((segment) => segment !== "" && segment !== "..");
+}
+
+export const detailScanCodePathStepSchema = z.object({
+  file: z.string().refine(isProjectRelativePosixPath, "file must be a project-relative POSIX path"),
+  symbol: z.string().nullable().optional(),
+  line_start: z.number().int().positive().nullable().optional(),
+  line_end: z.number().int().positive().nullable().optional(),
+  evidence_id: z.string().nullable().optional(),
+  best_effort: z.boolean().nullable().optional(),
+});
+
+export const detailScanResultSchema = z.object({
+  id: z.string(),
+  target_type: detailScanTargetTypeSchema,
+  target: z.string(),
+  scan_depth: detailScanDepthSchema,
+  status: z.string(),
+  replay_depth: z.string().nullable().optional(),
+  findings: z.array(detailScanFindingSchema).default([]),
+  code_path: z.array(detailScanCodePathStepSchema).default([]),
+  warnings: stringArray,
+  best_effort: z.boolean().nullable().optional(),
+  context_limits: z.record(z.unknown()).default({}),
+});
+
+export const detailScanCreateRequestSchema = z.object({
+  project_id: z.string().min(1),
+  // Frontend v2 deliberately requires a base build even though the backend
+  // retains a legacy latest-build fallback for older clients.
+  build_id: z.string().min(1),
+  target_type: detailScanTargetTypeSchema,
+  target: z.string().min(1),
+  scan_depth: detailScanDepthSchema,
+});
+
+export const detailScanResponseSchema = z.object({
+  project_id: z.string(),
+  detail_scan: detailScanResultSchema,
+  ai_system_map: frontendAiSystemMapSchema,
+  source_build_id: z.string().nullable().optional(),
+  build_id: z.string().nullable().optional(),
+  scan_id: z.string().nullable().optional(),
+  viewer_load_result: z
+    .object({
+      loaded: z.boolean(),
+      error_reason: z.string().nullable().optional(),
+      map_json: z.string().nullable().optional(),
+      ai_system_map: frontendAiSystemMapSchema,
+      graph_view_model: graphViewModelSchema,
+    })
+    .nullable()
+    .optional(),
+  warnings: stringArray,
+});
+
 export const scanProgressEventSchema = z.object({
   event: z.string().optional(),
   type: z.string().optional(),
@@ -317,6 +392,13 @@ export type AssessmentStatus = z.infer<typeof assessmentStatusSchema>;
 export type ActivationState = z.infer<typeof activationStateSchema>;
 export type MappingCompleteness = z.infer<typeof mappingCompletenessSchema>;
 export type ScanProgressEvent = z.infer<typeof scanProgressEventSchema>;
+export type DetailScanDepth = z.infer<typeof detailScanDepthSchema>;
+export type DetailScanTargetType = z.infer<typeof detailScanTargetTypeSchema>;
+export type DetailScanFinding = z.infer<typeof detailScanFindingSchema>;
+export type DetailScanCodePathStep = z.infer<typeof detailScanCodePathStepSchema>;
+export type DetailScanResult = z.infer<typeof detailScanResultSchema>;
+export type DetailScanCreateRequest = z.infer<typeof detailScanCreateRequestSchema>;
+export type DetailScanResponse = z.infer<typeof detailScanResponseSchema>;
 
 export type DataSourceMode = "sample" | "api";
 
@@ -421,6 +503,7 @@ export const traceEventSchema = z.object({
   component_id: z.string().nullable().optional(),
   unmapped_component_id: z.string().nullable().optional(),
   edge_id: z.string().nullable().optional(),
+  evidence_id: z.string().nullable().optional(),
   step_type: z.string().optional(),
   latency_ms: z.number().optional(),
   error: z
