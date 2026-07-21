@@ -103,7 +103,13 @@ describe("Detail Scan API contract", () => {
     expect(targetForNode(component)).toMatchObject({ targetType: "component_instance", target: "component:router" });
     expect(targetForNode(reference)).toBeNull();
     expect(targetForEdge(edge)).toMatchObject({ targetType: "edge", target: "edge:retrieval" });
-    expect(targetForTrace({ id: "trace:1", evidence_id: "evidence:safe" })).toMatchObject({
+    expect(targetForTrace({
+      id: "trace:1",
+      sequence_index: 0,
+      timestamp: "2026-07-21T00:00:00Z",
+      warnings: [],
+      evidence_id: "evidence:safe",
+    })).toMatchObject({
       targetType: "evidence",
       target: "evidence:safe",
     });
@@ -131,7 +137,10 @@ describe("Detail Scan API contract", () => {
 
   it("rejects an unbound or mismatched fallback projection", () => {
     const missingGraphIdentity = responseFixture();
-    delete missingGraphIdentity.viewer_load_result.graph_view_model.build_id;
+    missingGraphIdentity.viewer_load_result.graph_view_model = {
+      ...missingGraphIdentity.viewer_load_result.graph_view_model,
+      build_id: undefined,
+    } as never;
     expect(() => viewerPayloadFromDetailScan(detailScanResponseSchema.parse(missingGraphIdentity))).toThrow(
       /Child graph build_id/,
     );
