@@ -911,6 +911,7 @@ h1, h2, h3 { margin: 0; }
 .replay-head .r-ctrls { display: flex; align-items: center; justify-content: center; gap: var(--space-1); }
 .replay-head .r-meta { justify-self: end; display: flex; align-items: center; gap: var(--space-2); font-family: var(--mono); font-size: 11px; color: var(--text-3); }
 .replay-head .r-meta .ok { color: var(--accent-strong); }
+.replay-head .r-meta .has-error { color: var(--error); }
 .replay-head .r-meta .chip { padding: 2px 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text-2); }
 
 .timeline { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: var(--space-2); align-items: stretch; overflow-x: auto; padding-bottom: 2px; }
@@ -929,8 +930,39 @@ h1, h2, h3 { margin: 0; }
 .tl-step.has-error .tl-idx { background: var(--error); color: #fff; }
 .tl-body { min-width: 0; display: grid; gap: 3px; }
 .tl-slot { font-size: var(--fs-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-slot { display: inline-flex; align-items: center; gap: 5px; }
 .tl-sub { font-family: var(--mono); font-size: 10px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .replay-empty { padding: var(--space-4); text-align: center; color: var(--text-3); font-size: var(--fs-sm); border: 1px dashed var(--line); border-radius: var(--radius-sm); }
+.replay-fallback { padding: 7px 9px; border: 1px solid color-mix(in srgb, var(--risk) 38%, var(--line)); border-radius: var(--radius-sm); background: var(--risk-soft); color: var(--risk); font-size: 11px; }
+
+.query-trace-panel {
+  flex: 0 0 auto; max-height: min(330px, 42svh); overflow-y: auto;
+  border-top: 1px solid var(--line-strong); background: var(--panel); scrollbar-gutter: stable;
+}
+.query-trace-form {
+  padding: 10px 16px 6px; display: grid;
+  grid-template-columns: minmax(170px, 0.8fr) minmax(210px, 1fr) minmax(260px, 1.3fr) 112px auto;
+  align-items: end; gap: 8px;
+}
+.query-trace-copy { min-width: 0; display: grid; gap: 2px; }
+.query-trace-copy strong { font-size: 12px; font-weight: 650; }
+.query-trace-copy span { color: var(--text-3); font-size: 10px; line-height: 1.35; }
+.query-trace-field { min-width: 0; display: grid; gap: 4px; }
+.query-trace-field > span { color: var(--text-3); font-size: 9px; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase; }
+.query-trace-field input, .query-trace-field select {
+  width: 100%; min-width: 0; height: 30px; padding: 0 9px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-2); font-family: var(--mono); font-size: 10.5px;
+}
+.query-trace-field input:focus, .query-trace-field select:focus { outline: 0; border-color: var(--accent-line); box-shadow: 0 0 0 2px var(--accent-soft); }
+.query-trace-timeout input { text-align: right; }
+.query-trace-scope, .query-trace-status { padding: 0 16px 6px; display: flex; flex-wrap: wrap; gap: 6px; color: var(--text-3); font-size: 9.5px; }
+.query-trace-scope span, .query-trace-status span { min-height: 20px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line-soft); border-radius: 999px; background: var(--surface); }
+.query-trace-scope code { color: var(--text-2); }
+.query-trace-status .is-ok { color: var(--accent-strong); border-color: var(--accent-line); background: var(--accent-soft); }
+.query-trace-status .is-warning { color: var(--risk); border-color: color-mix(in srgb, var(--risk) 38%, var(--line)); background: var(--risk-soft); }
+.query-trace-status .is-error { color: var(--error); border-color: color-mix(in srgb, var(--error) 42%, var(--line)); background: var(--error-soft); }
+.query-trace-panel .replay { padding-top: 8px; padding-bottom: 9px; }
 
 /* ============================================================================
    Inspector (non-modal, floating over canvas)
@@ -1553,6 +1585,7 @@ button.readiness-ref:hover { border-color: var(--accent-line); color: var(--text
 .dr-edge-path.is-focused { opacity: 0.82; }
 .dr-edge-path.is-dimmed { opacity: 0.025; }
 .dr-edge-path.is-selected { opacity: 1; stroke-width: 3px; }
+.dr-edge-path.is-trace-highlight { opacity: 1; stroke: var(--dr-orange); stroke-width: 4px; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--dr-orange) 70%, transparent)); }
 .dr-plane {
   --plane-tone: var(--accent);
   position: relative; z-index: 1; overflow: visible;
@@ -1608,6 +1641,8 @@ button.readiness-ref:hover { border-color: var(--accent-line); color: var(--text
 .dr-node-card.is-dimmed { border-color: color-mix(in srgb, var(--plane-tone) 10%, var(--line-soft)); box-shadow: none; }
 .dr-node-card.is-dimmed > * { opacity: 0.16; transition: opacity var(--dur-short); }
 .dr-node-card.is-dimmed:hover > *, .dr-node-card.is-dimmed:focus-visible > * { opacity: 0.72; }
+.dr-node-card.is-trace-highlight { border-color: var(--dr-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--dr-orange) 20%, transparent), var(--shadow-node); }
+.dr-node-card.is-trace-highlight > * { opacity: 1; }
 .dr-node-topline { min-width: 0; display: flex; align-items: center; gap: 5px; color: var(--text-3); font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.035em; }
 .dr-node-kind { margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dr-node-card > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 650; }
@@ -1690,6 +1725,9 @@ button.readiness-ref:hover { border-color: var(--accent-line); color: var(--text
   .dr-header-actions { flex-wrap: wrap; }
   .dr-status-bar { grid-template-columns: minmax(300px, 1fr) auto; }
   .dr-status-source { display: none; }
+  .query-trace-panel { max-height: none; }
+  .query-trace-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .query-trace-copy, .query-trace-query { grid-column: 1 / -1; }
 }
 
 @media (max-width: 760px) {
@@ -1718,6 +1756,9 @@ button.readiness-ref:hover { border-color: var(--accent-line); color: var(--text
   .dr-filter-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dr-map-panel { height: 78svh; border-right: 0; }
   .dr-inspector-panel { height: 70svh; }
+  .query-trace-form { grid-template-columns: 1fr; }
+  .query-trace-copy, .query-trace-query { grid-column: auto; }
+  .query-trace-form .btn { width: 100%; }
 }
 
 @media (max-width: 560px) {

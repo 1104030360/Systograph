@@ -495,26 +495,56 @@ export type Selection =
   | null;
 
 export const traceEventSchema = z.object({
-  id: z.string().optional(),
-  trace_id: z.string().optional(),
-  sequence_index: z.number().optional(),
-  replay_depth: z.string().optional(),
+  id: z.string(),
+  trace_id: z.string().nullable().optional(),
+  sequence_index: z.number().int().nonnegative(),
+  timestamp: z.string(),
+  event_type: z.string().nullable().optional(),
+  replay_depth: nullableString,
+  status: z.string().nullable().optional(),
+  query_sent: z.boolean().nullable().optional(),
+  endpoint_id: z.string().nullable().optional(),
   slot: z.string().nullable().optional(),
   component_id: z.string().nullable().optional(),
   unmapped_component_id: z.string().nullable().optional(),
   edge_id: z.string().nullable().optional(),
   evidence_id: z.string().nullable().optional(),
-  step_type: z.string().optional(),
-  latency_ms: z.number().optional(),
-  error: z
-    .object({ code: z.string().optional(), message: z.string().optional() })
-    .nullable()
-    .optional(),
-  input: z.record(z.unknown()).optional(),
-  output: z.record(z.unknown()).optional(),
+  warnings: stringArray,
+  step_type: z.string().nullable().optional(),
+  latency_ms: z.number().nullable().optional(),
+  latency: z.string().nullable().optional(),
+  error: z.unknown().nullable().optional(),
+  input: z.unknown().nullable().optional(),
+  output: z.unknown().nullable().optional(),
+  retrieved_chunks: z.unknown().nullable().optional(),
+});
+
+export const traceRunStatusSchema = z.enum(["completed", "partial", "endpoint_not_found", "error"]);
+
+export const traceRunResultSchema = z.object({
+  trace_id: z.string(),
+  status: traceRunStatusSchema,
+  query_sent: z.boolean(),
+  endpoint_id: z.string(),
+  source_scan_id: z.string().nullable().optional(),
+  source_build_id: z.string().nullable().optional(),
+  events: z.array(traceEventSchema).default([]),
+  warnings: stringArray,
+  error_reason: z.string().nullable().optional(),
+});
+
+export const traceCreateRequestSchema = z.object({
+  project_id: z.string().min(1),
+  build_id: z.string().min(1),
+  endpoint_id: z.string().min(1),
+  query: z.string().min(1),
+  timeout_seconds: z.number().positive().max(120),
 });
 
 export type TraceEvent = z.infer<typeof traceEventSchema>;
+export type TraceRunStatus = z.infer<typeof traceRunStatusSchema>;
+export type TraceRunResult = z.infer<typeof traceRunResultSchema>;
+export type TraceCreateRequest = z.infer<typeof traceCreateRequestSchema>;
 
 export type ScanTarget = {
   id: string;

@@ -7,6 +7,7 @@ import { nodeStatusKey, nodeStatusLabel } from "../utils/assessment";
 import type { ArchitectureViewId, ArchitectureViewModel } from "../utils/architectureViews";
 import { PLANE_PRESENTATION_ORDER, hasBackendPlaneProjection, planeLabel } from "../utils/planes";
 import { compactId, titleCase } from "../utils/format";
+import type { TraceHighlight } from "../utils/trace";
 import { ArchitectureEdgeOverlay, type ArchitectureConnection } from "./ArchitectureEdgeOverlay";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
   activeViewId: ArchitectureViewId;
   search: string;
   selected: Selection;
+  traceHighlight?: TraceHighlight;
   onSelect: (selection: Selection) => void;
 };
 
@@ -51,11 +53,13 @@ function ArchitectureNodeCard({
   node,
   selected,
   dimmed,
+  traceHighlighted,
   onSelect,
 }: {
   node: GraphNodeModel;
   selected: boolean;
   dimmed: boolean;
+  traceHighlighted: boolean;
   onSelect: () => void;
 }) {
   const status = nodeStatusKey(node);
@@ -68,6 +72,7 @@ function ArchitectureNodeCard({
         `k-${node.semantic_kind ?? "unknown"}`,
         selected ? "is-selected" : "",
         dimmed ? "is-dimmed" : "",
+        traceHighlighted ? "is-trace-highlight" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -96,7 +101,7 @@ function ArchitectureNodeCard({
   );
 }
 
-export function ArchitectureMap({ graph, views, activeViewId, search, selected, onSelect }: Props) {
+export function ArchitectureMap({ graph, views, activeViewId, search, selected, traceHighlight, onSelect }: Props) {
   const [flowsOpen, setFlowsOpen] = useState(false);
 
   if (!hasBackendPlaneProjection(graph)) {
@@ -115,6 +120,8 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
   const activeView = views.find((view) => view.id === activeViewId) ?? views[0];
   const focusedNodeIds = new Set(activeView.matchesNodeIds);
   const focusedEdgeIds = new Set(activeView.matchesEdgeIds);
+  const traceNodeIds = new Set(traceHighlight?.nodeIds ?? []);
+  const traceEdgeIds = new Set(traceHighlight?.edgeIds ?? []);
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const nodeMatches = (node: GraphNodeModel) =>
     (activeViewId === "overview" || focusedNodeIds.has(node.id)) &&
@@ -137,6 +144,7 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
         (activeViewId === "overview" || focusedEdgeIds.has(edge.id)) &&
         (searchMatches(nodeById.get(edge.from)) || searchMatches(nodeById.get(edge.to))),
       selected: selected?.kind === "edge" && selected.id === edge.id,
+      traceHighlighted: traceEdgeIds.has(edge.id),
     })),
     ...graph.relationships.map((relationship) => ({
       id: relationship.id,
@@ -149,6 +157,7 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
         (searchMatches(nodeById.get(relationship.source_node_id)) ||
           searchMatches(nodeById.get(relationship.target_node_id))),
       selected: false,
+      traceHighlighted: false,
     })),
   ];
   const visibleEdges = graph.edges.filter(
@@ -245,6 +254,7 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
                       node={node}
                       selected={selected?.kind === "node" && selected.id === node.id}
                       dimmed={!nodeMatches(node)}
+                      traceHighlighted={traceNodeIds.has(node.id)}
                       onSelect={() => onSelect({ kind: "node", id: node.id })}
                     />
                   ))
@@ -276,6 +286,7 @@ export function ArchitectureMap({ graph, views, activeViewId, search, selected, 
                   node={node}
                   selected={selected?.kind === "node" && selected.id === node.id}
                   dimmed={!nodeMatches(node)}
+                  traceHighlighted={traceNodeIds.has(node.id)}
                   onSelect={() => onSelect({ kind: "node", id: node.id })}
                 />
               ))}

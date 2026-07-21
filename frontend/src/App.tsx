@@ -12,6 +12,7 @@ import { DetailPanel } from "./components/DetailPanel";
 import { MapStatusBar } from "./components/MapStatusBar";
 import { MappingProfileDialog } from "./components/MappingProfileDialog";
 import { ProgressStrip } from "./components/ProgressStrip";
+import { QueryTracePanel } from "./components/QueryTracePanel";
 import { ReadinessPanel } from "./components/ReadinessPanel";
 import { StateOverlay, type ViewerState } from "./components/StateOverlay";
 import { ProposalModal, type ProposalTarget } from "./components/proposal/ProposalModal";
@@ -21,6 +22,7 @@ import { BrandMark } from "./icons/BrandMark";
 import { useMapBuilds } from "./hooks/useMapBuilds";
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
+import { useTraceReplay } from "./hooks/useTraceReplay";
 import { useViewerPayload } from "./hooks/useViewerPayload";
 import { extractMappingCompleteness } from "./contracts/viewer";
 import { importProject, startProjectScan } from "./services/projectScanApi";
@@ -29,6 +31,7 @@ import { useViewerStore } from "./store/viewerStore";
 import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal } from "./types";
 import { buildArchitectureViews, type ArchitectureViewId } from "./utils/architectureViews";
 import { hasBackendPlaneProjection } from "./utils/planes";
+import { resolveTraceHighlight } from "./utils/trace";
 
 const EMPTY_GRAPH: GraphViewModel = {
   nodes: [],
@@ -89,6 +92,9 @@ export default function App() {
   const scanSummary = aiSystemMap?.scan_summary;
   const architectureViews = useMemo(() => buildArchitectureViews(graph), [graph]);
   const mappingCompleteness = payload ? extractMappingCompleteness(payload) : undefined;
+  const traceProjectId = dataSourceMode === "api" ? (payload?.viewer_load_result.project_id ?? null) : null;
+  const traceBuildId = dataSourceMode === "api" ? (payload?.viewer_load_result.build_id ?? null) : null;
+  const traceScopeKey = `${dataSourceMode}|${apiBaseUrl}|${traceProjectId ?? ""}|${traceBuildId ?? ""}`;
 
   const selected = useViewerStore((state) => state.selected);
   const isProgressRunning = useViewerStore((state) => state.isProgressRunning);
@@ -114,6 +120,11 @@ export default function App() {
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [architectureInfoOpen, setArchitectureInfoOpen] = useState(false);
+  const replay = useTraceReplay(traceScopeKey);
+  const traceHighlight = useMemo(
+    () => resolveTraceHighlight(replay.activeEvent, graph),
+    [graph, replay.activeEvent],
+  );
 
   const sourceError = payloadQuery.error instanceof Error ? payloadQuery.error.message : undefined;
   const scanError = liveProgressEvent?.event === "sse_error";
@@ -438,6 +449,7 @@ export default function App() {
                   activeViewId={activeArchitectureView}
                   search={nodeSearch}
                   selected={selected}
+                  traceHighlight={traceHighlight}
                   onSelect={setSelected}
                 />
               )}
@@ -469,6 +481,25 @@ export default function App() {
             )}
           </aside>
           </section>
+
+          <QueryTracePanel
+            mode={dataSourceMode}
+            apiBaseUrl={apiBaseUrl}
+            projectId={traceProjectId}
+            buildId={traceBuildId}
+            endpoints={dataAvailable ? graph.endpoints : []}
+            events={replay.events}
+            activeIndex={replay.activeIndex}
+            isPlaying={replay.isPlaying}
+            fallbackMessage={traceHighlight.fallbackMessage}
+            onIndexChange={replay.select}
+            onPlay={replay.play}
+            onPause={replay.pause}
+            onPrevious={replay.previous}
+            onNext={replay.next}
+            onReset={replay.reset}
+            onTraceEvents={replay.replaceEvents}
+          />
         </div>
 
         <div className="dr-status-slot">

@@ -178,4 +178,32 @@ describe("ArchitectureMap", () => {
     expect(screen.getByRole("note")).toHaveTextContent("No 10-plane projection");
     expect(screen.queryByLabelText("AI Agent System, ten architecture planes")).not.toBeInTheDocument();
   });
+
+  it("applies transient trace classes without changing graph selection", async () => {
+    const graph = graphFixture();
+    const onSelect = vi.fn();
+    const { container } = render(
+      <ArchitectureMap
+        graph={graph}
+        views={buildArchitectureViews(graph)}
+        activeViewId="overview"
+        search=""
+        selected={null}
+        traceHighlight={{
+          nodeIds: ["node:component:loader"],
+          edgeIds: ["edge:query:loader-planner"],
+          fallbackMessage: null,
+        }}
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(container.querySelector('[data-node-id="node:component:loader"]')).toHaveClass("is-trace-highlight");
+    await waitFor(() =>
+      expect(container.querySelector('[data-connection-id="edge:query:loader-planner"]')).toHaveClass(
+        "is-trace-highlight",
+      ),
+    );
+    expect(onSelect).not.toHaveBeenCalled();
+  });
 });

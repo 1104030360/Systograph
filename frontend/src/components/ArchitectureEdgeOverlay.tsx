@@ -7,6 +7,7 @@ export type ArchitectureConnection = {
   source: "declared-edge" | "projection-relationship";
   focused: boolean;
   selected: boolean;
+  traceHighlighted: boolean;
 };
 
 type MeasuredConnection = ArchitectureConnection & { d: string };
@@ -116,6 +117,7 @@ export function ArchitectureEdgeOverlay({ connections, children }: Props) {
               `is-${connection.source}`,
               connection.focused ? "is-focused" : "is-dimmed",
               connection.selected ? "is-selected" : "",
+              connection.traceHighlighted ? "is-trace-highlight" : "",
             ]
               .filter(Boolean)
               .join(" ")}
