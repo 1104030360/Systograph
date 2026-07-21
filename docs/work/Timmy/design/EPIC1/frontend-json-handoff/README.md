@@ -1,103 +1,137 @@
 # Frontend JSON Handoff
 
-Last updated: 2026-07-11（S1 implemented contract 與 later projection target 分界）
+Last updated: 2026-07-15（live code / contract / frontend consumer 全量對齊）
 
-Phase2 pipeline 各步驟的 JSON mock sample。Contract 細節見 `docs/MODEL-CONTRACT.md`、`docs/API-GUIDE.md`。
+本資料夾整理 Phase2 Step 1～9 的 frontend JSON handoff。它同時包含 **current runtime**、
+**current backend model fixture** 與 **planned target**；每份 README 都會標明是哪一種，不能只看
+檔名就假設 API 已經上線。
 
-**狀態：** Step 6 與 Step 9 samples 已用 current Pydantic contract 驗證；Step 4 v2
-sample 是 Plan 13 cutover target；Step 7/8 richer graph / artifact-ref samples是 Plan 06
-target，尚不是 current response shape。
+## 讀取優先序
 
-Current Phase A 的 Step 3 仍由 KAI deterministic providers 產生 facts。Phase B 才改為
-UA-primary `UnderstandAnythingAnalysisService` structural sidecar；Step 6 維持純 Python
-`ProfileInferenceService` 定五態。Plan 17 `AssessmentOrchestrator` / AI semantic candidate
-flow deferred，UA semantic sidecar 是 reserved nullable slot，Phase2 active path 不產生、
-不消費。這是 backend 內部 pipeline 調整，**不影響任何 sample JSON schema**；本資料夾不得新增 `signal_origin`、
-`confidence`、semantic candidate 或 `ua-analysis-result` frontend 欄位。
+發生不一致時，依序相信：
+
+1. `src/` 的 runtime code、Pydantic schema 與實際 API response。
+2. `frontend/src/` 的 Zod schema與 UI consumer（代表「目前前端真的能吃什麼」）。
+3. `docs/MODEL-CONTRACT.md`、`docs/API-GUIDE.md` 與 `docs/spec/`。
+4. 未完成 plan 與本資料夾的 planned samples。
+
+文件不能把 target 寫成 current。Backend 已產生某欄位，也不等於 frontend 已完整顯示。
+
+## 2026-07-15 現況結論
+
+- Phase A 的 Step 3 仍由 KAI deterministic providers 產生 facts；UA-primary 是 Phase B，
+  Plan 20 inventory selection 不介接 UA。
+- Normal build 的 public `ai_system_map.json` 與 `active_schema_version` 仍是
+  `ai-system-map/v1`；backend 會建立 normalized `AiSystemMapV2` 供下游使用。Plan 13 因 00A
+  Task 4／5 尚未通過而維持 blocked。
+- `SystemMapIndex`、`GraphProjectionService`、52 個 reference capability nodes、profile
+  overlays 與六個 lenses 已在 backend 實作，不再是未來設計。
+- 每個 build 寫出 10 個 public siblings（7 JSON + 3 render）；`GraphViewModel` 是 +1
+  ephemeral API projection，不是第 11 個磁碟檔。
+- Current build-scoped API 使用 `MapBuildScopedResponse`：lineage 在外層，profile／readiness
+  在 `build_result`，map／graph 在 `viewer_load_result`。尚未提供 `ArtifactRef[]`。
+- Frontend 仍從 process-wide `/api/map` 載入，Zod／UI 只保留舊 graph 子集合，且 mapping
+  form 仍接受 `new_extension_component`。因此 richer backend graph 與 Plan 13 legacy
+  retirement 尚未完成 end-to-end cutover。
+- Step 6 的五態由純 Python `ProfileInferenceService` 決定；Plan 17 AI semantic candidate
+  flow 與 UA semantic sidecar 都是 deferred，不得加入 frontend sample。
 
 ```text
-Step 2 boundary + inventory enrichment
-  -> Step 3 KAI deterministic facts（Phase B: UA structural sidecar）
-  -> Step 4 ai_system_map.json v1 active + internal v2 normalized view
-  -> Step 6 ProfileInferenceService（純 Python；Plan 17 AI flow deferred）
-  -> Step 7 GraphViewModel / MapBuildResult
-  -> Step 8 ViewerLoadResult
-  -> Step 9 MappingProposal / ManualMapping（API 不變）
+Step 1 Import
+  -> Step 2 current boundary gate
+       (Plan 20 target: inventory preflight + one-run selection; no UA)
+  -> Step 3 KAI deterministic scan（Phase A current）
+  -> Step 4 public v1 + normalized v2
+  -> Step 5 SystemMapIndex
+  -> Step 6 profile / readiness / static sidecars
+  -> Step 7 GraphViewModel + 10-sibling publication
+  -> Step 8 ViewerPayload / MapBuildScopedResponse
+  -> Step 9 Proposal -> ManualMapping -> Apply child build
 ```
 
-## 目錄
+## Step / sample 狀態矩陣
 
-| 步驟 | 資料夾 | Sample |
-|------|--------|--------|
-| 4 正規化 | `step-04-normalize-validate/` | `frontend-ai-system-map-sample.json` → `ai-system-map/v2` |
-| 6 衍生評估 | `step-06-derived-assessment/` | `profile_signals` / `readiness_report` / `evidence_table` / `call_graph` / `dataflow_hints` / `execution_paths` |
-| 7 投影發布 | `step-07-projection-publication/` | `frontend-map-build-result-sample.json` / `frontend-graph-view-model-sample.json` |
-| 8 Viewer | `step-08-viewer/` | `frontend-json-sample.json` → `ViewerLoadResult` |
-| 9 Review | `step-09-review-apply/` | `frontend-mapping-proposal-sample.json` / `frontend-manual-mapping-create-capability-candidate-sample.json` |
-| 延後 | `deferred/` | `frontend-runtime-trace-event-sample.json` |
+| Step | Current backend | Sample 狀態 | Current frontend |
+| --- | --- | --- | --- |
+| 1 Import | `POST /api/projects/import` + project registry | 無 JSON；README 記錄 current API | 已有 import flow |
+| 2 Boundary | `POST /api/scans` + sensitive proposal；尚無 preflight endpoint | 8 份 JSON 是 Plan 20 target | Modal 仍是 current sensitive-file flow |
+| 3 Scan | KAI deterministic providers + `scan-snapshot/v1` | 無 public JSON | 不直接讀 snapshot |
+| 4 Normalize | public v1；internal normalized `AiSystemMapV2` | v2 sample 通過 current Pydantic，但不是 current public artifact | Viewer 仍以 v1 相容資料為主 |
+| 5 Index | read-only `SystemMapIndex` 已實作 | 無 public JSON | 不直接消費 index |
+| 6 Assessment | 6 份 sidecars 已實作、同 build 發布 | 6 份 sample 通過 current Pydantic | 尚未完整顯示 profile／readiness rich details |
+| 7 Projection | richer `GraphViewModel` 已實作 | graph sample 通過 current Pydantic；MapBuildResult + ArtifactRef sample 是 future target | Zod／UI 只吃舊子集合 |
+| 8 Viewer | `ViewerPayload` 與 `MapBuildScopedResponse` 均存在 | `frontend-json-sample.json` 是 current `ViewerPayload` contract fragment | 仍呼叫 process-wide `/api/map` |
+| 9 Review / Apply | non-baseline candidate + legacy extension contract 並存 | proposal／manual mapping samples 通過 current Pydantic | 仍只有 existing／legacy extension enum |
+| Deferred | current `/api/trace` 已有 `TraceRunResult` / `QueryTraceEvent` | sample 是 richer safe-linkage target，不是 current Pydantic | 不可拿 static path 偽裝 runtime event |
 
-步驟 1–3、5 無 handoff sample（見各 step README）。有 JSON 的 step 資料夾內有 **欄位說明 README**，與 sample 對照閱讀。
+## Sample 索引與驗證等級
 
-Step 6 的 call graph / dataflow hints / execution paths 三者差異 → 見 [`step-06-derived-assessment/README.md`](step-06-derived-assessment/README.md#靜態執行三件套差在哪)。
+| 資料夾 | Sample | 驗證等級 |
+| --- | --- | --- |
+| `step-02-boundary-gate/` | preflight、selection、pending／completed、typed errors | current backend Pydantic；frontend flow 尚待實作 |
+| `step-04-normalize-validate/` | `frontend-ai-system-map-sample.json` | current `AiSystemMapV2` Pydantic |
+| `step-06-derived-assessment/` | profile、readiness、evidence、call、dataflow、paths | current Pydantic |
+| `step-07-projection-publication/` | graph + future artifact index | graph=current Pydantic；artifact index=target |
+| `step-08-viewer/` | `frontend-json-sample.json` | current `ViewerPayload` Pydantic；graph 刻意截短 |
+| `step-09-review-apply/` | proposal + decision request | current Pydantic |
+| `deferred/` | richer runtime trace linkage | future design fixture；current trace shape 以 API model 為準 |
 
-## 狀態欄位一覽
+步驟 1、3、5 沒有 frontend JSON；這是 ownership 邊界，不是缺檔。Step 6 三份 static
+execution JSON 的差異見
+[`step-06-derived-assessment/README.md`](step-06-derived-assessment/README.md#靜態執行三件套差在哪)。
 
-handoff JSON 裡有多種「狀態」，**語意不同、不可混用**。前端只 **render backend 給的值**，不要從 graph topology 自己推。
+## 狀態欄位不可混用
 
-### 七種狀態（先看這張）
+| 類別 | 值 | 使用位置 |
+| --- | --- | --- |
+| Assessment 五態 | `detected` / `partial` / `undetermined` / `not_detected` / `conflicted` | profile、reference assessment、readiness |
+| Activation | `enabled` / `disabled` / `conditional` / `unknown` / `conflicted` / `not_applicable` | 與 assessment 分開 |
+| Current scan lifecycle | `requires_boundary_decision` / `completed` / `error` | `POST /api/scans` |
+| Plan 20 inventory target | `reviewable` / `hard_blocked` / `missing` / `empty_directory` / `directory_limit_exceeded` | current backend preflight；frontend 尚未接線 |
+| Review workflow | `needs_confirmation` / `pending_user_confirmation` | unmapped／proposal |
+| Durable evidence review | `confirmed` / `rejected` / `needs_confirmation` / `not_required` | evidence table／mapping decision |
+| Capability candidate | `confirmed_non_baseline` | confirmed non-baseline capability |
+| Load / build | `loaded: true/false`、`status: ok/error` | Viewer／build |
 
-| 名稱 | 常見值 | 白話 |
-|------|--------|------|
-| **Assessment 五態** | `detected` / `partial` / `undetermined` / `not_detected` / `conflicted` | 靜態證據夠不夠、有沒有衝突 |
-| **Review 工作流** | `needs_confirmation` / `pending_user_confirmation` | 這件事要人決策（map / proposal 各自的 stable enum） |
-| **Capability candidate** | `confirmed_non_baseline` | 使用者確認的 non-baseline 能力 |
-| **Readiness finding** | Assessment 五態 | release-readiness findings 的 evidence-backed 狀態 |
-| **Evidence review** | `confirmed` / `rejected` / `needs_confirmation` / `not_required` | 單筆 evidence 的 durable review 結果 |
-| **Build / 載入** | `ok`；`loaded: true/false` | API build 成功與否；viewer 有沒有載入 |
-| **Runtime trace**（延後） | `completed` + `event_type` | 執行期事件，不是 static assessment |
+Frontend 只 render backend 狀態，不從 topology、檔名、reason 或 counts 重算。缺證據也不使用
+`failed`；必須保留五態與 evidence gap。
 
-> **Assessment 五態** 與 `activation`（`enabled` / `disabled` / …）在 contract 裡是分開的；profile 可 `detected` 但 `disabled`。正式欄位名稱是 `activation`，不是 `activation_state`。詳見 `MODEL-CONTRACT.md`。
+## Same-build 與安全規則
 
-### 出現在哪（依步驟）
+- 6 個 derived JSON 必須共享 `scan_id`、`build_id`、`environment_id`，且
+  `generated_from_build_id === build_id`。
+- `profile_signals.json` 必須有 52 筆 reference assessments 與 15 筆 profiles；
+  `readiness_report.json` 必須引用同一份 Mapping Completeness。
+- static call graph／dataflow／execution paths 只能標示 static inferred，不得宣稱 runtime
+  verified。
+- API／sample 不得暴露 absolute local path、secret、raw exception 或 server-local artifact
+  path。未來 lazy load 只能走受控 `artifact_id` API。
+- Apply 重播同一 snapshot、建立新 `build_id`；Rescan 才重新讀 repo 並建立新 `scan_id`。
 
-| 步驟 | JSON / 路徑 | 用的狀態種類 |
-|------|-------------|--------------|
-| **4** map | `components[].status`、`edges[].status`；`components[].activation` | Assessment 五態；activation 獨立欄位 |
-| **4** map | `unmapped_components[].status` | Review（current v1: `needs_confirmation`） |
-| **6** profile | `profiles[].status`、`profiles[].activation` | Assessment 五態；activation 獨立欄位 |
-| **6** profile | `capability_candidate_components[].status` | Capability candidate |
-| **6** readiness | `grounding.status`、`capability_summaries[].status`、`findings[].status` | Assessment 五態 |
-| **6** readiness | `findings[].category`、`findings[].evidence_ids` | Readiness finding 分類與證據 |
-| **6** evidence_table | `rows[].review_state` | Evidence review |
-| **6** call / dataflow / paths | static nodes / edges / paths | 無 runtime status；schema 名稱與 UI 文案明示 static inferred |
-| **7** MapBuildResult | 頂層 `status` | Build（`ok`） |
-| **7** graph | `nodes[].status`、`details.*.status` | 五態 + Review + candidate（畫布直接用） |
-| **7** graph | `filters[].kind: "status"` | 依節點 status 篩選（如 Needs review） |
-| **8** ViewerLoadResult | 內嵌 map / profile / readiness / graph | 以上全部可能再出現一次 |
-| **8** ViewerLoadResult | `loaded` | Build / 載入 |
-| **9** proposal | `status` | Review（`pending_user_confirmation`） |
-| **9** decision request | `decision` | 使用者決策（`confirmed` 等，**不是**五態） |
-| **延後** trace | `status`、`event_type` | Runtime trace |
+### Fixture lineage boundary
 
-Step 8 sample 是 Plan 06 richer aggregation target；current S1 build-scoped response 把
-profile/readiness 放在 `build_result`，base graph 放在 `viewer_load_result`。
+本資料夾不是一包可以任意 merge 的單一 response：Step 6 六份 current samples 是 initial
+`build:sample-b1` 的同 build group；Step 4／7 用 `build:sample-b2` 示範另一個 contract
+fragment；Step 8 則是獨立的 current v1 Viewer load fixture。只有 README 明示同 build 的檔案才可
+做 cross-file equality 檢查，不能拿 B1 的 Mapping Completeness 覆蓋 B2 graph。
 
-### 前端三條規則
+## Current frontend integration gaps
 
-1. **五態 UI 要一致** — component、edge、profile、readiness finding、static execution 共用同一套 legend。
-2. **Review status ≠ 五態** — `needs_confirmation` / `pending_user_confirmation` 表示待 review，**不阻塞**第一次 scan 顯示；決策走 Step 9 API，下次 Apply（B2）才更新。
-3. **缺證據不用 `failed`** — readiness 用 finding `status` + `evidence_gap` 說明；graph 不自行算 completeness。
+這些是 handoff 必須保留的真實差距，不是 sample 要自行相容的理由：
 
-## Same-build 驗證規則
+1. `frontend/src/types.ts` 尚未保留 rich node identity、assessment scope、relationships、
+   profile／reference details 與 lenses；Zod parse 會丟掉未知欄位。
+2. `frontend/src/services/viewerApi.ts` 尚未改用 project／build-scoped latest endpoint。
+3. `scanCreateResponseSchema` 仍要求 pending response 一定有 `scan_id`；Plan 20 target 明確禁止。
+4. Mapping Zod／EditForm 仍只有 `existing_slot_mapping` 與 `new_extension_component`，尚未接
+   backend 的 `non_baseline_capability_candidate`。
 
-- Gate-1 的 6 個 derived JSON 必須共享同一組 `scan_id`、`build_id`、`environment_id`，且 `generated_from_build_id === build_id`。
-- Active canonical `ai_system_map.json` 暫時維持 v1 shape；其 scope 由同 build manifest 綁定。Plan 13 切 v2 後才自帶相同 header。
-- `profile_signals` 必須包含完整 52 筆 `reference_capability_assessments` 與 15 筆 `profiles`。
-- `readiness_report` 必須帶 Mapping Completeness、grounding、15 個 capability summaries 與 evidence-backed findings；Gate-1 不輸出 `release_verdict` / `severity`。
-- static execution artifacts 的 current schema 沒有 `runtime_verified` / `limitations` 欄位；其 schema 與文案一律視為 static inferred。
-
-## 驗證
+## 基本驗證
 
 ```bash
-find docs/work/Timmy/design/EPIC1/frontend-json-handoff -name '*.json' -print0 | xargs -0 -n1 jq empty
+find docs/work/Timmy/design/EPIC1/frontend-json-handoff \
+  -name '*.json' -print0 | xargs -0 -n1 jq empty
+
+git diff --check -- \
+  docs/work/Timmy/design/EPIC1/frontend-json-handoff
 ```

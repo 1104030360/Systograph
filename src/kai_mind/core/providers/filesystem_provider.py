@@ -10,6 +10,7 @@ from typing import Final
 
 from pathspec import GitIgnoreSpec
 
+from kai_mind.core.models.errors import InventoryEnumerationError
 from kai_mind.core.models.filesystem import (
     FileInventory,
     FileInventorySource,
@@ -17,38 +18,26 @@ from kai_mind.core.models.filesystem import (
     SkippedFile,
     SkipReason,
 )
+from kai_mind.core.models.inventory_policy import (
+    InventoryPolicyAction,
+)
+from kai_mind.core.services.inventory_policy_matcher import (
+    InventoryPolicyMatch,
+    InventoryPolicyMatcher,
+)
+from kai_mind.core.services.inventory_provenance_service import (
+    InventoryProvenanceService,
+)
 from kai_mind.core.services.path_safety_service import (
     PathSafetyError,
     normalize_project_relative_path,
 )
+from kai_mind.core.services.scan_inventory_rule_loader import (
+    ScanInventoryRuleLoader,
+)
 
 DEFAULT_MAX_FILE_SIZE_BYTES: Final = 1_000_000
 BINARY_CHECK_BYTES: Final = 4096
-
-DIRECTORY_SKIP_REASONS: Final[dict[str, SkipReason]] = {
-    ".git": SkipReason.GIT_DIRECTORY,
-    "node_modules": SkipReason.DEPENDENCY_DIRECTORY,
-    ".venv": SkipReason.VIRTUAL_ENV,
-    "venv": SkipReason.VIRTUAL_ENV,
-    "dist": SkipReason.BUILD_OUTPUT,
-    "build": SkipReason.BUILD_OUTPUT,
-    "target": SkipReason.BUILD_OUTPUT,
-    ".next": SkipReason.BUILD_OUTPUT,
-    "__pycache__": SkipReason.CACHE_DIRECTORY,
-    "coverage": SkipReason.COVERAGE_OUTPUT,
-}
-MODEL_WEIGHT_SUFFIXES: Final = {
-    ".gguf",
-    ".ggml",
-    ".onnx",
-    ".pt",
-    ".pth",
-    ".safetensors",
-}
-GENERATED_SUFFIXES: Final = {
-    ".min.js",
-    ".min.css",
-}
 
 
 @dataclass(frozen=True)
@@ -65,26 +54,45 @@ class FilesystemProvider:
         *,
         max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES,
         git_executable: str = "git",
+        inventory_rule_loader: ScanInventoryRuleLoader | None = None,
     ) -> None:
         self._max_file_size_bytes = max_file_size_bytes
         self._git_executable = git_executable
+        self._inventory_rule_loader = (
+            inventory_rule_loader or ScanInventoryRuleLoader()
+        )
+        self._provenance_service = InventoryProvenanceService()
+
+    @property
+    def inventory_rule_loader(self) -> ScanInventoryRuleLoader:
+        return self._inventory_rule_loader
 
     def build_inventory(self, project_root: Path) -> FileInventory:
+        catalog = self._inventory_rule_loader.load_default()
+        matcher = InventoryPolicyMatcher(catalog)
         root = project_root.resolve()
         if self._is_git_work_tree(root):
             try:
-                return self._build_git_inventory(root)
-            except (OSError, subprocess.SubprocessError) as exc:
+                inventory = self._build_git_inventory(root, matcher=matcher)
+            except (OSError, subprocess.SubprocessError):
                 inventory = self._build_recursive_inventory(
                     root,
                     source=FileInventorySource.FALLBACK_AFTER_GIT_ERROR,
+                    matcher=matcher,
                 )
-                inventory.warnings.append(f"git inventory failed: {exc}")
-                return inventory
-
-        return self._build_recursive_inventory(
-            root,
-            source=FileInventorySource.RECURSIVE,
+                inventory.warnings.append(
+                    "git_enumeration_failed_fallback_used"
+                )
+        else:
+            inventory = self._build_recursive_inventory(
+                root,
+                source=FileInventorySource.RECURSIVE,
+                matcher=matcher,
+            )
+        return self._provenance_service.finalize(
+            inventory,
+            catalog=catalog,
+            matcher=matcher,
         )
 
     def normalize_project_relative_path(
@@ -98,7 +106,12 @@ class FilesystemProvider:
             project_root=project_root,
         )
 
-    def _build_git_inventory(self, root: Path) -> FileInventory:
+    def _build_git_inventory(
+        self,
+        root: Path,
+        *,
+        matcher: InventoryPolicyMatcher,
+    ) -> FileInventory:
         output = self._run_git(
             root,
             "ls-files",
@@ -110,9 +123,17 @@ class FilesystemProvider:
             ".",
         ).stdout
         git_paths = self._parse_nul_paths(output)
-        files, skipped = self._classify_files(root, git_paths)
+        files, skipped = self._classify_files(
+            root,
+            git_paths,
+            matcher=matcher,
+        )
         skipped.extend(
-            self._gitignored_files(root, included_paths=set(git_paths))
+            self._gitignored_files(
+                root,
+                included_paths=set(git_paths),
+                matcher=matcher,
+            )
         )
         return FileInventory(
             source=FileInventorySource.GIT,
@@ -126,9 +147,17 @@ class FilesystemProvider:
         root: Path,
         *,
         source: FileInventorySource,
+        matcher: InventoryPolicyMatcher,
     ) -> FileInventory:
-        candidates, skipped = self._recursive_candidates(root)
-        files, file_skips = self._classify_files(root, candidates)
+        candidates, skipped = self._recursive_candidates(
+            root,
+            matcher=matcher,
+        )
+        files, file_skips = self._classify_files(
+            root,
+            candidates,
+            matcher=matcher,
+        )
         skipped.extend(file_skips)
         return FileInventory(
             source=source,
@@ -163,13 +192,19 @@ class FilesystemProvider:
     def _recursive_candidates(
         self,
         root: Path,
+        *,
+        matcher: InventoryPolicyMatcher,
     ) -> tuple[list[str], list[SkippedFile]]:
         candidates: list[str] = []
         skipped: list[SkippedFile] = []
         active_rules_by_dir: dict[Path, tuple[_GitIgnoreRules, ...]] = {
             root: (),
         }
-        for current_root, dirnames, filenames in os.walk(root, topdown=True):
+        for current_root, dirnames, filenames in os.walk(
+            root,
+            topdown=True,
+            onerror=self._raise_enumeration_error,
+        ):
             current = Path(current_root)
             active_rules = active_rules_by_dir.get(current, ())
             current_gitignore = current / ".gitignore"
@@ -193,17 +228,29 @@ class FilesystemProvider:
                     child,
                     project_root=root,
                 )
-                reason = DIRECTORY_SKIP_REASONS.get(dirname)
-                if reason is not None:
-                    skipped.append(
-                        SkippedFile(path=f"{relative}/", reason=reason)
-                    )
-                    continue
                 if self._is_symlink_outside_root(child, root):
                     skipped.append(
                         SkippedFile(
                             path=f"{relative}/",
                             reason=SkipReason.SYMLINK_OUTSIDE_ROOT,
+                        )
+                    )
+                    continue
+                if dirname == ".git":
+                    skipped.append(
+                        SkippedFile(
+                            path=f"{relative}/",
+                            reason=SkipReason.GIT_DIRECTORY,
+                        )
+                    )
+                    continue
+                policy_match = matcher.match(relative, is_directory=True)
+                policy_reason = self._catalog_skip_reason(policy_match)
+                if policy_reason is not None and not matcher.has_include_rules:
+                    skipped.append(
+                        SkippedFile(
+                            path=f"{relative}/",
+                            reason=policy_reason,
                         )
                     )
                     continue
@@ -248,6 +295,8 @@ class FilesystemProvider:
         self,
         root: Path,
         relative_paths: list[str],
+        *,
+        matcher: InventoryPolicyMatcher,
     ) -> tuple[list[FileRecord], list[SkippedFile]]:
         files: list[FileRecord] = []
         skipped: list[SkippedFile] = []
@@ -263,7 +312,11 @@ class FilesystemProvider:
                 continue
             if not path.is_file():
                 continue
-            reason = self._skip_reason(path)
+            reason = self._skip_reason(
+                path,
+                relative_path=relative_path,
+                matcher=matcher,
+            )
             size_bytes = self._safe_size(path)
             if reason is not None:
                 skipped.append(
@@ -285,14 +338,19 @@ class FilesystemProvider:
             files.append(FileRecord(path=relative_path, size_bytes=size_bytes))
         return files, skipped
 
-    def _skip_reason(self, path: Path) -> SkipReason | None:
+    def _skip_reason(
+        self,
+        path: Path,
+        *,
+        relative_path: str,
+        matcher: InventoryPolicyMatcher,
+    ) -> SkipReason | None:
         suffix = path.suffix.lower()
-        name = path.name.lower()
+        policy_match = matcher.match(relative_path)
+        policy_reason = self._catalog_skip_reason(policy_match)
+        if policy_reason is not None:
+            return policy_reason
         size_bytes = self._safe_size(path)
-        if suffix in MODEL_WEIGHT_SUFFIXES:
-            return SkipReason.MODEL_WEIGHT
-        if any(name.endswith(suffix) for suffix in GENERATED_SUFFIXES):
-            return SkipReason.GENERATED
         if size_bytes is not None and size_bytes > self._max_file_size_bytes:
             if suffix == ".log":
                 return SkipReason.LARGE_LOG
@@ -301,13 +359,27 @@ class FilesystemProvider:
             return SkipReason.BINARY
         return None
 
+    def _catalog_skip_reason(
+        self,
+        policy_match: InventoryPolicyMatch,
+    ) -> SkipReason | None:
+        if policy_match.effective_action != InventoryPolicyAction.EXCLUDE:
+            return None
+        if policy_match.effective_reason is None:
+            return None
+        return SkipReason(policy_match.effective_reason)
+
     def _gitignored_files(
         self,
         root: Path,
         *,
         included_paths: set[str],
+        matcher: InventoryPolicyMatcher,
     ) -> list[SkippedFile]:
-        candidates, recursive_skipped = self._recursive_candidates(root)
+        candidates, recursive_skipped = self._recursive_candidates(
+            root,
+            matcher=matcher,
+        )
         skipped = [
             record
             for record in recursive_skipped
@@ -344,7 +416,10 @@ class FilesystemProvider:
     ) -> _GitIgnoreRules | None:
         if not gitignore_path.is_file():
             return None
-        lines = gitignore_path.read_text(encoding="utf-8").splitlines()
+        try:
+            lines = gitignore_path.read_text(encoding="utf-8").splitlines()
+        except OSError as exc:
+            raise InventoryEnumerationError() from exc
         return _GitIgnoreRules(
             base_path=base_path,
             spec=GitIgnoreSpec.from_lines(lines),
@@ -386,6 +461,10 @@ class FilesystemProvider:
                 return b"\0" in file.read(BINARY_CHECK_BYTES)
         except OSError:
             return False
+
+    def _raise_enumeration_error(self, error: OSError) -> None:
+        del error
+        raise InventoryEnumerationError()
 
     def _safe_size(self, path: Path) -> int | None:
         try:

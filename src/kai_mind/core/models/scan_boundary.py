@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import Field
 
+from kai_mind.core.models.inventory_selection import (
+    DirectorySelectionSummary,
+    InventorySelectionScope,
+)
 from kai_mind.core.models.scan import ScanModel
 
 MAX_BOUNDARY_REASON_CHARS = 800
@@ -59,6 +64,19 @@ class ScanBoundaryEvidencePacket(ScanModel):
     context_limits: dict[str, str | int | bool] = Field(default_factory=dict)
 
 
+class ScanBoundarySelectionContext(ScanModel):
+    base_outcome: Literal["included", "soft_excluded", "mixed"]
+    review_kind: Literal["required_confirmation", "optional_override"]
+    default_decision: ScanBoundaryDecisionAction | None = None
+    decision_required: bool
+    override_allowed: bool
+    exclusion_sources: list[str] = Field(default_factory=list)
+    matched_inventory_policy_ids: list[str] = Field(default_factory=list)
+    target_kind: Literal["file", "directory"]
+    selection_scope: InventorySelectionScope
+    directory_summary: DirectorySelectionSummary | None = None
+
+
 class ScanBoundaryProposal(ScanModel):
     """Pending user confirmation before the current scan can continue."""
 
@@ -75,6 +93,7 @@ class ScanBoundaryProposal(ScanModel):
     )
     created_at: str
     updated_at: str
+    selection_context: ScanBoundarySelectionContext | None = None
 
 
 class ScanBoundaryDecisionRequest(ScanModel):
@@ -83,6 +102,9 @@ class ScanBoundaryDecisionRequest(ScanModel):
     target_path: str
     fingerprint: str
     decision: ScanBoundaryDecisionAction
+    selection_scope: InventorySelectionScope = (
+        InventorySelectionScope.EXACT_FILE
+    )
     reason: str | None = Field(
         default=None,
         max_length=MAX_BOUNDARY_REASON_CHARS,

@@ -28,7 +28,10 @@ from kai_mind.web.dependencies import (
     viewer_session_service,
 )
 from kai_mind.web.schemas import DetailScanCreateRequest, DetailScanResponse
-from kai_mind.web.session_store import SessionStore
+from kai_mind.web.session_store import (
+    SessionStore,
+    save_committed_build_projection,
+)
 
 router = APIRouter(tags=["detail-scans"])
 
@@ -101,7 +104,10 @@ def create_detail_scan(
     child = result.build_result
     if child.ai_system_map is None or child.viewer_load_result is None:
         raise HTTPException(status_code=500, detail="detail_build_incomplete")
-    store.save_build_result(
+    system_map = child.ai_system_map
+    viewer = child.viewer_load_result
+    child = save_committed_build_projection(
+        store,
         child,
         project_id=payload.project_id,
     )
@@ -109,12 +115,12 @@ def create_detail_scan(
     return DetailScanResponse(
         project_id=payload.project_id,
         detail_scan=result.detail_scan,
-        ai_system_map=child.ai_system_map,
+        ai_system_map=system_map,
         source_build_id=result.source_build_id,
         build_id=child.lineage.build_id if child.lineage else None,
         scan_id=child.lineage.scan_id if child.lineage else None,
-        viewer_load_result=child.viewer_load_result,
-        warnings=list(result.warnings),
+        viewer_load_result=viewer,
+        warnings=list(dict.fromkeys((*result.warnings, *child.warnings))),
     )
 
 
@@ -148,7 +154,7 @@ def _find_detail_scan(
         system_map = build_result.ai_system_map
         if system_map is None:
             continue
-        for detail_scan in system_map.detail_scans:
+        for detail_scan in build_result.detail_scan_results:
             if detail_scan.id == detail_scan_id:
                 return project_id, build_result, detail_scan
     return None
@@ -178,7 +184,7 @@ def _legacy_detail_scan(
             status_code=422,
             detail=str(exc) or "target_not_found",
         ) from exc
-    viewer = viewer_service.build(
+    viewer = viewer_service.build_canonical(
         result.system_map,
         map_json_path=build_result.map_json_path,
     )
@@ -186,6 +192,10 @@ def _legacy_detail_scan(
         update={
             "ai_system_map": result.system_map,
             "viewer_load_result": viewer,
+            "detail_scan_results": [
+                *build_result.detail_scan_results,
+                result.detail_scan,
+            ],
         }
     )
     store.save_build_result(updated, project_id=payload.project_id)

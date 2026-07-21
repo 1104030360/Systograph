@@ -429,7 +429,7 @@ flowchart TB
     direction TB
     S6in["輸入: 系統地圖 + Index"]
     S6toml1["capability_reference_map.toml<br/>10 planes / 52 格座標"]:::tomlMeta
-    S6toml2["profile_registry.toml Plan11<br/>15 profile label / axis"]:::tomlMeta
+    S6toml2["profile_registry.toml v1<br/>15 profile label / axis / wording"]:::tomlMeta
     S6a["6-1 ProfileInference<br/>★ repo component ↔ reference node<br/>52格五態 + 15 profiles（唯一定案 owner）"]:::match
     S6b["6-2 ReadinessReport"]:::py
     S6c["6-3 call_graph"]
@@ -531,7 +531,7 @@ Step 7           系統地圖 + 能力評估  →  疊圖（reference 格 + repo
   · SystemMapIndex（Step 5 lookup，可選加速）
   · confirmed non-baseline capability candidates（Step 9 Apply 後才穩定）
   · capability_reference_map.toml（10 planes / 52 nodes metadata）
-  · profile_registry.toml（15 profile 顯示 metadata，Plan 11）
+  · profile_registry.toml（15 profile 顯示 Metadata；strict package loader）
 
 ProfileInferenceService.infer(...)     ← 橋接 2 定案入口（Python）
   · 對每個 reference node_id 產五態（detected / partial / undetermined / not_detected / conflicted）
@@ -546,6 +546,11 @@ ProfileInferenceService.infer(...)     ← 橋接 2 定案入口（Python）
   · API 載入時同一 payload 以 `ViewerLoadResult.profile_inference_result` 暴露
   · Step 7 將 52 格 assessment 投影為 `GraphViewModel.reference_capability` nodes
   · readiness / static execution sibling artifacts 供 Step 7 與 reports 消費
+
+Registry presentation projection
+  · ProfileRegistryProjectionService：validated TOML → profile-registry/v1
+  · 只含 15 profile 顯示 Metadata；frontend 不得複製 ids／display order
+  · 不新增 API，不寫 per-build artifact，Profile Engine 不讀回 projection JSON
 
 （AI candidate 評估路徑 deferred：`infer(...)` 介面保留 optional `validated_candidates`
   輸入接縫、預設為空；未來重啟 Plan 17 不需改動 deterministic 定案邏輯）
@@ -597,7 +602,9 @@ Step 3 依序採三階段切換：
 2. **Phase B — UA primary + TOML parity：** Gate-1 通過後才執行 Plan 16；UA structural facts
    成為 primary，TOML providers 只產 parity report。
 3. **Phase C — UA only：** Plan 14 保存 parity / fail-closed / Apply replay report 後，Plan 18
-   才退役 TOML providers 的主掃描路徑。
+   才退役 `code_pattern`、`dependency_manifest`、`docker_image` 與 config patterns 的主掃描
+   ownership。Risk、next-check、reference、profile、inventory 與 LLM config 等 Metadata／設定
+   catalogs 繼續保留。
 
 Phase B/C 的 Step 3：
 
@@ -611,7 +618,7 @@ FileInventory（Step 2 已核准 + enrichment）
        -> ua-analysis-result.json nullable deferred sidecar
   -> UA structural adapter：facts / evidence / issues
   -> semantic sidecar：reserved nullable internal sidecar（Phase2 不產生、不消費）
-  -> 過渡期 KAI scan TOML providers 並跑 parity（Plan 14 通過後由 Plan 18 退役）
+  -> 過渡期 KAI matching providers 並跑 parity（Plan 14 通過後由 Plan 18 退主掃描）
 ```
 
 Scanner 只產生 bounded facts、evidence、issues、skipped summaries：

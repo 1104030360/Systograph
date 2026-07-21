@@ -88,7 +88,7 @@ class HallucinatedReferenceProvider:
         )
 
 
-class ValidProvider:
+class ValidNonBaselineProvider:
     name = "valid-provider"
 
     def generate(
@@ -102,11 +102,17 @@ class ValidProvider:
             {
                 "candidates": [
                     {
-                        "candidate_type": "new_extension_component",
-                        "proposed_extension_id": "extension:query_router",
-                        "proposed_extension_name": "Query Router",
-                        "proposed_extension_kind": "routing_orchestration",
-                        "label": "Confirm Query Router as extension",
+                        "candidate_type": (
+                            "non_baseline_capability_candidate"
+                        ),
+                        "proposed_capability_candidate_id": (
+                            "capability-candidate:query_router"
+                        ),
+                        "proposed_capability_candidate_name": "Query Router",
+                        "proposed_capability_candidate_kind": (
+                            "routing_orchestration"
+                        ),
+                        "label": "Confirm Query Router as non-baseline",
                         "rationale": "Router evidence is bounded and masked.",
                         "evidence_ids": ["evidence:router"],
                         "rank": 1,
@@ -205,19 +211,17 @@ class FieldSecretLeakingProvider:
         }
         if self._field_name == "suggested_edges":
             candidate = {
-                "candidate_type": "new_extension_component",
-                "proposed_extension_id": "extension:query_router",
-                "proposed_extension_name": "Query Router",
-                "proposed_extension_kind": "routing_orchestration",
-                "label": "Confirm Query Router as extension",
-                "rationale": "Router evidence is bounded and masked.",
-                "evidence_ids": ["evidence:router"],
+                "candidate_type": "existing_slot_mapping",
+                "target_slot": "vector_store",
+                "label": "Map vector store",
+                "rationale": "The dependency is chromadb.",
+                "evidence_ids": ["evidence:chromadb"],
                 "rank": 1,
-                "recommendation_level": "plausible_candidate",
+                "recommendation_level": "strong_candidate",
                 "suggested_edges": [
                     {
                         "source_ref": "retriever",
-                        "target_ref": "extension:query_router",
+                        "target_ref": "vector_store",
                         "relationship": "sk-live-secret-value",
                     }
                 ],
@@ -346,7 +350,6 @@ def test_reranker_proposal_uses_non_baseline_capability_candidate() -> None:
         MappingCandidateType.NON_BASELINE_CAPABILITY_CANDIDATE
     )
     assert candidate.proposed_capability_candidate_kind == "reranker"
-    assert candidate.proposed_extension_id is None
 
 
 def test_invalid_provider_output_retries_once_then_falls_back() -> None:
@@ -393,7 +396,7 @@ def test_provider_output_with_unmasked_secret_falls_back_safely() -> None:
         ("component_name", vector_store_packet),
         ("provider", vector_store_packet),
         ("flow_hint", vector_store_packet),
-        ("suggested_edges", router_packet),
+        ("suggested_edges", vector_store_packet),
     ],
 )
 def test_provider_output_secret_fields_are_rejected(
@@ -437,7 +440,7 @@ def test_unexpected_provider_bug_is_not_silently_fallback() -> None:
 
 
 def test_valid_provider_candidates_are_saved() -> None:
-    proposal = service(provider=ValidProvider()).create_proposal(
+    proposal = service(provider=ValidNonBaselineProvider()).create_proposal(
         router_packet()
     )
 
@@ -445,11 +448,15 @@ def test_valid_provider_candidates_are_saved() -> None:
     assert proposal.candidates == [
         MappingCandidate(
             candidate_id=proposal.candidates[0].candidate_id,
-            candidate_type=MappingCandidateType.NEW_EXTENSION,
-            proposed_extension_id="extension:query_router",
-            proposed_extension_name="Query Router",
-            proposed_extension_kind="routing_orchestration",
-            label="Confirm Query Router as extension",
+            candidate_type=(
+                MappingCandidateType.NON_BASELINE_CAPABILITY_CANDIDATE
+            ),
+            proposed_capability_candidate_id=(
+                "capability-candidate:query_router"
+            ),
+            proposed_capability_candidate_name="Query Router",
+            proposed_capability_candidate_kind="routing_orchestration",
+            label="Confirm Query Router as non-baseline",
             rationale="Router evidence is bounded and masked.",
             evidence_ids=["evidence:router"],
             rank=1,

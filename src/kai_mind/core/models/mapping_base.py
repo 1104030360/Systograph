@@ -12,7 +12,6 @@ class MappingModel(BaseModel):
 
 class ManualMappingType(StrEnum):
     EXISTING_SLOT = "existing_slot_mapping"
-    NEW_EXTENSION = "new_extension_component"
     NON_BASELINE_CAPABILITY_CANDIDATE = "non_baseline_capability_candidate"
 
 
@@ -36,10 +35,6 @@ class ManualMappingCreate(MappingModel):
     component_name: str | None = None
     component_kind: str | None = None
     provider: str | None = None
-    extension_id: str | None = None
-    extension_name: str | None = None
-    extension_kind: str | None = None
-    extension_edges: list[dict[str, str]] = Field(default_factory=list)
     capability_candidate_id: str | None = None
     capability_candidate_name: str | None = None
     capability_candidate_kind: str | None = None
@@ -64,16 +59,6 @@ class ManualMappingCreate(MappingModel):
                         "non_baseline_capability_candidate must not include "
                         "target_slot"
                     )
-                if (
-                    self.extension_id is not None
-                    or self.extension_name is not None
-                    or self.extension_kind is not None
-                    or self.extension_edges
-                ):
-                    raise ValueError(
-                        "non_baseline_capability_candidate must not include "
-                        "extension fields"
-                    )
                 if not candidate_fields_present or (
                     self.capability_candidate_id is None
                     or self.capability_candidate_name is None
@@ -83,10 +68,7 @@ class ManualMappingCreate(MappingModel):
                         "non-baseline capability mapping requires "
                         "candidate fields"
                     )
-            case (
-                ManualMappingType.EXISTING_SLOT
-                | ManualMappingType.NEW_EXTENSION
-            ):
+            case ManualMappingType.EXISTING_SLOT:
                 if candidate_fields_present:
                     raise ValueError(
                         f"{self.mapping_type.value} must not include "

@@ -1,0 +1,43 @@
+{
+  "scan_id": "scan:sample-s1",
+  "project_id": "project:sample-ai-health-rag",
+  "status": "completed",
+  "build_result": {
+    "status": "ok",
+    "project_name": "sample-ai-health-rag",
+    "lineage": {
+      "project_id": "project:sample-ai-health-rag",
+      "scan_id": "scan:sample-s1",
+      "build_id": "build:sample-b1",
+      "based_on_build_id": null,
+      "build_reason": "initial_scan",
+      "applied_mapping_ids": [],
+      "generated_at": "2026-07-16T10:30:00Z"
+    },
+    "active_schema_version": "ai-system-map/v1",
+    "requested_schema_version": "ai-system-map/v1",
+    "migration_warnings": [],
+    "warnings": [],
+    "error": null
+  },
+  "boundary_proposals": [],
+  "available_boundary_actions": [
+    "scan_this_run",
+    "skip_this_run"
+  ],
+  "preflight_request_id": "preflight:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "inventory_selection_summary": {
+    "included_file_count": 167,
+    "skipped_file_count": 8,
+    "directory_scope_results": [
+      {
+        "target_path": "node_modules/small-local-package",
+        "decision": "scan_this_run",
+        "observed_file_count": 26,
+        "included_file_count": 22,
+        "hard_blocked_file_count": 3,
+        "post_decision_blocked_file_count": 1
+      }
+    ]
+  }
+}

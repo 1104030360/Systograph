@@ -1,0 +1,117 @@
+{
+  "$defs": {
+    "ProfileRegistryProjectionEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "default_uncertainty": {
+          "minLength": 1,
+          "title": "Default Uncertainty",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "display_order": {
+          "minimum": 0,
+          "title": "Display Order",
+          "type": "integer"
+        },
+        "primary_axis": {
+          "enum": [
+            "grounding",
+            "agent_control",
+            "tool_use",
+            "memory",
+            "workflow_orchestration",
+            "retrieval_strategy",
+            "knowledge_structure",
+            "context_enrichment",
+            "data_modality",
+            "design_paradigm"
+          ],
+          "title": "Primary Axis",
+          "type": "string"
+        },
+        "profile_id": {
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "recommended_next_checks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Recommended Next Checks",
+          "type": "array"
+        },
+        "secondary_axes": {
+          "items": {
+            "enum": [
+              "grounding",
+              "agent_control",
+              "tool_use",
+              "memory",
+              "workflow_orchestration",
+              "retrieval_strategy",
+              "knowledge_structure",
+              "context_enrichment",
+              "data_modality",
+              "design_paradigm"
+            ],
+            "type": "string"
+          },
+          "title": "Secondary Axes",
+          "type": "array"
+        },
+        "short_label": {
+          "minLength": 1,
+          "title": "Short Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id",
+        "display_name",
+        "short_label",
+        "description",
+        "primary_axis",
+        "secondary_axes",
+        "display_order",
+        "default_uncertainty",
+        "recommended_next_checks"
+      ],
+      "title": "ProfileRegistryProjectionEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "profiles": {
+      "items": {
+        "$ref": "#/$defs/ProfileRegistryProjectionEntry"
+      },
+      "minItems": 1,
+      "title": "Profiles",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "profile-registry/v1",
+      "default": "profile-registry/v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "profiles"
+  ],
+  "title": "ProfileRegistryProjection",
+  "type": "object"
+}

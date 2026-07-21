@@ -237,10 +237,17 @@ Python 擁有：
 
 - profile id 與顯示名稱。
 - short label、description 與 static axes。
-- default evidence wording、uncertainty 與 recommended next checks。
+- display order、default uncertainty 與 recommended next checks。
 
 TOML 不得包含 regex、condition、threshold、required slot、prompt、provider、mapping action
-或 acceptance logic。
+或 acceptance logic，也不得包含 `default_evidence_strength`、required nodes、wiring 或
+Mapping Completeness weights。Evidence strength 仍由 Python 依實際 status 與 direct evidence
+計算。
+
+Plan 11 已由 `ProfileRegistryLoader` strict/fail-closed 載入 package-bundled TOML，並由
+`ProfileRegistryProjectionService` 產生 deterministic `profile-registry/v1` read-only
+projection。Profile Engine 不讀回 JSON；本階段沒有增加 public API、frontend 欄位或
+per-build artifact。Frontend 不得複製 15 profile ids 或 display order。
 
 Phase2 assessment 完全 deterministic，`ProfileInferenceService` 是五態唯一 owner。Plan 17
 `AssessmentOrchestrator` / AI semantic candidate flow deferred；UA semantic sidecar 是 reserved
@@ -297,9 +304,11 @@ FileInventory
   -> ua-analysis-result.json nullable deferred sidecar
 ```
 
-Phase B UA structural output 是 primary facts/evidence 來源，KAI scan TOML providers 只並跑 parity；
-Plan 14 保存通過的 parity / fail-closed / Apply replay report 後，Plan 18 進入 Phase C 並退役
-TOML providers。UA semantic output 保存為 scan internal sidecar，不列 public artifact、不新增
+Phase B UA structural output 是 primary facts/evidence 來源，KAI matching providers 只並跑
+parity；Plan 14 保存通過的 parity / fail-closed / Apply replay report 後，Plan 18 進入 Phase C，
+並退役 `code_pattern`、`dependency_manifest`、`docker_image` 與 config patterns 的主掃描
+ownership。Risk、next-check、reference、profile、inventory 與 LLM config 等 Metadata／設定
+catalogs 保留。UA semantic output 保存為 scan internal sidecar，不列 public artifact、不新增
 frontend public 欄位，Phase2 也沒有 consumer。
 
 Step 6 由純 Python `ProfileInferenceService` 直接讀 validated map、index、metadata catalogs 與

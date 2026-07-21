@@ -5,7 +5,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kai_mind.core.models.artifact_scope import (
+    PHASE2_P0_ARTIFACT_SET_VERSION,
+    ArtifactSetVersion,
+)
+from kai_mind.core.models.inventory_selection import InventorySelectionSummary
 from kai_mind.core.models.scan import ProjectScanResult
+from kai_mind.core.models.system_map import DetailScanResult
 
 BuildReason = Literal[
     "initial_scan",
@@ -25,7 +31,27 @@ class ScanSnapshot(AnalysisHistoryModel):
     generated_at: datetime
     inventory_digest: str
     scan_result: ProjectScanResult
+    inventory_provenance_status: Literal[
+        "recorded",
+        "legacy_inventory_policy_unknown",
+    ] = "legacy_inventory_policy_unknown"
+    inventory_policy_schema_version: str | None = None
+    inventory_policy_digest: str | None = None
+    candidate_set_digest: str | None = None
+    filesystem_safety_version: str | None = None
+    boundary_decision_digest: str | None = None
+    final_inventory_digest: str | None = None
+    inventory_run_digest: str | None = None
+    inventory_source_mode: (
+        Literal[
+            "git",
+            "recursive",
+            "fallback_after_git_error",
+        ]
+        | None
+    ) = None
     file_fingerprints: dict[str, str] = Field(default_factory=dict)
+    inventory_selection_summary: InventorySelectionSummary | None = None
     ua_analysis_result: dict[str, Any] | None = None
 
 
@@ -37,6 +63,26 @@ class ScanSnapshotManifest(AnalysisHistoryModel):
     scan_id: str
     generated_at: datetime
     inventory_digest: str
+    inventory_provenance_status: Literal[
+        "recorded",
+        "legacy_inventory_policy_unknown",
+    ] = "legacy_inventory_policy_unknown"
+    inventory_policy_schema_version: str | None = None
+    inventory_policy_digest: str | None = None
+    candidate_set_digest: str | None = None
+    filesystem_safety_version: str | None = None
+    boundary_decision_digest: str | None = None
+    final_inventory_digest: str | None = None
+    inventory_run_digest: str | None = None
+    inventory_source_mode: (
+        Literal[
+            "git",
+            "recursive",
+            "fallback_after_git_error",
+        ]
+        | None
+    ) = None
+    inventory_selection_summary: InventorySelectionSummary | None = None
     ua_analysis_available: bool = False
 
 
@@ -84,17 +130,32 @@ class ProjectState(AnalysisHistoryModel):
     active: bool = True
 
 
+class ArtifactManifestEntry(AnalysisHistoryModel):
+    digest: str
+    size_bytes: int = Field(gt=0)
+    schema_status: Literal["validated"] = "validated"
+    schema_version: str | None = None
+
+
 class MapBuildManifest(AnalysisHistoryModel):
     schema_version: Literal["map-build-manifest/v1"] = "map-build-manifest/v1"
     lineage: MapBuildLineage
     output_dir: str
+    artifact_set_version: ArtifactSetVersion = PHASE2_P0_ARTIFACT_SET_VERSION
+    environment_id: str = "environment:default-static"
     artifact_digests: dict[str, str]
+    artifacts: dict[str, ArtifactManifestEntry] = Field(default_factory=dict)
     active_schema_version: Literal["ai-system-map/v1", "ai-system-map/v2"] = (
         "ai-system-map/v1"
     )
     requested_schema_version: Literal[
         "ai-system-map/v1", "ai-system-map/v2"
     ] = "ai-system-map/v1"
+    source_schema_version: (
+        Literal["ai-system-map/v1", "ai-system-map/v2"] | None
+    ) = None
+    operator_rollback_active: bool = False
     migration_warnings: tuple[str, ...] = ()
+    detail_scan_results: tuple[DetailScanResult, ...] = ()
     apply_request_digest: str | None = None
     status: Literal["complete"] = "complete"

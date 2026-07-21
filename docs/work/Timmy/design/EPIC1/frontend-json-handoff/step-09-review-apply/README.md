@@ -1,63 +1,87 @@
 # Step 9 — Review / Apply（可選）
 
-Last updated: 2026-07-11（current durable decision / Apply contract）
+Last updated: 2026-07-15（current backend + Plan 13 legacy boundary）
 
-ambiguous evidence 的 review 流程。**不阻塞**第一次 scan 顯示；decision 在 **下次 Apply / rescan** 套用。
-
-詳細邊界見 `docs/design/epic1-phase2.md` §12。
-
-## Proposal 與 Manual mapping（誰是選項、誰是結果）
-
-| | **Proposal** | **Manual mapping** |
-|---|--------------|-------------------|
-| 是什麼 | Scanner 的 **建議包 + 選項**（待決工單） | 使用者選完後 **存檔的決策** |
-| API | `POST /api/mapping-proposals` → response | `POST /api/mapping-proposals/{id}/decision` → 寫入 `mappings/` |
-| 白話 | **問題 + candidates[]** | **你選了什麼**（`confirmed` 等） |
+Ambiguous evidence 的 review 不阻塞第一次 build／Viewer。Scanner 先建立 proposal，使用者決策
+寫成 durable manual mapping；Apply 才重播同一 snapshot、建立新的 child build。
 
 ```text
-Proposal → 使用者 decision → ManualMapping 存檔 → Apply 重算 → 新 build_id
+MappingProposal
+  -> user decision
+  -> ManualMapping audit record
+  -> Apply confirmed mappings
+  -> same scan_id / snapshot, new build_id
 ```
 
-Proposal **不能**直接改 profile status；Apply 才會把 confirmed mapping 反映進 B2 報告。
-2026-07-07 UA 整合後，Step 9 MappingProposal 流程與 API 不變；Apply 不重跑 UA sidecar，
-而是重放同一 `ScanSnapshot.scan_result` 的 structural facts/evidence，重跑 Step 4～7；
-`ua-analysis-result` internal sidecar 保持不變且不被 Phase2 消費，
-並產生新的 `build_id`。
+Rescan 與 Apply 不同：Rescan 重新讀 repo 並建立新 `scan_id`；Apply 不重掃 repo，也不重跑
+Step 2 inventory review。
 
----
+## 2026-07-15 contract 狀態
+
+Backend current proposal candidates 同時接受：
+
+- `existing_slot_mapping`
+- legacy `new_extension_component`
+- `non_baseline_capability_candidate`
+- `needs_more_information`
+- `skip_for_now`
+
+Durable `ManualMapping` 的 `mapping_type` 只有前三種可 materialize 的 mapping 類型；
+`decision` 使用 `confirmed` / `rejected` / `skip_for_now` / `not_applicable`。
+
+本資料夾兩份 sample 已通過 current backend Pydantic，示範 non-baseline candidate 流程；不使用
+numeric confidence。
+
+Frontend 尚未對齊：`types.ts`、mock 與 `EditForm` 仍只有 existing-slot／legacy-extension
+選項，無法完整 parse／建立 non-baseline candidate。這是 current integration gap。
+
+Plan 13 的 target 是 normal API／UI 停止接受 `new_extension_component`，先 migration／quarantine
+既有 records，再把 v2 設為 normal active output。Plan 13 目前仍 blocked，因此文件不能宣稱
+legacy write surface 已退役；也不能再把 legacy extension 當推薦的新資料模型。
+
+## Proposal 與 Manual mapping
+
+| | Proposal | Manual mapping |
+| --- | --- | --- |
+| 是什麼 | Scanner 的 evidence packet + candidates | 使用者決策的 durable audit record |
+| API | `POST /api/mapping-proposals` | `POST /api/mapping-proposals/{id}/decision` |
+| 是否直接改 map | 否 | 否；Apply 才 materialize |
+| 是否阻塞初次 Viewer | 否 | 否 |
 
 ## frontend-mapping-proposal-sample.json
 
-`MappingProposal` — `POST /api/mapping-proposals` **response**。
+Current `MappingProposal` response：
 
 | 欄位 | 白話 |
-|------|------|
-| `proposal_id` | 這次 review 提案 ID |
-| `source_unmapped_id` | 來自 map 的哪個 unmapped |
-| `status` | current pending enum：`pending_user_confirmation` |
-| `evidence_packet` | 給使用者看的 evidence 摘要包 |
-| `candidates[]` | **可選方案**（確認為 capability candidate、skip…） |
-| `candidate_type` | 如 `non_baseline_capability_candidate`、`skip_for_now` |
-| `available_actions` | UI 按鈕：`accept` / `edit` / `reject` / `skip_for_now` |
+| --- | --- |
+| `proposal_id` / `source_unmapped_id` | Proposal identity 與來源 unmapped item |
+| `status` | `pending_user_confirmation` |
+| `evidence_packet` | Safe evidence summary，不含 secret／absolute path |
+| `candidates[]` | Backend 提供的可選方案 |
+| `candidate_type` | Sample 使用 `non_baseline_capability_candidate`、`skip_for_now` |
+| `available_actions` | `accept` / `edit` / `reject` / `skip_for_now` |
 
----
+Proposal 只能建議，不得直接改 profile status 或 canonical map。
 
 ## frontend-manual-mapping-create-capability-candidate-sample.json
 
-`ManualMappingCreate` — `POST /api/mapping-proposals/{id}/decision` **request body**（**決策內容**，不是 Proposal 本身）。
+Current `ManualMappingCreate` request body：
 
 | 欄位 | 白話 |
-|------|------|
-| `mapping_type` | 決策類型（sample 為 `non_baseline_capability_candidate`） |
-| `decision` | `confirmed` / `rejected` / … |
-| `source_unmapped_id` | 對應哪個 unmapped |
-| `capability_candidate_*` | 確認後的 candidate 命名 |
-| `proposal_id` | 連回哪個 proposal |
-| `decision_source` | 如 `proposal_accept` |
+| --- | --- |
+| `mapping_type` | Sample 是 `non_baseline_capability_candidate` |
+| `decision` | `confirmed` / `rejected` / `skip_for_now` / `not_applicable` |
+| `source_unmapped_id` / `proposal_id` | Audit lineage |
+| `capability_candidate_*` | Confirmed candidate 的 stable id／name／kind |
+| `decision_source` | 例如 `proposal_accept` |
 
-Apply 時 backend 重用同一 `ScanSnapshot` 建 **B2**，不重掃 repo、也不重跑 UA sidecar。見
-`docs/work/Meeting-Sync/meeting_sync_2026_07_05/rescan-vs-apply.md`。
+Reject／skip 也建立 audit record，但不 materialize，不能進 `applied_mapping_ids`。Apply 只接受
+non-empty、unique、同 project、confirmed 且可 materialize 的 mappings，base build 也必須仍是
+latest。
 
-Reject / skip 也會建立 durable `ManualMapping` audit record；兩者不 materialize、不能放進
-`applied_mapping_ids`。Apply 只接受 non-empty、unique、同 project 的 confirmed mappings，
-且 base build 必須仍是 latest。
+## Frontend invariants
+
+- 不從 proposal wording 或 topology 推導 candidate type。
+- 不把 `pending_user_confirmation` 混成 assessment 五態。
+- 不在 frontend 建立 legacy extension fallback；Plan 13 migration 由 backend 擁有。
+- Apply 成功後依 response 的 child `build_id` 重新載入 project-scoped Viewer。

@@ -20,11 +20,24 @@ from kai_mind.core.providers.local_json_state_provider import (
 from kai_mind.core.services.apply_confirmations_service import (
     ApplyConfirmationsService,
 )
+from kai_mind.core.services.build_commit_service import BuildCommitService
 from kai_mind.core.services.build_manifest_service import BuildManifestService
+from kai_mind.core.services.canonical_output_configuration import (
+    canonical_output_version_from_env,
+)
 from kai_mind.core.services.detail_scan_build_service import (
     DetailScanBuildService,
 )
 from kai_mind.core.services.detail_scan_service import DetailScanService
+from kai_mind.core.services.inventory_candidate_service import (
+    InventoryCandidateService,
+)
+from kai_mind.core.services.inventory_preflight_service import (
+    InventoryPreflightService,
+)
+from kai_mind.core.services.inventory_selection_service import (
+    InventorySelectionService,
+)
 from kai_mind.core.services.manual_mapping_service import (
     ManualMappingService,
 )
@@ -110,22 +123,31 @@ def create_app(
     query_trace_service: QueryTraceService | None = None,
     scan_boundary_review_service: ScanBoundaryReviewService | None = None,
     scan_snapshot_service: ScanSnapshotService | None = None,
+    inventory_preflight_service: InventoryPreflightService | None = None,
+    inventory_selection_service: InventorySelectionService | None = None,
     viewer_session_service: ViewerSessionService | None = None,
     session_store: SessionStore | None = None,
     state_dir: Path | None = None,
     apply_confirmations_service: ApplyConfirmationsService | None = None,
     map_build_query_service: MapBuildQueryService | None = None,
+    build_commit_service: BuildCommitService | None = None,
     allowed_origins: Sequence[str] | None = None,
     env_file: Path | None = None,
     max_request_body_bytes: int = DEFAULT_MAX_REQUEST_BODY_BYTES,
 ) -> LocalApiApp:
+    canonical_output_version = canonical_output_version_from_env()
     app = FastAPI(title="KAI-Mind Local API", version="0.1.0")
     if state_dir is None:
         state_dir = default_state_dir()
     repository = LocalJsonStateProvider(state_dir)
     manifest_service = BuildManifestService(repository=repository)
+    commit_service = build_commit_service or BuildCommitService(
+        repository=repository,
+        manifest_service=manifest_service,
+    )
     app.state.state_repository = repository
     app.state.build_manifest_service = manifest_service
+    app.state.build_commit_service = commit_service
     app.state.state_dir = state_dir
     app.state.manual_mapping_service = (
         manual_mapping_service or ManualMappingService(repository=repository)
@@ -142,10 +164,32 @@ def create_app(
     app.state.scan_boundary_review_service = (
         scan_boundary_review_service or ScanBoundaryReviewService()
     )
+    if inventory_preflight_service is not None:
+        app.state.inventory_preflight_service = inventory_preflight_service
+    elif (
+        scan_snapshot_service is not None
+        and scan_snapshot_service.inventory_rule_loader is not None
+    ):
+        app.state.inventory_preflight_service = InventoryPreflightService(
+            candidate_service=InventoryCandidateService(
+                inventory_rule_loader=(
+                    scan_snapshot_service.inventory_rule_loader
+                )
+            )
+        )
+    else:
+        app.state.inventory_preflight_service = InventoryPreflightService()
+    app.state.inventory_selection_service = (
+        inventory_selection_service
+        or InventorySelectionService(
+            preflight_service=app.state.inventory_preflight_service,
+        )
+    )
     shared_scanner = ProjectScanService()
     app.state.map_build_service = map_build_service or MapBuildService(
         project_scan_service=shared_scanner,
         manual_mapping_service=app.state.manual_mapping_service,
+        canonical_output_version=canonical_output_version,
     )
     app.state.scan_snapshot_service = (
         scan_snapshot_service
@@ -160,6 +204,7 @@ def create_app(
             repository=repository,
             map_build_service=app.state.map_build_service,
             manifest_service=manifest_service,
+            build_commit_service=commit_service,
         )
     )
     app.state.map_build_query_service = (
@@ -178,6 +223,7 @@ def create_app(
             query_service=app.state.map_build_query_service,
             manifest_service=manifest_service,
             repository=repository,
+            build_commit_service=commit_service,
         )
     )
     app.state.query_trace_service = query_trace_service or QueryTraceService()

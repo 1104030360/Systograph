@@ -78,16 +78,37 @@ def test_validation_rejects_absolute_path_in_profile_text() -> None:
         )
 
 
-def test_validation_rejects_unknown_related_risk_hint() -> None:
+@pytest.mark.parametrize(
+    ("field", "unknown_id", "match"),
+    [
+        ("related_component_ids", "component:missing", "component reference"),
+        (
+            "related_unmapped_component_ids",
+            "unmapped:missing",
+            "unmapped component reference",
+        ),
+        (
+            "related_capability_candidate_component_ids",
+            "capability-candidate:missing",
+            "capability candidate reference",
+        ),
+        ("related_risk_hint_ids", "risk:missing", "risk hint reference"),
+    ],
+)
+def test_validation_rejects_unknown_profile_navigation_reference(
+    field: str,
+    unknown_id: str,
+    match: str,
+) -> None:
+    # Given: a valid result with one unknown navigation reference.
     system_map, result = valid_result()
-    first = result.profiles[0].model_copy(
-        update={"related_risk_hint_ids": ("risk:missing",)}
-    )
+    first = result.profiles[0].model_copy(update={field: (unknown_id,)})
     invalid = result.model_copy(
         update={"profiles": (first, *result.profiles[1:])}
     )
 
-    with pytest.raises(ProfileSignalValidationError, match="risk hint"):
+    # When / Then: validation fails closed instead of emitting partial output.
+    with pytest.raises(ProfileSignalValidationError, match=match):
         ProfileSignalValidationService().validate(
             invalid, system_map=system_map
         )

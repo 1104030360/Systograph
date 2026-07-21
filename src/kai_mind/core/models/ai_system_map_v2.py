@@ -23,6 +23,10 @@ from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kai_mind.core.models.artifact_scope import (
+    PHASE2_P0_ARTIFACT_SET_VERSION,
+    ArtifactSetVersion,
+)
 from kai_mind.core.models.system_map import Evidence
 
 # ---------------------------------------------------------------------------
@@ -427,6 +431,7 @@ class AiSystemMapV2(V2ContractModel):
     scan_id: str | None = None
     build_id: str | None = None
     environment_id: str = DEFAULT_ENVIRONMENT_ID
+    artifact_set_version: ArtifactSetVersion = PHASE2_P0_ARTIFACT_SET_VERSION
     generated_from_build_id: str | None = None
     source_schema_version: Literal["ai-system-map/v1", "ai-system-map/v2"] | (
         None

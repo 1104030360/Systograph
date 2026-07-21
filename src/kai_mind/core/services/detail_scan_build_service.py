@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -8,12 +7,16 @@ from uuid import uuid4
 
 from kai_mind.core.models.analysis_history import (
     LatestBuildPointer,
+    MapBuildManifest,
     ScanSnapshot,
 )
 from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
 from kai_mind.core.models.scan import OutputRun
 from kai_mind.core.models.system_map import DetailScanResult, ScanDepth
-from kai_mind.core.providers.local_json_state_errors import StateConflictError
+from kai_mind.core.services.build_commit_service import (
+    BuildCommitError,
+    BuildCommitService,
+)
 from kai_mind.core.services.build_manifest_service import BuildManifestService
 from kai_mind.core.services.detail_scan_service import DetailScanService
 from kai_mind.core.services.map_build_query_service import MapBuildQueryService
@@ -21,6 +24,10 @@ from kai_mind.core.services.map_build_service import MapBuildService
 
 
 class DetailBuildRepository(Protocol):
+    def get_build_manifest(
+        self, project_id: str, build_id: str
+    ) -> MapBuildManifest | None: ...
+
     def get_latest_pointer(
         self, project_id: str
     ) -> LatestBuildPointer | None: ...
@@ -64,12 +71,16 @@ class DetailScanBuildService:
         query_service: MapBuildQueryService,
         manifest_service: BuildManifestService,
         repository: DetailBuildRepository,
+        build_commit_service: BuildCommitService | None = None,
     ) -> None:
         self._detail_scan = detail_scan_service
         self._map_build = map_build_service
         self._query = query_service
-        self._manifest = manifest_service
         self._repository = repository
+        self._build_commit = build_commit_service or BuildCommitService(
+            repository=repository,
+            manifest_service=manifest_service,
+        )
 
     def run(
         self,
@@ -101,7 +112,6 @@ class DetailScanBuildService:
         enriched = self._detail_scan.scan(
             project_root=project_root,
             system_map=base.ai_system_map,
-            normalized_system_map=base.normalized_ai_system_map,
             target_type=target_type,
             target=target,
             scan_depth=scan_depth,
@@ -113,50 +123,47 @@ class DetailScanBuildService:
         candidates = (
             base.profile_inference_result.capability_candidate_components
         )
-        try:
-            child = self._map_build.build_from_enriched_map(
+
+        def build(output_run: OutputRun) -> MapBuildResult:
+            built = self._map_build.build_from_enriched_map(
                 snapshot,
                 system_map=enriched.system_map,
                 capability_candidates=tuple(candidates),
                 request=MapBuildRequest(
                     project_path=project_root,
                     output=output_root,
-                    system_map_schema_version=base.requested_schema_version,
+                    system_map_schema_version="ai-system-map/v2",
                 ),
-                output_run=OutputRun(root_dir=output_dir),
+                output_run=output_run,
                 based_on_build_id=lineage.build_id,
                 applied_mapping_ids=lineage.applied_mapping_ids,
                 build_id=child_build_id,
             )
-            self._manifest.persist(child)
-            self._repository.promote_latest_build(
+            return built.model_copy(
+                update={
+                    "detail_scan_results": [
+                        *base.detail_scan_results,
+                        enriched.detail_scan,
+                    ]
+                }
+            )
+
+        try:
+            child = self._build_commit.commit(
                 project_id=project_id,
                 build_id=child_build_id,
+                final_output_dir=output_dir,
                 expected_latest_build_id=lineage.build_id,
                 expected_revision=latest.revision,
+                build=build,
             )
-        except StateConflictError as exc:
-            self._cleanup(project_id, child_build_id, output_dir)
-            raise DetailScanBuildError("base_build_not_latest") from exc
-        except Exception:
-            self._cleanup(project_id, child_build_id, output_dir)
-            raise
+        except BuildCommitError as exc:
+            if exc.code == "stale_latest_revision":
+                raise DetailScanBuildError("base_build_not_latest") from exc
+            raise DetailScanBuildError(exc.code) from exc
         return DetailScanBuildResult(
             detail_scan=enriched.detail_scan,
             source_build_id=lineage.build_id,
             build_result=child,
             warnings=warnings,
         )
-
-    def _cleanup(
-        self,
-        project_id: str,
-        build_id: str,
-        output_dir: Path,
-    ) -> None:
-        try:
-            self._repository.discard_unpublished_build(project_id, build_id)
-        except StateConflictError:
-            return
-        if output_dir.is_dir():
-            shutil.rmtree(output_dir)

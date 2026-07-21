@@ -51,13 +51,31 @@ def test_loader_validates_native_v2_payload_without_adapter() -> None:
 
 
 def test_loader_is_the_only_schema_branch_owner_for_unknown_versions() -> None:
-    with pytest.raises(CanonicalMapLoadError, match="unsupported schema"):
+    with pytest.raises(
+        CanonicalMapLoadError,
+        match="unsupported_system_map_schema_version",
+    ):
         CanonicalMapLoader().load(
             {
                 "schema_version": "ai-system-map/v9",
                 "system_type": "ai_system",
             }
         )
+
+
+@pytest.mark.parametrize(
+    "invalid_json",
+    ["[]", "null", '"not-a-map"', "42"],
+    ids=["array", "null", "string", "number"],
+)
+def test_loader_rejects_non_object_json_root(invalid_json: str) -> None:
+    payload = json.loads(invalid_json)
+
+    with pytest.raises(
+        CanonicalMapLoadError,
+        match="canonical map JSON root must be an object",
+    ):
+        CanonicalMapLoader().load(payload)
 
 
 def test_loader_rejects_confidence_in_either_schema() -> None:

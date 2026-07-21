@@ -1,0 +1,343 @@
+{
+  "schema_version": "ai-system-map/v2",
+  "system_type": "ai_system",
+  "scan_id": null,
+  "build_id": null,
+  "environment_id": "environment:default-static",
+  "generated_from_build_id": null,
+  "source_schema_version": "ai-system-map/v2",
+  "migration_warnings": [],
+  "project": {
+    "project_id": null,
+    "name": "grounded-rag",
+    "root_path": "<project_root>",
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted"
+  },
+  "components": [
+    {
+      "component_id": "component:api:chat",
+      "display_name": "Chat API",
+      "canonical_type": "api_input",
+      "layer": "control",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:api-route"],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "app_api_or_orchestrator",
+        "source_component_id": "component:api:chat",
+        "source_extension_id": null,
+        "semantic_kind": "repo_component",
+        "required_for_rag": true,
+        "source_status": "detected",
+        "source_kind": "api_input"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:chunking",
+      "display_name": "Chunking",
+      "canonical_type": "slot_placeholder",
+      "layer": "ingestion_indexing",
+      "status": "missing",
+      "activation": "unknown",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "chunking",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": true,
+        "source_status": "missing",
+        "source_kind": "slot_placeholder"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:citation_or_response_composer",
+      "display_name": "Citation Or Response Composer",
+      "canonical_type": "slot_placeholder",
+      "layer": "generation",
+      "status": "missing",
+      "activation": "unknown",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "citation_or_response_composer",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": true,
+        "source_status": "missing",
+        "source_kind": "slot_placeholder"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:data_sources",
+      "display_name": "Data Sources",
+      "canonical_type": "slot_placeholder",
+      "layer": "ingestion_indexing",
+      "status": "missing",
+      "activation": "unknown",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "data_sources",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": true,
+        "source_status": "missing",
+        "source_kind": "slot_placeholder"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:document_loader",
+      "display_name": "Document Loader",
+      "canonical_type": "slot_placeholder",
+      "layer": "ingestion_indexing",
+      "status": "missing",
+      "activation": "unknown",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "document_loader",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": true,
+        "source_status": "missing",
+        "source_kind": "slot_placeholder"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:embedding_model",
+      "display_name": "Embedding Model",
+      "canonical_type": "slot_placeholder",
+      "layer": "ingestion_indexing",
+      "status": "missing",
+      "activation": "unknown",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "embedding_model",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": true,
+        "source_status": "missing",
+        "source_kind": "slot_placeholder"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:guardrails",
+      "display_name": "Guardrails",
+      "canonical_type": "slot_placeholder",
+      "layer": "governance_observability",
+      "status": "not_configured",
+      "activation": "disabled",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "guardrails",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": false,
+        "source_status": "not_configured",
+        "source_kind": "slot_placeholder"
+      }
+    },
+    {
+      "component_id": "component:llm:openai",
+      "display_name": "OpenAI Chat",
+      "canonical_type": "llm",
+      "layer": "generation",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:llm"],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "llm",
+        "source_component_id": "component:llm:openai",
+        "source_extension_id": null,
+        "semantic_kind": "repo_component",
+        "required_for_rag": true,
+        "source_status": "detected",
+        "source_kind": "llm"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:observability",
+      "display_name": "Observability",
+      "canonical_type": "slot_placeholder",
+      "layer": "governance_observability",
+      "status": "not_configured",
+      "activation": "disabled",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "observability",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": false,
+        "source_status": "not_configured",
+        "source_kind": "slot_placeholder"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:prompt_builder",
+      "display_name": "Prompt Builder",
+      "canonical_type": "slot_placeholder",
+      "layer": "generation",
+      "status": "missing",
+      "activation": "unknown",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "prompt_builder",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": true,
+        "source_status": "missing",
+        "source_kind": "slot_placeholder"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:query_processing",
+      "display_name": "Query Processing",
+      "canonical_type": "slot_placeholder",
+      "layer": "retrieval",
+      "status": "not_configured",
+      "activation": "disabled",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "query_processing",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": false,
+        "source_status": "not_configured",
+        "source_kind": "slot_placeholder"
+      }
+    },
+    {
+      "component_id": "component:retriever:qdrant",
+      "display_name": "Qdrant Retriever",
+      "canonical_type": "retriever",
+      "layer": "retrieval",
+      "status": "detected",
+      "activation": "enabled",
+      "evidence_ids": ["evidence:retriever"],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "retriever",
+        "source_component_id": "component:retriever:qdrant",
+        "source_extension_id": null,
+        "semantic_kind": "repo_component",
+        "required_for_rag": true,
+        "source_status": "detected",
+        "source_kind": "retriever"
+      }
+    },
+    {
+      "component_id": "component:slot_placeholder:vector_store",
+      "display_name": "Vector Store",
+      "canonical_type": "slot_placeholder",
+      "layer": "retrieval",
+      "status": "missing",
+      "activation": "unknown",
+      "evidence_ids": [],
+      "framework": null,
+      "metadata": {
+        "legacy_slot": "vector_store",
+        "source_component_id": null,
+        "source_extension_id": null,
+        "semantic_kind": "slot_placeholder",
+        "required_for_rag": true,
+        "source_status": "missing",
+        "source_kind": "slot_placeholder"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "edge:api-to-retriever",
+      "source": "component:api:chat",
+      "target": "component:retriever:qdrant",
+      "relationship": "data_flow",
+      "status": "observed",
+      "evidence_ids": ["evidence:retriever"],
+      "undetermined_reason": null
+    },
+    {
+      "edge_id": "edge:retriever-to-llm",
+      "source": "component:retriever:qdrant",
+      "target": "component:llm:openai",
+      "relationship": "context_flow",
+      "status": "observed",
+      "evidence_ids": ["evidence:llm"],
+      "undetermined_reason": null
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evidence:api-route",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/api/chat.py",
+        "start_line": 12,
+        "end_line": 12,
+        "json_pointer": null,
+        "config_key": "app.post('/chat')"
+      },
+      "extract_summary": "FastAPI route detected.",
+      "rule_id": "py.fastapi.route"
+    },
+    {
+      "evidence_id": "evidence:retriever",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/rag/pipeline.py",
+        "start_line": 40,
+        "end_line": 42,
+        "json_pointer": null,
+        "config_key": "retrieve"
+      },
+      "extract_summary": "Retriever call detected.",
+      "rule_id": "py.vectorstore.retriever"
+    },
+    {
+      "evidence_id": "evidence:llm",
+      "artifact_type": "source_code",
+      "evidence_kind": "direct",
+      "location": {
+        "path": "src/rag/pipeline.py",
+        "start_line": 70,
+        "end_line": 72,
+        "json_pointer": null,
+        "config_key": "invoke"
+      },
+      "extract_summary": "LLM invoke detected.",
+      "rule_id": "py.llm.invoke"
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "endpoint:chat",
+      "value": "/chat",
+      "endpoint_type": "local",
+      "method": "POST",
+      "component_id": "component:api:chat",
+      "evidence_ids": ["evidence:api-route"]
+    }
+  ],
+  "risk_hints": [],
+  "unmapped_components": [],
+  "candidate_facts": []
+}

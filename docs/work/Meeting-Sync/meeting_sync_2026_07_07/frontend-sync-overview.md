@@ -258,46 +258,13 @@ node/edge detail 與 replay interaction。Validation Simulator 與 runtime trace
 
 ## 2026-07-03 Frontend Stability Baseline
 
-`../frontend_sync_2026_07_03.md` 是舊的穩定性修正批次紀錄，不再作為 active Phase2
-handoff 入口。0707 sync 仍需承接其中的 baseline，因為後續 Graph Studio、artifact、
-Apply / Rescan 與 runtime trace UI 都建立在這些 frontend 行為已穩定的前提上。
+原本的 `frontend_sync_2026_07_03.md` 已在 2026-07-20 完整合併到
+[7/15 前端同步總覽](../meeting_sync_2026_07_15/frontend-sync-overview.md)，因此不再保留獨立檔案。
 
-已完成或已定義的穩定性基線：
-
-| PR / branch | Baseline | 對 0707 sync 的影響 |
-|---|---|---|
-| #221 `fix/scan-flow-state-reset` | scan 三個出口會重置 progress / SSE；boundary modal 可 Escape 關閉 | 新的 scan / Apply / degraded flow 不得重新引入卡在 progress running 的狀態 |
-| #222 `fix/178-viewer-payload-cancellation` | `useViewerPayload` request 可由 React Query `AbortSignal` 取消；cancel 與 timeout 文案分離 | build-scoped viewer payload、artifact lazy load 與 API base URL 切換都應延續可取消 request |
-| #223 `feat/176-sample-data-indicator` | Sample mode graph 區域常駐標示 `Sample data — example map, not a real scan`；API mode 不顯示 | Graph Studio、static execution、readiness panels 的 sample/API mode 都不得讓 sample 看起來像真實 scan |
-| #224 `fix/scan-template-mock-affordances` | Scan Template mock surface 有 sample badge；無作用按鈕停用 | 後續 sample/mock surface 需明確標示，不以可點擊假操作誤導使用者 |
-| #225 `fix/api-base-url-env-fallback` | `VITE_API_BASE_URL=""` fallback 到 `http://127.0.0.1:8000` | API mode / local dev config 不應因空 env 變成隱性壞狀態 |
-| #226 `fix/sse-reconnect-tolerance` | SSE 單次瞬斷交由 EventSource 重連；連續三次失敗或 closed 才降級 mock | 新的 scan progress / build status UI 應保持瞬斷容錯，不要第一次 error 就永久降級 |
-| `codex/frontend-test-foundation` | Vitest + jsdom + React Testing Library；`pnpm test` 進 frontend CI | 新增 Graph Studio / artifact / readiness parser 時應優先補 API-facing tests，而不是只靠人工驗收 |
-
-0703 批次刻意沒有修改 `API_CONTRACT.md`、`/api/*` contract 或 `src/kai_mind/`。
-因此 0707 的 Phase2 contract 仍以本資料夾、`docs/API-GUIDE.md` 與
-`docs/MODEL-CONTRACT.md` 為準；0703 只提供 frontend stability baseline。
-
-目前仍要追蹤的 follow-up：
-
-- #231：正式 contract 改變 SSE endpoint/event schema、error code 或 request lifecycle 時，
-  更新 API-facing tests、mocks 與 fixtures。
-- #198 `feature/detail-scan-ui-flow`、#199 `feature/mapping-proposal-confirm-reject`、
-  #218 `codex/query-trace-ui-flow`、#227 `feature/219-viewer-artifact-actions` 需要以最新
-  main / contract rebase；已知衝突風險包含 `App.tsx` 與 `http.ts`。
-- 建議人工驗收順序維持：#198 → #199 → #218 → #227。
-
-驗證基線：
-
-```powershell
-corepack pnpm --dir frontend run test
-corepack pnpm --dir frontend run lint
-corepack pnpm --dir frontend run build
-```
-
-0703 記錄中的結果是 Vitest 3 files / 7 tests passed、ESLint 0 errors（1 個既有
-Fast Refresh warning）、TypeScript / Vite production build 通過；既有 `web-worker`
-external dependency 與 bundle chunk warning 不變。
+- #221～#226 與 #232 已合併，作為不得回歸的 frontend stability / test baseline。
+- 尚未完成的 #198、#199、#218、#227 與 #231 已依 current backend contract 改寫到
+  [Backend-ready integration](../meeting_sync_2026_07_15/frontend-backend-ready-integration.md)。
+- Current 驗證與交付順序以 7/15 同步包為準，不再沿用 7/3 的舊 contract freeze 假設。
 
 ## Frontend 執行順序
 

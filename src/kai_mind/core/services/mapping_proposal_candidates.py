@@ -117,18 +117,6 @@ class ProposalCandidateFactory:
                         "candidate references unknown target slot: "
                         f"{candidate.target_slot}"
                     )
-            case MappingCandidateType.NEW_EXTENSION:
-                require_text(
-                    "proposed_extension_id", candidate.proposed_extension_id
-                )
-                require_text(
-                    "proposed_extension_name",
-                    candidate.proposed_extension_name,
-                )
-                require_text(
-                    "proposed_extension_kind",
-                    candidate.proposed_extension_kind,
-                )
             case MappingCandidateType.NON_BASELINE_CAPABILITY_CANDIDATE:
                 require_text(
                     "proposed_capability_candidate_id",
@@ -158,8 +146,6 @@ class ProposalCandidateFactory:
         candidate: MappingCandidate,
     ) -> None:
         allowed = set(packet.available_slots)
-        if candidate.proposed_extension_id is not None:
-            allowed.add(candidate.proposed_extension_id)
         for edge in candidate.suggested_edges:
             if (
                 edge.source_ref not in allowed

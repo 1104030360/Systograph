@@ -4,7 +4,10 @@ from dataclasses import dataclass, field
 
 from tests.unit.core.test_detail_scan_service import base_map
 
-from kai_mind.core.models.system_map import Endpoint, RagSystemMap
+from kai_mind.core.models.ai_system_map_v2 import (
+    AiSystemMapV2,
+    CanonicalEndpoint,
+)
 from kai_mind.core.providers.endpoint_call_provider import EndpointCallResult
 from kai_mind.core.services.query_trace_service import QueryTraceService
 
@@ -12,12 +15,14 @@ from kai_mind.core.services.query_trace_service import QueryTraceService
 @dataclass
 class RecordingEndpointProvider:
     result: EndpointCallResult
-    calls: list[tuple[Endpoint, str, float]] = field(default_factory=list)
+    calls: list[tuple[CanonicalEndpoint, str, float]] = field(
+        default_factory=list
+    )
 
     def call(
         self,
         *,
-        endpoint: Endpoint,
+        endpoint: CanonicalEndpoint,
         query: str,
         timeout_seconds: float,
     ) -> EndpointCallResult:
@@ -250,19 +255,22 @@ def test_query_trace_marks_unmapped_evidence_without_mutating_map() -> None:
     assert result.events[1].step_type == "unknown"
     assert result.events[1].unmapped_component_id == "unmapped:router"
     assert "needs_mapping_confirmation" in result.events[1].warnings
-    assert system_map.query_trace_events == []
 
 
-def _map_with_endpoint(value: str = "http://rag.local/chat") -> RagSystemMap:
+def _map_with_endpoint(
+    value: str = "http://rag.local/chat",
+) -> AiSystemMapV2:
     system_map = base_map()
-    system_map.endpoints = [
-        Endpoint(
-            id="endpoint:chat",
-            value=value,
-            endpoint_type="local",
-            method="POST",
-            slot="retriever",
-            evidence_id="evidence:l1-router",
-        )
-    ]
-    return system_map
+    return system_map.model_copy(
+        update={
+            "endpoints": [
+                CanonicalEndpoint(
+                    endpoint_id="endpoint:chat",
+                    value=value,
+                    endpoint_type="local",
+                    method="POST",
+                    evidence_ids=["evidence:l1-router"],
+                )
+            ]
+        }
+    )

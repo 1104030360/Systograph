@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal
 
 from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
+from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.services.system_map_v1_to_v2_adapter import (
     LegacySystemMapAdaptError,
     SystemMapV1ToV2Adapter,
@@ -44,15 +45,32 @@ class CanonicalMapLoadError(ValueError):
     """Raised when dual-read loading fails."""
 
 
-# 做什麼：load() 成功後的回傳值（原始 schema、正規化 map、migration warnings）
-# 。
+# 做什麼：load() 成功後的回傳值（typed source、可選 legacy source、
+# 正規化 map、migration warnings）。
 # 被誰用：所有呼叫 CanonicalMapLoader.load() 的 service / route。
-# 內含：normalized → AiSystemMapV2（下游主要吃這個）。
+# 內含：normalized → AiSystemMapV2（下游投影吃這個）。
 @dataclass(frozen=True, slots=True)
 class CanonicalMapLoadResult:
     active_schema_version: ActiveSchemaVersion
+    source_map: RagSystemMap | AiSystemMapV2
+    legacy_source_map: RagSystemMap | None
     normalized: AiSystemMapV2
     migration_warnings: list[str]
+
+    def with_normalized(
+        self,
+        normalized: AiSystemMapV2,
+    ) -> CanonicalMapLoadResult:
+        source_map = (
+            self.source_map
+            if self.legacy_source_map is not None
+            else normalized
+        )
+        return replace(
+            self,
+            source_map=source_map,
+            normalized=normalized,
+        )
 
 
 # 做什麼：擁有全部 schema 分支邏輯的 loader；把 v1/v2 payload 收斂成
@@ -93,13 +111,17 @@ class CanonicalMapLoader:
     #           Profile / Reference assessment、Viewer 等。
     # 自己呼叫：_load_v1 / _load_v2；未知 version → CanonicalMapLoadError。
     def load(self, data: Mapping[str, Any]) -> CanonicalMapLoadResult:
+        if not isinstance(data, Mapping):
+            raise CanonicalMapLoadError(
+                "canonical map JSON root must be an object"
+            )
         schema_version = data.get("schema_version")
         if schema_version == "ai-system-map/v1":
             return self._load_v1(data)
         if schema_version == "ai-system-map/v2":
             return self._load_v2(data)
         raise CanonicalMapLoadError(
-            f"unsupported schema_version: {schema_version!r}"
+            f"unsupported_system_map_schema_version: {schema_version!r}"
         )
 
     # 做什麼：載入 v1 map → validate → adapter 轉 canonical → 再用 v2
@@ -125,6 +147,8 @@ class CanonicalMapLoader:
             raise CanonicalMapLoadError(str(exc)) from exc
         return CanonicalMapLoadResult(
             active_schema_version="ai-system-map/v1",
+            source_map=system_map,
+            legacy_source_map=system_map,
             normalized=normalized,
             migration_warnings=list(normalized.migration_warnings),
         )
@@ -140,6 +164,8 @@ class CanonicalMapLoader:
             raise CanonicalMapLoadError(str(exc)) from exc
         return CanonicalMapLoadResult(
             active_schema_version="ai-system-map/v2",
+            source_map=normalized,
+            legacy_source_map=None,
             normalized=normalized,
             migration_warnings=list(normalized.migration_warnings),
         )

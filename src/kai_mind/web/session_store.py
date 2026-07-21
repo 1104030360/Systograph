@@ -50,6 +50,23 @@ class SessionStore(Protocol):
     def build_results(self) -> tuple[tuple[str, MapBuildResult], ...]: ...
 
 
+def save_committed_build_projection(
+    store: SessionStore,
+    result: MapBuildResult,
+    *,
+    project_id: str,
+) -> MapBuildResult:
+    try:
+        store.save_build_result(result, project_id=project_id)
+    except (OSError, RuntimeError, ValueError):
+        warning = "session_projection_save_failed"
+        if warning not in result.warnings:
+            return result.model_copy(
+                update={"warnings": [*result.warnings, warning]}
+            )
+    return result
+
+
 class InMemorySessionStore:
     """Non-persistent local API state for one backend process."""
 

@@ -12,11 +12,18 @@ from kai_mind.core.providers.local_json_state_provider import (
 from kai_mind.core.services.apply_confirmations_service import (
     ApplyConfirmationsService,
 )
+from kai_mind.core.services.build_commit_service import BuildCommitService
 from kai_mind.core.services.build_manifest_service import BuildManifestService
 from kai_mind.core.services.detail_scan_build_service import (
     DetailScanBuildService,
 )
 from kai_mind.core.services.detail_scan_service import DetailScanService
+from kai_mind.core.services.inventory_preflight_service import (
+    InventoryPreflightService,
+)
+from kai_mind.core.services.inventory_selection_service import (
+    InventorySelectionService,
+)
 from kai_mind.core.services.manual_mapping_service import (
     ManualMappingService,
 )
@@ -52,8 +59,26 @@ def build_manifest_service(request: Request) -> BuildManifestService:
     return cast(BuildManifestService, request.app.state.build_manifest_service)
 
 
+def build_commit_service(request: Request) -> BuildCommitService:
+    return cast(BuildCommitService, request.app.state.build_commit_service)
+
+
 def scan_snapshot_service(request: Request) -> ScanSnapshotService:
     return cast(ScanSnapshotService, request.app.state.scan_snapshot_service)
+
+
+def inventory_preflight_service(request: Request) -> InventoryPreflightService:
+    return cast(
+        InventoryPreflightService,
+        request.app.state.inventory_preflight_service,
+    )
+
+
+def inventory_selection_service(request: Request) -> InventorySelectionService:
+    return cast(
+        InventorySelectionService,
+        request.app.state.inventory_selection_service,
+    )
 
 
 def state_repository(request: Request) -> LocalJsonStateProvider:

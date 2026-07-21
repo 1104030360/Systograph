@@ -39,7 +39,6 @@ class MappingEvidencePacketBuilder:
         index: SystemMapIndex,
         unmapped_id: str,
         available_slots: Sequence[str],
-        available_extensions: Sequence[str] | None = None,
         confirmed_component_ids: Sequence[str] | None = None,
         user_description: str | None = None,
     ) -> MappingEvidencePacket:
@@ -105,7 +104,6 @@ class MappingEvidencePacketBuilder:
                 "best_effort": True,
             },
             available_slots=_unique(available_slots),
-            available_extensions=_unique(available_extensions or []),
             confirmed_component_ids=_unique(confirmed_component_ids or []),
         )
 

@@ -4,19 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.system_map import (
-    Classification,
-    ComponentInstance,
-    ComponentSlot,
-    Edge,
-    Evidence,
-    ExtensionComponent,
-    Flow,
-    Project,
-    RagSystemMap,
-    ReferenceArchitecture,
-    ScanSummary,
-    UnmappedComponent,
+from kai_mind.core.models.ai_system_map_v2 import (
+    AiSystemMapV2,
+    CanonicalComponent,
+    CanonicalEdge,
+    CanonicalEvidence,
+    CanonicalEvidenceLocation,
+    CanonicalProject,
+    CanonicalUnmappedComponent,
 )
 from kai_mind.core.services.detail_scan_service import DetailScanService
 from kai_mind.core.services.detail_scan_target_resolver import (
@@ -26,9 +21,6 @@ from kai_mind.core.services.mapping_evidence_packet_builder import (
     MappingEvidencePacketBuilder,
 )
 from kai_mind.core.services.system_map_index import SystemMapIndex
-from kai_mind.core.services.system_map_v1_to_v2_adapter import (
-    SystemMapV1ToV2Adapter,
-)
 
 
 def test_component_detail_scan_appends_masked_target_scoped_evidence(
@@ -54,7 +46,7 @@ def test_component_detail_scan_appends_masked_target_scoped_evidence(
         if evidence_id != "evidence:l1-router"
     ]
     new_evidence = [
-        item for item in updated.evidence if item.id in set(new_ids)
+        item for item in updated.evidence if item.evidence_id in set(new_ids)
     ]
 
     assert detail_scan.target == "unmapped:router"
@@ -62,13 +54,16 @@ def test_component_detail_scan_appends_masked_target_scoped_evidence(
     assert detail_scan.status == "completed"
     assert detail_scan.context_limits["max_files_per_target"] == 4
     assert new_evidence
-    assert {item.file for item in new_evidence} == {"src/router.py"}
+    assert {item.location.path for item in new_evidence} == {"src/router.py"}
     assert all(
-        "src/other.py" not in (item.file or "") for item in new_evidence
+        "src/other.py" not in (item.location.path or "")
+        for item in new_evidence
     )
     serialized = str(updated.model_dump(mode="json"))
     assert "sk-live-1234567890" not in serialized
-    assert any("[STRING]" in (item.snippet or "") for item in new_evidence)
+    assert any(
+        "[STRING]" in (item.extract_summary or "") for item in new_evidence
+    )
     assert any(
         item.rule_id == "detail_scan.python_function" for item in new_evidence
     )
@@ -120,13 +115,13 @@ def test_detail_scan_added_evidence_flows_into_mapping_packet(
         scan_depth="code_path",
     )
 
-    canonical = SystemMapV1ToV2Adapter().adapt_to_canonical(result.system_map)
+    canonical = result.system_map
     unmapped = canonical.unmapped_components[0]
     packet = MappingEvidencePacketBuilder(max_value_chars=120).build(
         project_id="project:demo",
         index=SystemMapIndex.from_map(canonical),
         unmapped_id=unmapped.unmapped_id,
-        available_slots=list(result.system_map.components_by_slot),
+        available_slots=["retriever"],
     )
 
     assert any(
@@ -151,7 +146,7 @@ def test_detail_scan_rejects_unknown_target_without_mutating_map(
             scan_depth="component",
         )
 
-    assert system_map.detail_scans == []
+    assert system_map == base_map()
     assert system_map.unmapped_components[0].evidence_ids == [
         "evidence:l1-router"
     ]
@@ -173,7 +168,7 @@ def test_component_detail_scan_falls_back_to_regex_when_ast_parse_fails(
     new_evidence = [
         item
         for item in result.system_map.evidence
-        if item.id.startswith("evidence:detail-scan:")
+        if item.evidence_id.startswith("evidence:detail-scan:")
     ]
 
     assert result.detail_scan.best_effort is True
@@ -204,7 +199,7 @@ def test_detail_scan_redacts_prompt_like_string_literals_from_snippets(
 
     serialized = str(result.system_map.model_dump(mode="json"))
     call_snippets = [
-        item.snippet or ""
+        item.extract_summary or ""
         for item in result.system_map.evidence
         if item.rule_id == "detail_scan.python_call_like"
     ]
@@ -229,7 +224,7 @@ def test_detail_scan_supports_component_slot_target_and_attaches_evidence(
         scan_depth="component",
     )
 
-    retriever = result.system_map.components_by_slot["retriever"].instances[0]
+    retriever = result.system_map.components[0]
     new_ids = _detail_evidence_ids(retriever.evidence_ids)
 
     assert result.detail_scan.target_type == "component_slot"
@@ -251,7 +246,7 @@ def test_detail_scan_supports_component_instance_target_and_attaches_evidence(
         scan_depth="component",
     )
 
-    retriever = result.system_map.components_by_slot["retriever"].instances[0]
+    retriever = result.system_map.components[0]
     new_ids = _detail_evidence_ids(retriever.evidence_ids)
 
     assert result.detail_scan.target_type == "component_instance"
@@ -260,26 +255,22 @@ def test_detail_scan_supports_component_instance_target_and_attaches_evidence(
     assert _files_for_ids(result.system_map, new_ids) == {"src/retriever.py"}
 
 
-def test_detail_scan_supports_extension_target_and_attaches_evidence(
+def test_detail_scan_rejects_legacy_extension_target(
     tmp_path: Path,
 ) -> None:
     project_root = build_rich_target_project(tmp_path)
 
-    result = DetailScanService().scan(
-        project_root=project_root,
-        system_map=rich_target_map(),
-        target_type="extension",
-        target="extension:reranker",
-        scan_depth="component",
-    )
-
-    extension = result.system_map.extensions[0]
-    new_ids = _detail_evidence_ids(extension.evidence_ids)
-
-    assert result.detail_scan.target_type == "extension"
-    assert result.detail_scan.target == "extension:reranker"
-    assert new_ids
-    assert _files_for_ids(result.system_map, new_ids) == {"src/rerank.py"}
+    with pytest.raises(
+        DetailScanTargetError,
+        match="target_type_not_supported",
+    ):
+        DetailScanService().scan(
+            project_root=project_root,
+            system_map=rich_target_map(),
+            target_type="extension",
+            target="extension:reranker",
+            scan_depth="component",
+        )
 
 
 def test_detail_scan_supports_edge_code_path_target_and_attaches_evidence(
@@ -295,7 +286,7 @@ def test_detail_scan_supports_edge_code_path_target_and_attaches_evidence(
         scan_depth="code_path",
     )
 
-    edge = result.system_map.flows[0].edges[0]
+    edge = result.system_map.edges[0]
     new_ids = _detail_evidence_ids(edge.evidence_ids)
 
     assert result.detail_scan.target_type == "edge"
@@ -323,21 +314,21 @@ def test_detail_scan_supports_evidence_target_without_source_attachment(
     )
 
     detail_ids = [
-        item.id
+        item.evidence_id
         for item in result.system_map.evidence
-        if item.id.startswith("evidence:detail-scan:")
+        if item.evidence_id.startswith("evidence:detail-scan:")
     ]
     original = next(
         item
         for item in result.system_map.evidence
-        if item.id == "evidence:retriever"
+        if item.evidence_id == "evidence:retriever"
     )
 
     assert result.detail_scan.target_type == "evidence"
     assert result.detail_scan.target == "evidence:retriever"
     assert detail_ids
     assert result.detail_scan.findings
-    assert original.id == "evidence:retriever"
+    assert original.evidence_id == "evidence:retriever"
 
 
 def build_router_project(tmp_path: Path) -> Path:
@@ -450,95 +441,94 @@ def build_prompt_injection_project(tmp_path: Path) -> Path:
     return project_root
 
 
-def map_for_source_file(relative_file: str) -> RagSystemMap:
+def map_for_source_file(relative_file: str) -> AiSystemMapV2:
     system_map = base_map()
-    system_map.evidence[0].file = relative_file
-    system_map.evidence[0].snippet = f"target source: {relative_file}"
-    system_map.unmapped_components[0].source_file = relative_file
-    return system_map
+    evidence = system_map.evidence[0]
+    updated_evidence = evidence.model_copy(
+        update={
+            "location": evidence.location.model_copy(
+                update={"path": relative_file}
+            ),
+            "extract_summary": f"target source: {relative_file}",
+        }
+    )
+    updated_unmapped = system_map.unmapped_components[0].model_copy(
+        update={"source_file": relative_file}
+    )
+    return system_map.model_copy(
+        update={
+            "evidence": [updated_evidence],
+            "unmapped_components": [updated_unmapped],
+        }
+    )
 
 
-def rich_target_map() -> RagSystemMap:
-    system_map = base_map()
-    system_map.components_by_slot["retriever"] = ComponentSlot(
-        slot="retriever",
-        required_for_rag=True,
-        status="detected",
-        instances=[
-            ComponentInstance(
-                id="component:retriever:main",
-                slot="retriever",
-                kind="vector_retriever",
-                name="Main Retriever",
+def rich_target_map() -> AiSystemMapV2:
+    return AiSystemMapV2(
+        schema_version="ai-system-map/v2",
+        system_type="ai_system",
+        source_schema_version="ai-system-map/v2",
+        project=CanonicalProject(
+            name="rich_target_project",
+            root_path="<project_root>",
+            root_path_redacted="<project_root>",
+            path_mode="redacted",
+        ),
+        components=[
+            CanonicalComponent(
+                component_id="component:retriever:main",
+                display_name="Main Retriever",
+                canonical_type="vector_retriever",
+                layer="retrieval",
+                status="detected",
+                activation="enabled",
                 evidence_ids=["evidence:retriever"],
+                metadata={
+                    "legacy_slot": "retriever",
+                    "semantic_kind": "repo_component",
+                },
             )
         ],
+        edges=[
+            CanonicalEdge(
+                edge_id="edge:query_answer:app:retriever",
+                source="component:retriever:main",
+                target="component:retriever:main",
+                relationship="calls_retriever",
+                status="observed",
+                evidence_ids=["evidence:edge-app-retriever"],
+            )
+        ],
+        evidence=[
+            _canonical_evidence(
+                evidence_id="evidence:retriever",
+                path="src/retriever.py",
+                symbol="Retriever.invoke",
+                summary="class Retriever: ...",
+                rule_id="code_pattern_retriever_as_retriever",
+                start_line=3,
+                end_line=5,
+            ),
+            _canonical_evidence(
+                evidence_id="evidence:reranker",
+                path="src/rerank.py",
+                symbol="Reranker.rerank",
+                summary="class Reranker: ...",
+                rule_id="code_pattern_reranker",
+                start_line=3,
+                end_line=5,
+            ),
+            _canonical_evidence(
+                evidence_id="evidence:edge-app-retriever",
+                path="src/retriever.py",
+                symbol="query_answer",
+                summary="return retriever.invoke(question)",
+                rule_id="flow_edge_app_to_retriever",
+                start_line=7,
+                end_line=9,
+            ),
+        ],
     )
-    system_map.evidence = [
-        Evidence(
-            id="evidence:retriever",
-            kind="code_pattern",
-            file="src/retriever.py",
-            path="Retriever.invoke",
-            value="retriever detected",
-            rule_id="code_pattern_retriever_as_retriever",
-            line_start=3,
-            line_end=5,
-            snippet="class Retriever: ...",
-        ),
-        Evidence(
-            id="evidence:reranker",
-            kind="code_pattern",
-            file="src/rerank.py",
-            path="Reranker.rerank",
-            value="reranker detected",
-            rule_id="code_pattern_reranker",
-            line_start=3,
-            line_end=5,
-            snippet="class Reranker: ...",
-        ),
-        Evidence(
-            id="evidence:edge-app-retriever",
-            kind="code_pattern",
-            file="src/retriever.py",
-            path="query_answer",
-            value="app calls retriever",
-            rule_id="flow_edge_app_to_retriever",
-            line_start=7,
-            line_end=9,
-            snippet="return retriever.invoke(question)",
-        ),
-    ]
-    system_map.extensions = [
-        ExtensionComponent(
-            id="extension:reranker",
-            name="Reranker",
-            kind="reranker",
-            status="candidate",
-            evidence_ids=["evidence:reranker"],
-        )
-    ]
-    system_map.flows = [
-        Flow(
-            id="flow:query_answer",
-            name="Query Answer",
-            flow_type="query_answer",
-            edges=[
-                Edge(
-                    id="edge:query_answer:app:retriever",
-                    flow_id="flow:query_answer",
-                    from_slot="retriever",
-                    to_slot="retriever",
-                    from_component_id="component:retriever:main",
-                    to_component_id="component:retriever:main",
-                    relationship="calls_retriever",
-                    evidence_ids=["evidence:edge-app-retriever"],
-                )
-            ],
-        )
-    ]
-    system_map.unmapped_components = []
-    return system_map
 
 
 def _detail_evidence_ids(evidence_ids: list[str]) -> list[str]:
@@ -550,63 +540,45 @@ def _detail_evidence_ids(evidence_ids: list[str]) -> list[str]:
 
 
 def _files_for_ids(
-    system_map: RagSystemMap,
+    system_map: AiSystemMapV2,
     evidence_ids: list[str],
 ) -> set[str]:
-    evidence_by_id = {item.id: item for item in system_map.evidence}
+    evidence_by_id = {item.evidence_id: item for item in system_map.evidence}
     return {
-        evidence_by_id[evidence_id].file or "" for evidence_id in evidence_ids
+        evidence_by_id[evidence_id].location.path or ""
+        for evidence_id in evidence_ids
     }
 
 
-def base_map() -> RagSystemMap:
-    return RagSystemMap(
-        schema_version="ai-system-map/v1",
-        system_type="rag",
-        classification=Classification(
-            mode="user_selected_or_default",
-            selected_template="rag-core-v1",
+def base_map() -> AiSystemMapV2:
+    return AiSystemMapV2(
+        schema_version="ai-system-map/v2",
+        system_type="ai_system",
+        source_schema_version="ai-system-map/v2",
+        project=CanonicalProject(
+            name="router_project",
+            root_path="<project_root>",
+            root_path_redacted="<project_root>",
+            path_mode="redacted",
         ),
-        project=Project(name="router_project"),
-        reference_architecture=ReferenceArchitecture(
-            id="rag-core-v1",
-            version="1.0.0",
-            slots=["retriever"],
-            flows=[],
-        ),
-        scan_depth="system",
-        scan_summary=ScanSummary(
-            status="ok",
-            files_scanned=1,
-            secret_masking_applied=True,
-        ),
-        components_by_slot={
-            "retriever": ComponentSlot(
-                slot="retriever",
-                required_for_rag=True,
-                status="missing",
-                instances=[],
-            )
-        },
         evidence=[
-            Evidence(
-                id="evidence:l1-router",
-                kind="code_pattern",
-                file="src/router.py",
-                path="line[10]",
-                value="custom router",
+            CanonicalEvidence(
+                evidence_id="evidence:l1-router",
+                artifact_type="code_pattern",
+                evidence_kind="direct",
+                location=CanonicalEvidenceLocation(
+                    path="src/router.py",
+                    start_line=10,
+                    end_line=10,
+                    config_key="line[10]",
+                ),
+                extract_summary="def route_query(question): ...",
                 rule_id="code_pattern_custom_router",
-                line_start=10,
-                line_end=10,
-                snippet="def route_query(question): ...",
             )
         ],
-        endpoints=[],
-        flows=[],
-        extensions=[],
         unmapped_components=[
-            UnmappedComponent(
-                id="unmapped:router",
+            CanonicalUnmappedComponent(
+                unmapped_id="unmapped:router",
                 source_file="src/router.py",
                 observed_kind="router_like_evidence",
                 status="needs_confirmation",
@@ -614,8 +586,29 @@ def base_map() -> RagSystemMap:
                 evidence_ids=["evidence:l1-router"],
             )
         ],
-        detail_scans=[],
-        risk_hints=[],
-        recommended_next_checks=[],
-        query_trace_events=[],
+    )
+
+
+def _canonical_evidence(
+    *,
+    evidence_id: str,
+    path: str,
+    symbol: str,
+    summary: str,
+    rule_id: str,
+    start_line: int,
+    end_line: int,
+) -> CanonicalEvidence:
+    return CanonicalEvidence(
+        evidence_id=evidence_id,
+        artifact_type="code_pattern",
+        evidence_kind="direct",
+        location=CanonicalEvidenceLocation(
+            path=path,
+            start_line=start_line,
+            end_line=end_line,
+            config_key=symbol,
+        ),
+        extract_summary=summary,
+        rule_id=rule_id,
     )

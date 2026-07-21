@@ -4,6 +4,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kai_mind.core.models.artifact_scope import (
+    PHASE2_P0_ARTIFACT_SET_VERSION,
+    ArtifactSetVersion,
+)
 from kai_mind.core.models.capability_candidate import (
     CapabilityCandidateComponent,
 )
@@ -199,6 +203,7 @@ class ProfileInferenceResult(ProfileSignalModel):
     build_id: str
     scan_id: str
     environment_id: str
+    artifact_set_version: ArtifactSetVersion = PHASE2_P0_ARTIFACT_SET_VERSION
     generated_from_build_id: str
     reference_capability_assessments: tuple[ReferenceCapabilityAssessment, ...]
     profiles: tuple[ProfileFinding, ...]

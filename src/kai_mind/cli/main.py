@@ -3,6 +3,9 @@
 import typer
 
 from kai_mind.cli.map_command import register as register_map_command
+from kai_mind.cli.migrate_legacy_mappings_command import (
+    register as register_migrate_legacy_mappings_command,
+)
 from kai_mind.cli.trace_command import register as register_trace_command
 from kai_mind.cli.viewer_command import register as register_viewer_command
 
@@ -11,6 +14,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 register_map_command(app)
+register_migrate_legacy_mappings_command(app)
 register_trace_command(app)
 register_viewer_command(app)
 

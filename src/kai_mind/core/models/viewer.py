@@ -237,6 +237,7 @@ class GraphViewModel(ViewerModel):
     scan_id: str | None = None
     build_id: str | None = None
     environment_id: str | None = None
+    artifact_set_version: str | None = None
     generated_from_build_id: str | None = None
     reference_map_version: str | None = None
     mapping_completeness: MappingCompleteness | None = None

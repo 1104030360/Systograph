@@ -7,7 +7,14 @@ from typing import Annotated, Literal
 
 import typer
 
+from kai_mind.core.models.errors import (
+    InventoryEnumerationError,
+    ScanInventoryRulesError,
+)
 from kai_mind.core.models.map_build import MapBuildRequest
+from kai_mind.core.services.canonical_output_configuration import (
+    CanonicalOutputConfigurationError,
+)
 from kai_mind.core.services.map_build_service import MapBuildService
 
 
@@ -46,24 +53,30 @@ def map_command(
         Literal["ai-system-map/v1", "ai-system-map/v2"],
         typer.Option(
             "--system-map-schema-version",
-            help=(
-                "Requested map contract. Active artifact remains v1 until "
-                "Plan 13 cutover; v2 is opt-in normalized view only."
-            ),
+            help=("Canonical map contract. v1 is not publicly selectable."),
         ),
-    ] = "ai-system-map/v1",
+    ] = "ai-system-map/v2",
 ) -> None:
-    """Build a validated ai-system-map artifact (active output remains v1)."""
+    """Build a validated ai-system-map/v2 artifact."""
 
-    result = MapBuildService().build(
-        MapBuildRequest(
-            project_path=project_path,
-            output=output,
-            redact_root_path=redact_root_path,
-            no_snippets=no_snippets,
-            system_map_schema_version=system_map_schema_version,
+    try:
+        result = MapBuildService().build(
+            MapBuildRequest(
+                project_path=project_path,
+                output=output,
+                redact_root_path=redact_root_path,
+                no_snippets=no_snippets,
+                system_map_schema_version=system_map_schema_version,
+            )
         )
-    )
+    except (
+        CanonicalOutputConfigurationError,
+        InventoryEnumerationError,
+        ScanInventoryRulesError,
+    ) as exc:
+        code = exc.code if isinstance(exc.code, str) else exc.code.value
+        typer.echo(f"Map build failed: {code}", err=True)
+        raise typer.Exit(code=1) from exc
     if result.status == "error":
         if result.error is not None:
             typer.echo(

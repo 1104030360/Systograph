@@ -639,6 +639,12 @@
       "title": "Environment Id",
       "type": "string"
     },
+    "artifact_set_version": {
+      "const": "phase2-p0/v1",
+      "default": "phase2-p0/v1",
+      "title": "Artifact Set Version",
+      "type": "string"
+    },
     "generated_from_build_id": {
       "anyOf": [
         {

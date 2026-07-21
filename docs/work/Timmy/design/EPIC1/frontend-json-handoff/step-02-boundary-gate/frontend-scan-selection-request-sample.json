@@ -1,0 +1,31 @@
+{
+  "project_id": "project:sample-ai-health-rag",
+  "scan_depth": "system",
+  "preflight_request_id": "preflight:9d13-sample",
+  "boundary_decisions": [
+    {
+      "target_path": ".env",
+      "fingerprint": "sha256:metadata-env-sample",
+      "decision": "skip_this_run",
+      "selection_scope": "exact_file"
+    },
+    {
+      "target_path": "ignored/custom-loader.py",
+      "fingerprint": "sha256:metadata-ignored-loader-sample",
+      "decision": "scan_this_run",
+      "selection_scope": "exact_file"
+    },
+    {
+      "target_path": "src/experimental.py",
+      "fingerprint": "sha256:metadata-experimental-sample",
+      "decision": "skip_this_run",
+      "selection_scope": "exact_file"
+    },
+    {
+      "target_path": "node_modules/small-local-package",
+      "fingerprint": "sha256:directory-manifest-sample",
+      "decision": "scan_this_run",
+      "selection_scope": "recursive_directory"
+    }
+  ]
+}

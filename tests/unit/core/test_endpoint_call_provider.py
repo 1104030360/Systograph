@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 import pytest
 
-from kai_mind.core.models.system_map import Endpoint
+from kai_mind.core.models.ai_system_map_v2 import CanonicalEndpoint
 from kai_mind.core.providers.endpoint_call_provider import (
     EndpointCallProvider,
 )
@@ -66,12 +66,12 @@ def test_endpoint_call_provider_posts_query_and_returns_json_body() -> None:
     )
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:chat",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:chat",
             value="http://rag.local/chat",
             endpoint_type="local",
             method="POST",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="hello",
         timeout_seconds=2,
@@ -104,12 +104,12 @@ def test_public_endpoint_passes_real_policy_before_mock_transport() -> None:
     )
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:public",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:public",
             value="https://example.com/chat",
             endpoint_type="external",
             method="POST",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="hello",
         timeout_seconds=2,
@@ -133,12 +133,12 @@ def test_endpoint_call_provider_get_sends_query_as_param() -> None:
     )
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:chat",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:chat",
             value="http://rag.local/chat",
             endpoint_type="local",
             method="GET",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="hello",
         timeout_seconds=2,
@@ -159,12 +159,12 @@ def test_endpoint_call_provider_wraps_timeout_as_typed_result() -> None:
     )
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:slow",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:slow",
             value="http://rag.local/slow",
             endpoint_type="local",
             method="POST",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="hello",
         timeout_seconds=0.01,
@@ -186,12 +186,12 @@ def test_endpoint_call_provider_wraps_httpx_request_errors() -> None:
     )
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:redirect-loop",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:redirect-loop",
             value="http://rag.local/redirect-loop",
             endpoint_type="local",
             method="POST",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="hello",
         timeout_seconds=2,
@@ -207,12 +207,12 @@ def test_endpoint_call_provider_wraps_invalid_url_errors() -> None:
     provider = EndpointCallProvider()
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:invalid-url",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:invalid-url",
             value="http://[::1",
             endpoint_type="local",
             method="POST",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="hello",
         timeout_seconds=2,
@@ -228,12 +228,12 @@ def test_endpoint_call_provider_wraps_httpx_invalid_url_errors() -> None:
     provider = EndpointCallProvider(egress_policy=AllowAllPolicy())
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:invalid-url",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:invalid-url",
             value="http://example.com/" + chr(0),
             endpoint_type="local",
             method="POST",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="hello",
         timeout_seconds=2,
@@ -260,12 +260,12 @@ def test_endpoint_call_provider_rejects_non_http_endpoint_without_query() -> (
     )
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:vector-store",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:vector-store",
             value="postgresql://localhost:5432/rag",
             endpoint_type="local",
             method="POST",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="hello",
         timeout_seconds=2,
@@ -289,12 +289,12 @@ def test_blocked_endpoint_is_unsent_without_calling_client() -> None:
     )
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:ssrf",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:ssrf",
             value="http://127.0.0.1:8000/admin",
             endpoint_type="local",
             method="POST",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="private query",
         timeout_seconds=1,
@@ -329,12 +329,12 @@ def test_injected_client_cannot_follow_redirect_to_blocked_target() -> None:
     )
 
     result = provider.call(
-        endpoint=Endpoint(
-            id="endpoint:redirect",
+        endpoint=CanonicalEndpoint(
+            endpoint_id="endpoint:redirect",
             value="https://example.com/redirect",
             endpoint_type="external",
             method="GET",
-            evidence_id="evidence:endpoint",
+            evidence_ids=["evidence:endpoint"],
         ),
         query="hello",
         timeout_seconds=2,

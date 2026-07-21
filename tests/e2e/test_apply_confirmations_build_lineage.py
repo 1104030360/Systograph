@@ -117,7 +117,7 @@ def create_mapping(
             "project_id": project_id,
             "mapping_type": "existing_slot_mapping",
             "decision": "confirmed",
-            "source_unmapped_id": unmapped["id"],
+            "source_unmapped_id": unmapped["unmapped_id"],
             "source_file": unmapped["source_file"],
             "observed_kind": unmapped["observed_kind"],
             "evidence_ids": unmapped["evidence_ids"],
@@ -160,12 +160,10 @@ def assert_build_artifacts(
     )
 
     loaded = BuildManifestService(repository=repository).load(manifest)
-    assert loaded.normalized_ai_system_map is not None
+    assert loaded.ai_system_map is not None
     assert loaded.profile_inference_result is not None
     assert loaded.readiness_report is not None
-    evidence_ids = {
-        item.evidence_id for item in loaded.normalized_ai_system_map.evidence
-    }
+    evidence_ids = {item.evidence_id for item in loaded.ai_system_map.evidence}
     assert all(
         set(item.evidence_ids) <= evidence_ids
         for item in loaded.profile_inference_result.profiles
@@ -216,7 +214,8 @@ def test_apply_lineage_restart_and_explicit_rescan(tmp_path: Path) -> None:
             if isinstance(item, dict)
         ]
         assert len(mapping_ids) == 2
-        assert scanner.inventory_calls == scanner.provider_calls == 1
+        assert scanner.inventory_calls == 0
+        assert scanner.provider_calls == 1
 
         applied_response = first.post(
             f"/api/map-builds/{base_build_id}/apply",
@@ -228,7 +227,8 @@ def test_apply_lineage_restart_and_explicit_rescan(tmp_path: Path) -> None:
         assert applied["scan_id"] == scan_id
         assert applied["based_on_build_id"] == base_build_id
         assert applied["applied_mapping_ids"] == sorted(mapping_ids)
-        assert scanner.inventory_calls == scanner.provider_calls == 1
+        assert scanner.inventory_calls == 0
+        assert scanner.provider_calls == 1
 
     assert_build_artifacts(
         state_dir,
@@ -269,7 +269,8 @@ def test_apply_lineage_restart_and_explicit_rescan(tmp_path: Path) -> None:
         ).json()
         assert reused["project_id"] == project_id
         assert reused["reused"] is True
-        assert scanner.inventory_calls == scanner.provider_calls == 1
+        assert scanner.inventory_calls == 0
+        assert scanner.provider_calls == 1
 
         rescanned = scan_project(
             restarted,
@@ -283,4 +284,5 @@ def test_apply_lineage_restart_and_explicit_rescan(tmp_path: Path) -> None:
         assert rescanned["scan_id"] != scan_id
         assert rescan_lineage["build_id"] != applied_build_id
         assert rescan_lineage["build_reason"] == "initial_scan"
-        assert scanner.inventory_calls == scanner.provider_calls == 2
+        assert scanner.inventory_calls == 0
+        assert scanner.provider_calls == 2

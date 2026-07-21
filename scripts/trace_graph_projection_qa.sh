@@ -79,7 +79,7 @@ BUILD_NODES="$(echo "$BUILD_BODY" | jq -r '.viewer_load_result.graph_view_model.
 BUILD_RELS="$(echo "$BUILD_BODY" | jq -r '(.viewer_load_result.graph_view_model.relationships // []) | length')"
 
 kai_section "比對 session vs build-scoped counts"
-kai_progress "session nodes=$SESSION_NODES rels=$SESSION_RELS；build nodes=$BUILD_NODES rels=$BUILD_RELS"
+kai_progress "session nodes=${SESSION_NODES} rels=${SESSION_RELS}；build nodes=${BUILD_NODES} rels=${BUILD_RELS}"
 [[ "$SESSION_NODES" == "$BUILD_NODES" ]] \
   || kai_die "node_count mismatch: session=$SESSION_NODES build=$BUILD_NODES"
 [[ "$SESSION_RELS" == "$BUILD_RELS" ]] \

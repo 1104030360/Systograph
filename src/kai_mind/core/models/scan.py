@@ -8,6 +8,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from kai_mind.core.models.errors import PreconditionError
+from kai_mind.core.models.inventory_provenance import (
+    InventoryPolicyAuditEntry,
+)
+from kai_mind.core.models.inventory_selection import InventorySelectionSummary
 from kai_mind.core.models.system_map import Evidence
 
 
@@ -139,3 +143,22 @@ class ProjectScanResult(ScanModel):
     warnings: list[str] = Field(default_factory=list)
     files_scanned: int = 0
     files_skipped: int = 0
+    inventory_policy_schema_version: str | None = None
+    inventory_policy_digest: str | None = None
+    candidate_set_digest: str | None = None
+    filesystem_safety_version: str | None = None
+    boundary_decision_digest: str | None = None
+    final_inventory_digest: str | None = None
+    inventory_run_digest: str | None = None
+    inventory_source_mode: (
+        Literal[
+            "git",
+            "recursive",
+            "fallback_after_git_error",
+        ]
+        | None
+    ) = None
+    inventory_policy_audit: list[InventoryPolicyAuditEntry] = Field(
+        default_factory=list
+    )
+    inventory_selection_summary: InventorySelectionSummary | None = None

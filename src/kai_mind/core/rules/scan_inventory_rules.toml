@@ -1,0 +1,137 @@
+schema_version = "scan-inventory-policy/v1"
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.node_modules"
+action = "exclude"
+pattern = "node_modules/"
+reason = "dependency_directory"
+category = "dependency"
+message = "Dependency directories are excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.python_virtualenv_hidden"
+action = "exclude"
+pattern = ".venv/"
+reason = "virtual_env"
+category = "dependency"
+message = "Python virtual environments are excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.python_virtualenv"
+action = "exclude"
+pattern = "venv/"
+reason = "virtual_env"
+category = "dependency"
+message = "Python virtual environments are excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.dist"
+action = "exclude"
+pattern = "dist/"
+reason = "build_output"
+category = "build"
+message = "Distribution output is excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.build"
+action = "exclude"
+pattern = "build/"
+reason = "build_output"
+category = "build"
+message = "Build output is excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.target"
+action = "exclude"
+pattern = "target/"
+reason = "build_output"
+category = "build"
+message = "Compiled target output is excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.next"
+action = "exclude"
+pattern = ".next/"
+reason = "build_output"
+category = "build"
+message = "Next.js build output is excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.python_cache"
+action = "exclude"
+pattern = "__pycache__/"
+reason = "cache_directory"
+category = "cache"
+message = "Python bytecode caches are excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.coverage"
+action = "exclude"
+pattern = "coverage/"
+reason = "coverage_output"
+category = "generated"
+message = "Coverage output is excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.generated_javascript"
+action = "exclude"
+pattern = "*.min.js"
+reason = "generated"
+category = "generated"
+message = "Minified JavaScript is excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.generated_css"
+action = "exclude"
+pattern = "*.min.css"
+reason = "generated"
+category = "generated"
+message = "Minified CSS is excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.model_gguf"
+action = "exclude"
+pattern = "*.gguf"
+reason = "model_weight"
+category = "model_weight"
+message = "Model weight files are excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.model_ggml"
+action = "exclude"
+pattern = "*.ggml"
+reason = "model_weight"
+category = "model_weight"
+message = "Model weight files are excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.model_onnx"
+action = "exclude"
+pattern = "*.onnx"
+reason = "model_weight"
+category = "model_weight"
+message = "Model weight files are excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.model_pt"
+action = "exclude"
+pattern = "*.pt"
+reason = "model_weight"
+category = "model_weight"
+message = "Model weight files are excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.model_pth"
+action = "exclude"
+pattern = "*.pth"
+reason = "model_weight"
+category = "model_weight"
+message = "Model weight files are excluded by default."
+
+[[path_rules]]
+inventory_policy_id = "inventory.exclude.model_safetensors"
+action = "exclude"
+pattern = "*.safetensors"
+reason = "model_weight"
+category = "model_weight"
+message = "Model weight files are excluded by default."

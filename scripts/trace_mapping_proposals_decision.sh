@@ -86,7 +86,7 @@ if [[ -z "$PROPOSAL_ID" ]]; then
     CANDIDATE_ID="$(echo "$PROPOSAL_JSON" | jq -r '
       [.candidates[]
        | select(.candidate_id != null)
-       | select(.candidate_type == "existing_slot_mapping" or .candidate_type == "new_extension_component")
+       | select(.candidate_type == "existing_slot_mapping" or .candidate_type == "non_baseline_capability_candidate")
        | .candidate_id][0] // empty')"
     [[ -n "$CANDIDATE_ID" ]] \
       || kai_die "No acceptable candidate to auto-select; use --decision skip_for_now or pass --candidate-id"
@@ -107,7 +107,7 @@ REQUEST_BODY="$(jq -n \
    + (if $candidate_id == "" then {} else {candidate_id:$candidate_id} end)
    + (if $reason == "" then {} else {reason:$reason} end)')"
 ENCODED_ID="$(kai_urlencode "$PROPOSAL_ID")"
-kai_progress "現在要對 proposal 送出決策（decision=$DECISION）..."
+kai_progress "現在要對 proposal 送出決策（decision=${DECISION}）..."
 api_call POST "/api/mapping-proposals/$ENCODED_ID/decision" "$REQUEST_BODY"
 
 [[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"

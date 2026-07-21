@@ -7,11 +7,11 @@ from datetime import UTC, datetime
 from typing import Any, Protocol
 from uuid import uuid4
 
-from kai_mind.core.models.system_map import (
-    Endpoint,
-    QueryTraceEvent,
-    RagSystemMap,
+from kai_mind.core.models.ai_system_map_v2 import (
+    AiSystemMapV2,
+    CanonicalEndpoint,
 )
+from kai_mind.core.models.system_map import QueryTraceEvent
 from kai_mind.core.models.trace import TraceRunResult
 from kai_mind.core.providers.endpoint_call_provider import (
     EndpointCallProvider,
@@ -24,13 +24,14 @@ from kai_mind.core.services.secret_masking_service import (
     MASK,
     SecretMaskingService,
 )
+from kai_mind.core.services.system_map_index import SystemMapIndex
 
 
 class EndpointCaller(Protocol):
     def call(
         self,
         *,
-        endpoint: Endpoint,
+        endpoint: CanonicalEndpoint,
         query: str,
         timeout_seconds: float,
     ) -> EndpointCallResult: ...
@@ -57,7 +58,7 @@ class QueryTraceService:
     def trace(
         self,
         *,
-        system_map: RagSystemMap,
+        system_map: AiSystemMapV2,
         endpoint_id: str,
         query: str,
         timeout_seconds: float = 30.0,
@@ -69,7 +70,8 @@ class QueryTraceService:
             if retrieved_chunks_keys is not None
             else self._retrieved_chunks_keys
         )
-        endpoint = self._find_endpoint(system_map, endpoint_id)
+        index = SystemMapIndex.from_map(system_map)
+        endpoint = index.endpoint_by_id(endpoint_id)
         if endpoint is None:
             return TraceRunResult(
                 trace_id=trace_id,
@@ -97,11 +99,11 @@ class QueryTraceService:
             trace_id=trace_id,
             sequence_index=0,
             event_type="request_sent",
-            endpoint_id=endpoint.id,
+            endpoint_id=endpoint.endpoint_id,
             query_sent=True,
             status="sent",
-            slot=endpoint.slot,
-            component_id=endpoint.component_instance_id,
+            slot=self._component_slot(index, endpoint.component_id),
+            component_id=endpoint.component_id,
             input={"query": self._masked_payload(query)},
         )
         call_result = self._endpoint_call_provider.call(
@@ -123,15 +125,15 @@ class QueryTraceService:
                     trace_id=trace_id,
                     sequence_index=len(events),
                     event_type="error",
-                    endpoint_id=endpoint.id,
+                    endpoint_id=endpoint.endpoint_id,
                     query_sent=call_result.query_sent,
                     status=(
                         "blocked"
                         if call_result.status == "blocked_endpoint"
                         else "partial"
                     ),
-                    slot=endpoint.slot,
-                    component_id=endpoint.component_instance_id,
+                    slot=self._component_slot(index, endpoint.component_id),
+                    component_id=endpoint.component_id,
                     latency_ms=call_result.latency_ms,
                     error={
                         "type": error_type,
@@ -143,7 +145,7 @@ class QueryTraceService:
                 trace_id=trace_id,
                 status="partial",
                 query_sent=call_result.query_sent,
-                endpoint_id=endpoint.id,
+                endpoint_id=endpoint.endpoint_id,
                 error_reason=error_type,
                 events=events,
             )
@@ -159,7 +161,7 @@ class QueryTraceService:
             trace_id=trace_id,
             status="completed",
             query_sent=True,
-            endpoint_id=endpoint.id,
+            endpoint_id=endpoint.endpoint_id,
             events=[request_event, response_event],
             warnings=response_event.warnings,
         )
@@ -167,8 +169,8 @@ class QueryTraceService:
     def _response_event(
         self,
         *,
-        system_map: RagSystemMap,
-        endpoint: Endpoint,
+        system_map: AiSystemMapV2,
+        endpoint: CanonicalEndpoint,
         trace_id: str,
         call_result: EndpointCallResult,
         retrieved_chunks_keys: tuple[str, ...],
@@ -180,7 +182,8 @@ class QueryTraceService:
         if isinstance(body, Mapping):
             candidate = body.get("unmapped_component_id")
             known_unmapped_ids = {
-                component.id for component in system_map.unmapped_components
+                component.unmapped_id
+                for component in system_map.unmapped_components
             }
             if isinstance(candidate, str) and candidate in known_unmapped_ids:
                 step_type = "unknown"
@@ -191,11 +194,14 @@ class QueryTraceService:
             trace_id=trace_id,
             sequence_index=1,
             event_type="response_received",
-            endpoint_id=endpoint.id,
+            endpoint_id=endpoint.endpoint_id,
             query_sent=True,
             status="completed",
-            slot=endpoint.slot,
-            component_id=endpoint.component_instance_id,
+            slot=self._component_slot(
+                SystemMapIndex.from_map(system_map),
+                endpoint.component_id,
+            ),
+            component_id=endpoint.component_id,
             step_type=step_type,
             unmapped_component_id=unmapped_component_id,
             warnings=warnings,
@@ -309,12 +315,15 @@ class QueryTraceService:
             retrieved_chunks=retrieved_chunks,
         )
 
-    def _find_endpoint(
-        self,
-        system_map: RagSystemMap,
-        endpoint_id: str,
-    ) -> Endpoint | None:
-        for endpoint in system_map.endpoints:
-            if endpoint.id == endpoint_id:
-                return endpoint
-        return None
+    @staticmethod
+    def _component_slot(
+        index: SystemMapIndex,
+        component_id: str | None,
+    ) -> str | None:
+        if component_id is None:
+            return None
+        component = index.component_by_id(component_id)
+        if component is None:
+            return None
+        slot = component.metadata.get("legacy_slot")
+        return slot if isinstance(slot, str) else None

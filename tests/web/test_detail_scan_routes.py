@@ -34,9 +34,9 @@ def test_detail_scan_route_appends_result_to_project_map(
     assert payload["detail_scan"]["target"] == "unmapped:router"
     assert payload["detail_scan"]["scan_depth"] == "code_path"
     assert payload["detail_scan"]["best_effort"] is True
-    assert payload["ai_system_map"]["detail_scans"]
+    assert "detail_scans" not in payload["ai_system_map"]
     assert any(
-        item["id"].startswith("evidence:detail-scan:")
+        item["evidence_id"].startswith("evidence:detail-scan:")
         for item in payload["ai_system_map"]["evidence"]
     )
 
@@ -67,7 +67,7 @@ def test_detail_scan_route_rejects_invalid_target_without_writing(
     assert response.json()["detail"] == "target_not_found"
     assert build_result is not None
     assert build_result.ai_system_map is not None
-    assert build_result.ai_system_map.detail_scans == []
+    assert build_result.detail_scan_results == []
 
 
 def create_detail_scan_test_client(

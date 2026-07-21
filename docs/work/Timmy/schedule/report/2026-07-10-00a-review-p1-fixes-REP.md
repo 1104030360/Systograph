@@ -108,8 +108,30 @@ uv run mypy <touched>
 
 ## 剩餘風險
 
-- Viewer / profile / readiness 仍未改讀 normalized view（plan 已誠實標 `[ ]`）。
-- readiness findings equivalence 仍 deferred。
+- Normal build default 仍為 v1，`MapBuildResult` 仍保留 v1/v2 compatibility 欄位；由
+  Plan 13 Tasks 1B/2 處理，Stage A 未提前切換。
+- 35 個 active direct legacy hits 已由 executable census 誠實分類為 `migrate`；尚未退休。
+- Operator rollback 尚未實作；屬 Plan 13 後續 execution scope，不是 00A gate repair。
 - Workflow provider 仍未接入預設 scan pipeline。
 - `candidate_facts` 現為 canonical 相容擴充；下游 consumer 需知此欄位存在但非
   capability detected 宣告。
+
+## 2026-07-17 Stage A follow-up
+
+- `BuildManifestService.load()` 改為先經 `CanonicalMapLoader`；native v1/v2 manifest
+  reload 都產生 normalized map 與可用 Viewer，native v2 不 downgrade 成 v1。
+- Viewer graph projection 統一消費 normalized `AiSystemMapV2`；v1 source payload 只由
+  loader 提供給 compatibility response，Viewer 不再依 schema badge 分支或重建
+  `RagSystemMap`。
+- 獨立 grounded v1/native-v2 fixtures 的 project/components/edges/evidence/endpoints 等
+  canonical fact signature，以及 readiness finding id/status/evidence refs regression 通過。
+- executable consumer census 固定 51 筆：35 `migrate`、15 `migration_only`、1
+  `remove`；除 Python production 與 frontend TS 外，也納入 runtime-imported JSON 與
+  operational shell scripts。未知、新增或 stale hit 都會使 contract test 失敗。
+- `CanonicalMapLoader` 對非 object JSON root 回 typed error；manifest badge/artifact schema
+  mismatch 兩方向都 fail closed。
+- Viewer v1 compatibility helpers 已抽到 no-I/O module；recommended-next-check
+  characterization 鎖定完整欄位與順序。
+- Focused tests：53 passed；完整 backend：987 passed；Ruff、Mypy 均通過。
+- Native v1/v2 runtime reload、non-object root 與雙向 schema mismatch probes 均通過；
+  normal default 仍為 v1，Plan 13 Tasks 1B/2–7 未開始。
