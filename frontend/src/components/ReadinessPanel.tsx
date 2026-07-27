@@ -222,7 +222,7 @@ export function ReadinessPanel({ report, graph, onClose }: Props) {
               {mode === "preview" ? (
                 <RenderedReport report={displayReport} graph={graph} />
               ) : (
-                <div>
+                <div className="readiness-source-view">
                   <div className="readiness-sample-note" role="note">
                     <FileText aria-hidden="true" size={15} />
                     <span>This plain text is generated from the inline <code>readiness-report/v1</code> payload. No standalone Markdown artifact preview or download is available without a safe build-scoped artifact endpoint.</span>

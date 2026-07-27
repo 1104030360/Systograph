@@ -73,15 +73,18 @@ class QueryTraceConfigLoader:
         if not isinstance(tool, Mapping):
             return None
 
-        kai_mind = tool.get("kai-mind")
-        if not isinstance(kai_mind, Mapping):
+        section_name = "systograph" if "systograph" in tool else "kai-mind"
+        product_config = tool.get(section_name)
+        if not isinstance(product_config, Mapping):
             return None
 
-        trace = kai_mind.get("trace")
+        trace = product_config.get("trace")
         if trace is None:
             return None
         if not isinstance(trace, Mapping):
-            raise QueryTraceConfigError("tool.kai-mind.trace must be a table")
+            raise QueryTraceConfigError(
+                f"tool.{section_name}.trace must be a table"
+            )
         return trace
 
     def _string_tuple(self, value: Any, *, field: str) -> tuple[str, ...]:

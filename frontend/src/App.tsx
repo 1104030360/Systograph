@@ -20,6 +20,7 @@ import { WordingProvider } from "./wording";
 import { viewerPayload as sampleViewerPayload } from "./data/sampleMap";
 import { BrandMark } from "./icons/BrandMark";
 import { useMapBuilds } from "./hooks/useMapBuilds";
+import { useDismissibleDetails } from "./hooks/useDismissibleDetails";
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
 import { useTraceReplay } from "./hooks/useTraceReplay";
@@ -28,7 +29,7 @@ import { extractMappingCompleteness } from "./contracts/viewer";
 import { importProject, startProjectScan } from "./services/projectScanApi";
 import { loadApiViewerPayload } from "./services/viewerApi";
 import { useViewerStore } from "./store/viewerStore";
-import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal } from "./types";
+import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal, Selection } from "./types";
 import { buildArchitectureViews, type ArchitectureViewId } from "./utils/architectureViews";
 import { hasBackendPlaneProjection } from "./utils/planes";
 import { resolveTraceHighlight } from "./utils/trace";
@@ -125,6 +126,8 @@ export default function App() {
   const [proposalTarget, setProposalTarget] = useState<ProposalTarget | null>(null);
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [architectureInfoOpen, setArchitectureInfoOpen] = useState(false);
+  const [inspectorMode, setInspectorMode] = useState<"details" | "trace">("details");
+  const moreToolsRef = useDismissibleDetails();
   const replay = useTraceReplay(traceScopeKey);
   const traceHighlight = useMemo(
     () => resolveTraceHighlight(replay.activeEvent, graph),
@@ -293,18 +296,32 @@ export default function App() {
     await runScan(projectSession, decisionsForBoundary(pendingBoundary, boundaryDecisions));
   }, [boundaryDecisions, pendingBoundary, projectSession, runScan]);
 
-  const projectName = graph.summary?.project_name ? String(graph.summary.project_name) : "Local AI Health Doctor";
+  const handleResetView = useCallback(() => {
+    setActiveArchitectureView("overview");
+    setNodeSearch("");
+    setSelected(null);
+  }, [setSelected]);
+
+  const handleMapSelect = useCallback(
+    (selection: Selection) => {
+      setSelected(selection);
+      if (selection) setInspectorMode("details");
+    },
+    [setSelected],
+  );
+
+  const projectName = graph.summary?.project_name ? String(graph.summary.project_name) : "Systograph";
 
   return (
     <div className="dr-app">
       <a className="skip-link" href="#architecture-workspace">Skip to AI Agent System</a>
 
       <header className="dr-header">
-        <a className="dr-brand" href="#top" aria-label="Agent System Map home">
+        <a className="dr-brand" href="#top" aria-label="Systograph home">
           <span className="dr-brand-mark" aria-hidden="true"><BrandMark size={22} /></span>
           <span>
-            <strong>Agent System Map</strong>
-            <small>Release-readiness architecture projection</small>
+            <strong>Systograph</strong>
+            <small>AI system release-readiness map</small>
           </span>
         </a>
         <nav className="dr-header-actions" aria-label="Viewer actions">
@@ -367,6 +384,15 @@ export default function App() {
             onStartScan={() => void handleStartScan()}
           />
           <button
+            className="icon-btn"
+            type="button"
+            aria-label="Reset view"
+            title="Reset view"
+            onClick={handleResetView}
+          >
+            <RotateCcw size={16} />
+          </button>
+          <button
             className={architectureInfoOpen ? "icon-btn is-active" : "icon-btn"}
             type="button"
             aria-label="Architecture information"
@@ -380,14 +406,28 @@ export default function App() {
           >
             <Info size={16} />
           </button>
-          <details className="toolbar-menu more-menu">
+          <details ref={moreToolsRef} className="toolbar-menu more-menu">
             <summary className="icon-btn" aria-label="More tools" title="More tools"><MoreHorizontal size={16} /></summary>
             <div className="toolbar-popover align-right">
-              <button className="menu-action" type="button" onClick={toggleTheme}>
+              <button
+                className="menu-action"
+                type="button"
+                onClick={() => {
+                  toggleTheme();
+                  if (moreToolsRef.current) moreToolsRef.current.open = false;
+                }}
+              >
                 {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
                 {theme === "dark" ? "Light theme" : "Dark theme"}
               </button>
-              <button className="menu-action" type="button" onClick={() => setChatOpen(true)}>
+              <button
+                className="menu-action"
+                type="button"
+                onClick={() => {
+                  setChatOpen(true);
+                  if (moreToolsRef.current) moreToolsRef.current.open = false;
+                }}
+              >
                 <MessageCircle size={15} />
                 Local chat
               </button>
@@ -412,104 +452,123 @@ export default function App() {
           ) : null}
 
           <section className="dr-workspace" id="architecture-workspace">
-          <ArchitectureViewNav
-            views={architectureViews}
-            activeViewId={activeArchitectureView}
-            search={nodeSearch}
-            onSelect={setActiveArchitectureView}
-            onSearchChange={setNodeSearch}
-          />
-          <section className="dr-map-panel" aria-labelledby="architecture-map-title">
-            <header className="dr-map-toolbar">
-              <div>
-                <span className="eyebrow">Normalized reference map</span>
-                <h1 id="architecture-map-title">AI Agent System</h1>
-                <p>
-                  {architectureViews.find((candidate) => candidate.id === activeArchitectureView)?.description}
-                </p>
+            <ArchitectureViewNav
+              views={architectureViews}
+              activeViewId={activeArchitectureView}
+              search={nodeSearch}
+              onSelect={setActiveArchitectureView}
+              onSearchChange={setNodeSearch}
+            />
+            <section className="dr-map-panel" aria-label="AI Agent System architecture map">
+              <div className="dr-map-body">
+                {showOverlay ? (
+                  <StateOverlay
+                    kind={appState}
+                    apiBaseUrl={apiBaseUrl}
+                    message={sourceError}
+                    onRetry={() => void payloadQuery.refetch()}
+                    onUseSample={() => setDataSourceMode("sample")}
+                  />
+                ) : (
+                  <ArchitectureMap
+                    graph={graph}
+                    views={architectureViews}
+                    activeViewId={activeArchitectureView}
+                    search={nodeSearch}
+                    selected={selected}
+                    traceHighlight={traceHighlight}
+                    onSelect={handleMapSelect}
+                  />
+                )}
               </div>
-              <button
-                className="btn"
-                type="button"
-                onClick={() => {
-                  setActiveArchitectureView("overview");
-                  setNodeSearch("");
-                  setSelected(null);
-                }}
-              >
-                <RotateCcw size={14} />
-                Reset view
-              </button>
-            </header>
+            </section>
 
-            <div className="dr-map-body">
-              {showOverlay ? (
-                <StateOverlay
-                  kind={appState}
-                  apiBaseUrl={apiBaseUrl}
-                  message={sourceError}
-                  onRetry={() => void payloadQuery.refetch()}
-                  onUseSample={() => setDataSourceMode("sample")}
-                />
+            <aside className="dr-inspector-panel" aria-label="Details and query trace">
+              <div className="dr-inspector-mode-tabs" role="tablist" aria-label="Right panel view">
+                <button
+                  id="details-mode-tab"
+                  type="button"
+                  role="tab"
+                  aria-controls="details-mode-panel"
+                  aria-selected={inspectorMode === "details"}
+                  className={inspectorMode === "details" ? "is-active" : ""}
+                  onClick={() => setInspectorMode("details")}
+                >
+                  Details
+                </button>
+                <button
+                  id="trace-mode-tab"
+                  type="button"
+                  role="tab"
+                  aria-controls="trace-mode-panel"
+                  aria-selected={inspectorMode === "trace"}
+                  className={inspectorMode === "trace" ? "is-active" : ""}
+                  onClick={() => setInspectorMode("trace")}
+                >
+                  Query Trace
+                </button>
+              </div>
+
+              {inspectorMode === "trace" ? (
+                <div
+                  id="trace-mode-panel"
+                  className="dr-inspector-mode-body"
+                  role="tabpanel"
+                  aria-labelledby="trace-mode-tab"
+                >
+                  <QueryTracePanel
+                    mode={dataSourceMode}
+                    apiBaseUrl={apiBaseUrl}
+                    projectId={traceProjectId}
+                    buildId={traceBuildId}
+                    endpoints={dataAvailable ? graph.endpoints : []}
+                    events={replay.events}
+                    activeIndex={replay.activeIndex}
+                    isPlaying={replay.isPlaying}
+                    fallbackMessage={traceHighlight.fallbackMessage}
+                    onIndexChange={replay.select}
+                    onPlay={replay.play}
+                    onPause={replay.pause}
+                    onPrevious={replay.previous}
+                    onNext={replay.next}
+                    onReset={replay.reset}
+                    onTraceEvents={replay.replaceEvents}
+                  />
+                </div>
               ) : (
-                <ArchitectureMap
-                  graph={graph}
-                  views={architectureViews}
-                  activeViewId={activeArchitectureView}
-                  search={nodeSearch}
-                  selected={selected}
-                  traceHighlight={traceHighlight}
-                  onSelect={setSelected}
-                />
+                <div
+                  id="details-mode-panel"
+                  className="dr-inspector-mode-body"
+                  role="tabpanel"
+                  aria-labelledby="details-mode-tab"
+                >
+                  {selected && !showOverlay && payload ? (
+                    <DetailPanel
+                      graph={graph}
+                      payload={payload}
+                      selected={selected}
+                      detailMode={detailMode}
+                      onDetailModeChange={setDetailMode}
+                      onReviewMapping={canReviewCurrentMapping ? setProposalTarget : undefined}
+                      onClose={() => setSelected(null)}
+                    />
+                  ) : (
+                    <div className="dr-inspector-empty">
+                      <BrandMark size={28} />
+                      <strong>Inspect the normalized architecture</strong>
+                      <p>Choose any reference capability, repository component or backend-declared flow.</p>
+                      <dl>
+                        <div><dt>Focused view</dt><dd>{architectureViews.find((candidate) => candidate.id === activeArchitectureView)?.label}</dd></div>
+                        <div><dt>Nodes</dt><dd>{graph.nodes.length}</dd></div>
+                        <div><dt>Risk hints</dt><dd>{scanSummary?.risk_hints ?? "—"}</dd></div>
+                        <div><dt>Build warnings</dt><dd>{payload?.viewer_load_result.warnings.length ?? "—"}</dd></div>
+                      </dl>
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
+            </aside>
           </section>
-
-          <aside className="dr-inspector-panel" aria-label="Node inspector">
-            {selected && !showOverlay && payload ? (
-              <DetailPanel
-                graph={graph}
-                payload={payload}
-                selected={selected}
-                detailMode={detailMode}
-                onDetailModeChange={setDetailMode}
-                onReviewMapping={canReviewCurrentMapping ? setProposalTarget : undefined}
-                onClose={() => setSelected(null)}
-              />
-            ) : (
-              <div className="dr-inspector-empty">
-                <BrandMark size={28} />
-                <strong>Inspect the normalized architecture</strong>
-                <p>Choose any reference capability, repository component or backend-declared flow.</p>
-                <dl>
-                  <div><dt>Focused view</dt><dd>{architectureViews.find((candidate) => candidate.id === activeArchitectureView)?.label}</dd></div>
-                  <div><dt>Nodes</dt><dd>{graph.nodes.length}</dd></div>
-                  <div><dt>Risk hints</dt><dd>{scanSummary?.risk_hints ?? "—"}</dd></div>
-                  <div><dt>Build warnings</dt><dd>{payload?.viewer_load_result.warnings.length ?? "—"}</dd></div>
-                </dl>
-              </div>
-            )}
-          </aside>
-          </section>
-
-          <QueryTracePanel
-            mode={dataSourceMode}
-            apiBaseUrl={apiBaseUrl}
-            projectId={traceProjectId}
-            buildId={traceBuildId}
-            endpoints={dataAvailable ? graph.endpoints : []}
-            events={replay.events}
-            activeIndex={replay.activeIndex}
-            isPlaying={replay.isPlaying}
-            fallbackMessage={traceHighlight.fallbackMessage}
-            onIndexChange={replay.select}
-            onPlay={replay.play}
-            onPause={replay.pause}
-            onPrevious={replay.previous}
-            onNext={replay.next}
-            onReset={replay.reset}
-            onTraceEvents={replay.replaceEvents}
-          />
         </div>
 
         <div className="dr-status-slot">

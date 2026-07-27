@@ -58,7 +58,8 @@ def trace_command(
             "--project-root",
             help=(
                 "Optional scanned project root for "
-                "[tool.kai-mind.trace] config."
+                "[tool.systograph.trace] config "
+                "(legacy: [tool.kai-mind.trace])."
             ),
         ),
     ] = None,

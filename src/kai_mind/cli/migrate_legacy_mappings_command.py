@@ -19,7 +19,7 @@ def migrate_legacy_mappings_command(
         Path,
         typer.Option(
             "--state-dir",
-            help="KAI-Mind state directory containing persisted mappings.",
+            help="Systograph state directory containing persisted mappings.",
         ),
     ],
     apply: Annotated[

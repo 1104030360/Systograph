@@ -1,4 +1,4 @@
-"""Repository protocols for KAI-Mind managed storage."""
+"""Repository protocols for Systograph managed storage."""
 
 from kai_mind.core.services.manual_mapping_service import (
     InMemoryManualMappingRepository,

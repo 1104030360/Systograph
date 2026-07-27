@@ -51,7 +51,7 @@ def test_map_report_route_returns_latest_markdown_report(
     assert build_response.status_code == 200
     assert report_response.status_code == 200
     assert report_response.headers["content-type"].startswith("text/markdown")
-    assert report_response.text.startswith("# KAI-Mind System Map\n")
+    assert report_response.text.startswith("# Systograph System Map\n")
     assert "## Slot Coverage" in report_response.text
     assert "## Local Endpoints" in report_response.text
     assert "## External Endpoints" in report_response.text
@@ -133,7 +133,7 @@ def test_map_report_route_ignores_arbitrary_path_query(
     response = client.get("/api/map/report?path=/etc/passwd")
 
     assert response.status_code == 200
-    assert response.text.startswith("# KAI-Mind System Map\n")
+    assert response.text.startswith("# Systograph System Map\n")
     assert "root:" not in response.text
 
 

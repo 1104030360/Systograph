@@ -188,7 +188,7 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     assert "graph_view_model" not in artifact_data
 
     markdown = result.map_markdown_path.read_text(encoding="utf-8")
-    assert markdown.startswith("# KAI-Mind System Map\n")
+    assert markdown.startswith("# Systograph System Map\n")
     assert "## Nodes" in markdown
     assert "## Topology Edges" in markdown
     graph = result.viewer_load_result.graph_view_model

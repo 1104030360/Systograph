@@ -47,7 +47,7 @@ def test_trace_command_rejects_invalid_project_trace_config(
     project_root.mkdir()
     (project_root / "pyproject.toml").write_text(
         """
-[tool.kai-mind.trace]
+[tool.systograph.trace]
 retrieved_chunks_keys = ["docs", ""]
 """,
         encoding="utf-8",

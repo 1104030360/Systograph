@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke-test runner: trace every local KAI-Mind API endpoint once.
+# Smoke-test runner: trace every local Systograph API endpoint once.
 #
 # Boots a single backend (when --start-server is passed), then runs each
 # per-endpoint trace script against the same base URL and prints a PASS/FAIL

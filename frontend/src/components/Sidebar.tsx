@@ -57,7 +57,7 @@ export function Sidebar({
           <BrandMark size={18} />
         </div>
         <div className="brand-text">
-          <strong>Health Doctor</strong>
+          <strong>Systograph</strong>
           <span className="mono">system map viewer</span>
         </div>
       </div>

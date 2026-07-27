@@ -1,1 +1,1 @@
-"""Local web API adapter boundary for KAI-Mind."""
+"""Local web API adapter boundary for Systograph."""

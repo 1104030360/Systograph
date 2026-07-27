@@ -88,7 +88,7 @@ Last reviewed against Phase2 plan folder: 2026-07-06
 
 ## 3. 產品定位
 
-KAI-Mind / Local AI Health Doctor 是 AI Agent / RAG 系統的 release-readiness gate。它在 demo、
+Systograph 是 AI Agent / RAG 系統的 release-readiness gate。它在 demo、
 交付、部署或 CI/CD 前，以唯讀方式掃描既有 AI system repo 或 workflow artifacts，輸出可回溯
 證據的 system map、capability assessment 與 readiness report。
 

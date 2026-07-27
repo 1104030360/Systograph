@@ -1,1 +1,1 @@
-"""Core services for KAI-Mind."""
+"""Core services for Systograph."""

@@ -1,5 +1,6 @@
 import { History } from "lucide-react";
 import type { MapBuildHistorySummary } from "../contracts/viewer";
+import { useDismissibleDetails } from "../hooks/useDismissibleDetails";
 import { titleCase } from "../utils/format";
 import { relTime } from "../utils/time";
 
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export function BuildHistoryMenu({ builds, activeBuildId, onSelect }: Props) {
+  const detailsRef = useDismissibleDetails();
   if (builds.length === 0) return null;
 
   const latestBuildId = builds[builds.length - 1].build_id;
@@ -18,7 +20,7 @@ export function BuildHistoryMenu({ builds, activeBuildId, onSelect }: Props) {
   const newestFirst = [...builds].reverse();
 
   return (
-    <details className="toolbar-menu build-history-menu">
+    <details ref={detailsRef} className="toolbar-menu build-history-menu">
       <summary className="btn" aria-label={`Build history, ${builds.length} builds`} title="Immutable build history">
         <History size={14} />
         Builds
@@ -36,7 +38,10 @@ export function BuildHistoryMenu({ builds, activeBuildId, onSelect }: Props) {
                 className={isViewed ? "build-history-item is-active" : "build-history-item"}
                 type="button"
                 aria-pressed={isViewed}
-                onClick={() => onSelect(isLatest ? null : build.build_id)}
+                onClick={() => {
+                  onSelect(isLatest ? null : build.build_id);
+                  if (detailsRef.current) detailsRef.current.open = false;
+                }}
               >
                 <span className="bh-reason">
                   {titleCase(build.build_reason)}

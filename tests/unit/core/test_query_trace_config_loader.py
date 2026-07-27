@@ -16,7 +16,7 @@ def test_query_trace_config_loader_reads_pyproject_tool_section(
 ) -> None:
     (tmp_path / "pyproject.toml").write_text(
         """
-[tool.kai-mind.trace]
+[tool.systograph.trace]
 retrieved_chunks_keys = ["docs", "retrieved_docs", "context"]
 """,
         encoding="utf-8",
@@ -29,6 +29,22 @@ retrieved_chunks_keys = ["docs", "retrieved_docs", "context"]
         "retrieved_docs",
         "context",
     )
+
+
+def test_query_trace_config_loader_supports_legacy_tool_alias(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[tool.kai-mind.trace]
+retrieved_chunks_keys = ["legacy_docs"]
+""",
+        encoding="utf-8",
+    )
+
+    config = QueryTraceConfigLoader().load_project_config(tmp_path)
+
+    assert config.retrieved_chunks_keys == ("legacy_docs",)
 
 
 def test_query_trace_config_loader_defaults_when_pyproject_is_missing(
@@ -79,14 +95,14 @@ def test_query_trace_config_loader_rejects_non_table_trace_section(
 ) -> None:
     # Given
     (tmp_path / "pyproject.toml").write_text(
-        "[tool.kai-mind]\ntrace = 'enabled'\n",
+        "[tool.systograph]\ntrace = 'enabled'\n",
         encoding="utf-8",
     )
 
     # When / Then
     with pytest.raises(
         QueryTraceConfigError,
-        match="tool.kai-mind.trace must be a table",
+        match="tool.systograph.trace must be a table",
     ):
         QueryTraceConfigLoader().load_project_config(tmp_path)
 
@@ -107,7 +123,7 @@ def test_query_trace_config_loader_rejects_invalid_chunk_key_lists(
 ) -> None:
     # Given
     (tmp_path / "pyproject.toml").write_text(
-        f"[tool.kai-mind.trace]\nretrieved_chunks_keys = {raw_value}\n",
+        f"[tool.systograph.trace]\nretrieved_chunks_keys = {raw_value}\n",
         encoding="utf-8",
     )
 
@@ -121,7 +137,7 @@ def test_query_trace_config_loader_rejects_empty_chunk_key(
 ) -> None:
     (tmp_path / "pyproject.toml").write_text(
         """
-[tool.kai-mind.trace]
+[tool.systograph.trace]
 retrieved_chunks_keys = ["docs", ""]
 """,
         encoding="utf-8",
@@ -139,10 +155,10 @@ def test_scanned_project_cannot_enable_local_dev_egress_policy(
 ) -> None:
     (tmp_path / "pyproject.toml").write_text(
         """
-[tool.kai-mind.trace]
+[tool.systograph.trace]
 retrieved_chunks_keys = ["docs"]
 
-[tool.kai-mind.trace.security]
+[tool.systograph.trace.security]
 mode = "local-dev"
 allow_loopback = true
 allowed_hosts = ["localhost"]

@@ -1,4 +1,4 @@
-# KAI-Mind Local API Guide
+# Systograph Local API Guide
 
 本機 FastAPI 後端的 **HTTP 契約**：endpoint、request/response、錯誤碼。欄位語意、五態、activation、GraphViewModel 規則見 [`MODEL-CONTRACT.md`](MODEL-CONTRACT.md)。
 
@@ -713,7 +713,7 @@ Query Trace 會從該 project session 的 `project_path/pyproject.toml` 讀取 o
 
 ```toml
 # 被掃描專案的 pyproject.toml
-[tool.kai-mind.trace]
+[tool.systograph.trace]
 retrieved_chunks_keys = [
   "retrieved_chunks",
   "chunks",
@@ -727,7 +727,7 @@ retrieved_chunks_keys = [
 CLI 使用同一套設定 loader，但需要顯式傳入 project root，避免從 map artifact 猜測來源：
 
 ```bash
-kai-mind trace outputs/run/ai_system_map.json \
+systograph trace outputs/run/ai_system_map.json \
   --endpoint-id endpoint:chat \
   --query "hello" \
   --project-root /abs/path/to/scanned-project
@@ -772,7 +772,8 @@ Response `200`：
 - `build_id` 指定 trace source；省略時使用 latest 並回 `latest_build_fallback` warning
 - 預設阻擋 non-global / private / metadata 位址；egress 被擋 → `partial` + `egress_policy_blocked`
 - 不跟隨 redirect；預設不讀 proxy env
-- `[tool.kai-mind.trace]` 只控制 chunk keys；local-dev allowlist 由 operator 注入
+- `[tool.systograph.trace]` 只控制 chunk keys；舊 `[tool.kai-mind.trace]` 仍為相容 alias；
+  local-dev allowlist 由 operator 注入
 - timeout / transport error → `status:"partial"`，保留 events 供 replay
 - 完整 egress 政策見 [`docs/security/query-trace-egress-policy.md`](security/query-trace-egress-policy.md)
 
@@ -780,7 +781,7 @@ Response `200`：
 | --- | --- | --- |
 | `project_not_found` | 404 | `project_id` 不存在 |
 | `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
-| `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.kai-mind.trace]` 格式錯誤 |
+| `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.systograph.trace]`（或 legacy `[tool.kai-mind.trace]`）格式錯誤 |
 | `egress_policy_blocked` | 200 / `partial` | endpoint 在送出 request 前被 SSRF egress policy 阻擋 |
 
 ---

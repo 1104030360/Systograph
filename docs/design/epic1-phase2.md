@@ -101,7 +101,7 @@ target，不得把 planned modules、mock samples 或文件 claim 寫成已實�
 
 ## 3. Product positioning
 
-KAI-Mind / Local AI Health Doctor 是 **AI Agent / RAG / agentic RAG** 等 AI system 的
+Systograph 是 **AI Agent / RAG / agentic RAG** 等 AI system 的
 release-readiness gate。它在 demo、交付、部署或 CI/CD 前，以 read-only scanner 盤點**既有的**
 local AI system **repo 或 workflow artifacts**（不修改被掃專案），輸出可追溯 evidence 的
 system map、capability assessment、readiness report，以及 **static / dynamic execution view**
@@ -591,8 +591,8 @@ target 變成人工 decision proposal。
 
 ### 7.3 Staged deterministic scan
 
-Step 2 先建立 KAI-Mind allowlisted `FileInventory`，並承接原 `scan-project.mjs` 有價值的
-enrichment（language、file category、line count）。KAI-Mind 不執行 `scan-project.mjs`，避免
+Step 2 先建立 Systograph allowlisted `FileInventory`，並承接原 `scan-project.mjs` 有價值的
+enrichment（language、file category、line count）。Systograph 不執行 `scan-project.mjs`，避免
 Understand-Anything 另行決定掃描邊界。
 
 Step 3 依序採三階段切換：

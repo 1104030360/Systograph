@@ -7,7 +7,7 @@
 
 ## 1. Executive Summary
 
-Epic 1 要建立 KAI-Mind 的第一個可交付核心能力：把一個既有 RAG 專案資料夾掃描成標準化、可追溯 evidence 的 `ai_system_map.json`，再輸出人類可讀的 `ai_system_map.md` 與互動式 RAG System Map Viewer。
+Epic 1 要建立 Systograph 的第一個可交付核心能力：把一個既有 RAG 專案資料夾掃描成標準化、可追溯 evidence 的 `ai_system_map.json`，再輸出人類可讀的 `ai_system_map.md` 與互動式 RAG System Map Viewer。
 
 設計方向是「deterministic scanner first, AI-assisted explanation second」。scanner 以 RAG reference architecture 的 component slot 為骨架，透過檔案、設定、Docker、dependency 與有限程式碼 pattern 產生 facts。LLM 或 local LLM 可以協助摘要、label、detail explanation，但不能創造沒有 evidence 的 component，也不能成為 JSON contract 的 source of truth。
 
@@ -22,8 +22,8 @@ Epic 1 要建立 KAI-Mind 的第一個可交付核心能力：把一個既有 RA
 - 以 read-only scanner 掃描 project folder、config、Docker、dependency 與 RAG code signals。
 - 偵測 RAG component slots：data source、loader、chunking、embedding、vector store、orchestrator、retriever、prompt builder、LLM、citation、guardrails、observability。
 - 產出 evidence-based component instances、endpoints、risk hints 與 recommended next checks。
-- 支援 `kai-mind map <project_path>` 輸出 JSON 與 Markdown。
-- 支援 `kai-mind viewer <map_json>` 載入互動式 graph，並可點選 node / edge 查看 evidence。
+- 支援 `systograph map <project_path>` 輸出 JSON 與 Markdown。
+- 支援 `systograph viewer <map_json>` 載入互動式 graph，並可點選 node / edge 查看 evidence。
 - 支援 GUI filter，但套用 filter 時保留完整 graph，只高亮符合項目。
 - 支援 query trace / replay MVP：找到 detected RAG endpoint 後呼叫一次，收集 basic trace 並映射到 slots / nodes / edges。
 - 保持跨平台：Windows 與 macOS 的 evidence file path 一律輸出 project-relative POSIX path。
@@ -88,11 +88,11 @@ Epic 1 的使用者輸入是一個既有 RAG project folder。輸出至少包含
 
 核心使用者場景：
 
-- 使用者執行 `kai-mind map ./example-project`，得到 JSON 與 Markdown。
+- 使用者執行 `systograph map ./example-project`，得到 JSON 與 Markdown。
 - project folder 不存在或不可讀時，操作失敗並輸出 `outputs/map-error.md`，不輸出正常 map。
 - `outputs/` 已有舊檔時，產生 timestamped output directory，不能覆寫舊檔。
 - config / docker-compose 解析失敗時，仍產生 partial System Map，並把 parse error 記錄成 evidence / risk hint。
-- 使用者執行 `kai-mind viewer outputs/ai_system_map.json`，GUI 載入 graph。
+- 使用者執行 `systograph viewer outputs/ai_system_map.json`，GUI 載入 graph。
 - map JSON 不存在或格式無效時，GUI 啟動但顯示 error state，不顯示 graph。
 - 使用者可以在 GUI 點選 node / edge，看 slot、status、evidence、risk hints 與 relationship。
 - 使用者可以套用 filter；filter 只高亮符合項目，不隱藏其他 graph elements。
@@ -156,8 +156,8 @@ Core Engine + CLI
 
 ```mermaid
 graph TD
-    CLI[kai-mind CLI] --> MapUseCase[MapBuildService]
-    ViewerCLI[kai-mind viewer] --> ViewerService[ViewerSessionService]
+    CLI[systograph CLI] --> MapUseCase[MapBuildService]
+    ViewerCLI[systograph viewer] --> ViewerService[ViewerSessionService]
     GUI[Local Viewer UI] --> ViewerService
     GUI --> TraceService[QueryTraceService]
 
@@ -225,8 +225,8 @@ Epic 1 的後端負責「產生可信 map」與「提供 viewer 可消費的 gra
 ├───────────────────────────────┬─────────────────────────────────────────────┤
 │ CLI                           │ GUI / Local Web UI                          │
 │                               │                                             │
-│ kai-mind map <project_path>   │ 選擇 project folder                          │
-│ kai-mind viewer <map_json>    │ 載入既有 ai_system_map.json                  │
+│ systograph map <project_path> │ 選擇 project folder                          │
+│ systograph viewer <map_json>  │ 載入既有 ai_system_map.json                  │
 └───────────────┬───────────────┴───────────────────────┬─────────────────────┘
                 │                                       │
                 ↓                                       ↓
@@ -270,7 +270,7 @@ GUI 的主要用途：
 
 ### Visual backend flow from project scan to graph
 
-以下流程參考 `understand-anything-backend-review.md` 的分階段設計，但調整成 KAI-Mind 的 release-readiness scanner：deterministic evidence scanner 是 source of truth，LLM 只能輔助文字，不可決定 facts。
+以下流程參考 `understand-anything-backend-review.md` 的分階段設計，但調整成 Systograph 的 release-readiness scanner：deterministic evidence scanner 是 source of truth，LLM 只能輔助文字，不可決定 facts。
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -385,7 +385,7 @@ ai_system_map.json
   └─ query_trace_events  -> replay timeline
 ```
 
-### Understand-Anything design lessons applied to KAI-Mind
+### Understand-Anything design lessons applied to Systograph
 
 `understand-anything-backend-review.md` 的主要啟發是：大型 repo-to-graph 系統不能只靠 LLM 直接產生最終 graph。Epic 1 應採用以下做法：
 
@@ -429,7 +429,7 @@ Provider rules:
 
 | Service | Responsibility | Dependencies | Main output |
 |---|---|---|---|
-| `MapBuildService` | top-level `kai-mind map` use case orchestration | all scanner and report services | output artifact set |
+| `MapBuildService` | top-level `systograph map` use case orchestration | all scanner and report services | output artifact set |
 | `ProjectScanService` | coordinate providers and aggregate raw facts | filesystem, config, compose, dependency, pattern providers | `ScanFact[]`, `ParseIssue[]` |
 | `RagTemplateService` | load `rag-core-v1` slots, flows and requiredness rules | template store | `ReferenceArchitecture` |
 | `ComponentDetectionService` | map facts to component slots and instances | template, scan facts | `ComponentSlot[]`, `ComponentInstance[]` |
@@ -494,8 +494,8 @@ Recommended JSON schema strategy:
 ### CLI
 
 ```bash
-kai-mind map <project_path> [--output outputs] [--system-type rag]
-kai-mind viewer <map_json>
+systograph map <project_path> [--output outputs] [--system-type rag]
+systograph viewer <map_json>
 ```
 
 `map` behavior:
@@ -589,7 +589,7 @@ OpenTelemetry / OpenInference / Phoenix / Langfuse inspired design:
 
 ### Integration tests
 
-- `kai-mind map ./fixtures/basic-rag` writes JSON and Markdown.
+- `systograph map ./fixtures/basic-rag` writes JSON and Markdown.
 - Existing output directory creates timestamped run directory.
 - Missing project writes `map-error.md` and no normal map.
 - Malformed compose yields partial map plus parse_error risk hint.
@@ -631,7 +631,7 @@ Epic 1 is acceptable when all feature examples in the three `.feature` files can
 | M1 | Schema and template | `rag-core-v1`, JSON schema, core models | specs/ERM | schema tests pass |
 | M2 | File inventory and parsers | filesystem, config, compose, dependency providers | M1 | fixtures produce raw facts |
 | M3 | Component detection | slot mapping, endpoints, risk hints, normalization | M2 | JSON maps pass contract tests |
-| M4 | CLI map artifacts | `kai-mind map`, output directory policy, Markdown | M3 | feature scenarios for map command pass |
+| M4 | CLI map artifacts | `systograph map`, output directory policy, Markdown | M3 | feature scenarios for map command pass |
 | M5 | Viewer base | graph view model, load/error state, node/edge detail | M3 | viewer scenarios pass |
 | M6 | Filters and interaction | highlight filters, zoom/pan/drag adapter | M5 | UI tests or visual QA pass |
 | M7 | Query trace MVP | endpoint call, basic trace events, replay mapping | M5 | endpoint missing/timeout/success scenarios pass |
@@ -644,7 +644,7 @@ Epic 1 is acceptable when all feature examples in the three `.feature` files can
 | 項目 | 工程師 A | 工程師 B |
 |---|---|---|
 | 主要負責範圍 | Core scanner、schema、CLI | Viewer、graph UX、query trace UI/API |
-| 主要交付物 | models、providers、services、JSON schema、`kai-mind map`、Markdown summary | `kai-mind viewer`、graph view model、detail panel、filters、query trace replay |
+| 主要交付物 | models、providers、services、JSON schema、`systograph map`、Markdown summary | `systograph viewer`、graph view model、detail panel、filters、query trace replay |
 | 測試責任 | scanner 與 CLI 的 unit / integration / contract tests | UI / view-model tests、trace replay tests、error state tests |
 | 共同介面 | `ai-system-map/v1`、graph view model DTO、`QueryTraceEvent` | 同左 |
 | 協作邊界 | A 負責 facts 與 map normalization；B 不應在 viewer 重新掃描檔案 | B 負責呈現與互動；A 需要提供穩定 DTO |
@@ -695,7 +695,7 @@ Assumptions:
 
 Open questions:
 
-- Should `kai-mind map` expose `--endpoint` or `--trace-endpoint` in Epic 1, or should query trace be configured only in GUI?
+- Should `systograph map` expose `--endpoint` or `--trace-endpoint` in Epic 1, or should query trace be configured only in GUI?
 - Should `ai_system_map.md` include parse errors in a dedicated section or only under risk hints?
 - What is the maximum file size and total scan size for Epic 1 default mode?
 - Should source snippets be included in evidence, or only file/path/value to reduce secret leakage risk?
@@ -704,8 +704,8 @@ Open questions:
 
 ## 19. References and Inspirations
 
-- GitDiagram inspired the staged repo-to-graph flow: collect file tree/README, filter noisy files, generate structured graph, validate paths, render interactive diagram. KAI-Mind should adopt staged validation and clickable evidence paths, but not GitDiagram's LLM-first architecture understanding as source of truth.
-- Gitingest inspired simple local/remote repo ingestion and prompt-friendly file filtering. KAI-Mind should borrow file selection discipline, not text-dump-only output.
+- GitDiagram inspired the staged repo-to-graph flow: collect file tree/README, filter noisy files, generate structured graph, validate paths, render interactive diagram. Systograph should adopt staged validation and clickable evidence paths, but not GitDiagram's LLM-first architecture understanding as source of truth.
+- Gitingest inspired simple local/remote repo ingestion and prompt-friendly file filtering. Systograph should borrow file selection discipline, not text-dump-only output.
 - MorphArch and CodeMap support the idea that large codebase maps need clustering, focused navigation and local-first processing. Epic 1 should keep graph navigation usable and avoid raw graph chaos.
 - LangChain and LlamaIndex docs confirm common RAG signals: document loaders/readers, text splitters, vector stores/indexes, retrievers/query engines, tools, prompts and LLM calls. These become scanner patterns and fixture examples.
 - Phoenix, Langfuse, OpenInference and OpenTelemetry inform the trace/event model: use trace IDs, span-like stages, structured logs and replayable LLM/RAG events. Epic 1 should only implement basic trace replay, not a full observability platform.

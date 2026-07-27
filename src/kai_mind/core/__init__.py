@@ -1,1 +1,1 @@
-"""Core backend services and models for KAI-Mind."""
+"""Core backend services and models for Systograph."""
