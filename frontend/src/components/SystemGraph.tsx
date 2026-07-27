@@ -18,6 +18,8 @@ import "reactflow/dist/style.css";
 import { Maximize, Minus, Plus } from "lucide-react";
 import type { GraphViewModel, Selection, TraceEvent } from "../types";
 import { createFlowElements, layoutGraph, makeGraphIndexes, type FlowEdgeData, type FlowNodeData } from "../utils/graph";
+import { layoutPlaneBands, type PlaneBandModel } from "../utils/planes";
+import { PlaneBandNode, type PlaneBandData } from "./PlaneBandNode";
 import { SystemNode } from "./SystemNode";
 
 const NODE_WIDTH = 208;
@@ -29,6 +31,7 @@ const ANIMATION_DURATION = prefersReducedMotion ? 0 : 320;
 
 const nodeTypes = {
   systemNode: SystemNode,
+  planeBand: PlaneBandNode,
 };
 
 function OrderedEdge({
@@ -181,7 +184,11 @@ function resolveFollowNodeId({
 
 type Props = {
   graph: GraphViewModel;
+  /** "planes": fixed reference-map bands grouped by backend plane_id (stable
+      layout, no dragging). "auto": legacy ELK layered layout. */
+  layoutMode: "auto" | "planes";
   activeFilterIds: string[];
+  activeLensId: string | null;
   selected: Selection;
   traceEvent?: TraceEvent;
   progressTargetId?: string;
@@ -193,7 +200,9 @@ type Props = {
 
 function GraphCanvas({
   graph,
+  layoutMode,
   activeFilterIds,
+  activeLensId,
   selected,
   traceEvent,
   progressTargetId,
@@ -204,9 +213,10 @@ function GraphCanvas({
 }: Props) {
   const selectedKind = selected?.kind === "node" || selected?.kind === "edge" ? selected.kind : undefined;
   const selectedId = selected?.kind === "node" || selected?.kind === "edge" ? selected.id : undefined;
-  const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
+  const [nodes, setNodes] = useState<Array<Node<FlowNodeData> | Node<PlaneBandData>>>([]);
   const [edges, setEdges] = useState<Edge<FlowEdgeData>[]>([]);
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [bands, setBands] = useState<PlaneBandModel[]>([]);
   const lastCenteredNodeId = useRef<string | null>(null);
   const lastFitGraphKey = useRef<string | null>(null);
   const reactFlow = useReactFlow();
@@ -226,12 +236,13 @@ function GraphCanvas({
     () =>
       createFlowElements(graph, {
         activeFilterIds,
+        activeLensId,
         selectedId,
         selectedKind,
         traceEvent,
         progressTargetId,
       }),
-    [activeFilterIds, graph, progressTargetId, selectedId, selectedKind, traceEvent],
+    [activeFilterIds, activeLensId, graph, progressTargetId, selectedId, selectedKind, traceEvent],
   );
 
   useEffect(() => {
@@ -240,6 +251,15 @@ function GraphCanvas({
       activeFilterIds: [],
     });
 
+    if (layoutMode === "planes") {
+      const planeLayout = layoutPlaneBands(baseElements.nodes);
+      setPositions(Object.fromEntries(planeLayout.positions));
+      setBands(planeLayout.bands);
+      lastFitGraphKey.current = null;
+      return;
+    }
+
+    setBands([]);
     layoutGraph(baseElements.nodes, baseElements.edges).then((layoutedNodes) => {
       if (!cancelled) {
         setPositions(Object.fromEntries(layoutedNodes.map((node) => [node.id, node.position])));
@@ -250,20 +270,32 @@ function GraphCanvas({
     return () => {
       cancelled = true;
     };
-  }, [graph, graphStructureKey, reactFlow]);
+  }, [graph, graphStructureKey, layoutMode, reactFlow]);
 
   useEffect(() => {
     const hasPositions = Object.keys(positions).length > 0;
-    setNodes(
-      rawElements.nodes.map((node) => ({
+    const bandNodes: Node<PlaneBandData>[] = bands.map((band) => ({
+      id: `plane-band:${band.id}`,
+      type: "planeBand",
+      position: { x: band.x, y: band.y },
+      draggable: false,
+      selectable: false,
+      focusable: false,
+      zIndex: -1,
+      style: { width: band.width, height: band.height, pointerEvents: "none" },
+      data: { planeId: band.id, label: band.label, sublabel: band.sublabel, count: band.count },
+    }));
+    setNodes([
+      ...bandNodes,
+      ...rawElements.nodes.map((node) => ({
         ...node,
         position: positions[node.id] ?? node.position,
         hidden: !positions[node.id],
       })),
-    );
+    ]);
     // Withhold edges until nodes are positioned so they don't briefly route through (0,0).
     setEdges(hasPositions ? rawElements.edges : []);
-  }, [positions, rawElements]);
+  }, [bands, positions, rawElements]);
 
   const translateExtent = useMemo<[[number, number], [number, number]] | undefined>(() => {
     const points = Object.values(positions);
@@ -279,7 +311,7 @@ function GraphCanvas({
   }, [positions]);
 
   function handleNodesChange(changes: NodeChange[]) {
-    setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
+    setNodes((currentNodes) => applyNodeChanges(changes, currentNodes as Node[]) as typeof currentNodes);
   }
 
   function handleNodeDragStop(_: React.MouseEvent, node: Node<FlowNodeData>) {
@@ -342,7 +374,7 @@ function GraphCanvas({
       minZoom={0.32}
       maxZoom={1.45}
       translateExtent={translateExtent}
-      nodesDraggable
+      nodesDraggable={layoutMode === "auto"}
       onNodesChange={handleNodesChange}
       onNodeDragStart={() => onInteractingChange?.(true)}
       onNodeDragStop={handleNodeDragStop}
@@ -355,7 +387,13 @@ function GraphCanvas({
       onPaneClick={() => onSelect(null)}
     >
       <Background variant={BackgroundVariant.Dots} color="var(--grid)" gap={22} size={1.1} />
-      <MiniMap pannable zoomable nodeStrokeWidth={2} nodeColor="var(--line-strong)" maskColor="var(--canvas)" />
+      <MiniMap
+        pannable
+        zoomable
+        nodeStrokeWidth={2}
+        nodeColor={(node) => (node.type === "planeBand" ? "var(--surface-2)" : "var(--line-strong)")}
+        maskColor="var(--canvas)"
+      />
       <CanvasControls />
       <ZoomHint />
     </ReactFlow>

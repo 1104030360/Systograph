@@ -17,7 +17,7 @@ def test_cli_help_is_available() -> None:
     result = runner.invoke(cli_main.app, ["--help"])
 
     assert result.exit_code == 0
-    assert "KAI-Mind" in result.stdout
+    assert "Systograph" in result.stdout
 
 
 def test_core_import_does_not_load_fastapi_adapter() -> None:

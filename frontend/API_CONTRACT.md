@@ -320,16 +320,48 @@ The UI already supports replay ordering by `sequence_index`. A future API endpoi
 
 ## Detail Scan
 
-For this checkpoint, L2/L3 panels render the sample `detail_scan_result_sample` and `mapping_proposal_result_sample`.
+API mode runs Detail Scan against the current immutable project build:
 
-The future frontend request should stay aligned with Timmy's design:
+```http
+POST /api/detail-scans
+Content-Type: application/json
+```
 
 ```json
 {
-  "target_type": "component_slot | component | edge | trace_step",
-  "target": "node-or-edge-or-source-id",
+  "project_id": "project:<uuid>",
+  "build_id": "build:<uuid>",
+  "target_type": "component_instance | unmapped_component | edge | evidence",
+  "target": "backend-declared-canonical-id",
   "scan_depth": "component | code_path"
 }
 ```
 
-The result should be append-only evidence/detail data. It must not silently rewrite canonical facts before validation or user confirmation.
+The frontend requires `build_id` even though the backend retains an optional latest-build fallback for older clients.
+It builds targets only from backend-declared `semantic_kind`, `component_id` and `source_id`; labels, badges,
+graph positions and id prefixes are not identity sources.
+
+Success returns the immutable child identity and projection:
+
+```ts
+{
+  project_id: string;
+  source_build_id: string;
+  build_id: string;
+  scan_id: string;
+  detail_scan: DetailScanResult;
+  ai_system_map: object;
+  viewer_load_result: ViewerLoadResult;
+  warnings: string[];
+}
+```
+
+The UI immediately consumes this child projection, then requests
+`GET /api/map-builds/{build_id}` for the complete build-scoped envelope. It never refreshes
+process-wide `/api/map` after Detail Scan. Parent/historical builds remain immutable, and
+`base_build_not_latest` / `scan_snapshot_stale` require reloading the current build before a new request.
+
+L2 renders bounded summaries, safe evidence references, warnings and context limits. L3 renders only
+backend-provided project-relative POSIX paths, symbols and exact line ranges. The parser rejects drive,
+UNC, absolute, backslash and parent-traversal paths on both Windows and macOS. Raw evidence values,
+retrieved chunks, source blobs and full secrets are not rendered.

@@ -1,4 +1,4 @@
-"""Storage boundary exports for KAI-Mind managed persistence."""
+"""Storage boundary exports for Systograph managed persistence."""
 
 from kai_mind.storage.repositories import (
     InMemoryManualMappingRepository,

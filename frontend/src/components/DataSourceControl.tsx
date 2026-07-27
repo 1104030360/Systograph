@@ -1,4 +1,5 @@
 import { RefreshCw, Server } from "lucide-react";
+import { useDismissibleDetails } from "../hooks/useDismissibleDetails";
 import type { DataSourceMode } from "../types";
 
 type Props = {
@@ -30,8 +31,10 @@ export function DataSourceControl({
   onRefresh,
   onStartScan,
 }: Props) {
+  const detailsRef = useDismissibleDetails();
+
   return (
-    <details className="toolbar-menu source-control">
+    <details ref={detailsRef} className="toolbar-menu source-control">
       <summary className="source-summary" aria-label={`Source ${mode}`}>
         <Server size={13} />
         <span>Source</span>

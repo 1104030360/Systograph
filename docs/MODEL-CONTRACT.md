@@ -1,4 +1,4 @@
-# KAI-Mind Phase 2 Model Contract
+# Systograph Phase 2 Model Contract
 
 **Status:** Phase 2 S1 implemented contract + later projection/cutover targets（runtime query trace deferred）
 **Audience:** frontend / viewer implementers

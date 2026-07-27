@@ -1,1 +1,1 @@
-"""Core domain models for KAI-Mind."""
+"""Core domain models for Systograph."""

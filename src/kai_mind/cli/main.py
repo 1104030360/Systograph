@@ -1,4 +1,4 @@
-"""CLI entry point for KAI-Mind."""
+"""CLI entry point for Systograph."""
 
 import typer
 
@@ -10,7 +10,7 @@ from kai_mind.cli.trace_command import register as register_trace_command
 from kai_mind.cli.viewer_command import register as register_viewer_command
 
 app = typer.Typer(
-    help="KAI-Mind local AI health doctor backend tools.",
+    help="Systograph AI system release-readiness tools.",
     no_args_is_help=True,
 )
 register_map_command(app)
@@ -21,7 +21,7 @@ register_viewer_command(app)
 
 @app.callback()
 def root() -> None:
-    """KAI-Mind local AI health doctor backend tools."""
+    """Systograph AI system release-readiness tools."""
 
 
 def main() -> None:

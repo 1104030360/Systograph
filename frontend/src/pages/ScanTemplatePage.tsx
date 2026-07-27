@@ -83,7 +83,7 @@ export function ScanTemplatePage({
     );
 
   return (
-    <div className="st-route" role="dialog" aria-label="Scan Template">
+    <div className="st-route">
       <header className="st-head st-head-steps">
         <div className="st-head-main">
           <button

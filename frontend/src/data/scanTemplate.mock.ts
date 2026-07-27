@@ -142,21 +142,44 @@ export const PROPOSALS: Record<string, MappingProposal> = {
     source_unmapped_id: "unmapped:user-profile",
     source_path: "src/components/UserProfile.jsx",
     status: "pending_user_confirmation",
+    evidence_packet: {
+      project_id: PROJECT.project_id,
+      source_unmapped_id: "unmapped:user-profile",
+      source_file: "src/components/UserProfile.jsx",
+      observed_kind: "react_view",
+      reason: "The scanner found component evidence without a canonical target.",
+      evidence_ids: [
+        "evidence:import:account-store",
+        "evidence:jsx:profile-fields",
+        "evidence:jsx:form-fields",
+        "evidence:path:components-dir",
+      ],
+      rule_ids: [],
+      line_ranges: ["8", "31", "44"],
+      masked_evidence_values: [],
+      masked_snippets: [],
+      available_slots: [],
+      context_limits: {},
+    },
     provider_name: "nvidia-nim",
     provider_error_reason: null,
     user_description: null,
     candidates: [
       {
         candidate_id: "candidate:1",
-        candidate_type: "existing_slot_mapping",
+        candidate_type: "non_baseline_capability_candidate",
         recommendation_level: "recommended",
         source: "ai_suggested",
-        target_slot: "ui_account_view",
-        component_name: "UserAccountView",
-        component_kind: "react_view",
+        target_slot: null,
+        component_name: null,
+        component_kind: null,
         provider: "nvidia-nim",
+        proposed_capability_candidate_id: "capability-candidate:user-profile",
+        proposed_capability_candidate_name: "User Profile",
+        proposed_capability_candidate_kind: "react_view",
+        label: "Review as a non-map capability signal",
         rationale:
-          "Imports the account store and renders profile fields fetched from /api/account; naming and props closely match the existing UserAccountView slot.",
+          "The file shows a user-facing capability signal, but the sample does not claim it belongs to canonical map topology.",
         evidence_ids: ["evidence:import:account-store", "evidence:jsx:profile-fields"],
         evidence_refs: [
           {
@@ -176,13 +199,14 @@ export const PROPOSALS: Record<string, MappingProposal> = {
       },
       {
         candidate_id: "candidate:2",
-        candidate_type: "existing_slot_mapping",
+        candidate_type: "needs_more_information",
         recommendation_level: "alternative",
         source: "ai_suggested",
-        target_slot: "ui_settings_panel",
-        component_name: "SettingsPanel",
-        component_kind: "react_view",
+        target_slot: null,
+        component_name: null,
+        component_kind: null,
         provider: "nvidia-nim",
+        label: "Needs more information",
         rationale:
           "Contains editable form fields and a save handler, which overlap with the settings surface, but lacks settings-specific routes.",
         evidence_ids: ["evidence:jsx:form-fields"],
@@ -198,15 +222,19 @@ export const PROPOSALS: Record<string, MappingProposal> = {
       },
       {
         candidate_id: "candidate:3",
-        candidate_type: "new_extension_component",
+        candidate_type: "skip_for_now",
         recommendation_level: "fallback",
         source: "fallback_rule",
-        target_slot: "ui_extension",
-        component_name: "UserProfile (new UI extension)",
-        component_kind: "react_view",
+        target_slot: null,
+        component_name: null,
+        component_kind: null,
         provider: "deterministic",
+        proposed_capability_candidate_id: null,
+        proposed_capability_candidate_name: null,
+        proposed_capability_candidate_kind: null,
+        label: "Skip for now",
         rationale:
-          "Deterministic fallback: no existing-slot match found, so propose registering it as a new UI extension component.",
+          "Leave this sample evidence unresolved and keep the unknown component visible.",
         evidence_ids: ["evidence:path:components-dir"],
         evidence_refs: [
           {
@@ -223,27 +251,3 @@ export const PROPOSALS: Record<string, MappingProposal> = {
     updated_at: "2026-06-08T09:30:00Z",
   },
 };
-
-// Target slots the edit form can map into (subset of canonical slots).
-export const SLOT_OPTIONS = [
-  { value: "api_or_orchestrator", label: "API / Orchestrator" },
-  { value: "retriever", label: "Retriever" },
-  { value: "vector_store", label: "Vector Store" },
-  { value: "prompt_builder", label: "Prompt Builder" },
-  { value: "llm", label: "LLM" },
-  { value: "reranker", label: "Reranker" },
-  { value: "ui_account_view", label: "UI · Account View" },
-  { value: "ui_settings_panel", label: "UI · Settings Panel" },
-  { value: "ui_extension", label: "UI · New extension" },
-];
-
-export const COMPONENT_KINDS = [
-  "react_view",
-  "react_component",
-  "python_module",
-  "vector_db",
-  "reranker",
-  "service",
-  "orchestrator",
-  "other",
-];

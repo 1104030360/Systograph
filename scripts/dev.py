@@ -20,7 +20,7 @@ FRONTEND_DIR = ROOT / "frontend"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Start the KAI-Mind local API and frontend dev server."
+        description="Start the Systograph local API and frontend dev server."
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--api-port", type=int, default=8000)

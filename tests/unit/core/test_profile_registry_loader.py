@@ -68,7 +68,7 @@ def write_catalog(tmp_path: Path, text: str) -> Path:
 
 
 def test_loader_accepts_valid_catalog(tmp_path: Path) -> None:
-    # Given: a KAI-Mind-owned catalog covering every active profile id.
+    # Given: a Systograph-owned catalog covering every active profile id.
     path = write_catalog(tmp_path, valid_catalog_text())
 
     # When: the dedicated loader parses the catalog boundary.
@@ -267,7 +267,7 @@ def test_loader_rejects_incomplete_active_profile_coverage(
 
 
 def test_loader_rejects_missing_catalog_path(tmp_path: Path) -> None:
-    # Given: a KAI-Mind-owned path that does not exist.
+    # Given: a Systograph-owned path that does not exist.
     missing_path = tmp_path / "missing-profile-registry.toml"
 
     # When / Then: the loader fails closed with a typed read error.

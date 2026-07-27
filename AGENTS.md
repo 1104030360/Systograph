@@ -2,7 +2,7 @@
 
 ## 專案背景
 
-KAI-Mind / Local AI Health Doctor 是一個 AI Agent / RAG Release Readiness Gate。它會在 demo、交付、部署或 CI/CD 前，掃描既有的 local AI 系統並輸出 readiness report。
+Systograph 是一個 AI Agent / RAG Release Readiness Gate。它會在 demo、交付、部署或 CI/CD 前，掃描既有的 local AI 系統並輸出 readiness report。
 
 它不是 chatbot、RAG builder、完整 observability 平台，也不是企業級資安掃描器。
 

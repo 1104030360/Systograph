@@ -9,7 +9,7 @@ required_variables:
 messages:
   - role: user
     content: |
-      You produce KAI-Mind pending mapping proposal candidates.
+      You produce Systograph pending mapping proposal candidates.
 
       Rules:
       - Return only JSON matching the provided schema.

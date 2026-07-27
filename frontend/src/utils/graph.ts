@@ -1,6 +1,7 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import { MarkerType, type Edge, type Node } from "reactflow";
 import type { GraphEdgeModel, GraphFilterModel, GraphNodeModel, GraphViewModel, ScanProgressEvent, TraceEvent } from "../types";
+import { getLensMatches } from "./lenses";
 
 export type FlowNodeData = GraphNodeModel & {
   isFocused: boolean;
@@ -93,6 +94,7 @@ export function makeGraphIndexes(graph: GraphViewModel) {
   graph.nodes.forEach((node) => {
     nodeIdBySource.set(node.id, node.id);
     if (node.source_id) nodeIdBySource.set(node.source_id, node.id);
+    if (node.component_id) nodeIdBySource.set(node.component_id, node.id);
   });
 
   graph.edges.forEach((edge) => {
@@ -149,6 +151,7 @@ export function createFlowElements(
   graph: GraphViewModel,
   options: {
     activeFilterIds: string[];
+    activeLensId?: string | null;
     selectedId?: string;
     selectedKind?: "node" | "edge";
     traceEvent?: TraceEvent;
@@ -156,8 +159,11 @@ export function createFlowElements(
   },
 ) {
   const filterMatches = getFilterMatches(graph.filters.available, options.activeFilterIds);
+  // Lenses highlight and dim only — every canonical node and edge stays mounted.
+  const lensMatches = getLensMatches(graph.filters.lenses, options.activeLensId ?? null);
   const traceFocus = getTraceFocus(options.traceEvent, graph);
   const hasTraceFocus = traceFocus.focusedNodeIds.size > 0 || traceFocus.focusedEdgeIds.size > 0;
+  const hasHighlightScope = filterMatches.hasFilters || lensMatches.hasLens || hasTraceFocus;
   const sourceRouteOffsets = getSourceRouteOffsets(graph.edges);
   const labelOffsets = getLabelOffsets(graph.edges);
   const sourceYOffsets = getLaneOffsets(graph.edges, "from");
@@ -166,10 +172,11 @@ export function createFlowElements(
   const nodes: Node<FlowNodeData>[] = graph.nodes.map((node) => {
     const selected = options.selectedKind === "node" && options.selectedId === node.id;
     const filterFocused = filterMatches.nodeIds.has(node.id);
+    const lensFocused = lensMatches.nodeIds.has(node.id);
     const traceFocused = traceFocus.focusedNodeIds.has(node.id);
     const progressFocused = options.progressTargetId === node.id;
-    const focused = selected || filterFocused || traceFocused || progressFocused;
-    const dimmed = (filterMatches.hasFilters || hasTraceFocus) && !focused;
+    const focused = selected || filterFocused || lensFocused || traceFocused || progressFocused;
+    const dimmed = hasHighlightScope && !focused;
 
     return {
       id: node.id,
@@ -188,10 +195,11 @@ export function createFlowElements(
   const edges: Edge<FlowEdgeData>[] = graph.edges.map((edge) => {
     const selected = options.selectedKind === "edge" && options.selectedId === edge.id;
     const filterFocused = filterMatches.edgeIds.has(edge.id);
+    const lensFocused = lensMatches.edgeIds.has(edge.id);
     const traceFocused = traceFocus.focusedEdgeIds.has(edge.id);
     const progressFocused = options.progressTargetId === edge.id;
-    const focused = selected || filterFocused || traceFocused || progressFocused;
-    const dimmed = (filterMatches.hasFilters || hasTraceFocus) && !focused;
+    const focused = selected || filterFocused || lensFocused || traceFocused || progressFocused;
+    const dimmed = hasHighlightScope && !focused;
     const labelOffset = labelOffsets.get(edge.id);
     const isRisk = edge.risk_hint_ids.length > 0;
     const isUnmapped = edge.status === "needs_confirmation";
@@ -242,7 +250,36 @@ export function createFlowElements(
   return { nodes, edges };
 }
 
+const ATTACHMENT_STACK_GAP = 26;
+const ATTACHMENT_X_OFFSET = 18;
+
+function resolveAttachmentAnchorId(data: FlowNodeData, layoutNodeIds: Set<string>): string | null {
+  if (data.primary_anchor_node_id && layoutNodeIds.has(data.primary_anchor_node_id)) {
+    return data.primary_anchor_node_id;
+  }
+  return data.anchor_node_ids.find((id) => layoutNodeIds.has(id)) ?? null;
+}
+
 export async function layoutGraph(nodes: Node<FlowNodeData>[], edges: Edge<FlowEdgeData>[]) {
+  // Profile attachments are backend-anchored overlays, not flow participants:
+  // they stay out of the layered layout and sit beside their anchor node. An
+  // attachment whose anchor cannot be resolved degrades into the main layout
+  // so it never disappears.
+  const layoutNodeIds = new Set(
+    nodes.filter((node) => node.data.semantic_kind !== "profile_attachment").map((node) => node.id),
+  );
+  const anchorByAttachmentId = new Map<string, string>();
+  nodes.forEach((node) => {
+    if (node.data.semantic_kind !== "profile_attachment") return;
+    const anchorId = resolveAttachmentAnchorId(node.data, layoutNodeIds);
+    if (anchorId) anchorByAttachmentId.set(node.id, anchorId);
+  });
+
+  const layoutNodes = nodes.filter((node) => !anchorByAttachmentId.has(node.id));
+  const layoutEdges = edges.filter(
+    (edge) => !anchorByAttachmentId.has(edge.source) && !anchorByAttachmentId.has(edge.target),
+  );
+
   const elkGraph = {
     id: "root",
     layoutOptions: {
@@ -252,12 +289,12 @@ export async function layoutGraph(nodes: Node<FlowNodeData>[], edges: Edge<FlowE
       "elk.layered.spacing.nodeNodeBetweenLayers": "118",
       "elk.edgeRouting": "ORTHOGONAL",
     },
-    children: nodes.map((node) => ({
+    children: layoutNodes.map((node) => ({
       id: node.id,
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
     })),
-    edges: edges.map((edge) => ({
+    edges: layoutEdges.map((edge) => ({
       id: edge.id,
       sources: [edge.source],
       targets: [edge.target],
@@ -266,6 +303,18 @@ export async function layoutGraph(nodes: Node<FlowNodeData>[], edges: Edge<FlowE
 
   const layout = await elk.layout(elkGraph);
   const positions = new Map(layout.children?.map((node) => [node.id, { x: node.x ?? 0, y: node.y ?? 0 }]) ?? []);
+
+  const stackSizeByAnchorId = new Map<string, number>();
+  anchorByAttachmentId.forEach((anchorId, attachmentId) => {
+    const anchorPosition = positions.get(anchorId);
+    if (!anchorPosition) return;
+    const stackIndex = stackSizeByAnchorId.get(anchorId) ?? 0;
+    stackSizeByAnchorId.set(anchorId, stackIndex + 1);
+    positions.set(attachmentId, {
+      x: anchorPosition.x + ATTACHMENT_X_OFFSET,
+      y: anchorPosition.y - (NODE_HEIGHT + ATTACHMENT_STACK_GAP) * (stackIndex + 1),
+    });
+  });
 
   return nodes.map((node) => ({
     ...node,

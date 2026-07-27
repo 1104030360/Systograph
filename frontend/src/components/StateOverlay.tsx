@@ -12,7 +12,7 @@ type Props = {
 
 /**
  * Neutral, honest overlay for non-loaded graph states. Never falls back to
- * sample data silently — "Use sample data" is an explicit user action.
+ * sample data silently — inspecting the legacy sample is an explicit action.
  */
 export function StateOverlay({ kind, apiBaseUrl, message, onRetry, onUseSample }: Props) {
   if (kind === "loaded") return null;
@@ -40,7 +40,7 @@ export function StateOverlay({ kind, apiBaseUrl, message, onRetry, onUseSample }
             <WifiOff size={20} />
           </div>
           <h3>API unavailable</h3>
-          <p>Could not load the viewer payload. Sample data is not shown while in API mode.</p>
+          <p>Could not load the backend projection. The legacy sample is never substituted silently.</p>
           <div className="mono">{message ?? `GET ${apiBaseUrl}/api/map failed`}</div>
           <div className="state-actions">
             <button className="btn primary" type="button" onClick={onRetry}>
@@ -48,7 +48,7 @@ export function StateOverlay({ kind, apiBaseUrl, message, onRetry, onUseSample }
               Retry
             </button>
             <button className="btn" type="button" onClick={onUseSample}>
-              Use sample data
+              Inspect legacy sample
             </button>
           </div>
         </div>
@@ -64,15 +64,15 @@ export function StateOverlay({ kind, apiBaseUrl, message, onRetry, onUseSample }
         </div>
         <h3>No map loaded yet</h3>
         <p>
-          The backend has not produced an ai_system_map for this project. Run a scan, or switch to sample data to explore
-          the viewer.
+          The backend has not produced an ai_system_map for this project. Import and scan a local project to create the
+          normalized ten-plane projection.
         </p>
         <div className="state-actions">
           <button className="btn primary" type="button" onClick={onRetry}>
             Check again
           </button>
           <button className="btn" type="button" onClick={onUseSample}>
-            Use sample data
+            Inspect legacy sample
           </button>
         </div>
       </div>

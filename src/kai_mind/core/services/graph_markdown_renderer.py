@@ -19,7 +19,7 @@ class GraphMarkdownRenderer:
 
     def render(self, graph: GraphViewModel) -> str:
         lines = [
-            "# KAI-Mind System Map",
+            "# Systograph System Map",
             "",
             f"- Graph schema: `{graph.schema_version or 'unknown'}`",
             f"- Source schema: `{graph.source_schema_version or 'unknown'}`",

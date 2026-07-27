@@ -1592,7 +1592,7 @@
   },
   "mapping_proposal_result_sample": {
     "proposal_id": "proposal:reranker-extension",
-    "proposal_type": "new_extension_component",
+    "proposal_type": "non_baseline_capability_candidate",
     "source": "ai_assisted_user_description",
     "status": "pending_user_confirmation",
     "suggested_component": {

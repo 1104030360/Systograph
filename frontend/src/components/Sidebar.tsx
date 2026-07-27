@@ -1,14 +1,19 @@
-import { ChevronDown, Info, RotateCcw, Sparkles } from "lucide-react";
-import type { GraphFilterModel, ScanSummary } from "../types";
+import { ChevronDown, Info, RotateCcw } from "lucide-react";
+import type { GraphFilterModel, GraphLensModel, ScanSummary } from "../types";
+import { BrandMark } from "../icons/BrandMark";
+import { LensPanel } from "./LensPanel";
 
 type Props = {
   scanSummary?: ScanSummary;
   scanDepth?: string;
   dataAvailable: boolean;
   filters: GraphFilterModel[];
+  lenses: GraphLensModel[];
   activeFilterIds: string[];
+  activeLensId: string | null;
   isOpen: boolean;
   onToggleFilter: (id: string) => void;
+  onToggleLens: (id: string) => void;
   onClearFilters: () => void;
 };
 
@@ -29,9 +34,12 @@ export function Sidebar({
   scanDepth,
   dataAvailable,
   filters,
+  lenses,
   activeFilterIds,
+  activeLensId,
   isOpen,
   onToggleFilter,
+  onToggleLens,
   onClearFilters,
 }: Props) {
   const cell = (value: number | undefined) => (dataAvailable && value != null ? String(value) : "unknown");
@@ -46,10 +54,10 @@ export function Sidebar({
     <aside className={isOpen ? "sidebar is-open" : "sidebar"}>
       <div className="brand">
         <div className="brand-mark">
-          <Sparkles size={17} />
+          <BrandMark size={18} />
         </div>
         <div className="brand-text">
-          <strong>Health Doctor</strong>
+          <strong>Systograph</strong>
           <span className="mono">system map viewer</span>
         </div>
       </div>
@@ -79,6 +87,8 @@ export function Sidebar({
           </div>
         ) : null}
       </section>
+
+      <LensPanel lenses={lenses} activeLensId={activeLensId} onToggleLens={onToggleLens} />
 
       <section className="side-section">
         <div className="side-head">

@@ -1,4 +1,4 @@
-"""FastAPI application factory for the local KAI-Mind API."""
+"""FastAPI application factory for the local Systograph API."""
 
 from __future__ import annotations
 
@@ -136,7 +136,7 @@ def create_app(
     max_request_body_bytes: int = DEFAULT_MAX_REQUEST_BODY_BYTES,
 ) -> LocalApiApp:
     canonical_output_version = canonical_output_version_from_env()
-    app = FastAPI(title="KAI-Mind Local API", version="0.1.0")
+    app = FastAPI(title="Systograph Local API", version="0.1.0")
     if state_dir is None:
         state_dir = default_state_dir()
     repository = LocalJsonStateProvider(state_dir)

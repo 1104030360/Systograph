@@ -4,19 +4,27 @@ import type { DataSourceMode, ScanProgressEvent, ScanTarget, Selection, TraceEve
 type ViewerState = {
   dataSourceMode: DataSourceMode;
   apiBaseUrl: string;
+  /** Imported project driving build-scoped API reads; null before any import. */
+  activeProjectId: string | null;
+  /** Selected historical build; null means "follow the project's latest build". */
+  activeBuildId: string | null;
   selected: Selection;
   activeFilterIds: string[];
+  activeLensId: string | null;
   activeTraceIndex: number;
   isReplayRunning: boolean;
   progressIndex: number;
   isProgressRunning: boolean;
   followFocus: boolean;
   liveProgressEvent: ScanProgressEvent | null;
-  detailMode: "overview" | "component" | "code_path";
+  detailMode: "overview" | "evidence" | "code_path";
   setDataSourceMode: (mode: DataSourceMode) => void;
   setApiBaseUrl: (baseUrl: string) => void;
+  setActiveProjectId: (projectId: string | null) => void;
+  setActiveBuildId: (buildId: string | null) => void;
   setSelected: (selected: Selection) => void;
   toggleFilter: (id: string) => void;
+  toggleLens: (id: string) => void;
   clearFilters: () => void;
   setActiveTraceIndex: (index: number) => void;
   setReplayRunning: (running: boolean) => void;
@@ -32,10 +40,13 @@ type ViewerState = {
 const defaultApiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 export const useViewerStore = create<ViewerState>((set) => ({
-  dataSourceMode: "sample",
+  dataSourceMode: "api",
   apiBaseUrl: defaultApiBaseUrl,
+  activeProjectId: null,
+  activeBuildId: null,
   selected: null,
   activeFilterIds: ["filter:flow:query_answer"],
+  activeLensId: null,
   activeTraceIndex: 0,
   isReplayRunning: false,
   progressIndex: 0,
@@ -45,6 +56,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   detailMode: "overview",
   setDataSourceMode: (dataSourceMode) => set({ dataSourceMode, liveProgressEvent: null }),
   setApiBaseUrl: (apiBaseUrl) => set({ apiBaseUrl }),
+  // Switching projects always leaves historical-build viewing.
+  setActiveProjectId: (activeProjectId) => set({ activeProjectId, activeBuildId: null }),
+  setActiveBuildId: (activeBuildId) => set({ activeBuildId }),
   setSelected: (selected) => set({ selected, detailMode: "overview" }),
   toggleFilter: (id) =>
     set((state) => ({
@@ -52,7 +66,11 @@ export const useViewerStore = create<ViewerState>((set) => ({
         ? state.activeFilterIds.filter((filterId) => filterId !== id)
         : [...state.activeFilterIds, id],
     })),
-  clearFilters: () => set({ activeFilterIds: [] }),
+  toggleLens: (id) =>
+    set((state) => ({
+      activeLensId: state.activeLensId === id ? null : id,
+    })),
+  clearFilters: () => set({ activeFilterIds: [], activeLensId: null }),
   setActiveTraceIndex: (activeTraceIndex) => set({ activeTraceIndex }),
   setReplayRunning: (isReplayRunning) => set({ isReplayRunning }),
   setProgressRunning: (isProgressRunning) => set({ isProgressRunning }),

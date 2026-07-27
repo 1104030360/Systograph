@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/api_trace_common.sh"
 
 ENDPOINT_ID="endpoint:missing"
-QUERY="KAI-Mind query trace smoke test"
+QUERY="Systograph query trace smoke test"
 TIMEOUT_SECONDS="3"
 
 usage() {

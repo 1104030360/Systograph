@@ -2,7 +2,7 @@
 
 ## 安全目標
 
-Query Trace 是使用者明確觸發的 runtime 功能，但 endpoint value 來自被掃描的 system map，因此仍必須視為不可信輸入。KAI-Mind 在 `EndpointCallProvider` 這個共用 boundary 套用 egress policy，讓 Web `/api/trace` 與 CLI `kai-mind trace` 使用相同保護。
+Query Trace 是使用者明確觸發的 runtime 功能，但 endpoint value 來自被掃描的 system map，因此仍必須視為不可信輸入。Systograph 在 `EndpointCallProvider` 這個共用 boundary 套用 egress policy，讓 Web `/api/trace` 與 CLI `systograph trace`（legacy alias：`kai-mind trace`）使用相同保護。
 
 本實作採用 **Track A SSRF baseline**：
 
@@ -86,7 +86,7 @@ service = QueryTraceService(
 app = create_app(query_trace_service=service)
 ```
 
-CLI 目前沒有 local-dev flag，固定使用 safe mode。若未來新增 CLI 或環境設定，來源必須是 KAI-Mind operator-controlled config，不得讓 scanned project 自行放行 localhost/private egress。
+CLI 目前沒有 local-dev flag，固定使用 safe mode。若未來新增 CLI 或環境設定，來源必須是 Systograph operator-controlled config，不得讓 scanned project 自行放行 localhost/private egress。
 
 ## Redirect 與 proxy
 

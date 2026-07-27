@@ -1,4 +1,10 @@
-import { scanProgressEventSchema, viewerPayloadSchema, type ScanProgressEvent, type ViewerPayload } from "../types";
+import {
+  mapBuildHistoryResponseSchema,
+  parseMapBuildPayload,
+  parseViewerPayload,
+  type MapBuildHistorySummary,
+} from "../contracts/viewer";
+import { scanProgressEventSchema, type ScanProgressEvent, type ViewerPayload } from "../types";
 import { viewerPayload as sampleViewerPayload } from "../data/sampleMap";
 import { fetchJson, normalizeBaseUrl } from "./http";
 
@@ -8,16 +14,35 @@ export async function loadSampleViewerPayload(): Promise<ViewerPayload> {
   return sampleViewerPayload;
 }
 
-export async function loadApiViewerPayload(baseUrl: string, signal?: AbortSignal): Promise<ViewerPayload> {
+export async function loadApiViewerPayload(
+  baseUrl: string,
+  signal?: AbortSignal,
+  projectId?: string | null,
+): Promise<ViewerPayload> {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   const errors: string[] = [];
+
+  // Build-scoped latest is the primary API-mode read (API-GUIDE §map-builds);
+  // the process-wide /api/map endpoints stay as demo/legacy fallback.
+  if (projectId) {
+    const endpoint = `/api/projects/${encodeURIComponent(projectId)}/map-builds/latest`;
+    try {
+      const payload = await fetchJson(`${normalizedBaseUrl}${endpoint}`, { signal });
+      return parseMapBuildPayload(payload);
+    } catch (error) {
+      errors.push(`${endpoint}: ${error instanceof Error ? error.message : String(error)}`);
+      if (signal?.aborted) {
+        throw new Error(`Unable to load viewer payload from ${normalizedBaseUrl}. Tried ${errors.join("; ")}`);
+      }
+    }
+  }
 
   for (const endpoint of mapEndpoints) {
     const url = `${normalizedBaseUrl}${endpoint}`;
 
     try {
       const payload = await fetchJson(url, { signal });
-      return viewerPayloadSchema.parse(payload);
+      return parseViewerPayload(payload);
     } catch (error) {
       errors.push(`${endpoint}: ${error instanceof Error ? error.message : String(error)}`);
       // A cancelled request must not fall through to the next endpoint.
@@ -26,6 +51,26 @@ export async function loadApiViewerPayload(baseUrl: string, signal?: AbortSignal
   }
 
   throw new Error(`Unable to load viewer payload from ${normalizedBaseUrl}. Tried ${errors.join("; ")}`);
+}
+
+export async function listMapBuilds(
+  baseUrl: string,
+  projectId: string,
+  signal?: AbortSignal,
+): Promise<MapBuildHistorySummary[]> {
+  const url = `${normalizeBaseUrl(baseUrl)}/api/projects/${encodeURIComponent(projectId)}/map-builds`;
+  const payload = await fetchJson(url, { signal });
+  return mapBuildHistoryResponseSchema.parse(payload).builds;
+}
+
+export async function loadMapBuildViewerPayload(
+  baseUrl: string,
+  buildId: string,
+  signal?: AbortSignal,
+): Promise<ViewerPayload> {
+  const url = `${normalizeBaseUrl(baseUrl)}/api/map-builds/${encodeURIComponent(buildId)}`;
+  const payload = await fetchJson(url, { signal });
+  return parseMapBuildPayload(payload);
 }
 
 export function createScanEventSource(baseUrl: string): EventSource {

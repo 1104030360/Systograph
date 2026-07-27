@@ -3,9 +3,9 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "kai-mind"
+name = "systograph"
 version = "0.1.0"
-description = "Local AI health doctor backend foundation."
+description = "AI system release-readiness foundation."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -32,6 +32,7 @@ dev = [
 ]
 
 [project.scripts]
+systograph = "kai_mind.cli.main:main"
 kai-mind = "kai_mind.cli.main:main"
 
 [tool.hatch.build.targets.wheel]

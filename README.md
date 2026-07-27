@@ -1,15 +1,14 @@
-# KAI-Mind
+# Systograph
 
-> **命名狀態：** Repository 與部分既有文件目前仍使用
-> `Local_AI_Health_Doctor` / `Local AI Health Doctor`。這是暫時名稱，後續會統一更名；
-> 現階段產品與程式碼名稱以 **KAI-Mind** 為主。
+> **命名狀態：** 產品名稱已統一為 **Systograph**。為避免破壞既有安裝、資料與
+> schema contract，Repository URL、Python import `kai_mind`、舊 CLI alias `kai-mind`、
+> `${KAI_MIND_STATE_DIR:-~/.kai-mind}` 與既有 schema IDs 暫時維持相容名稱。
 
-KAI-Mind 是一個 AI Agent / RAG 系統的 **Release Readiness Gate**。它協助團隊在
+Systograph 是一個 AI Agent / RAG 系統的 **Release Readiness Gate**。它協助團隊在
 demo、交付、部署或進入 CI/CD 前，掃描既有 local AI 系統、建立 AI System Map，並產出
 可追蹤的 evidence-backed 檢查結果。
 
-KAI-Mind 是開發者工具，不是醫療診斷、治療、臨床決策或醫療器材認證工具；
-`Health Doctor` 暫名不代表產品提供醫療建議或醫療級保證。
+Systograph 是開發者工具，不是醫療診斷、治療、臨床決策或醫療器材認證工具。
 
 ## 目前能力與目標能力
 
@@ -20,8 +19,8 @@ README 必須區分「目前程式碼已能執行」與「roadmap / 尚未交付
 
 - deterministic-first scanner：先以 filesystem、config、dependency、Docker 與 code pattern
   providers 擷取結構化 facts / evidence（Understand-Anything 結構主掃仍為後續 Phase）。
-- `ai-system-map/v1` 仍為 **active canonical** artifact；另有 v2 compatibility migration／
-  internal normalized v2（`active` 尚未切到 v2）。
+- `ai-system-map/v2` 已是 **active canonical** artifact；v1 僅保留 dual-read compatibility
+  與隔離的 operator rollback。
 - 每次成功 build 可 atomic publish **10 public siblings**（map／Markdown／Mermaid、
   `profile_signals.json`、`readiness_report.json`、static execution JSON 等）。
 - package-bundled **10-plane / 52-node** capability reference catalog 與 **15 MVP profiles**；
@@ -29,16 +28,16 @@ README 必須區分「目前程式碼已能執行」與「roadmap / 尚未交付
 - durable local JSON state：`${KAI_MIND_STATE_DIR:-~/.kai-mind}`，含 project／scan／build
   lineage、manual mappings、latest pointer；支援 restart recovery。
 - Apply confirmations、map-builds query／history、Detail Scan child build、Trace build binding。
-- CLI（`kai-mind`）、FastAPI local web API 與 frontend Viewer 共用同一套 core services。
+- CLI（`systograph`；`kai-mind` 為相容 alias）、FastAPI local web API 與 frontend Viewer
+  共用同一套 core services。
 - scan boundary review、path redaction、secret masking 與 snapshot safety checks。
 - sample projects、contract／unit／integration／web／e2e tests 與 frontend 基礎串接
   （import → scans → map／SSE）。
 
 ### 尚未全部實作／仍屬後續目標
 
-- 將 `ai-system-map/v2` 切成 **active** canonical（Plan 13／cutover）。
 - Understand-Anything 結構掃描升為主掃（Phase B／C）與舊 TOML 主掃退役。
-- frontend v2 cutover、Graph Studio、profile／readiness 完整 UI、Apply button 產品流。
+- Inventory Preflight UI、Graph Studio 與 profile／readiness 後續產品化。
 - CI／產品級 release gate，以及對外宣稱穩定的單一 `READY`／`RISKY`／`NOT READY` runtime
   verdict UX（後端已有 `readiness_report.json` 與 evidence-backed findings；正式產品
   verdict／CI gate 仍以後續 Epic／contract 為準）。
@@ -54,7 +53,7 @@ README 必須區分「目前程式碼已能執行」與「roadmap / 尚未交付
 
 ## 產品方向
 
-KAI-Mind 應該先以跨平台核心為主。Epic 1 目前優先支援 GUI / local web UI，但 scanner core
+Systograph 應該先以跨平台核心為主。Epic 1 目前優先支援 GUI / local web UI，但 scanner core
 必須獨立，CLI、Web API、launcher 與 CI 都不可重複實作 core scanner logic。
 
 ```text
@@ -125,7 +124,7 @@ pipeline／各 Epic 子任務推進，不要把未合併的 design-only 文件�
 src/kai_mind/
   core/       # services、models、providers、rules（不可依賴 web／cli）
   web/        # FastAPI adapter（routes／schemas／Depends／session）
-  cli/        # Typer adapter（kai-mind）
+  cli/        # Typer adapter（systograph；legacy alias：kai-mind）
   storage/    # 薄 re-export；durable JSON 在 core/providers
 tests/        # unit／integration／contracts／web／cli／e2e／fixtures
 ```
@@ -183,6 +182,8 @@ uv sync
 uv run pytest
 uv run ruff check src tests
 uv run mypy
+uv run systograph --help
+# legacy compatibility alias
 uv run kai-mind --help
 # 或
 uv run python -m kai_mind.cli.main --help

@@ -1,1 +1,1 @@
-"""Command-line adapters for KAI-Mind."""
+"""Command-line adapters for Systograph."""

@@ -191,7 +191,7 @@ class OutputArtifactProvider:
     def _render_map_error(self, error: PreconditionError) -> str:
         return "\n".join(
             [
-                "# KAI-Mind Map Build Failed",
+                "# Systograph Map Build Failed",
                 "",
                 f"scan_stage: {error.scan_stage}",
                 f"project_path: {error.project_path}",
