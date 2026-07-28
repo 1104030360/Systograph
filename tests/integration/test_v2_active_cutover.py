@@ -28,6 +28,7 @@ from kai_mind.core.services.legacy_v1_rollback_service import (
     LegacyV1RollbackError,
 )
 from kai_mind.core.services.map_build_service import MapBuildService
+from kai_mind.core.services.rag_template_service import RagTemplateService
 from kai_mind.web.app import create_app
 
 
@@ -76,9 +77,11 @@ def test_normal_v2_build_populates_recommended_next_checks(
     Given a scanned project that uses an external embedding provider, a
     secret-like config key and a published container port,
     When a normal ai-system-map/v2 build runs,
-    Then the canonical map carries deterministic recommended next checks
-    that point at concrete components/slots, and the published artifact
-    JSON round-trips that list unchanged.
+    Then every canonical check resolves to one of the four contracted
+    target types (component instance / slot / endpoint, plus the
+    system-wide fallback) with a target that exists in this map, at
+    least one check stays evidence-targeted rather than system-wide,
+    and the published artifact JSON round-trips that list unchanged.
     """
     # Given / When
     result = _build_fixture_project(tmp_path, "pgvector_openai_rag")
@@ -117,11 +120,31 @@ def test_normal_v2_build_populates_recommended_next_checks(
         "component:embedding_model:openai",
     ) in runtime_targets
     assert ("component_slot", "data_sources") in trust_targets
-    assert {
-        target
-        for target_type, target in privacy_targets | runtime_targets
-        if target_type == "component_instance"
-    } <= component_ids
+
+    # Whole-list target contract (MODEL-CONTRACT §5.3). Filtering to one
+    # target type here would let an unresolved or unknown target slip
+    # through unasserted, which is how the `system` fallback stayed
+    # invisible; assert every check instead.
+    endpoint_ids = {endpoint.endpoint_id for endpoint in system_map.endpoints}
+    slot_ids = {
+        slot.id for slot in RagTemplateService.load("rag-core-v1").slots
+    }
+    targets_by_type: dict[str, set[str]] = {}
+    for check in checks:
+        targets_by_type.setdefault(check.target_type, set()).add(check.target)
+    assert targets_by_type.keys() <= {
+        "component_instance",
+        "component_slot",
+        "endpoint",
+        "system",
+    }
+    assert targets_by_type.get("component_instance", set()) <= component_ids
+    assert targets_by_type.get("component_slot", set()) <= slot_ids
+    assert targets_by_type.get("endpoint", set()) <= endpoint_ids
+    assert targets_by_type.get("system", set()) <= {"system"}
+    # Precision guard: the list must never degrade to system-wide only.
+    assert targets_by_type.keys() - {"system"}
+
     assert all(check.reason and check.action for check in checks)
     assert [check.id for check in checks] == sorted(
         check.id for check in checks

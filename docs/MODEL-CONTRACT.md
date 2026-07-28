@@ -332,11 +332,12 @@ Canonical map 只含 evidence-backed facts。Grounding readiness、profiles、`p
 
 | 欄位 | 說明 |
 |------|------|
-| `id` | `check:<rule_id>:<target_type>:<target>`；同 rule + 同 target 只出現一次 |
-| `target_type` / `target` | **evidence-targeted**：指向具體 `component_instance` / `component_slot` / `endpoint`，不得是整體性評語 |
+| `id` | `check:<rule_id>:<slug(target_type)>:<slug(target)>`；同 rule + 同 target 只出現一次。`rule_id` 原樣保留，後兩段經 **slug 化**：連續非英數字元折成單一 `-`、去頭尾 `-`、轉小寫。例：`component_instance` + `component:embedding_model:openai` → `check:privacy_exposure:component-instance:component-embedding-model-openai` |
+| `target_type` / `target` | 四種取值：`component_instance` / `component_slot` / `endpoint` / `system`。前三種為 **evidence-targeted**，指向具體實體；`system` 是 **fallback**——觸發訊號解析不到任何 component / slot / endpoint 時，該 check 針對整個系統，此時 `target` 固定為 `"system"` |
 | `reason` | 觸發這條 check 的靜態掃描事實 |
 | `action` | 建議人工執行的下一步驗證動作 |
 
+- `system` fallback 的取值來自 rule TOML 的 `default_target_type`，只在 target 解析失敗時使用，**不是**整體性評語的入口：即使 target 退回 `system`，`reason` 仍必須是可查證的掃描事實、`action` 仍必須是具體的人工驗證動作。
 - **不是 score、不是 verdict**：只列「靜態證據尚未涵蓋、需人工確認」的項目；**禁止** `confidence` 或 pass/fail 語彙。
 - 關注面是 runtime readiness 與 privacy exposure（missing runtime-critical slot、published port、external provider、secret-like config…），**不**評估 capability。
 - 依 `id` 排序；同一 `scan_id` 重跑結果一致。

@@ -181,6 +181,10 @@ class MapBuildService:
             canonical_output_version or canonical_output_version_from_env()
         )
         rollback_service = legacy_v1_rollback_service
+        # Census contract: this comparison uses the constant, so this file
+        # carries no inline legacy literal for the AST census to find. The
+        # literal is owned by canonical_output_configuration.py, which is
+        # the module the census records for this branch.
         if (
             rollback_service is None
             and self._canonical_output_version

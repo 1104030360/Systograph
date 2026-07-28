@@ -30,7 +30,9 @@ same-parent staging，通過 required-set／scope／reference／schema validatio
 - Classification：`migrate=5`、`migration_only=24`、`operator_rollback=8`。
 - 5筆`migrate`全部位於frontend原始檔案，removal plan明確交由frontend owner；backend無
   未分類active legacy hit。
-- Digest payload：依 allowlist tuple 順序，把四欄 record 組成 list 後一次做
+- Digest payload：依 allowlist tuple 順序，把每筆 record 轉成 `path` / `symbol` /
+  `classification` / `removal_plan` 四個 key 的 **dict**（不是四元素 list——list-of-lists
+  會算出不同 hash），組成 list 後一次做
   `json.dumps(payload, sort_keys=True, separators=(",", ":"))`。
 - Census SHA-256：
   `fa27a510c5253dc2d856ecee9d76ac1c1e5f7ab07df096893799a969e6be1c56`。

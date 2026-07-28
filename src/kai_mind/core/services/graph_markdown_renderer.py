@@ -219,7 +219,9 @@ class GraphMarkdownRenderer:
     # Scan-fact checks (graph-level, derived from runtime/privacy scan
     # facts) and capability review checks (per-node, owned by profile
     # assessment) answer different questions, so neither shadows the
-    # other: both sections are always rendered.
+    # other: both sections are always rendered. Both go through _safe:
+    # capability text is registry-static today, but this section now
+    # renders on every report, so masking is not left to provenance.
     def _render_recommended_next_checks(
         self,
         graph: GraphViewModel,
@@ -241,7 +243,7 @@ class GraphMarkdownRenderer:
             *_check_section(
                 "Capability review checks",
                 [
-                    f"- [ ] `{_cell(node.id)}`: {_cell(check)}"
+                    f"- [ ] `{_cell(node.id)}`: {_cell(self._safe(check))}"
                     for node in graph.nodes
                     for check in node.recommended_next_checks
                 ],
