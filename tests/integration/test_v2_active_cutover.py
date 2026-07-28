@@ -5,7 +5,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from tests.helpers.fixtures import rag_project_fixture_path
 
+from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.analysis_history import ScanSnapshot
 from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
 from kai_mind.core.models.scan import OutputRun, ProjectScanResult
@@ -42,6 +44,91 @@ def _build(
         output_run=OutputRun(root_dir=tmp_path / "build"),
         build_reason="initial_scan",
         build_id="build:v2-cutover",
+    )
+
+
+def _build_fixture_project(
+    tmp_path: Path,
+    fixture_name: str,
+) -> MapBuildResult:
+    return MapBuildService().build(
+        MapBuildRequest(
+            project_path=rag_project_fixture_path(fixture_name),
+            output=tmp_path / "outputs",
+        )
+    )
+
+
+def test_normal_v2_build_populates_recommended_next_checks(
+    tmp_path: Path,
+) -> None:
+    """Recommended next checks survive on the active v2 build path.
+
+    Given a scanned project that uses an external embedding provider, a
+    secret-like config key and a published container port,
+    When a normal ai-system-map/v2 build runs,
+    Then the canonical map carries deterministic recommended next checks
+    that point at concrete components/slots, and the published artifact
+    JSON round-trips that list unchanged.
+    """
+    # Given / When
+    result = _build_fixture_project(tmp_path, "pgvector_openai_rag")
+
+    # Then
+    assert result.status == "ok"
+    assert result.ai_system_map is not None
+    system_map = result.ai_system_map
+    checks = system_map.recommended_next_checks
+    assert checks
+
+    component_ids = {
+        component.component_id for component in system_map.components
+    }
+    privacy_targets = {
+        (check.target_type, check.target)
+        for check in checks
+        if check.id.startswith("check:privacy_exposure:")
+    }
+    runtime_targets = {
+        (check.target_type, check.target)
+        for check in checks
+        if check.id.startswith("check:runtime_readiness:")
+    }
+    trust_targets = {
+        (check.target_type, check.target)
+        for check in checks
+        if check.id.startswith("check:rag_knowledge_trust:")
+    }
+    assert (
+        "component_instance",
+        "component:vector_store:pgvector",
+    ) in privacy_targets
+    assert (
+        "component_instance",
+        "component:embedding_model:openai",
+    ) in runtime_targets
+    assert ("component_slot", "data_sources") in trust_targets
+    assert {
+        target
+        for target_type, target in privacy_targets | runtime_targets
+        if target_type == "component_instance"
+    } <= component_ids
+    assert all(check.reason and check.action for check in checks)
+    assert [check.id for check in checks] == sorted(
+        check.id for check in checks
+    )
+
+    assert result.map_json_path is not None
+    payload = json.loads(result.map_json_path.read_text(encoding="utf-8"))
+    dumped = system_map.model_dump(mode="json")
+    dumped_checks = dumped["recommended_next_checks"]
+    assert payload["recommended_next_checks"] == dumped_checks
+    assert (
+        AiSystemMapV2.model_validate(dumped).recommended_next_checks == checks
+    )
+    assert (
+        CanonicalMapLoader().load(payload).normalized.recommended_next_checks
+        == checks
     )
 
 

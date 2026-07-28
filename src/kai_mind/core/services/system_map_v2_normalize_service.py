@@ -13,12 +13,14 @@ from kai_mind.core.models.ai_system_map_v2 import (
     CanonicalEdge,
     CanonicalEndpoint,
     CanonicalProject,
+    CanonicalRecommendedNextCheck,
     CanonicalRiskHint,
     CanonicalUnmappedComponent,
     CompatibilityLayer,
     DetectionStatus,
     RiskTargetTypeV2,
 )
+from kai_mind.core.models.recommended_next_check import RecommendedNextCheck
 from kai_mind.core.models.scan import ProjectScanResult
 from kai_mind.core.models.system_map import Endpoint, Flow, RiskHint
 from kai_mind.core.services.canonical_evidence_service import (
@@ -57,6 +59,7 @@ class SystemMapV2NormalizeService:
         endpoints: Sequence[Endpoint],
         flows: Sequence[Flow],
         risk_hints: Sequence[RiskHint],
+        recommended_next_checks: Sequence[RecommendedNextCheck],
         no_snippets: bool,
     ) -> AiSystemMapV2:
         canonical_components = self._components(components)
@@ -103,6 +106,18 @@ class SystemMapV2NormalizeService:
                     components.unmapped_components,
                     key=lambda item: item.id,
                 )
+            ],
+            # Order is the RecommendedNextCheckService output order
+            # (sorted by id); assembling must not reorder it.
+            recommended_next_checks=[
+                CanonicalRecommendedNextCheck(
+                    id=check.id,
+                    target_type=check.target_type,
+                    target=check.target,
+                    reason=check.reason,
+                    action=check.action,
+                )
+                for check in recommended_next_checks
             ],
         )
 

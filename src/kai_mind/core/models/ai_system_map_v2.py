@@ -414,11 +414,13 @@ class CanonicalCandidateFact(V2ContractModel):
 
 
 # 做什麼：canonical 建議下一步檢查（target + reason + action）。
-# 被誰用：AiSystemMapV2.recommended_next_checks；markdown summary / Viewer
-# 顯示。
+# 被誰用：AiSystemMapV2.recommended_next_checks（正常 v2 build 直接產出）。
 # 內含：無巢狀 model。
 # 注意：欄位與 models/recommended_next_check.py 的版本中立 DTO 同形；
-# RecommendedNextCheckService 產出的結果由 materialization 轉成這個型別。
+# SystemMapV2MaterializationService.materialize 呼叫
+# RecommendedNextCheckService.derive，再由 SystemMapV2NormalizeService
+# .assemble 轉成這個型別。Viewer / markdown 投影目前仍只讀 v1 legacy
+# source map，還沒接上 v2 這條路徑。
 class CanonicalRecommendedNextCheck(V2ContractModel):
     id: str
     target_type: str

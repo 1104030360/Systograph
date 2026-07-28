@@ -19,6 +19,9 @@ from kai_mind.core.services.flow_derivation_service import (
 )
 from kai_mind.core.services.manual_mapping_service import ManualMappingService
 from kai_mind.core.services.rag_template_service import RagTemplateService
+from kai_mind.core.services.recommended_next_check_service import (
+    RecommendedNextCheckService,
+)
 from kai_mind.core.services.risk_hint_service import RiskHintService
 from kai_mind.core.services.system_map_v2_normalize_service import (
     SystemMapV2NormalizeService,
@@ -44,6 +47,9 @@ class SystemMapV2MaterializationService:
         risk_hint_service: RiskHintService | None = None,
         flow_derivation_service: FlowDerivationService | None = None,
         manual_mapping_service: ManualMappingService | None = None,
+        recommended_next_check_service: (
+            RecommendedNextCheckService | None
+        ) = None,
         normalize_service: SystemMapV2NormalizeService | None = None,
         validation_service: SystemMapV2ValidationService | None = None,
     ) -> None:
@@ -58,6 +64,9 @@ class SystemMapV2MaterializationService:
             flow_derivation_service or FlowDerivationService()
         )
         self._manual_mapping_service = manual_mapping_service
+        self._recommended_next_check_service = (
+            recommended_next_check_service or RecommendedNextCheckService()
+        )
         self._normalize_service = (
             normalize_service or SystemMapV2NormalizeService()
         )
@@ -106,6 +115,12 @@ class SystemMapV2MaterializationService:
             components=detection,
             endpoints=endpoints,
         )
+        recommended_next_checks = self._recommended_next_check_service.derive(
+            raw_scan=raw_scan,
+            components=detection,
+            endpoints=endpoints,
+            risk_hints=risk_hints,
+        )
         flows = self._flow_derivation_service.derive(
             template=template,
             components=detection,
@@ -119,6 +134,7 @@ class SystemMapV2MaterializationService:
             endpoints=endpoints,
             flows=flows,
             risk_hints=risk_hints,
+            recommended_next_checks=recommended_next_checks,
             no_snippets=request.no_snippets,
         )
         validated = self._validation_service.validate(

@@ -4,12 +4,17 @@
 # reason / action 文案一律來自 recommended_next_check_rules.toml，
 # 本檔只保留觸發條件（哪些 slot / risk 會觸發哪個 check）。
 #
-# 呼叫鏈：
+# 呼叫鏈（兩條 build 路徑共用同一個 derive）：
+#   SystemMapV2MaterializationService.materialize（v2 active writer）
+#     → RecommendedNextCheckService.derive(...)
+#     → SystemMapV2NormalizeService.assemble
+#     → AiSystemMapV2.recommended_next_checks
 #   SystemMapNormalizeService.assemble（v1 writer，operator rollback 用）
 #     → RecommendedNextCheckService.derive(...)
-#         → RuleCatalogLoader.load_recommended_next_check_rules
-#           （讀 TOML 取得 reason / action / default_target_type）
 #     → RagSystemMap.recommended_next_checks
+#   derive 內部：
+#     → RuleCatalogLoader.load_recommended_next_check_rules
+#       （讀 TOML 取得 reason / action / default_target_type）
 """Derive deterministic recommended next checks from scanner signals."""
 
 from __future__ import annotations
