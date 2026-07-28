@@ -150,9 +150,14 @@ def _declared_content_length(scope: Scope) -> int | None:
     for raw_name, raw_value in scope.get("headers", []):
         if raw_name.lower() != b"content-length":
             continue
+        if not raw_value.isdigit():
+            # Signs, spaces and junk are not a usable declaration; fall
+            # back to counting the streamed body instead.
+            return None
         try:
             return int(raw_value)
         except ValueError:
+            # Absurdly long digit runs exceed CPython's int() limit.
             return None
     return None
 

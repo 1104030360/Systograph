@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 from fastapi import APIRouter
@@ -11,7 +12,10 @@ from kai_mind.core.providers.local_json_state_errors import (
     ProjectStateBusyError,
 )
 from kai_mind.web.app import create_app
-from kai_mind.web.middleware import RequestSizeLimitMiddleware
+from kai_mind.web.middleware import (
+    RequestSizeLimitMiddleware,
+    _declared_content_length,
+)
 
 
 def test_large_request_returns_413_with_cors_header() -> None:
@@ -119,8 +123,14 @@ def test_request_size_limit_stops_on_client_disconnect() -> None:
     calls = 0
 
     async def receive() -> Message:
+        # A spinning loop never yields, so an asyncio timeout would never
+        # fire; fail loudly instead of hanging the suite on a regression.
         nonlocal calls
         calls += 1
+        if calls > 5:
+            raise AssertionError(
+                "receive() spun: size-limit loop did not break"
+            )
         return {"type": "http.disconnect"}
 
     async def downstream(
@@ -143,15 +153,10 @@ def test_request_size_limit_stops_on_client_disconnect() -> None:
         "headers": [],
     }
 
-    async def run() -> None:
-        await asyncio.wait_for(
-            middleware(scope, receive, send),
-            timeout=5.0,
-        )
+    asyncio.run(middleware(scope, receive, send))
 
-    asyncio.run(run())
-
-    assert calls <= 2, f"receive() called {calls} times"
+    assert calls == 1
+    assert sent == []
 
 
 def test_oversized_content_length_is_rejected_without_reading_body() -> None:
@@ -190,3 +195,72 @@ def test_oversized_content_length_is_rejected_without_reading_body() -> None:
 
     assert calls == 0
     assert sent[0]["status"] == 413
+
+
+def test_streamed_body_over_limit_is_rejected_without_content_length() -> None:
+    """No Content-Length: the streamed byte counter is the only guard."""
+    chunks: list[Message] = [
+        {"type": "http.request", "body": b"x" * 8, "more_body": True},
+        {"type": "http.request", "body": b"y" * 8, "more_body": False},
+    ]
+    received: list[Message] = []
+
+    async def receive() -> Message:
+        message = chunks.pop(0)
+        received.append(message)
+        return message
+
+    async def downstream(
+        scope_: Scope,
+        receive_: Receive,
+        send_: Send,
+    ) -> None:
+        raise AssertionError("downstream must not be reached")
+
+    sent: list[Message] = []
+
+    async def send(message: Message) -> None:
+        sent.append(message)
+
+    middleware = RequestSizeLimitMiddleware(
+        downstream,
+        max_request_body_bytes=10,
+    )
+    scope: Scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/scans",
+        "headers": [],
+    }
+
+    asyncio.run(middleware(scope, receive, send))
+
+    # First chunk stays under the limit, so the loop must read the second.
+    assert len(received) == 2
+    assert sent[0]["status"] == 413
+    assert json.loads(sent[1]["body"]) == {"detail": "request_too_large"}
+
+
+@pytest.mark.parametrize(
+    ("headers", "expected"),
+    [
+        ([(b"content-length", b"999999")], 999999),
+        ([(b"Content-Length", b"12")], 12),
+        ([(b"content-length", b" 42 ")], None),
+        ([(b"content-length", b"-1")], None),
+        ([(b"content-length", b"+7")], None),
+        ([(b"content-length", b"abc")], None),
+        ([(b"content-length", b"\xff\xfe")], None),
+        ([(b"content-length", b"9" * 5000)], None),
+        ([(b"content-type", b"application/json")], None),
+        ([], None),
+    ],
+)
+def test_declared_content_length_falls_back_on_hostile_values(
+    headers: list[tuple[bytes, bytes]],
+    expected: int | None,
+) -> None:
+    """Unusable declarations degrade to None, never raise."""
+    scope: Scope = {"type": "http", "headers": headers}
+
+    assert _declared_content_length(scope) == expected
