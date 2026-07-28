@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from fastapi import APIRouter
 from fastapi.testclient import TestClient
+from starlette.types import Message, Receive, Scope, Send
 
 from kai_mind.core.providers.local_json_state_errors import (
     ProjectStateBusyError,
 )
 from kai_mind.web.app import create_app
+from kai_mind.web.middleware import RequestSizeLimitMiddleware
 
 
 def test_large_request_returns_413_with_cors_header() -> None:
@@ -108,3 +112,81 @@ def test_malformed_state_ids_return_stable_404(
 
     assert response.status_code == 404
     assert response.json() == {"detail": "resource_not_found"}
+
+
+def test_request_size_limit_stops_on_client_disconnect() -> None:
+    """Client disconnect must not spin the size-limit receive loop."""
+    calls = 0
+
+    async def receive() -> Message:
+        nonlocal calls
+        calls += 1
+        return {"type": "http.disconnect"}
+
+    async def downstream(
+        scope_: Scope,
+        receive_: Receive,
+        send_: Send,
+    ) -> None:
+        return None
+
+    sent: list[Message] = []
+
+    async def send(message: Message) -> None:
+        sent.append(message)
+
+    middleware = RequestSizeLimitMiddleware(downstream)
+    scope: Scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/scans",
+        "headers": [],
+    }
+
+    async def run() -> None:
+        await asyncio.wait_for(
+            middleware(scope, receive, send),
+            timeout=5.0,
+        )
+
+    asyncio.run(run())
+
+    assert calls <= 2, f"receive() called {calls} times"
+
+
+def test_oversized_content_length_is_rejected_without_reading_body() -> None:
+    """A declared oversized body is rejected before the body is read."""
+    calls = 0
+
+    async def receive() -> Message:
+        nonlocal calls
+        calls += 1
+        return {"type": "http.request", "body": b"x", "more_body": False}
+
+    async def downstream(
+        scope_: Scope,
+        receive_: Receive,
+        send_: Send,
+    ) -> None:
+        raise AssertionError("downstream must not be reached")
+
+    sent: list[Message] = []
+
+    async def send(message: Message) -> None:
+        sent.append(message)
+
+    middleware = RequestSizeLimitMiddleware(
+        downstream,
+        max_request_body_bytes=10,
+    )
+    scope: Scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/scans",
+        "headers": [(b"content-length", b"999999")],
+    }
+
+    asyncio.run(middleware(scope, receive, send))
+
+    assert calls == 0
+    assert sent[0]["status"] == 413

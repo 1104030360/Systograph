@@ -15,7 +15,7 @@ from kai_mind.core.providers.local_json_state_errors import (
 from kai_mind.core.services.logging_service import safe_log_event
 
 DEFAULT_MAX_REQUEST_BODY_BYTES: Final = 1_000_000
-HTTP_BODY_METHODS: Final = {"POST", "PUT", "PATCH"}
+HTTP_BODYLESS_METHODS: Final = {"GET", "HEAD", "OPTIONS"}
 logger = logging.getLogger(__name__)
 
 
@@ -39,9 +39,20 @@ class RequestSizeLimitMiddleware:
     ) -> None:
         if (
             scope["type"] != "http"
-            or scope.get("method") not in HTTP_BODY_METHODS
+            or scope.get("method") in HTTP_BODYLESS_METHODS
         ):
             await self.app(scope, receive, send)
+            return
+
+        declared = _declared_content_length(scope)
+        if declared is not None and declared > self._max_request_body_bytes:
+            await _json_response(
+                {"detail": "request_too_large"},
+                status_code=413,
+                scope=scope,
+                receive=receive,
+                send=send,
+            )
             return
 
         buffered: list[Message] = []
@@ -50,7 +61,10 @@ class RequestSizeLimitMiddleware:
             message = await receive()
             buffered.append(message)
             if message["type"] != "http.request":
-                continue
+                # After http.disconnect the ASGI server keeps returning
+                # the same message forever; not breaking here starves the
+                # event loop. Let the downstream app handle the disconnect.
+                break
             total_bytes += len(message.get("body", b""))
             if total_bytes > self._max_request_body_bytes:
                 await _json_response(
@@ -129,6 +143,18 @@ class _ReplayReceive:
         if self._messages:
             return self._messages.pop(0)
         return {"type": "http.request", "body": b"", "more_body": False}
+
+
+def _declared_content_length(scope: Scope) -> int | None:
+    """Read Content-Length from the raw ASGI scope headers."""
+    for raw_name, raw_value in scope.get("headers", []):
+        if raw_name.lower() != b"content-length":
+            continue
+        try:
+            return int(raw_value)
+        except ValueError:
+            return None
+    return None
 
 
 async def _json_response(
