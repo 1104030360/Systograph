@@ -14,9 +14,9 @@ from __future__ import annotations
 
 from typing import Final
 
-from kai_mind.core.models.ai_system_map_v2 import CompatibilityLayer
+from kai_mind.core.models.ai_system_map_v2 import CanonicalLayer
 
-SLOT_LAYER_BY_ID: Final[dict[str, CompatibilityLayer]] = {
+SLOT_LAYER_BY_ID: Final[dict[str, CanonicalLayer]] = {
     "app_api_or_orchestrator": "control",
     "data_sources": "ingestion_indexing",
     "document_loader": "ingestion_indexing",

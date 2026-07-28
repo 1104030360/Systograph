@@ -145,8 +145,9 @@ class MapBuildManifest(AnalysisHistoryModel):
     environment_id: str = "environment:default-static"
     artifact_digests: dict[str, str]
     artifacts: dict[str, ArtifactManifestEntry] = Field(default_factory=dict)
-    # Deliberately v1 (do not "modernize" to v2): these defaults are
-    # only reached by pre-#202 manifest JSON persisted without the
+    # active_schema_version / requested_schema_version below are
+    # deliberately v1 (do not "modernize" to v2): these defaults are
+    # only reached by pre-#202 manifest JSON persisted without the two
     # fields, and those builds genuinely were v1. Every manifest written
     # today sets both explicitly in BuildManifestService.persist, so
     # defaulting to v2 would merely mislabel that history and make the

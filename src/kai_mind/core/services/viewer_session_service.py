@@ -1,6 +1,6 @@
 # 這個檔案負責：把已驗證的 system map 轉成前端 ViewerLoadResult。
-# 核心路徑：load / build → CanonicalMapLoader →
-# GraphProjectionService.project。
+# 核心路徑：load_map / build_canonical → CanonicalMapLoader → build_loaded
+# → GraphProjectionService.project。
 #
 # 呼叫鏈：
 #   Web POST /api/viewer/load、CLI viewer  → load_map

@@ -74,10 +74,11 @@ SemanticKind = Literal[
     "reference_capability",
     "workflow_node",
 ]
-
-CompatibilityActivation = ActivationState
-CompatibilityComponentStatus = DetectionStatus
-CompatibilityLayer = Literal[
+# CanonicalLayer / CanonicalCandidateKind 是 canonical model 的欄位型別
+# （CanonicalComponent.layer、CanonicalCandidateFact.candidate_kind），
+# 不是 migration-only 型別；Plan 15 清掉下方 Compatibility/Generic 群時
+# 不可一併刪除，所以名字不掛 Compatibility。
+CanonicalLayer = Literal[
     "input_intent",
     "control",
     "ingestion_indexing",
@@ -90,6 +91,10 @@ CompatibilityLayer = Literal[
     "deployment_topology",
     "undetermined",
 ]
+CanonicalCandidateKind = Literal["legacy_extension"]
+
+CompatibilityActivation = ActivationState
+CompatibilityComponentStatus = DetectionStatus
 CompatibilityComponentSemanticKind = Literal[
     "repo_component",
     "slot_placeholder",
@@ -98,7 +103,6 @@ CompatibilityComponentSemanticKind = Literal[
 CompatibilityEdgeStatus = Literal["observed"]
 CompatibilityEndpointType = EndpointTypeV2
 CompatibilityRiskTargetType = RiskTargetTypeV2
-CompatibilityCandidateKind = Literal["legacy_extension"]
 
 V2_SCHEMA_VERSION: Final[V2SchemaVersion] = "ai-system-map/v2"
 V2_SYSTEM_TYPE: Final[V2SystemType] = "ai_system"
@@ -154,14 +158,16 @@ class GenericComponentMetadata(CompatibilityContractModel):
     source_kind: str | None = None
 
 
-# 做什麼：adapter 過渡用的通用元件（還沒完全 canonical 化前的形狀）。
-# 被誰用：AiSystemMapV2CompatibilityView.components。
+# 做什麼：v1 → v2 搬運用的通用元件形狀。
+# 被誰用：migration-only——僅 SystemMapV1ToV2Adapter 使用（包進
+# AiSystemMapV2CompatibilityView.components）；Plan 15 隨 v1 read support
+# 一併移除。
 # 內含：metadata → GenericComponentMetadata；evidence_ids → Evidence。
 class GenericComponent(CompatibilityContractModel):
     component_id: str
     display_name: str
     canonical_type: str
-    layer: CompatibilityLayer
+    layer: CanonicalLayer
     status: CompatibilityComponentStatus
     activation: CompatibilityActivation
     evidence_ids: list[str] = Field(default_factory=list)
@@ -260,15 +266,16 @@ class GenericCandidateFactMetadata(CompatibilityContractModel):
 # 內含：metadata → GenericCandidateFactMetadata。
 class GenericCandidateFact(CompatibilityContractModel):
     candidate_fact_id: str
-    candidate_kind: CompatibilityCandidateKind
+    candidate_kind: CanonicalCandidateKind
     display_name: str
     source_component_id: str
     evidence_ids: list[str] = Field(default_factory=list)
     metadata: GenericCandidateFactMetadata
 
 
-# 做什麼：Plan 00 adapter 的過渡根物件（v1 → v2 中間 compatibility view）。
-# 被誰用：SystemMapV1ToV2Adapter 產出；再轉成正式 AiSystemMapV2。
+# 做什麼：v1 → v2 中間 compatibility view 的根物件。
+# 被誰用：migration-only——僅 SystemMapV1ToV2Adapter 使用（產出後再轉成正式
+# AiSystemMapV2）；Plan 15 隨 v1 read support 一併移除。
 # 內含：components / edges / evidence(v1 Evidence) / endpoints / risks /
 # unmapped
 # / candidates / recommended_next_checks。
@@ -338,7 +345,7 @@ class CanonicalComponent(V2ContractModel):
     component_id: str
     display_name: str
     canonical_type: str
-    layer: CompatibilityLayer
+    layer: CanonicalLayer
     status: DetectionStatus
     activation: ActivationState
     evidence_ids: list[str] = Field(default_factory=list)
@@ -411,7 +418,7 @@ class CanonicalCandidateFactMetadata(V2ContractModel):
 # 內含：metadata → CanonicalCandidateFactMetadata。
 class CanonicalCandidateFact(V2ContractModel):
     candidate_fact_id: str
-    candidate_kind: CompatibilityCandidateKind
+    candidate_kind: CanonicalCandidateKind
     display_name: str
     source_component_id: str
     evidence_ids: list[str] = Field(default_factory=list)

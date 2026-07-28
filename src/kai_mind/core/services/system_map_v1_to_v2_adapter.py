@@ -18,13 +18,13 @@ from kai_mind.core.models.ai_system_map_v2 import (
     CanonicalEndpoint,
     CanonicalEvidence,
     CanonicalEvidenceLocation,
+    CanonicalLayer,
     CanonicalProject,
     CanonicalRecommendedNextCheck,
     CanonicalRiskHint,
     CanonicalUnmappedComponent,
     CompatibilityActivation,
     CompatibilityComponentStatus,
-    CompatibilityLayer,
     CompatibilityProject,
     CompatibilityRiskTargetType,
     GenericCandidateFact,
@@ -660,7 +660,7 @@ def _slot_placeholder_id(slot: str) -> str:
     return f"{SLOT_PLACEHOLDER_PREFIX}{slot}"
 
 
-def _layer_for_slot(slot: str) -> CompatibilityLayer:
+def _layer_for_slot(slot: str) -> CanonicalLayer:
     return SLOT_LAYER_BY_ID.get(slot, "undetermined")
 
 

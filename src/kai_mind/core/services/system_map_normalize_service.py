@@ -1,8 +1,11 @@
 """Assemble ai-system-map/v1 draft documents from scanner outputs.
 
-00A compatibility note: this service remains the active v1 writer. Normalized
-ai-system-map/v2 views are produced by CanonicalMapLoader + adapter after the
-v1 map is validated. Do not silent-cutover this writer to v2 before Plan 13.
+Operator-rollback-only v1 writer. Not reachable from the normal v2 build
+path; Plan 15 removes it. The active writer is
+SystemMapV2MaterializationService + SystemMapV2NormalizeService. This
+service is reached only through SystemMapMaterializationService, which
+MapBuildService constructs lazily when the operator selects the legacy v1
+canonical output version.
 """
 
 from __future__ import annotations

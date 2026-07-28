@@ -114,7 +114,8 @@ class RagTemplateService:
             )
         if template.allowed_statuses != EXPECTED_ALLOWED_STATUSES:
             raise RagTemplateValidationError(
-                "Allowed statuses must match ai-system-map/v1 SlotStatus"
+                "Allowed statuses must match the rag-core-v1 template "
+                "SlotStatus vocabulary"
             )
 
         slot_ids = [slot.id for slot in template.slots]

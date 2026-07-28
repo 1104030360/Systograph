@@ -2,7 +2,8 @@
 # 只做「語意圖投影」，不改 map、不算 layout（座標由前端 ELK 處理）。
 #
 # 呼叫鏈：
-#   ViewerSessionService.load_map / build_loaded / build_canonical
+#   ViewerSessionService.load_map / build_canonical、BuildManifestService.load
+#     → ViewerSessionService.build_loaded（唯一投影出口）
 #     → GraphProjectionService.project(AiSystemMapV2, profile_result?)
 #         → SystemMapIndex.from_map
 #         → _nodes / _edges（repo_component + unmapped + topology edges）
