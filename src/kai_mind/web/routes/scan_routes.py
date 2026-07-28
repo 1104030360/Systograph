@@ -262,7 +262,6 @@ def create_scan(
             raise ValueError("Inventory selection was not materialized")
         inventory = selection.inventory
         selection_summary = selection.summary
-        proposals = []
     except InventorySelectionError as exc:
         raise HTTPException(
             status_code=exc.http_status,
@@ -276,20 +275,11 @@ def create_scan(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    if proposals:
-        return ScanCreateResponse(
-            project_id=payload.project_id,
-            status="requires_boundary_decision",
-            boundary_proposals=proposals,
-            preflight_request_id=payload.preflight_request_id,
-        )
-
     try:
-        inventory_policy = None
         snapshot = snapshot_service.scan_and_save(
             project_id=payload.project_id,
             project_root=project.project_path,
-            inventory_policy=inventory_policy,
+            inventory_policy=None,
             inventory=inventory,
             ua_analysis_result=None,
         )

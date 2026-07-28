@@ -272,6 +272,3 @@ def create_app(
         cors_wrapped_app,
         allowed_origins=origins,
     )
-
-
-app = create_app()

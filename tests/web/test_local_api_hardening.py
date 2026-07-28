@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import subprocess
+import sys
 
 import pytest
 from fastapi import APIRouter
@@ -484,3 +486,24 @@ def test_unhandled_exception_log_carries_route_without_secrets(
     assert "/Users/linjunting" not in caplog.text
     assert "sk-live-secret-value" not in response.text
     assert "/Users/linjunting" not in response.text
+
+
+def test_importing_web_app_does_not_build_an_application() -> None:
+    """import kai_mind.web.app 不得有建 app 的副作用。
+
+    以前這個模組尾端有 `app = create_app()`，光是 import 就會讀 .env、
+    建出整棵服務樹（含持有真實 API key 的 LLM provider，只要本機
+    .env 有設）、還對 state dir 跑一次 hydrate。所有啟動入口都走
+    `--factory` + create_app，沒有人需要那個模組層物件。副作用只在
+    乾淨的直譯器裡看得到，所以用 subprocess 而不是 in-process import。
+    """
+    code = "import kai_mind.web.app as m; print(hasattr(m, 'app'))"
+
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert result.stdout.strip() == "False", result.stderr

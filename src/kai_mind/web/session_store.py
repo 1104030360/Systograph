@@ -1,4 +1,11 @@
-"""In-memory session state for the local development API."""
+"""Session state for the local API.
+
+包含 SessionStore Protocol、兩個實作，以及
+save_committed_build_projection 這個 commit-vs-projection 的分離 helper。
+PersistentSessionStore 是 production 唯一使用的實作（`create_app()` 建它、
+再對它呼叫 hydrate_from_latest）；InMemorySessionStore 目前只服務測試，
+它的 hydrate_from_latest 是 no-op。
+"""
 
 from __future__ import annotations
 

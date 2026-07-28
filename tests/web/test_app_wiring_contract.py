@@ -35,8 +35,11 @@ EXPECTED_STATE_ATTRIBUTES = frozenset(
 )
 
 # 每個 web.dependencies 公開 helper 與它讀取的 app.state 屬性名。
-# Plan 1 Task 3 整份改寫 dependencies.py 時，這裡是「16 個 helper
+# Plan 1 Task 3 整份改寫 dependencies.py 時，這裡是「15 個 helper
 # 一個都不能接錯線」的驗收清單。
+# build_manifest_service 沒有 Depends helper（零 route 使用），但
+# app.state.build_manifest_service 仍要留著給直接注入的建構路徑，
+# 所以它只出現在 EXPECTED_STATE_ATTRIBUTES。
 DEPENDENCY_HELPER_PAIRS: tuple[
     tuple[Callable[[Request], object], str], ...
 ] = (
@@ -45,7 +48,6 @@ DEPENDENCY_HELPER_PAIRS: tuple[
         "apply_confirmations_service",
     ),
     (dependencies.map_build_query_service, "map_build_query_service"),
-    (dependencies.build_manifest_service, "build_manifest_service"),
     (dependencies.build_commit_service, "build_commit_service"),
     (dependencies.scan_snapshot_service, "scan_snapshot_service"),
     (
