@@ -16,10 +16,12 @@ from kai_mind.web.dependencies import map_build_service, session_store
 from kai_mind.web.schemas import MapBuildApiRequest
 from kai_mind.web.session_store import SessionStore
 
-router = APIRouter(tags=["map"])
+router = APIRouter(prefix="/api", tags=["map"])
+# 只承載沒有 /api 前綴的 GET /map（見檔尾 get_map_fallback）。
+legacy_router = APIRouter(tags=["map"])
 
 
-@router.post("/api/map/build", response_model=MapBuildResult)
+@router.post("/map/build", response_model=MapBuildResult)
 def build_map(
     payload: MapBuildApiRequest,
     service: Annotated[MapBuildService, Depends(map_build_service)],
@@ -34,7 +36,7 @@ def build_map(
     return result
 
 
-@router.get("/api/map", response_model=ViewerPayload)
+@router.get("/map", response_model=ViewerPayload)
 def get_api_map(
     store: Annotated[SessionStore, Depends(session_store)],
 ) -> ViewerPayload:
@@ -42,7 +44,7 @@ def get_api_map(
     return store.latest_viewer_payload()
 
 
-@router.get("/api/map/report")
+@router.get("/map/report")
 def get_map_report(
     store: Annotated[SessionStore, Depends(session_store)],
     download: bool = False,
@@ -72,9 +74,16 @@ def get_map_report(
     )
 
 
-@router.get("/map", response_model=ViewerPayload)
+@legacy_router.get("/map", response_model=ViewerPayload)
 def get_map_fallback(
     store: Annotated[SessionStore, Depends(session_store)],
 ) -> ViewerPayload:
-    """提供 /api/map 的相同 payload，保留給舊版或簡化路徑使用。"""
+    """提供 /api/map 的相同 payload，保留給舊版或簡化路徑使用。
+
+    這是唯一沒有 /api 前綴的 endpoint，所以它掛在 legacy_router 上。
+    frontend/src/services/viewerApi.ts:5 的
+    `const mapEndpoints = ["/api/map", "/map"]` 還在用這條，
+    刪它之前必須先改前端並更新 frontend/API_CONTRACT.md 與
+    docs/API-GUIDE.md。
+    """
     return store.latest_viewer_payload()

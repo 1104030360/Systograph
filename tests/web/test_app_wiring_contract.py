@@ -7,9 +7,41 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from fastapi import Request
+from fastapi.routing import APIRoute
 
 from kai_mind.web import dependencies
 from kai_mind.web.app import LocalApiApp, create_app
+
+# 這 23 條 URL 是對外契約（前端 + scripts/trace_*.sh 都硬寫著它們）。
+# 這份清單記錄現況，不規定現況：真的要新增/刪除 endpoint 時才動它，
+# 重構 router 寫法時它必須一個字都不變。
+EXPECTED_ROUTES = frozenset(
+    {
+        ("POST", "/api/map/build"),
+        ("GET", "/api/map"),
+        ("GET", "/api/map/report"),
+        ("GET", "/map"),
+        ("POST", "/api/map-builds/{base_build_id}/apply"),
+        ("GET", "/api/map-builds/{build_id}"),
+        ("GET", "/api/projects/{project_id}/map-builds/latest"),
+        ("GET", "/api/projects/{project_id}/map-builds"),
+        ("POST", "/api/detail-scans"),
+        ("GET", "/api/detail-scans/{detail_scan_id}"),
+        ("GET", "/api/mapping-proposals"),
+        ("POST", "/api/mapping-proposals"),
+        ("POST", "/api/mapping-proposals/{proposal_id}/decision"),
+        ("GET", "/api/mappings"),
+        ("POST", "/api/mappings"),
+        ("PATCH", "/api/mappings/{mapping_id}"),
+        ("GET", "/api/projects/{project_id}"),
+        ("POST", "/api/projects/import"),
+        ("POST", "/api/projects/{project_id}/scan-preflights"),
+        ("POST", "/api/scans"),
+        ("GET", "/api/scan/events"),
+        ("POST", "/api/trace"),
+        ("POST", "/api/viewer/load"),
+    }
+)
 
 EXPECTED_STATE_ATTRIBUTES = frozenset(
     {
@@ -77,6 +109,20 @@ def _names(functions: Iterable[object]) -> list[str]:
     return sorted(
         str(getattr(function, "__name__", function)) for function in functions
     )
+
+
+def test_registered_routes_match_the_published_contract(
+    local_api_app: LocalApiApp,
+) -> None:
+    """URL 是對外契約。改 router 寫法時這條必須維持全綠。"""
+    actual = {
+        (method, route.path)
+        for route in local_api_app.routes
+        if isinstance(route, APIRoute)
+        for method in route.methods
+        if method not in {"HEAD", "OPTIONS"}
+    }
+    assert actual == EXPECTED_ROUTES
 
 
 def test_app_state_exposes_every_wired_service(

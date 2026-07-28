@@ -25,10 +25,10 @@ from kai_mind.web.session_store import SessionStore
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["trace"])
+router = APIRouter(prefix="/api", tags=["trace"])
 
 
-@router.post("/api/trace", response_model=TraceRunResult)
+@router.post("/trace", response_model=TraceRunResult)
 def create_query_trace(
     payload: TraceCreateRequest,
     service: Annotated[QueryTraceService, Depends(query_trace_service)],

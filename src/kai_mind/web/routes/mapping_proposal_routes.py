@@ -31,11 +31,11 @@ from kai_mind.web.schemas import (
 )
 from kai_mind.web.session_store import SessionStore
 
-router = APIRouter(tags=["mapping-proposals"])
+router = APIRouter(prefix="/api", tags=["mapping-proposals"])
 
 
 @router.get(
-    "/api/mapping-proposals",
+    "/mapping-proposals",
     response_model=MappingProposalListResponse,
 )
 def list_mapping_proposals(
@@ -53,7 +53,7 @@ def list_mapping_proposals(
 
 
 @router.post(
-    "/api/mapping-proposals",
+    "/mapping-proposals",
     response_model=MappingProposal,
 )
 def create_mapping_proposal(
@@ -95,7 +95,7 @@ def create_mapping_proposal(
 
 
 @router.post(
-    "/api/mapping-proposals/{proposal_id}/decision",
+    "/mapping-proposals/{proposal_id}/decision",
     response_model=MappingProposalDecisionResult,
     dependencies=[Depends(reject_legacy_mapping_type)],
 )

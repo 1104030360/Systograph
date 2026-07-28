@@ -13,10 +13,10 @@ from kai_mind.web.dependencies import session_store, viewer_session_service
 from kai_mind.web.schemas import ViewerLoadMapRequest
 from kai_mind.web.session_store import SessionStore
 
-router = APIRouter(tags=["viewer"])
+router = APIRouter(prefix="/api", tags=["viewer"])
 
 
-@router.post("/api/viewer/load", response_model=ViewerPayload)
+@router.post("/viewer/load", response_model=ViewerPayload)
 def load_viewer_map(
     payload: ViewerLoadMapRequest,
     service: Annotated[

@@ -18,10 +18,10 @@ from kai_mind.web.dependencies import manual_mapping_service
 from kai_mind.web.legacy_mapping_guards import reject_legacy_mapping_type
 from kai_mind.web.schemas import ManualMappingListResponse
 
-router = APIRouter(tags=["mappings"])
+router = APIRouter(prefix="/api", tags=["mappings"])
 
 
-@router.get("/api/mappings", response_model=ManualMappingListResponse)
+@router.get("/mappings", response_model=ManualMappingListResponse)
 def list_mappings(
     project_id: str,
     service: Annotated[
@@ -37,7 +37,7 @@ def list_mappings(
 
 
 @router.post(
-    "/api/mappings",
+    "/mappings",
     response_model=ManualMapping,
     dependencies=[Depends(reject_legacy_mapping_type)],
 )
@@ -56,7 +56,7 @@ def create_mapping(
 
 
 @router.patch(
-    "/api/mappings/{mapping_id}",
+    "/mappings/{mapping_id}",
     response_model=ManualMapping,
     dependencies=[Depends(reject_legacy_mapping_type)],
 )

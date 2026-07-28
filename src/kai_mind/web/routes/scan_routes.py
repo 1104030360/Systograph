@@ -71,7 +71,7 @@ from kai_mind.web.session_store import (
     save_committed_build_projection,
 )
 
-router = APIRouter(tags=["scans"])
+router = APIRouter(prefix="/api", tags=["scans"])
 
 SSE_HEADERS = {
     "Cache-Control": "no-cache",
@@ -81,7 +81,7 @@ SSE_HEADERS = {
 
 
 @router.post(
-    "/api/projects/{project_id}/scan-preflights",
+    "/projects/{project_id}/scan-preflights",
     response_model=InventoryPreflightResponse,
 )
 def create_scan_preflight(
@@ -129,7 +129,7 @@ def create_scan_preflight(
 
 
 @router.post(
-    "/api/scans",
+    "/scans",
     response_model=ScanCreateResponse,
 )
 def create_scan(
@@ -353,7 +353,7 @@ def create_scan(
     )
 
 
-@router.get("/api/scan/events", response_class=EventSourceResponse)
+@router.get("/scan/events", response_class=EventSourceResponse)
 async def scan_events(response: Response) -> AsyncIterator[ServerSentEvent]:
     """送出目前的掃描進度 SSE 事件；現階段回傳一筆 completed 狀態。"""
     response.headers.update(SSE_HEADERS)

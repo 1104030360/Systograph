@@ -32,11 +32,11 @@ from kai_mind.web.session_store import (
     save_committed_build_projection,
 )
 
-router = APIRouter(tags=["map-builds"])
+router = APIRouter(prefix="/api", tags=["map-builds"])
 
 
 @router.post(
-    "/api/map-builds/{base_build_id}/apply",
+    "/map-builds/{base_build_id}/apply",
     response_model=ApplyConfirmationsResponse,
 )
 def apply_confirmations(
@@ -77,7 +77,7 @@ def apply_confirmations(
 
 
 @router.get(
-    "/api/map-builds/{build_id}",
+    "/map-builds/{build_id}",
     response_model=MapBuildScopedResponse,
 )
 def get_build(
@@ -92,7 +92,7 @@ def get_build(
 
 
 @router.get(
-    "/api/projects/{project_id}/map-builds/latest",
+    "/projects/{project_id}/map-builds/latest",
     response_model=MapBuildScopedResponse,
 )
 def get_latest_build(
@@ -107,7 +107,7 @@ def get_latest_build(
 
 
 @router.get(
-    "/api/projects/{project_id}/map-builds",
+    "/projects/{project_id}/map-builds",
     response_model=MapBuildHistoryResponse,
 )
 def list_builds(

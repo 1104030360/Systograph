@@ -28,10 +28,10 @@ from kai_mind.web.session_store import (
     save_committed_build_projection,
 )
 
-router = APIRouter(tags=["detail-scans"])
+router = APIRouter(prefix="/api", tags=["detail-scans"])
 
 
-@router.post("/api/detail-scans", response_model=DetailScanResponse)
+@router.post("/detail-scans", response_model=DetailScanResponse)
 def create_detail_scan(
     payload: DetailScanCreateRequest,
     build_service: Annotated[
@@ -100,7 +100,7 @@ def create_detail_scan(
 
 
 @router.get(
-    "/api/detail-scans/{detail_scan_id}",
+    "/detail-scans/{detail_scan_id}",
     response_model=DetailScanResponse,
 )
 def get_detail_scan(

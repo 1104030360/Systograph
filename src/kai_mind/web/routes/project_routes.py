@@ -15,10 +15,10 @@ from kai_mind.web.schemas import (
 )
 from kai_mind.web.session_store import SessionStore
 
-router = APIRouter(tags=["projects"])
+router = APIRouter(prefix="/api", tags=["projects"])
 
 
-@router.get("/api/projects/{project_id}", response_model=ProjectResponse)
+@router.get("/projects/{project_id}", response_model=ProjectResponse)
 def get_project(
     project_id: str,
     store: Annotated[SessionStore, Depends(session_store)],
@@ -33,7 +33,7 @@ def get_project(
     )
 
 
-@router.post("/api/projects/import", response_model=ProjectImportResponse)
+@router.post("/projects/import", response_model=ProjectImportResponse)
 def import_project(
     payload: ProjectImportRequest,
     store: Annotated[SessionStore, Depends(session_store)],

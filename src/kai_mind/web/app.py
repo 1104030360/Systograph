@@ -252,6 +252,7 @@ def create_app(
     )
     app.add_middleware(SafeUnhandledExceptionMiddleware)
     app.include_router(map_routes.router)
+    app.include_router(map_routes.legacy_router)
     app.include_router(map_build_routes.router)
     app.include_router(detail_scan_routes.router)
     app.include_router(mapping_proposal_routes.router)
