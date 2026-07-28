@@ -141,33 +141,9 @@ def create_app(
         build_commit_service=build_commit_service,
         env_file=env_file,
     )
+    # app.state 上只掛這一個 typed 容器：routes 一律經
+    # web/dependencies.py 的 helper 從它取服務，不再有平鋪的重複屬性。
     app.state.services = services
-    app.state.state_dir = services.state_dir
-    app.state.state_repository = services.state_repository
-    app.state.build_manifest_service = services.build_manifest_service
-    app.state.build_commit_service = services.build_commit_service
-    app.state.manual_mapping_service = services.manual_mapping_service
-    app.state.mapping_proposal_service = services.mapping_proposal_service
-    app.state.scan_boundary_review_service = (
-        services.scan_boundary_review_service
-    )
-    app.state.inventory_preflight_service = (
-        services.inventory_preflight_service
-    )
-    app.state.inventory_selection_service = (
-        services.inventory_selection_service
-    )
-    app.state.map_build_service = services.map_build_service
-    app.state.scan_snapshot_service = services.scan_snapshot_service
-    app.state.apply_confirmations_service = (
-        services.apply_confirmations_service
-    )
-    app.state.map_build_query_service = services.map_build_query_service
-    app.state.detail_scan_service = services.detail_scan_service
-    app.state.detail_scan_build_service = services.detail_scan_build_service
-    app.state.query_trace_service = services.query_trace_service
-    app.state.viewer_session_service = services.viewer_session_service
-    app.state.session_store = services.session_store
     # 走 typed 的 services.session_store（而不是 app.state 那個 Any）呼叫，
     # 讓 SessionStore Protocol 真的替這個呼叫做型別檢查。
     # 開機預熱一次：之後 GET /api/map 只讀快取，不會每個 request 重走

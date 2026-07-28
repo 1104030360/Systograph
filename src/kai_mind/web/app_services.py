@@ -7,8 +7,9 @@ mypy strict 檢查得到的地方——`AppServices(...)` 建構時每個欄位�
 呼叫鏈：`web/app.py::create_app` → `build_app_services()` → `AppServices`
 （`create_app` 再把它掛到 `app.state`，routes 經 `web/dependencies.py` 取用）。
 
-這裡只做**純物件組裝**，不做任何啟動動作：`hydrate_from_latest()` 之類的
-預熱留在 `create_app()`，這樣「接線」與「開機」兩件事各自可以單獨測。
+這裡只做**接線**：讀設定（環境變數、`.env`、rule TOML）並把服務實例組起來，
+但不做任何會改變狀態的開機動作——`hydrate_from_latest()` 之類的預熱留在
+`create_app()`，這樣「接線」與「開機」兩件事各自可以單獨測。
 """
 
 from __future__ import annotations

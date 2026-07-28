@@ -1,7 +1,13 @@
-"""Lock the app.state wiring contract before it gets refactored."""
+"""Lock the local API wiring contract: routes, container, dependencies.
+
+這是全 repo 唯一刻意直接碰 `app.state` 的測試檔——它的職責就是釘住
+「app 對外露出什麼」這件事本身。其他測試要拿內部服務請走
+`tests/helpers/web.py`。
+"""
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -11,6 +17,7 @@ from fastapi.routing import APIRoute
 
 from kai_mind.web import dependencies
 from kai_mind.web.app import LocalApiApp, create_app
+from kai_mind.web.app_services import AppServices
 
 # 這 23 條 URL 是對外契約（前端 + scripts/trace_*.sh 都硬寫著它們）。
 # 這份清單記錄現況，不規定現況：真的要新增/刪除 endpoint 時才動它，
@@ -43,7 +50,11 @@ EXPECTED_ROUTES = frozenset(
     }
 )
 
-EXPECTED_STATE_ATTRIBUTES = frozenset(
+# `app.state` 上現在只有 `services` 一個屬性，型別是 AppServices；
+# 下面這 18 個名字是它的欄位（不再是平鋪在 app.state 上的屬性）。
+# 這份清單記錄現況也釘住現況：真的要增刪服務時才動它，
+# 純粹搬動接線寫法時它必須一個字都不變。
+EXPECTED_SERVICE_FIELDS = frozenset(
     {
         "state_repository",
         "build_manifest_service",
@@ -66,12 +77,11 @@ EXPECTED_STATE_ATTRIBUTES = frozenset(
     }
 )
 
-# 每個 web.dependencies 公開 helper 與它讀取的 app.state 屬性名。
-# Plan 1 Task 3 整份改寫 dependencies.py 時，這裡是「15 個 helper
-# 一個都不能接錯線」的驗收清單。
-# build_manifest_service 沒有 Depends helper（零 route 使用），但
-# app.state.build_manifest_service 仍要留著給直接注入的建構路徑，
-# 所以它只出現在 EXPECTED_STATE_ATTRIBUTES。
+# 每個 web.dependencies 公開 helper 與它取用的 AppServices 欄位名。
+# 這裡是「15 個 helper 一個都不能接錯線」的驗收清單。
+# 18 個欄位裡有 3 個沒有 Depends helper（零 route 直接用它們）：
+# state_dir、build_manifest_service、detail_scan_service——它們只是別的
+# 服務建構時吃的材料，所以只出現在 EXPECTED_SERVICE_FIELDS。
 DEPENDENCY_HELPER_PAIRS: tuple[
     tuple[Callable[[Request], object], str], ...
 ] = (
@@ -134,17 +144,28 @@ def test_registered_routes_match_the_published_contract(
     assert actual == EXPECTED_ROUTES
 
 
-def test_app_state_exposes_every_wired_service(
+def test_app_state_exposes_the_typed_service_container(
     local_api_app: LocalApiApp,
 ) -> None:
-    for name in sorted(EXPECTED_STATE_ATTRIBUTES):
-        assert getattr(local_api_app.state, name, None) is not None, name
+    """app.state 只掛一個 typed 容器，且它每個欄位都接好了。"""
+    services = local_api_app.state.services
+    assert isinstance(services, AppServices)
+
+    declared = {field.name for field in dataclasses.fields(AppServices)}
+    assert declared == EXPECTED_SERVICE_FIELDS
+    for name in sorted(EXPECTED_SERVICE_FIELDS):
+        assert getattr(services, name) is not None, name
+
+    # 平鋪的重複屬性已經拆掉了：唯一的入口就是上面那個容器。
+    # 有人手滑把某個服務又掛回 app.state 時，這裡要紅。
+    for name in sorted(EXPECTED_SERVICE_FIELDS):
+        assert not hasattr(local_api_app.state, name), name
 
 
 def test_state_dir_is_the_injected_directory(tmp_path: Path) -> None:
     state_dir = tmp_path / "state"
     app = create_app(state_dir=state_dir)
-    assert app.state.state_dir == state_dir
+    assert app.state.services.state_dir == state_dir
 
 
 def test_dependency_helpers_return_the_wired_instances(
@@ -157,13 +178,16 @@ def test_dependency_helpers_return_the_wired_instances(
             self.app = app
 
     request = _FakeRequest(local_api_app)
+    services = local_api_app.state.services
+    # 所有 helper 共用的那道邊界：先確認它就是 create_app 掛上去的容器，
+    # 下面 15 條配對才是在驗「從容器取對欄位」而不是在驗別的東西。
     assert (
         dependencies.app_services(request)  # type: ignore[arg-type]
-        is local_api_app.state.services
+        is services
     )
-    for helper, attribute in DEPENDENCY_HELPER_PAIRS:
+    for helper, field_name in DEPENDENCY_HELPER_PAIRS:
         resolved = helper(request)  # type: ignore[arg-type]
-        assert resolved is getattr(local_api_app.state, attribute), attribute
+        assert resolved is getattr(services, field_name), field_name
 
 
 def test_every_public_dependency_helper_is_under_contract() -> None:
