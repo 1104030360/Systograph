@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -366,3 +367,39 @@ def test_scan_events_returns_sse_completed_event() -> None:
     assert "event: scan_progress" in body
     assert "data:" in body
     assert '"status":"completed"' in body
+
+
+def test_scan_events_payload_key_set_is_stable() -> None:
+    """SSE 事件的 key 集合是前端 zod 的契約，變動要有意識。
+
+    `frontend/src/types.ts` 的 scanProgressEvent schema 是逐欄位列舉的，
+    parse 失敗會整包降級成 `invalid_event`，highlight 就整條失效
+    （`frontend/API_CONTRACT.md` 的 SSE 章節）。所以 `ScanProgressEvent`
+    增刪欄位不能只是後端的事 —— 這條測試就是那個提醒。
+    """
+    expected_keys = {
+        "event",
+        "status",
+        "stage",
+        "message",
+        "percent",
+        "node_id",
+        "edge_id",
+        "component_id",
+        "source_id",
+        "slot",
+        "evidence_id",
+        "scan_depth",
+        "timestamp",
+    }
+    client = TestClient(create_app())
+
+    with client.stream("GET", "/api/scan/events") as response:
+        body = "".join(response.iter_text())
+
+    data_line = next(
+        line for line in body.splitlines() if line.startswith("data:")
+    )
+    payload = json.loads(data_line.removeprefix("data:"))
+
+    assert set(payload) == expected_keys

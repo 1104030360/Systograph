@@ -112,6 +112,30 @@ def test_scan_requires_boundary_decision_before_building_map(
     assert state.get_latest_pointer(project_id) is None
 
 
+def test_pending_response_omits_scan_id(tmp_path: Path) -> None:
+    """前端的 discriminated union 依賴這個形狀。
+
+    `frontend/API_CONTRACT.md`：回 `requires_boundary_decision` 時
+    `scan_id` 不存在（`schemas.py` 的 `ScanCreateResponse` 用 `exclude_if`
+    把它拿掉）。前端靠 `status` 判別分支，pending 分支沒有 `scan_id` 可讀 ——
+    哪天後端補回 `scan_id`，前端就會把「還沒掃」當成「掃完了」。
+    """
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / ".env").write_text(
+        "OPENAI_API_KEY=sk-live-secret-value\n",
+        encoding="utf-8",
+    )
+    (project_root / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    client = TestClient(create_app(state_dir=tmp_path / "state"))
+    project_id = import_project(client, project_root)
+
+    pending = scan_project(client, project_id, tmp_path / "outputs")
+
+    assert pending["status"] == "requires_boundary_decision"
+    assert "scan_id" not in pending
+
+
 def test_scan_this_run_decision_builds_map_for_current_scan_only(
     tmp_path: Path,
 ) -> None:
