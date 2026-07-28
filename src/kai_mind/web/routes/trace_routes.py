@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from kai_mind.core.models.trace import TraceRunResult
+from kai_mind.core.services.logging_service import safe_log_event
 from kai_mind.core.services.map_build_query_service import MapBuildQueryService
 from kai_mind.core.services.query_trace_config_loader import (
     QueryTraceConfigError,
@@ -20,6 +22,8 @@ from kai_mind.web.dependencies import (
 )
 from kai_mind.web.schemas import TraceCreateRequest
 from kai_mind.web.session_store import SessionStore
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["trace"])
 
@@ -60,9 +64,22 @@ def create_query_trace(
             project.project_path
         )
     except QueryTraceConfigError as exc:
+        # 上游把 TOMLDecodeError / OSError 的訊息包進 exception，OSError
+        # 那一側帶的是目標 pyproject.toml 的絕對路徑。回應只留穩定碼；
+        # 診斷細節走 safe_log_event（會做 secret masking 與 path
+        # redaction）進本機 log。
+        safe_log_event(
+            logger,
+            logging.WARNING,
+            "invalid_trace_config",
+            stage="web_trace",
+            project_id=payload.project_id,
+            exception_type=exc.__class__.__name__,
+            exc_info=exc,
+        )
         raise HTTPException(
             status_code=400,
-            detail=f"invalid_trace_config: {exc}",
+            detail="invalid_trace_config",
         ) from exc
 
     result = service.trace(

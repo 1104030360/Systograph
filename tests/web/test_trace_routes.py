@@ -164,6 +164,35 @@ retrieved_chunks_keys = ["docs", "retrieved_docs"]
     assert "private custom docs chunk" not in response.text
 
 
+def test_invalid_trace_config_does_not_leak_absolute_paths(
+    tmp_path: Path,
+) -> None:
+    """400 的 detail 不得含本機絕對路徑（CLAUDE.md local-first privacy）。
+
+    上游 `QueryTraceConfigError` 會把 `TOMLDecodeError` / `OSError` 的訊息
+    包進來，而 `OSError` 那一側帶的是目標檔案的絕對路徑。route 只能回穩定碼，
+    診斷細節走本機 log。
+    """
+    client, project_id, _store, provider = create_trace_test_client(
+        tmp_path,
+        pyproject_text="[tool.kai-mind.trace\n",
+    )
+
+    response = client.post(
+        "/api/trace",
+        json={
+            "project_id": project_id,
+            "endpoint_id": "endpoint:chat",
+            "query": "hello",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "invalid_trace_config"
+    assert str(tmp_path) not in response.text
+    assert provider.calls == []
+
+
 def test_trace_route_requires_loaded_project_map(tmp_path: Path) -> None:
     store = InMemorySessionStore()
     project = store.import_project(

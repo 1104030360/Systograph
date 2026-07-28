@@ -803,7 +803,7 @@ Response `200`：
 | --- | --- | --- |
 | `project_not_found` | 404 | `project_id` 不存在 |
 | `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
-| `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.kai-mind.trace]` 格式錯誤 |
+| `invalid_trace_config` | 400 | `pyproject.toml` 的 `[tool.kai-mind.trace]` 格式錯誤或讀取失敗；detail 是固定碼，失敗原因（含檔案路徑）只寫入本機 log |
 | `egress_policy_blocked` | 200 / `partial` | endpoint 在送出 request 前被 SSRF egress policy 阻擋 |
 
 ---
@@ -1005,6 +1005,7 @@ Response `200`：
 | 狀態 | 意義 | 常見 `detail` |
 | --- | --- | --- |
 | 200 | 成功（含「map 無效」這類明確的 loaded:false 狀態） | — |
+| 400 | `POST /api/trace` 的目標專案 trace 設定無法解析 | `invalid_trace_config`（詳細原因只寫入本機 log，不回傳給 client） |
 | 404 | 目標不存在 | `resource_not_found`（malformed typed state id）、`project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
 | 409 | 狀態衝突 | `base_build_not_latest`、`latest_build_changed`、`scan_snapshot_stale`、`profile_sidecar_unavailable` |
 | 413 | request body 超過本機 API resource limit | `request_too_large` |
