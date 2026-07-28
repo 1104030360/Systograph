@@ -413,13 +413,27 @@ class CanonicalCandidateFact(V2ContractModel):
     metadata: CanonicalCandidateFactMetadata
 
 
+# 做什麼：canonical 建議下一步檢查（target + reason + action）。
+# 被誰用：AiSystemMapV2.recommended_next_checks；markdown summary / Viewer
+# 顯示。
+# 內含：無巢狀 model。
+# 注意：欄位與 models/recommended_next_check.py 的版本中立 DTO 同形；
+# RecommendedNextCheckService 產出的結果由 materialization 轉成這個型別。
+class CanonicalRecommendedNextCheck(V2ContractModel):
+    id: str
+    target_type: str
+    target: str
+    reason: str
+    action: str
+
+
 # 做什麼：正式的 canonical AI System Map 根物件（v2 真相來源）。
 # 被誰用：CanonicalMapLoader 產出；SystemMapIndex / ProfileInference /
 # GraphProjection
 # /
 #         DetailScan / Overlay / Validation 等下游一律吃這個。
 # 內含：project + components/edges/evidence/endpoints/risks/unmapped/
-# candidates。
+# candidates/recommended_next_checks。
 # 注意：schema_version / system_type 必須顯式出現在 JSON（不能靠 default 省略）
 # 。
 class AiSystemMapV2(V2ContractModel):
@@ -447,6 +461,12 @@ class AiSystemMapV2(V2ContractModel):
         default_factory=list
     )
     candidate_facts: list[CanonicalCandidateFact] = Field(default_factory=list)
+    # Additive optional field: it must stay out of the generated JSON Schema
+    # `required` list so v2 artifacts published before this field existed keep
+    # loading (missing → empty list).
+    recommended_next_checks: list[CanonicalRecommendedNextCheck] = Field(
+        default_factory=list
+    )
 
 
 # ---------------------------------------------------------------------------
