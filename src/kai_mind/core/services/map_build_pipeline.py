@@ -112,6 +112,11 @@ class MapBuildPipeline:
             else None
         )
         artifact_map: BaseModel | None = None
+        # Census contract: every "ai-system-map/v1" literal in this file is
+        # what tests/contracts/test_v2_cutover_consumer_allowlist.py finds by
+        # AST scan, so they must stay inline string literals. Folding them
+        # into a shared constant would silently drop this file from the
+        # census, not clean it up.
         if self._canonical_output_version == "ai-system-map/v1":
             # Operator rollback only: keep the v1 writer contract out of
             # the active v2 import graph.
@@ -190,8 +195,14 @@ class MapBuildPipeline:
                 raise LegacyV1RollbackError(
                     "legacy_rollback_writer_unavailable"
                 )
+            # Preflight first: an unrepresentable map earns the more
+            # specific legacy_rollback_not_representable. Only then comes
+            # the honest refusal — the rollback writer rebuilds from a raw
+            # scan, never from an already enriched map.
             self._legacy_rollback.require_representable(system_map)
-            raise LegacyV1RollbackError("legacy_rollback_not_representable")
+            raise LegacyV1RollbackError(
+                "legacy_rollback_detail_scan_unsupported"
+            )
         return self._complete(
             system_map=system_map,
             artifact_map=None,

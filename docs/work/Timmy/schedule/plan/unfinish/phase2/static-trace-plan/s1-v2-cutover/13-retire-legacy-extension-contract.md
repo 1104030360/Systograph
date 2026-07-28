@@ -198,6 +198,10 @@ Task 1B/2，不表示 cutover 已完成。
 - Test: `tests/integration/test_build_manifest_service.py`
 - Create: `tests/unit/core/test_build_commit_service.py`
 - Create: `tests/unit/core/test_legacy_v1_rollback_service.py`
+  （Plan 13 當時未建，由 Plan 13.5 Task C3（RA-14）補上：涵蓋
+  `require_representable` 的 v1-sourced / semantic_kind 兩個 preflight 分支，
+  以及 rollback 模式下 `materialize_existing_map` 的
+  `legacy_rollback_detail_scan_unsupported`。）
 - Test: `tests/unit/core/test_viewer_session_service.py`
 - Test: `tests/unit/core/test_detail_scan_service.py`
 - Test: `tests/unit/core/test_query_trace_service.py`

@@ -994,9 +994,21 @@ Response `200`：
 | 404 | 目標不存在 | `resource_not_found`（malformed typed state id）、`project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
 | 409 | 狀態衝突 | `base_build_not_latest`、`latest_build_changed`、`scan_snapshot_stale`、`profile_sidecar_unavailable` |
 | 413 | request body 超過本機 API resource limit | `request_too_large` |
-| 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、validation 陣列 |
+| 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、operator rollback 的 `legacy_rollback_*`（見下表）、validation 陣列 |
 | 500 | 未預期後端錯誤，回應會遮蔽 raw path / secret | `internal_server_error` |
 | 503 | project state lock timeout | `project_state_busy` |
 
 > Project workflow 會跨重啟恢復。若重啟後出現 404，先確認啟動前後使用相同
 > `KAI_MIND_STATE_DIR`；只有 state record 不存在時才需要重新 import / scan。
+
+### Operator rollback 專用 error code
+
+下列 code 只在 process 啟動前設定
+`KAI_MIND_CANONICAL_OUTPUT_VERSION=ai-system-map/v1` 的 operator rollback 模式出現；
+normal `ai-system-map/v2` 模式不會產生。兩者都由 `POST /api/detail-scans` 以 `422`
+回傳，且失敗時不寫任何 artifact。
+
+| `detail` | 意義 |
+| --- | --- |
+| `legacy_rollback_not_representable` | map 無法以 v1 無損表示：不是 v1-sourced map，或含 legacy contract 表達不了的 component（`semantic_kind` 超出 `repo_component` / `slot_placeholder` / `legacy_extension`）。preflight fail closed，不靜默丟資料 |
+| `legacy_rollback_detail_scan_unsupported` | map 本身可以 v1 表示，但 rollback writer 只能從 raw scan 重建；enriched map（detail scan 子 build）這條路徑在 rollback 模式沒有 writer |
