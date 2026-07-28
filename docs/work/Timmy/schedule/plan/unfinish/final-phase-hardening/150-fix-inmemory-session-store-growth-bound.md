@@ -1,5 +1,13 @@
 # GitHub #150 In-Memory Session Store Growth Bound Implementation Plan
 
+> **2026-07-28 更新（phase2.5 Plan 2 Task 5）：** 本計畫原針對 `InMemorySessionStore`，
+> 但該類別在 production 不會被實例化（`create_app()` 只建 `PersistentSessionStore`）。
+> `PersistentSessionStore` 只保留 `_latest_build_result` / `_latest_viewer_payload`
+> 兩個單槽快取，不會隨 project 數量無上限累積，所以這裡沒有等價的成長邊界問題；
+> 其 thread safety 已在
+> `docs/work/Timmy/schedule/plan/unfinish/phase2.5/2.md` Task 5 實作完成（見 #174）。
+> 本計畫剩餘範圍：確認 `InMemorySessionStore` 是否遷移到 `tests/helpers/`（見 Plan 3 A-13）。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/150

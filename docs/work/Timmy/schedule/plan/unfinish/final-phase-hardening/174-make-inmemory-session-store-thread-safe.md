@@ -1,5 +1,14 @@
 # GitHub #174 In-Memory Session Store Thread Safety Implementation Plan
 
+> **2026-07-28 更新（phase2.5 Plan 2 Task 5）：** 本計畫原針對 `InMemorySessionStore`，
+> 但該類別在 production 不會被實例化（`create_app()` 只建 `PersistentSessionStore`）。
+> 真正需要保護的是 `PersistentSessionStore`：thread safety 已在
+> `docs/work/Timmy/schedule/plan/unfinish/phase2.5/2.md` Task 5 實作完成
+> （`threading.RLock` + `save_build_result` 在單一 critical section 內同時更新
+> `_latest_build_result` 與 `_latest_viewer_payload`，
+> `latest_build_result()` 的磁碟 I/O 刻意放在鎖外）。
+> 本計畫剩餘範圍：確認 `InMemorySessionStore` 是否遷移到 `tests/helpers/`（見 Plan 3 A-13）。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/174
