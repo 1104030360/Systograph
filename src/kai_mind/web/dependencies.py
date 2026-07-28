@@ -17,7 +17,6 @@ from kai_mind.core.services.build_manifest_service import BuildManifestService
 from kai_mind.core.services.detail_scan_build_service import (
     DetailScanBuildService,
 )
-from kai_mind.core.services.detail_scan_service import DetailScanService
 from kai_mind.core.services.inventory_preflight_service import (
     InventoryPreflightService,
 )
@@ -98,10 +97,6 @@ def mapping_proposal_service(request: Request) -> MappingProposalService:
         MappingProposalService,
         request.app.state.mapping_proposal_service,
     )
-
-
-def detail_scan_service(request: Request) -> DetailScanService:
-    return cast(DetailScanService, request.app.state.detail_scan_service)
 
 
 def detail_scan_build_service(request: Request) -> DetailScanBuildService:
