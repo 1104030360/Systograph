@@ -3,8 +3,10 @@
 # GraphProjectionService.project。
 #
 # 呼叫鏈：
-#   Web POST /api/viewer/load、BuildArtifactPublisher、BuildManifestService
-#     → ViewerSessionService.load_map / build / project_to_graph
+#   Web POST /api/viewer/load、CLI viewer  → load_map
+#   BuildArtifactPublisher                 → build_canonical
+#   BuildManifestService                   → build_loaded
+#     → ViewerSessionService（三個入口最後都收斂到 build_loaded）
 #         → CanonicalMapLoader.load（v1/v2 → AiSystemMapV2）
 #         → _graph_recommended_next_checks（只讀 normalized，v1/v2 同一條路）
 #         → GraphProjectionService.project（→ GraphViewModel）
@@ -21,7 +23,6 @@ from typing import Any
 
 from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.profile_signal import ProfileInferenceResult
-from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.models.viewer import (
     GraphDetailsModel,
     GraphFiltersModel,
@@ -100,6 +101,12 @@ class ViewerSessionService:
             map_json_path=map_json_path,
         )
 
+    # 做什麼：對已 load 的 CanonicalMapLoadResult 投影，回完整
+    # ViewerLoadResult；v1 來源才額外做保序 edges 與 legacy details。
+    # 被誰呼叫：load_map、build_canonical、BuildManifestService.load。
+    # 自己呼叫：
+    #   _preserve_legacy_edge_order（僅 v1）→ GraphProjectionService.project
+    #   → _with_legacy_details（僅 v1）→ _result。
     def build_loaded(
         self,
         loaded: CanonicalMapLoadResult,
@@ -127,6 +134,9 @@ class ViewerSessionService:
             graph=graph,
         )
 
+    # 做什麼：對呼叫端已持有的 canonical AiSystemMapV2 做投影。
+    # 被誰呼叫：BuildArtifactPublisher._publish（publish 路徑）。
+    # 自己呼叫：CanonicalMapLoader.load（re-validate）→ build_loaded。
     def build_canonical(
         self,
         system_map: AiSystemMapV2,
@@ -142,58 +152,6 @@ class ViewerSessionService:
             map_json_path=map_json_path,
             profile_result=profile_result,
         )
-
-    # 做什麼：對已驗證的 v1 RagSystemMap 做投影，回完整 ViewerLoadResult。
-    # 被誰呼叫：load_map（v1）、BuildArtifactPublisher.publish、
-    # BuildManifestService.load。
-    # 自己呼叫：
-    #   CanonicalMapLoader（若缺 normalized）→ 保序 edges →
-    #   GraphProjectionService.project → _with_legacy_details → _result。
-    def build(
-        self,
-        system_map: RagSystemMap,
-        *,
-        map_json_path: Path | None = None,
-        normalized_system_map: AiSystemMapV2 | None = None,
-        profile_result: ProfileInferenceResult | None = None,
-    ) -> ViewerLoadResult:
-        """Return a complete viewer load result for a validated map."""
-
-        loaded = self._canonical_loader.load(
-            system_map.model_dump(mode="json")
-        )
-        if normalized_system_map is not None:
-            loaded = loaded.with_normalized(normalized_system_map)
-        return self.build_loaded(
-            loaded,
-            map_json_path=map_json_path,
-            profile_result=profile_result,
-        )
-
-    # 做什麼：只回 GraphViewModel（不要完整 ViewerLoadResult）。
-    # 被誰呼叫：需要純圖資料的路徑 / tests。
-    # 自己呼叫：CanonicalMapLoader → GraphProjectionService.project → legacy
-    # details。
-    def project_to_graph(
-        self,
-        system_map: RagSystemMap,
-        *,
-        map_json_path: Path | None = None,
-    ) -> GraphViewModel:
-        """Project canonical facts into semantic graph data only."""
-
-        normalized = _preserve_legacy_edge_order(
-            system_map,
-            self._canonical_loader.load(
-                system_map.model_dump(mode="json")
-            ).normalized,
-        )
-        graph = self._graph_projection.project(
-            normalized,
-            artifact_ref=_safe_artifact_ref(map_json_path),
-            recommended_next_checks=_graph_recommended_next_checks(normalized),
-        )
-        return _with_legacy_details(graph, system_map)
 
     # 做什麼：組成功的 ViewerLoadResult（loaded=True + map JSON 字串 + graph）
     # 。
@@ -247,7 +205,7 @@ class ViewerSessionService:
 
 
 # 做什麼：把 canonical map 的 recommended_next_checks 投成 viewer model。
-# 被誰呼叫：build_loaded / project_to_graph（v1、v2 走同一條投影路徑）。
+# 被誰呼叫：build_loaded（v1、v2 走同一條投影路徑）。
 # 自己呼叫：GraphRecommendedNextCheckModel。
 # 注意：只讀 normalized AiSystemMapV2；不要改回讀 v1 legacy source map，
 # 否則 v2 build 的 checks 會再次消失。順序沿用 map 內的順序（build 時已排序）。
@@ -268,7 +226,7 @@ def _graph_recommended_next_checks(
 
 # 做什麼：把 map 路徑收成投影用的 artifact_ref（必須是專案相對 POSIX，
 # 否則只留檔名）。
-# 被誰呼叫：load_map / build / project_to_graph。
+# 被誰呼叫：build_loaded。
 # 自己呼叫：is_project_relative_posix_path。
 def _safe_artifact_ref(map_json_path: Path | None) -> str | None:
     if map_json_path is None:

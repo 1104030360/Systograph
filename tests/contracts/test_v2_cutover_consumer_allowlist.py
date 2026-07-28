@@ -281,15 +281,12 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
     ),
     ConsumerRecord(
         path="src/kai_mind/core/services/viewer_session_service.py",
-        symbol="RagSystemMap",
-        classification="migration_only",
-        removal_plan="Plan 15 removes the legacy Viewer reload input.",
-    ),
-    ConsumerRecord(
-        path="src/kai_mind/core/services/viewer_session_service.py",
         symbol="SystemMapValidationService",
         classification="migration_only",
-        removal_plan="Plan 15 removes legacy Viewer validation injection.",
+        removal_plan=(
+            "Only the optional v1-validator DI passthrough to "
+            "CanonicalMapLoader remains; remove it with v1 read support."
+        ),
     ),
     ConsumerRecord(
         path="src/kai_mind/web/legacy_mapping_guards.py",

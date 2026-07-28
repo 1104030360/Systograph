@@ -4,7 +4,7 @@
 # RagSystemMap。
 #
 # 呼叫鏈：
-#   ViewerSessionService.load_map / build / project_to_graph
+#   ViewerSessionService.load_map / build_loaded / build_canonical
 #     → GraphProjectionService.project(...) → GraphViewModel
 #     → 包成 ViewerLoadResult → ViewerPayload
 #   Web：POST /api/viewer/load → ViewerPayload
@@ -256,7 +256,7 @@ class GraphViewModel(ViewerModel):
 
 # 做什麼：一次「載入 map 進 Viewer」的結果（成功/失敗 + 原始 map + graph）。
 # 被誰用：
-#   - ViewerSessionService.load_map / build / empty
+#   - ViewerSessionService.load_map / build_loaded / empty
 #   - MapBuildResult.viewer_load_result
 #   - 再包進 ViewerPayload 給 API
 # 內含：ai_system_map（dict）+ graph_view_model；loaded=False 時有

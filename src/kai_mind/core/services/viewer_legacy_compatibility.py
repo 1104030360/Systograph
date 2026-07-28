@@ -4,7 +4,7 @@
 # viewer_session_service.py，改吃 normalized AiSystemMapV2。
 #
 # 呼叫鏈：
-#   ViewerSessionService.build_loaded / project_to_graph
+#   ViewerSessionService.build_loaded（僅 v1 來源時才呼叫）
 #     → _preserve_legacy_edge_order / _with_legacy_details
 from __future__ import annotations
 

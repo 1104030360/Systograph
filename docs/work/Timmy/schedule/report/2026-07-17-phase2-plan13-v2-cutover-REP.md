@@ -26,20 +26,28 @@ same-parent staging，通過 required-set／scope／reference／schema validatio
   canonical/readiness equivalence皆已通過。
 - Executable scope：`src/kai_mind/**/*.py` AST、
   `frontend/src/**/*.{ts,tsx,json}` text、`scripts/**/*.sh` operational text。
-- Records / actual hits：`38 / 38`，無 unknown、無 stale。
-- Classification：`migrate=5`、`migration_only=25`、`operator_rollback=8`。
+- Records / actual hits：`37 / 37`，無 unknown、無 stale。
+- Classification：`migrate=5`、`migration_only=24`、`operator_rollback=8`。
 - 5筆`migrate`全部位於frontend原始檔案，removal plan明確交由frontend owner；backend無
   未分類active legacy hit。
 - Digest payload：依 allowlist tuple 順序，把四欄 record 組成 list 後一次做
   `json.dumps(payload, sort_keys=True, separators=(",", ":"))`。
 - Census SHA-256：
-  `1b6dc56ee312122b1d25b986ac637f2280c172e1deef50501439889baac69096`。
+  `fa27a510c5253dc2d856ecee9d76ac1c1e5f7ab07df096893799a969e6be1c56`。
 - 2026-07-28（Plan 13.5 Stage B）更新：`LEGACY_NAMES` 補上 `LegacyManualMappingType`
   與 `NEW_EXTENSION`，封死 `Enum.MEMBER.value` 間接引用盲點；`legacy_manual_mapping_`
   `migration_service.py` 因此新增2筆 `migration_only`，另 `web/legacy_mapping_guards.py`
-  改用內聯字面值後新增1筆 `migration_only`。本次報告當日（2026-07-17）的
-  `35 / 35`、`migration_only=22` 與 SHA-256
-  `59fa4f066a0e37c9f73ce488e64da96cccab7c8a9e6a429b0c073a738544714b` 為歷史值。
+  改用內聯字面值後新增1筆 `migration_only`（`35 / 35` → `38 / 38`）。
+- 2026-07-28（Plan 13.5 Stage C，C2／RA-5）更新：刪除 `ViewerSessionService.build()`
+  與 `project_to_graph()`（v1-typed、production 零 caller）後，
+  `viewer_session_service.py` 不再 import `RagSystemMap`，該筆 `migration_only`
+  記錄移除（`38 / 38` → `37 / 37`，`migration_only` 25→24）；同檔的
+  `SystemMapValidationService` 記錄保留，因為 optional v1-validator DI passthrough
+  仍轉交給 `CanonicalMapLoader`。
+- 歷史值：本次報告當日（2026-07-17）的 `35 / 35`、`migration_only=22` 與 SHA-256
+  `59fa4f066a0e37c9f73ce488e64da96cccab7c8a9e6a429b0c073a738544714b`；Stage B 的
+  `38 / 38`、`migration_only=25` 與 SHA-256
+  `1b6dc56ee312122b1d25b986ac637f2280c172e1deef50501439889baac69096`。
 
 ## Persisted legacy mapping migration
 
@@ -147,7 +155,7 @@ Render (3)
 | Frontend TypeScript + Vite build | exit 0 |
 | Frontend ESLint | exit 0；1個既有 Fast Refresh warning |
 | `bash -n` all operational shell scripts | exit 0 |
-| Consumer allowlist | 當日`35 records / 35 hits`；5筆frontend `migrate`（2026-07-28 Stage B後為`38 / 38`，見上方census段落） |
+| Consumer allowlist | 當日`35 records / 35 hits`；5筆frontend `migrate`（2026-07-28 Stage B後為`38 / 38`、Stage C C2後為`37 / 37`，見上方census段落） |
 
 Full gate曾抓到兩個真實同步問題並修復：Pydantic model新增 `artifact_set_version` 後
 checked-in JSON Schema未同步，以及 Mermaid scope comment放在 `flowchart LR` 前破壞穩定

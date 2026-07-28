@@ -107,15 +107,23 @@ Task 1B/2，不表示 cutover 已完成。
   backup、project lock、atomic replace、manual-review quarantine 與 secret redaction。
 - Initial scan、Apply 與 Detail Scan 共用 `BuildCommitService`；10 個 public sibling artifacts
   通過 same-parent staging、rename、complete manifest、latest CAS 與逐 boundary fault injection。
-- Executable consumer census 為 `38 records / 38 hits`：`migrate=5`、
-  `migration_only=25`、`operator_rollback=8`。5 筆 `migrate` 全部位於原始 frontend，
+- Executable consumer census 為 `37 records / 37 hits`：`migrate=5`、
+  `migration_only=24`、`operator_rollback=8`。5 筆 `migrate` 全部位於原始 frontend，
   SHA-256 為
-  `1b6dc56ee312122b1d25b986ac637f2280c172e1deef50501439889baac69096`。
-  （2026-07-28 更新：Plan 13.5 Stage B 把 `LegacyManualMappingType`／`NEW_EXTENSION`
+  `fa27a510c5253dc2d856ecee9d76ac1c1e5f7ab07df096893799a969e6be1c56`。
+  （2026-07-28 更新 1：Plan 13.5 Stage B 把 `LegacyManualMappingType`／`NEW_EXTENSION`
   補進 `LEGACY_NAMES`，封死 `Enum.MEMBER.value` 間接引用盲點，並把
   `web/legacy_mapping_guards.py` 的內聯字面值一起登記，因此 35→38 筆、
-  `migration_only` 22→25。2026-07-17 的 `35 records / 35 hits` 與 SHA-256
-  `59fa4f066a0e37c9f73ce488e64da96cccab7c8a9e6a429b0c073a738544714b` 為歷史值。）
+  `migration_only` 22→25。
+  更新 2：Plan 13.5 Stage C（C2／RA-5）刪掉 `ViewerSessionService.build()` 與
+  `project_to_graph()` 這兩個 production 零 caller 的 v1-typed 入口後，
+  `viewer_session_service.py` 的 `RagSystemMap` import 隨之消失，該筆記錄移除，
+  因此 38→37 筆、`migration_only` 25→24；同檔的 `SystemMapValidationService`
+  記錄保留（optional v1-validator DI passthrough 仍在）。2026-07-17 的
+  `35 records / 35 hits` 與 SHA-256
+  `59fa4f066a0e37c9f73ce488e64da96cccab7c8a9e6a429b0c073a738544714b`、
+  Stage B 的 `38 records / 38 hits` 與 SHA-256
+  `1b6dc56ee312122b1d25b986ac637f2280c172e1deef50501439889baac69096` 皆為歷史值。）
 - Final backend gate 為 `1031 passed`，scoped Plan 13 gate 為 `977 passed`；Ruff、Mypy、
   shell syntax與 live CLI/FastAPI restart 均通過。Frontend 已回復原始 tree，原始 Vitest為
   `3 files / 7 tests passed`，build／lint exit 0；先前對暫時 frontend cutover 的
@@ -466,10 +474,13 @@ rg -n "RagSystemMap|ExtensionComponent|new_extension_component|ai-system-map/v1"
   src tests frontend docs
 ```
 
-Current backend-only boundary：`38 records / 38 hits`，其中5筆`migrate`全在frontend；每個hit
+Current backend-only boundary：`37 records / 37 hits`，其中5筆`migrate`全在frontend；每個hit
 都能在allowlist找到相同path/symbol/classification，未知或stale仍fail closed。
 （2026-07-28更新：Plan 13.5 Stage B補上`LegacyManualMappingType`／`NEW_EXTENSION`與
-`web/legacy_mapping_guards.py`後由35筆增為38筆；`35 records / 35 hits`為歷史值。）
+`web/legacy_mapping_guards.py`後由35筆增為38筆；Stage C（C2／RA-5）刪掉
+`ViewerSessionService.build()`／`project_to_graph()`後`viewer_session_service.py`的
+`RagSystemMap`記錄消失，38筆減為37筆。`35 records / 35 hits`與
+`38 records / 38 hits`皆為歷史值。）
 
 ## Task 6：以 Staging Directory + Manifest + Latest Pointer 定義 Atomic Visibility
 
