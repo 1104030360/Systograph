@@ -162,6 +162,64 @@ def test_v1_viewer_characterization_preserves_recommended_next_checks() -> (
     ]
 
 
+def test_v1_recommended_next_checks_come_from_normalized_map() -> None:
+    # Given: a v1 artifact whose checks must survive normalization
+    loaded = CanonicalMapLoader().load(
+        json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    )
+    assert loaded.legacy_source_map is not None
+
+    # When
+    graph = ViewerSessionService().build_loaded(loaded).graph_view_model
+
+    # Then: the projection reads normalized v2, not the legacy source map
+    assert graph.recommended_next_checks
+    assert [
+        check.model_dump(mode="json")
+        for check in graph.recommended_next_checks
+    ] == [
+        check.model_dump(mode="json")
+        for check in loaded.normalized.recommended_next_checks
+    ]
+
+
+def test_v2_recommended_next_checks_use_the_same_projection() -> None:
+    # Given: a native v2 artifact carrying canonical recommended next checks
+    payload = json.loads(V2_FIXTURE_PATH.read_text(encoding="utf-8"))
+    payload["recommended_next_checks"] = [
+        {
+            "id": "check:runtime_readiness:component-llm-openai",
+            "target_type": "component_instance",
+            "target": "component:llm:openai",
+            "reason": "External model endpoint needs a runtime check.",
+            "action": "review_runtime_readiness",
+        }
+    ]
+    loaded = CanonicalMapLoader().load(payload)
+    assert loaded.legacy_source_map is None
+
+    # When
+    graph = ViewerSessionService().build_loaded(loaded).graph_view_model
+
+    # Then
+    assert [
+        check.model_dump(mode="json")
+        for check in graph.recommended_next_checks
+    ] == payload["recommended_next_checks"]
+
+
+def test_project_to_graph_keeps_recommended_next_check_order() -> None:
+    system_map = SystemMapValidationService().validate(
+        json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    )
+
+    graph = ViewerSessionService().project_to_graph(system_map)
+
+    assert [check.id for check in graph.recommended_next_checks] == [
+        check.id for check in system_map.recommended_next_checks
+    ]
+
+
 def test_load_map_projects_full_graph_without_layout_or_second_truth() -> None:
     load_result = ViewerSessionService().load_map(FIXTURE_PATH)
 

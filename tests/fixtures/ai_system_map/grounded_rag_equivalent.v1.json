@@ -213,6 +213,14 @@
   "unmapped_components": [],
   "detail_scans": [],
   "risk_hints": [],
-  "recommended_next_checks": [],
+  "recommended_next_checks": [
+    {
+      "id": "check:rag_knowledge_trust:component-retriever-qdrant",
+      "target_type": "component_instance",
+      "target": "component:retriever:qdrant",
+      "reason": "Retrieval grounding needs a manual trust review.",
+      "action": "review_retrieval_grounding"
+    }
+  ],
   "query_trace_events": []
 }

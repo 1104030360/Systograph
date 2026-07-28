@@ -6,6 +6,7 @@
 #   Web POST /api/viewer/load、BuildArtifactPublisher、BuildManifestService
 #     → ViewerSessionService.load_map / build / project_to_graph
 #         → CanonicalMapLoader.load（v1/v2 → AiSystemMapV2）
+#         → _graph_recommended_next_checks（只讀 normalized，v1/v2 同一條路）
 #         → GraphProjectionService.project（→ GraphViewModel）
 #         → ViewerLoadResult
 """Load validated system maps into frontend viewer payloads."""
@@ -24,6 +25,7 @@ from kai_mind.core.models.system_map import RagSystemMap
 from kai_mind.core.models.viewer import (
     GraphDetailsModel,
     GraphFiltersModel,
+    GraphRecommendedNextCheckModel,
     GraphViewModel,
     ViewerLoadResult,
 )
@@ -43,7 +45,6 @@ from kai_mind.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 from kai_mind.core.services.viewer_legacy_compatibility import (
-    _graph_recommended_next_checks,
     _preserve_legacy_edge_order,
     _with_legacy_details,
 )
@@ -108,20 +109,16 @@ class ViewerSessionService:
     ) -> ViewerLoadResult:
         normalized = loaded.normalized
         legacy_source = loaded.legacy_source_map
-        recommended_next_checks = []
         if legacy_source is not None:
             normalized = _preserve_legacy_edge_order(
                 legacy_source,
                 normalized,
             )
-            recommended_next_checks = _graph_recommended_next_checks(
-                legacy_source
-            )
         graph = self._graph_projection.project(
             normalized,
             profile_result=profile_result,
             artifact_ref=_safe_artifact_ref(map_json_path),
-            recommended_next_checks=recommended_next_checks,
+            recommended_next_checks=_graph_recommended_next_checks(normalized),
         )
         if legacy_source is not None:
             graph = _with_legacy_details(graph, legacy_source)
@@ -185,13 +182,16 @@ class ViewerSessionService:
     ) -> GraphViewModel:
         """Project canonical facts into semantic graph data only."""
 
-        normalized = self._canonical_loader.load(
-            system_map.model_dump(mode="json")
-        ).normalized
+        normalized = _preserve_legacy_edge_order(
+            system_map,
+            self._canonical_loader.load(
+                system_map.model_dump(mode="json")
+            ).normalized,
+        )
         graph = self._graph_projection.project(
-            _preserve_legacy_edge_order(system_map, normalized),
+            normalized,
             artifact_ref=_safe_artifact_ref(map_json_path),
-            recommended_next_checks=_graph_recommended_next_checks(system_map),
+            recommended_next_checks=_graph_recommended_next_checks(normalized),
         )
         return _with_legacy_details(graph, system_map)
 
@@ -244,6 +244,26 @@ class ViewerSessionService:
                 ),
             ),
         )
+
+
+# 做什麼：把 canonical map 的 recommended_next_checks 投成 viewer model。
+# 被誰呼叫：build_loaded / project_to_graph（v1、v2 走同一條投影路徑）。
+# 自己呼叫：GraphRecommendedNextCheckModel。
+# 注意：只讀 normalized AiSystemMapV2；不要改回讀 v1 legacy source map，
+# 否則 v2 build 的 checks 會再次消失。順序沿用 map 內的順序（build 時已排序）。
+def _graph_recommended_next_checks(
+    system_map: AiSystemMapV2,
+) -> list[GraphRecommendedNextCheckModel]:
+    return [
+        GraphRecommendedNextCheckModel(
+            id=check.id,
+            target_type=check.target_type,
+            target=check.target,
+            reason=check.reason,
+            action=check.action,
+        )
+        for check in system_map.recommended_next_checks
+    ]
 
 
 # 做什麼：把 map 路徑收成投影用的 artifact_ref（必須是專案相對 POSIX，

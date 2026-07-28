@@ -11,6 +11,12 @@ from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.analysis_history import ScanSnapshot
 from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
 from kai_mind.core.models.scan import OutputRun, ProjectScanResult
+from kai_mind.core.providers.local_json_state_provider import (
+    LocalJsonStateProvider,
+)
+from kai_mind.core.services.build_manifest_service import (
+    BuildManifestService,
+)
 from kai_mind.core.services.canonical_map_loader import (
     CanonicalMapLoader,
     CanonicalMapLoadError,
@@ -50,12 +56,15 @@ def _build(
 def _build_fixture_project(
     tmp_path: Path,
     fixture_name: str,
+    *,
+    project_id: str | None = None,
 ) -> MapBuildResult:
     return MapBuildService().build(
         MapBuildRequest(
             project_path=rag_project_fixture_path(fixture_name),
             output=tmp_path / "outputs",
-        )
+        ),
+        project_id=project_id,
     )
 
 
@@ -130,6 +139,48 @@ def test_normal_v2_build_populates_recommended_next_checks(
         CanonicalMapLoader().load(payload).normalized.recommended_next_checks
         == checks
     )
+
+
+def test_reloaded_build_still_projects_recommended_next_checks(
+    tmp_path: Path,
+) -> None:
+    """Checks live in the published artifact, not in scan memory.
+
+    Given a built project whose canonical map carries recommended next
+    checks,
+    When the same build is re-loaded from disk via
+    BuildManifestService.load,
+    Then the viewer graph still exposes the identical check list.
+    """
+    # Given
+    result = _build_fixture_project(
+        tmp_path,
+        "pgvector_openai_rag",
+        project_id="project:reload-next-checks",
+    )
+    assert result.status == "ok"
+    assert result.viewer_load_result is not None
+    built_checks = (
+        result.viewer_load_result.graph_view_model.recommended_next_checks
+    )
+    assert built_checks
+    service = BuildManifestService(
+        repository=LocalJsonStateProvider(tmp_path / "state")
+    )
+
+    # When
+    reloaded = service.load(service.persist(result))
+
+    # Then
+    assert reloaded.viewer_load_result is not None
+    assert (
+        reloaded.viewer_load_result.graph_view_model.recommended_next_checks
+        == built_checks
+    )
+    assert reloaded.ai_system_map is not None
+    assert [
+        check.id for check in reloaded.ai_system_map.recommended_next_checks
+    ] == [check.id for check in built_checks]
 
 
 def test_normal_build_defaults_to_one_native_v2_canonical_map(

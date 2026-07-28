@@ -27,6 +27,7 @@ from kai_mind.core.models.artifact_scope import (
     PHASE2_P0_ARTIFACT_SET_VERSION,
     ArtifactSetVersion,
 )
+from kai_mind.core.models.recommended_next_check import RecommendedNextCheck
 from kai_mind.core.models.system_map import Evidence
 
 # ---------------------------------------------------------------------------
@@ -270,8 +271,9 @@ class GenericCandidateFact(CompatibilityContractModel):
 # 被誰用：SystemMapV1ToV2Adapter 產出；再轉成正式 AiSystemMapV2。
 # 內含：components / edges / evidence(v1 Evidence) / endpoints / risks /
 # unmapped
-# / candidates。
-# 注意：這裡的 evidence 仍用 v1 的 Evidence model（來自 system_map.py）。
+# / candidates / recommended_next_checks。
+# 注意：這裡的 evidence 仍用 v1 的 Evidence model（來自 system_map.py）；
+# recommended_next_checks 用版本中立的 RecommendedNextCheck DTO 原樣搬運。
 class AiSystemMapV2CompatibilityView(CompatibilityContractModel):
     schema_version: CompatibilitySchemaVersion = V2_SCHEMA_VERSION
     system_type: CompatibilitySystemType = V2_SYSTEM_TYPE
@@ -284,6 +286,9 @@ class AiSystemMapV2CompatibilityView(CompatibilityContractModel):
     risk_hints: list[GenericRiskHint] = Field(default_factory=list)
     unmapped_facts: list[GenericUnmappedFact] = Field(default_factory=list)
     candidate_facts: list[GenericCandidateFact] = Field(default_factory=list)
+    recommended_next_checks: list[RecommendedNextCheck] = Field(
+        default_factory=list
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -419,8 +424,8 @@ class CanonicalCandidateFact(V2ContractModel):
 # 注意：欄位與 models/recommended_next_check.py 的版本中立 DTO 同形；
 # SystemMapV2MaterializationService.materialize 呼叫
 # RecommendedNextCheckService.derive，再由 SystemMapV2NormalizeService
-# .assemble 轉成這個型別。Viewer / markdown 投影目前仍只讀 v1 legacy
-# source map，還沒接上 v2 這條路徑。
+# .assemble 轉成這個型別；v1 map 則由 SystemMapV1ToV2Adapter 原樣搬過來。
+# Viewer / markdown 投影一律只讀這裡（v1、v2 同一條路）。
 class CanonicalRecommendedNextCheck(V2ContractModel):
     id: str
     target_type: str

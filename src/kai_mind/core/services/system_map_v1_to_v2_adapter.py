@@ -19,6 +19,7 @@ from kai_mind.core.models.ai_system_map_v2 import (
     CanonicalEvidence,
     CanonicalEvidenceLocation,
     CanonicalProject,
+    CanonicalRecommendedNextCheck,
     CanonicalRiskHint,
     CanonicalUnmappedComponent,
     CompatibilityActivation,
@@ -108,6 +109,11 @@ class SystemMapV1ToV2Adapter:
             risk_hints=self._build_risk_hints(system_map, component_index),
             unmapped_facts=self._build_unmapped_facts(system_map),
             candidate_facts=self._build_candidate_facts(system_map),
+            # Keep the v1 order: the list was service-sorted at build time.
+            recommended_next_checks=[
+                item.model_copy(deep=True)
+                for item in system_map.recommended_next_checks
+            ],
         )
 
     def adapt_to_canonical(
@@ -231,6 +237,16 @@ class SystemMapV1ToV2Adapter:
                     ),
                 )
                 for item in compatibility_view.candidate_facts
+            ],
+            recommended_next_checks=[
+                CanonicalRecommendedNextCheck(
+                    id=item.id,
+                    target_type=item.target_type,
+                    target=item.target,
+                    reason=item.reason,
+                    action=item.action,
+                )
+                for item in compatibility_view.recommended_next_checks
             ],
         )
 
