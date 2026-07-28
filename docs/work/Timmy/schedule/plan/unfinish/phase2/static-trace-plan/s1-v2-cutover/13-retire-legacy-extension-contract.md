@@ -110,7 +110,12 @@ Task 1B/2，不表示 cutover 已完成。
 - Executable consumer census 為 `37 records / 37 hits`：`migrate=5`、
   `migration_only=24`、`operator_rollback=8`。5 筆 `migrate` 全部位於原始 frontend，
   SHA-256 為
-  `fa27a510c5253dc2d856ecee9d76ac1c1e5f7ab07df096893799a969e6be1c56`。
+  `fa27a510c5253dc2d856ecee9d76ac1c1e5f7ab07df096893799a969e6be1c56`
+  （digest 推導方式——allowlist tuple 順序的四欄 record list →
+  `json.dumps(payload, sort_keys=True, separators=(",", ":"))` → SHA-256——記於
+  `docs/work/Timmy/schedule/report/2026-07-17-phase2-plan13-v2-cutover-REP.md`，
+  由 Plan 13.5 Task B2 寫入；本檔只記結果值。注意 digest 是**人工依該 recipe 重算**的
+  記錄值，census contract test 本身不計算也不斷言它——別去 test 裡找。）
   （2026-07-28 更新 1：Plan 13.5 Stage B 把 `LegacyManualMappingType`／`NEW_EXTENSION`
   補進 `LEGACY_NAMES`，封死 `Enum.MEMBER.value` 間接引用盲點，並把
   `web/legacy_mapping_guards.py` 的內聯字面值一起登記，因此 35→38 筆、

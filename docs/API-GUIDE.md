@@ -1023,7 +1023,7 @@ normal `ai-system-map/v2` 模式不會產生。失敗時都不寫任何 artifact
   同一 endpoint 上 preflight 先跑，因此 `legacy_rollback_not_representable` 優先於
   `legacy_rollback_detail_scan_unsupported`。
 - `legacy_rollback_writer_unavailable` **不限** detail-scan：normal build 路徑
-  （`MapBuildPipeline.build`）在 rollback 模式下同樣會拋，因此 `POST /api/scans`、
+  （`MapBuildPipeline.materialize`）在 rollback 模式下同樣會拋，因此 `POST /api/scans`、
   `POST /api/map/build` 與 CLI `map` 都可能遇到。它代表 wiring／組態問題（pipeline 沒被注入
   rollback writer），不是使用者輸入問題，重送相同請求不會改變結果。
   HTTP 呈現依 endpoint 而異：`POST /api/detail-scans` 與 `POST /api/scans` 走各自的 broad
