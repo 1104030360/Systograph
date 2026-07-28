@@ -119,6 +119,43 @@ def test_map_report_route_before_build_returns_404() -> None:
     assert response.json()["detail"] == "map_markdown_not_available"
 
 
+def test_api_map_report_does_not_500_when_artifacts_are_tampered(
+    tmp_path: Path,
+) -> None:
+    """artifact 被改壞時 /api/map/report 應回 404，不是 500。"""
+    state_dir = tmp_path / "state"
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "requirements.txt").write_text(
+        "chromadb==0.5.0\n",
+        encoding="utf-8",
+    )
+    first = TestClient(create_app(state_dir=state_dir))
+    project_id = first.post(
+        "/api/projects/import",
+        json={"source_type": "local_path", "project_path": str(project_root)},
+    ).json()["project_id"]
+    scan = first.post(
+        "/api/scans",
+        json={"project_id": project_id, "output": str(tmp_path / "output")},
+    ).json()
+    Path(scan["build_result"]["map_json_path"]).write_text(
+        "{}",
+        encoding="utf-8",
+    )
+
+    # 重開 backend process：session cache 是空的，
+    # 所以 report 一定得從磁碟 reload，才會踩到失效的 artifact。
+    second = TestClient(
+        create_app(state_dir=state_dir),
+        raise_server_exceptions=False,
+    )
+    response = second.get("/api/map/report")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "map_markdown_not_available"
+
+
 def test_map_report_route_ignores_arbitrary_path_query(
     tmp_path: Path,
 ) -> None:

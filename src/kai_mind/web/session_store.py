@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,8 +16,14 @@ from kai_mind.core.models.viewer import ViewerPayload
 from kai_mind.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.services.build_manifest_service import BuildManifestService
+from kai_mind.core.services.build_manifest_service import (
+    BuildArtifactLoadError,
+    BuildManifestService,
+)
+from kai_mind.core.services.logging_service import safe_log_event
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -223,13 +230,25 @@ class PersistentSessionStore:
         )
         if manifest is None:
             return None
-        result = self._manifest_service.load(manifest)
-        self._latest_build_result = result
-        return result
+        try:
+            return self._manifest_service.load(manifest)
+        except BuildArtifactLoadError as exc:
+            safe_log_event(
+                logger,
+                logging.WARNING,
+                "build_artifact_invalid",
+                stage="web_session_store",
+                project_id=project_id,
+                build_id=pointer.latest_build_id,
+                exception_type=exc.__class__.__name__,
+            )
+            return None
 
     def build_results(self) -> tuple[tuple[str, MapBuildResult], ...]:
         results: list[tuple[str, MapBuildResult]] = []
         for project in self._repository.list_projects():
+            # build_result 已在 artifact 失效時回 None，
+            # 所以單一壞掉的 project 會被跳過，不會拖垮整批。
             result = self.build_result(project.project_id)
             if result is not None:
                 results.append((project.project_id, result))
