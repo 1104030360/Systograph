@@ -489,15 +489,23 @@ def test_unhandled_exception_log_carries_route_without_secrets(
 
 
 def test_importing_web_app_does_not_build_an_application() -> None:
-    """import kai_mind.web.app 不得有建 app 的副作用。
+    """import kai_mind.web.app 後，模組層不得留下 LocalApiApp 實例。
 
-    以前這個模組尾端有 `app = create_app()`，光是 import 就會讀 .env、
-    建出整棵服務樹（含持有真實 API key 的 LLM provider，只要本機
-    .env 有設）、還對 state dir 跑一次 hydrate。所有啟動入口都走
-    `--factory` + create_app，沒有人需要那個模組層物件。副作用只在
-    乾淨的直譯器裡看得到，所以用 subprocess 而不是 in-process import。
+    掃整個 module namespace 而不是只看 `hasattr(m, "app")`：換個名字
+    重新引入一個模組層 app 也必須讓這條紅。
+
+    為什麼在意（以下是動機，不是本測試釘住的斷言）：以前這個模組尾端
+    有 `app = create_app()`，而 create_app() 會讀 .env、建出整棵服務樹
+    （含持有真實 API key 的 LLM provider，只要本機 .env 有設），還對
+    state dir 跑一次 hydrate。所有啟動入口都走 `--factory` + create_app，
+    沒有人需要那個模組層物件。
+
+    副作用只在乾淨的直譯器裡看得到，所以用 subprocess 而非 in-process。
     """
-    code = "import kai_mind.web.app as m; print(hasattr(m, 'app'))"
+    code = (
+        "import kai_mind.web.app as m; "
+        "print(any(isinstance(v, m.LocalApiApp) for v in vars(m).values()))"
+    )
 
     result = subprocess.run(
         [sys.executable, "-c", code],

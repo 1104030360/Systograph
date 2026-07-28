@@ -80,9 +80,6 @@ def _rollback_modules_loaded_by(
 ) -> set[str]:
     env = dict(os.environ)
     env["KAI_MIND_CANONICAL_OUTPUT_VERSION"] = canonical_output_version
-    # Every entry point falls back to the default state dir when nothing is
-    # injected, so the env keeps the probe off the real ~/.kai-mind.
-    env["KAI_MIND_STATE_DIR"] = str(state_dir)
     probe = subprocess.run(
         [
             sys.executable,
