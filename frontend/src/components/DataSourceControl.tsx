@@ -78,7 +78,7 @@ export function DataSourceControl({
             </label>
             <button className="menu-action is-primary" type="button" disabled={isScanning || !projectPath.trim()} onClick={onStartScan}>
               <RefreshCw size={15} />
-              {isScanning ? "Scanning project..." : "Start scan"}
+              {isScanning ? "Preparing scan..." : "Start scan"}
             </button>
           </>
         ) : null}

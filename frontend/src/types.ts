@@ -402,9 +402,20 @@ export type DetailScanResponse = z.infer<typeof detailScanResponseSchema>;
 
 export type DataSourceMode = "sample" | "api";
 
+export const typedApiErrorDetailSchema = z
+  .object({
+    code: z.string(),
+    message: z.string(),
+    retryable: z.boolean(),
+    context: z.record(z.unknown()).nullable().optional(),
+  })
+  .passthrough();
+
 export const apiErrorSchema = z
   .object({
-    detail: z.union([z.string(), z.record(z.unknown()), z.array(z.unknown())]).optional(),
+    detail: z
+      .union([z.string(), typedApiErrorDetailSchema, z.record(z.unknown()), z.array(z.unknown())])
+      .optional(),
   })
   .passthrough();
 
@@ -420,8 +431,25 @@ export const projectImportResponseSchema = z.object({
   project_path: z.string(),
 });
 
+export const projectRelativePathSchema = z.string().min(1).superRefine((path, context) => {
+  const segments = path.split("/");
+  if (
+    path.startsWith("/") ||
+    path.includes("\\") ||
+    /^[a-zA-Z]:/.test(path) ||
+    path.startsWith("//") ||
+    segments.includes("..") ||
+    segments.includes("")
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Expected a project-relative POSIX path.",
+    });
+  }
+});
+
 export const scanBoundaryTargetSchema = z.object({
-  path: z.string(),
+  path: projectRelativePathSchema,
   target_type: z.string(),
   risk_type: z.string(),
   reason: z.string(),
@@ -442,6 +470,32 @@ export const scanBoundaryEvidencePacketSchema = z.object({
 });
 
 export const scanBoundaryActionSchema = z.enum(["scan_this_run", "skip_this_run"]);
+export const inventorySelectionScopeSchema = z.enum(["exact_file", "recursive_directory"]);
+
+export const inventoryDirectorySummarySchema = z.object({
+  observed_regular_file_count: z.number().int().nonnegative(),
+  selectable_file_count: z.number().int().nonnegative(),
+  default_included_count: z.number().int().nonnegative(),
+  soft_excluded_count: z.number().int().nonnegative(),
+  sensitive_file_count: z.number().int().nonnegative(),
+  pre_content_hard_blocked_count: z.number().int().nonnegative(),
+  selectable_bytes: z.number().int().nonnegative(),
+  observed_max_relative_depth: z.number().int().nonnegative(),
+  blocked_reason_counts: z.record(z.number().int().nonnegative()),
+});
+
+export const scanBoundarySelectionContextSchema = z.object({
+  base_outcome: z.enum(["included", "soft_excluded", "mixed"]),
+  review_kind: z.enum(["required_confirmation", "optional_override"]),
+  default_decision: scanBoundaryActionSchema.nullable(),
+  decision_required: z.boolean(),
+  override_allowed: z.boolean(),
+  exclusion_sources: z.array(z.string()),
+  matched_inventory_policy_ids: z.array(z.string()),
+  target_kind: z.enum(["file", "directory"]),
+  selection_scope: inventorySelectionScopeSchema,
+  directory_summary: inventoryDirectorySummarySchema.nullable().optional(),
+});
 
 export const scanBoundaryProposalSchema = z.object({
   proposal_id: z.string(),
@@ -452,12 +506,18 @@ export const scanBoundaryProposalSchema = z.object({
   available_actions: z.array(scanBoundaryActionSchema).default(["scan_this_run", "skip_this_run"]),
   created_at: z.string(),
   updated_at: z.string(),
+  selection_context: scanBoundarySelectionContextSchema.nullable().optional(),
+});
+
+export const inventoryBoundaryProposalSchema = scanBoundaryProposalSchema.extend({
+  selection_context: scanBoundarySelectionContextSchema,
 });
 
 export const scanBoundaryDecisionSchema = z.object({
-  target_path: z.string(),
+  target_path: projectRelativePathSchema,
   fingerprint: z.string(),
   decision: scanBoundaryActionSchema,
+  selection_scope: inventorySelectionScopeSchema,
   reason: z.string().optional(),
 });
 
@@ -467,26 +527,131 @@ export const scanCreateRequestSchema = z.object({
   output: z.string().default("outputs"),
   redact_root_path: z.boolean().default(true),
   no_snippets: z.boolean().default(false),
+  preflight_request_id: z.string().optional(),
   boundary_decisions: z.array(scanBoundaryDecisionSchema).default([]),
 });
 
-export const scanCreateResponseSchema = z.object({
-  scan_id: z.string(),
-  project_id: z.string(),
-  status: z.enum(["completed", "error", "requires_boundary_decision"]),
-  build_result: z.record(z.unknown()).nullable().optional(),
-  boundary_proposals: z.array(scanBoundaryProposalSchema).default([]),
-  available_boundary_actions: z.array(scanBoundaryActionSchema).default(["scan_this_run", "skip_this_run"]),
+export const scanInventoryPreflightRequestSchema = z.object({
+  scan_depth: z.literal("system").default("system"),
+  // Keep client validation intentionally basic. The backend owns path
+  // normalization, scope classification, and all filesystem safety checks.
+  requested_paths: z.array(z.string().min(1)).max(100).default([]),
+  reviewable_excluded_cursor: z.string().nullable().default(null),
+  reviewable_excluded_limit: z.number().int().min(1).max(200).default(100),
 });
 
+export const inventoryPreflightSummarySchema = z.object({
+  default_included_file_count: z.number().int().nonnegative(),
+  required_review_count: z.number().int().nonnegative(),
+  reviewable_excluded_count: z.number().int().nonnegative(),
+  hard_blocked_count: z.number().int().nonnegative(),
+  missing_count: z.number().int().nonnegative(),
+  collapsed_directory_count: z.number().int().nonnegative(),
+});
+
+export const inventoryLimitContextSchema = z.object({
+  limit_kind: z.string(),
+  limit: z.number().int().nonnegative(),
+  observed_at_least: z.number().int().nonnegative(),
+  target_path: projectRelativePathSchema.optional(),
+});
+
+export const inventoryRequestedTargetViewSchema = z.object({
+  target_path: projectRelativePathSchema,
+  target_kind: z.enum(["file", "directory"]),
+  status: z.enum(["reviewable", "hard_blocked", "missing", "empty_directory", "directory_limit_exceeded"]),
+  proposal: inventoryBoundaryProposalSchema.nullable(),
+  reason_code: z.string().nullable(),
+  limit_context: inventoryLimitContextSchema.nullable(),
+});
+
+export const scanInventoryPreflightResponseSchema = z.object({
+  preflight_request_id: z.string(),
+  project_id: z.string(),
+  generated_at: z.string(),
+  source_mode: z.enum(["git", "recursive", "fallback_after_git_error"]),
+  inventory_policy_schema_version: z.string(),
+  inventory_policy_digest: z.string(),
+  candidate_set_digest: z.string(),
+  filesystem_safety_version: z.string(),
+  summary: inventoryPreflightSummarySchema,
+  required_boundary_proposals: z.array(inventoryBoundaryProposalSchema),
+  reviewable_excluded_page: z.object({
+    items: z.array(inventoryBoundaryProposalSchema),
+    next_cursor: z.string().nullable(),
+    total: z.number().int().nonnegative(),
+  }),
+  requested_target_results: z.array(inventoryRequestedTargetViewSchema),
+  blocked_summaries: z.array(
+    z.object({
+      path: projectRelativePathSchema,
+      reason_code: z.string(),
+      outcome: z.enum(["hard_blocked", "collapsed_directory"]),
+      can_expand: z.boolean(),
+    }),
+  ),
+  warnings: z.array(z.string()),
+});
+
+export const inventorySelectionSummarySchema = z.object({
+  included_file_count: z.number().int().nonnegative(),
+  skipped_file_count: z.number().int().nonnegative(),
+  directory_scope_results: z.array(
+    z.object({
+      target_path: projectRelativePathSchema,
+      decision: scanBoundaryActionSchema,
+      observed_file_count: z.number().int().nonnegative(),
+      included_file_count: z.number().int().nonnegative(),
+      hard_blocked_file_count: z.number().int().nonnegative(),
+      post_decision_blocked_file_count: z.number().int().nonnegative(),
+    }),
+  ),
+});
+
+export const scanCreateResponseSchema = z
+  .object({
+    scan_id: z.string().optional(),
+    project_id: z.string(),
+    status: z.enum(["completed", "error", "requires_boundary_decision"]),
+    build_result: z.record(z.unknown()).nullable().optional(),
+    boundary_proposals: z.array(inventoryBoundaryProposalSchema).default([]),
+    available_boundary_actions: z.array(scanBoundaryActionSchema).default(["scan_this_run", "skip_this_run"]),
+    preflight_request_id: z.string().optional(),
+    inventory_selection_summary: inventorySelectionSummarySchema.optional(),
+  })
+  .superRefine((response, context) => {
+    if (response.status === "completed" && !response.scan_id) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["scan_id"],
+        message: "Completed scan responses require scan_id.",
+      });
+    }
+    if (response.status === "requires_boundary_decision" && response.scan_id) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["scan_id"],
+        message: "Pending boundary responses must not contain scan_id.",
+      });
+    }
+  });
+
 export type ApiErrorPayload = z.infer<typeof apiErrorSchema>;
+export type TypedApiErrorDetail = z.infer<typeof typedApiErrorDetailSchema>;
 export type ProjectImportRequest = z.infer<typeof projectImportRequestSchema>;
 export type ProjectImportResponse = z.infer<typeof projectImportResponseSchema>;
 export type ScanBoundaryAction = z.infer<typeof scanBoundaryActionSchema>;
 export type ScanBoundaryProposal = z.infer<typeof scanBoundaryProposalSchema>;
+export type InventoryBoundaryProposal = z.infer<typeof inventoryBoundaryProposalSchema>;
 export type ScanBoundaryDecision = z.infer<typeof scanBoundaryDecisionSchema>;
 export type ScanCreateRequest = z.infer<typeof scanCreateRequestSchema>;
 export type ScanCreateResponse = z.infer<typeof scanCreateResponseSchema>;
+export type InventorySelectionScope = z.infer<typeof inventorySelectionScopeSchema>;
+export type InventoryDirectorySummary = z.infer<typeof inventoryDirectorySummarySchema>;
+export type ScanInventoryPreflightRequest = z.infer<typeof scanInventoryPreflightRequestSchema>;
+export type ScanInventoryPreflightResponse = z.infer<typeof scanInventoryPreflightResponseSchema>;
+export type InventoryRequestedTargetView = z.infer<typeof inventoryRequestedTargetViewSchema>;
+export type InventorySelectionSummary = z.infer<typeof inventorySelectionSummarySchema>;
 
 export type Selection =
   | { kind: "node"; id: string }
