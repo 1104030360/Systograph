@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+from httpx import Response
 from tests.helpers.fixtures import rag_project_fixture_path
 from tests.web.test_mapping_proposal_routes import (
     create_deterministic_test_app,
@@ -143,21 +146,74 @@ def test_api_map_report_does_not_500_when_artifacts_are_tampered(
         "/api/scans",
         json={"project_id": project_id, "output": str(tmp_path / "output")},
     ).json()
+
+    # 正向對照：tamper 前必須是 200。少了這行，之後若 report 因為別的原因
+    # 根本沒東西可回，這個測試會用「什麼都沒找到」冒充「壞掉的被處理好了」。
+    assert _restarted_report(state_dir).status_code == 200
+
     Path(scan["build_result"]["map_json_path"]).write_text(
         "{}",
         encoding="utf-8",
     )
-
-    # 重開 backend process：session cache 是空的，
-    # 所以 report 一定得從磁碟 reload，才會踩到失效的 artifact。
-    second = TestClient(
-        create_app(state_dir=state_dir),
-        raise_server_exceptions=False,
-    )
-    response = second.get("/api/map/report")
+    response = _restarted_report(state_dir)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "map_markdown_not_available"
+
+
+def test_api_map_report_does_not_500_when_artifact_is_unreadable(
+    tmp_path: Path,
+) -> None:
+    """artifact 存在但讀不到時 /api/map/report 也要回 404，不是 500。
+
+    digest_matches 先 path.is_file() 再 read_bytes()，所以「檔案在、但沒有
+    讀取權限」會從 OSError 那一側冒出來，而不是 BuildArtifactLoadError。
+    """
+    state_dir = tmp_path / "state"
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "requirements.txt").write_text(
+        "chromadb==0.5.0\n",
+        encoding="utf-8",
+    )
+    first = TestClient(create_app(state_dir=state_dir))
+    project_id = first.post(
+        "/api/projects/import",
+        json={"source_type": "local_path", "project_path": str(project_root)},
+    ).json()["project_id"]
+    scan = first.post(
+        "/api/scans",
+        json={"project_id": project_id, "output": str(tmp_path / "output")},
+    ).json()
+    map_json = Path(scan["build_result"]["map_json_path"])
+    original_mode = map_json.stat().st_mode
+
+    assert _restarted_report(state_dir).status_code == 200
+
+    try:
+        map_json.chmod(0)
+        if os.access(map_json, os.R_OK):
+            pytest.skip("Current user can still read a chmod(0) file.")
+
+        response = _restarted_report(state_dir)
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "map_markdown_not_available"
+    finally:
+        map_json.chmod(original_mode)
+
+
+def _restarted_report(state_dir: Path) -> Response:
+    """GET /api/map/report on a fresh app so the process cache is empty.
+
+    快取一旦有值就不會回頭讀磁碟，所以要驗「磁碟上的 artifact 壞掉」
+    一定得重開 app。
+    """
+    client = TestClient(
+        create_app(state_dir=state_dir),
+        raise_server_exceptions=False,
+    )
+    return client.get("/api/map/report")
 
 
 def test_api_map_returns_newest_build_after_querying_an_older_project(

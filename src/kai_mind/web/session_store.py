@@ -257,7 +257,12 @@ class PersistentSessionStore:
             return None
         try:
             return self._manifest_service.load(manifest)
-        except BuildArtifactLoadError as exc:
+        except (BuildArtifactLoadError, OSError) as exc:
+            # OSError 也要接：digest_matches 先 path.is_file() 再 read_bytes()
+            # （build_manifest_artifacts.py:235-245），中間檔案可能不可讀
+            # （權限）或剛被刪掉，那個 read_bytes 不在任何 try 裡面。
+            # detail 走 safe_log_event 的遮罩／路徑 redaction，
+            # 只會留下 artifact 檔名，不會外洩本機絕對路徑。
             safe_log_event(
                 logger,
                 logging.WARNING,
@@ -266,6 +271,7 @@ class PersistentSessionStore:
                 project_id=project_id,
                 build_id=pointer.latest_build_id,
                 exception_type=exc.__class__.__name__,
+                detail=str(exc),
             )
             return None
 

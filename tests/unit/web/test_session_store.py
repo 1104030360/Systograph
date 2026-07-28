@@ -7,8 +7,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
 
+import pytest
+
 from kai_mind.core.models.analysis_history import ScanSnapshot
-from kai_mind.core.models.map_build import MapBuildRequest
+from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
 from kai_mind.core.models.scan import OutputRun, ProjectScanResult
 from kai_mind.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
@@ -23,6 +25,7 @@ class StoreFixture(NamedTuple):
     """One session store plus two published builds on disk."""
 
     store: PersistentSessionStore
+    manifest_service: BuildManifestService
     older_project_id: str
     newer_project_id: str
     older_map_json: Path
@@ -96,6 +99,7 @@ def _store_with_two_builds(tmp_path: Path) -> StoreFixture:
     )
     return StoreFixture(
         store=store,
+        manifest_service=manifest_service,
         older_project_id=older_id,
         newer_project_id=newer_id,
         older_map_json=older_map,
@@ -125,6 +129,28 @@ def test_build_results_skips_projects_with_invalid_artifacts(
     assert [project_id for project_id, _ in results] == [
         fixture.newer_project_id
     ]
+
+
+def test_build_result_returns_none_when_artifact_is_unreadable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OSError 也算失效，不可以冒出來。
+
+    `digest_matches` 先 `path.is_file()` 再 `read_bytes()`
+    （`build_manifest_artifacts.py:235-245`），中間檔案可能不可讀或剛被刪，
+    而那個 `read_bytes` 不在任何 try 裡面 —— 只接
+    `BuildArtifactLoadError` 會讓這條路徑照樣 500。
+    """
+    fixture = _store_with_two_builds(tmp_path)
+
+    def unreadable(*args: object, **kwargs: object) -> MapBuildResult:
+        raise PermissionError(13, "Permission denied", "ai_system_map.json")
+
+    monkeypatch.setattr(fixture.manifest_service, "load", unreadable)
+
+    assert fixture.store.build_result(fixture.newer_project_id) is None
+    assert fixture.store.build_results() == ()
 
 
 def test_build_result_lookup_does_not_change_latest_build_result(
