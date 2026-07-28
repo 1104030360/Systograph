@@ -161,6 +161,63 @@ def test_build_results_skips_projects_with_invalid_artifacts(
     ]
 
 
+def test_build_results_skips_a_project_whose_manifest_is_corrupt(
+    tmp_path: Path,
+) -> None:
+    """壞掉的 `manifest.json` 只能拖垮它自己那個 project。
+
+    `build_results()` 是 `GET /api/detail-scans/{id}` 掃全部 project 找
+    那一筆 detail scan 的來源。`build_result()` 只接 artifact 失效，
+    `get_build_manifest()` 丟的 `StateCorruptionError` 會直接穿過去 ——
+    一個 project 的壞 manifest 會讓所有 project 的查詢一起 500。
+    """
+    fixture = _store_with_two_builds(tmp_path)
+    _corrupt(_manifest_path(tmp_path, fixture.older_project_id, "build:first"))
+
+    results = fixture.store.build_results()
+
+    assert [project_id for project_id, _ in results] == [
+        fixture.newer_project_id
+    ]
+
+
+def test_build_results_skips_a_project_whose_latest_pointer_is_corrupt(
+    tmp_path: Path,
+) -> None:
+    """壞掉的 `latest.json` 同理，只是它在 `build_result()` 的第一步。"""
+    fixture = _store_with_two_builds(tmp_path)
+    _corrupt(_latest_pointer_path(tmp_path, fixture.older_project_id))
+
+    results = fixture.store.build_results()
+
+    assert [project_id for project_id, _ in results] == [
+        fixture.newer_project_id
+    ]
+
+
+def test_latest_build_result_is_none_when_the_project_list_is_corrupt(
+    tmp_path: Path,
+) -> None:
+    """整份 project 清單讀不出來時 fail closed 成 None，不是 500。
+
+    `list_projects()` 讀到壞掉的 `project.json` 會丟
+    `StateCorruptionError`（`local_json_state_storage.py:88`），
+    而 `_read_latest_pointers()` 是在列 pointer **之前**呼叫它的 ——
+    沒接的話 `GET /api/map/report` 直接 500，
+    而 `latest_build_result()` 的 fail-closed 承諾就是假的。
+    """
+    fixture = _store_with_two_builds(tmp_path)
+    _corrupt(_project_dir(tmp_path, fixture.newer_project_id) / "project.json")
+
+    assert fixture.store.latest_build_result() is None
+
+    # hydrate 用的是同一支 helper，最後一道防線要接得住（維持空 payload）。
+    fixture.store.hydrate_from_latest()
+
+    payload = fixture.store.latest_viewer_payload().viewer_load_result
+    assert payload.loaded is False
+
+
 def test_build_result_returns_none_when_artifact_is_unreadable(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -302,22 +359,27 @@ def test_hydrate_skips_a_project_whose_manifest_is_corrupt(
     assert fixture.store.latest_build_result() is None
 
 
-def test_hydrate_survives_a_corrupt_state_directory(
+def test_hydrate_survives_a_regression_in_the_build_walk(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """state dir 損壞不可以讓 create_app() 開不起來。
+    """hydrate 最外層的備援：walk 漏接故障也不可以讓 server 起不來。
 
-    `list_projects()` 讀到壞掉的 project.json 會丟 `StateCorruptionError`
-    （`local_json_state_storage.py:88`）。hydrate 是預熱不是啟動前提，
-    所以要吞掉並留在空 payload。
+    每一種已知故障（壞 project 清單、壞 pointer、壞 manifest、失效
+    artifact）都已經在 walk 更裡面就地跳過了，所以這裡只能用注入的方式
+    模擬「哪天 walk 漏接一種新故障」。這一層的代價不對稱：`create_app()`
+    是呼叫端，漏接的後果是整個 server 開不起來，不是少一份預熱資料。
     """
     fixture = _store_with_two_builds(tmp_path)
 
-    def corrupt() -> tuple[object, ...]:
+    def regressed() -> MapBuildResult | None:
         raise StateCorruptionError("invalid local state: project.json")
 
-    monkeypatch.setattr(fixture.repository, "list_projects", corrupt)
+    monkeypatch.setattr(
+        fixture.store,
+        "_newest_loadable_build_result",
+        regressed,
+    )
 
     fixture.store.hydrate_from_latest()
 

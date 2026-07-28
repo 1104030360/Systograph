@@ -185,9 +185,13 @@ class SafeUnhandledExceptionMiddleware:
         send: Send,
     ) -> None:
         if started:
-            # response 已經開始，遮蔽回應送不出去了。這一支被吃掉的
-            # 例外對 404/503 兩個分支不會 re-raise，不留 log 就等於無聲
-            # 失敗 —— 所以固定留一筆 WARNING 說明「本來要送什麼」。
+            # response 已經開始，遮蔽回應送不出去了。404/503 兩個分支
+            # 吃掉例外而且不 re-raise，不留 log 就等於無聲失敗 ——
+            # 所以固定留一筆 WARNING 說明「本來要送什麼」。
+            # 500 分支也會走到這裡，那邊的例外已經另外記了 ERROR 又
+            # re-raise，這一筆對它是重複的；照樣留著是因為它記的是
+            # 「遮蔽回應沒送出去，client 收到的是先前那個已開始的
+            # response」，那件事從 ERROR 那筆看不出來。重複無害。
             safe_log_event(
                 logger,
                 logging.WARNING,

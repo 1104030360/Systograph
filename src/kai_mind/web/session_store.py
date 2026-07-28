@@ -37,9 +37,18 @@ from kai_mind.core.services.viewer_session_service import ViewerSessionService
 
 logger = logging.getLogger(__name__)
 
-# 讀不到 state 時「害到的是誰」——log 用，兩個政策各自的後果。
+# 讀不到 state 時「害到的是誰」——log 用，三個政策各自的後果。
 _REPORT_ENDPOINT = "GET /api/map/report"
 _VIEWER_STARTUP = "viewer startup payload"
+_DETAIL_SCAN_LOOKUP = "GET /api/detail-scans/{detail_scan_id}"
+
+# 整份清單讀不出來時沒有單一 project 可歸咎，log 用這個佔位。
+_ALL_PROJECTS = "*"
+
+# 一次「讀不到 state」的紀錄：(event, project_id, exception)。
+# event 綁在**發生地**而不是由呼叫端猜：pointer 壞掉與整份 project 清單
+# 壞掉是兩種故障，operator 只看 log 就要分得出來該去修哪個檔。
+_StateReadIssue = tuple[str, str, Exception]
 
 
 @dataclass(frozen=True)
@@ -273,12 +282,11 @@ class PersistentSessionStore:
         try:
             result = self._newest_loadable_build_result()
         except (LocalStateError, OSError) as exc:
-            # 最後一道防線，只剩「整份 project 清單讀不出來」會走到這裡
-            # （`list_projects()` 自己丟 StateCorruptionError，
-            # local_json_state_storage.py:88）。單一 project 的壞 pointer
-            # 或壞 manifest 已經在 walk 裡面就地跳過，不會落到這裡 ——
-            # 一個壞掉的 project 不可以讓整個 viewer 空白。
-            # 這裡若不接，create_app() 會直接炸掉 → server 開不起來。
+            # 純備援：walk 底下每一種已知故障（壞 project 清單、壞
+            # pointer、壞 manifest、失效 artifact）現在都在更裡面就地
+            # 跳過了，正常路徑到不了這裡。留著是因為這支的呼叫端是
+            # `create_app()` —— 哪天 walk 裡漏接一種新故障，代價是
+            # server 整個起不來，不是少一份預熱資料。
             safe_log_event(
                 logger,
                 logging.WARNING,
@@ -299,14 +307,17 @@ class PersistentSessionStore:
         呼叫端（`GET /api/map/report`）問的是「**最新那一個** build」，
         所以這支寧可答不知道，也不答錯：
 
+        - 整份 project 清單讀不出來（壞掉的 `project.json`）→ 直接
+          None。連有哪些 project 都不知道，「誰最新」更不可能知道。
         - 任何一個 project 的 latest pointer 讀不出來 → 直接 None。
           pointer 壞掉時「誰最新」本身不可知（壞的那個可能才是最新），
           此時回其他 project 的 build 等於安靜地送出錯的 report。
         - pointer 都讀得出來 → 只試最新那一個；它的 manifest/artifact
           載不起來也是 None，不會往下找次新的（那是 hydrate 的政策）。
 
-        兩種 None 都落到 route 既有的 404（`map_markdown_not_available`），
-        不會變成 500。
+        四種 None 都落到 route 既有的 404（`map_markdown_not_available`），
+        不會變成 500 —— 包含清單那一種，所以這裡不是「大概不會炸」而是
+        真的接住了（`_read_latest_pointers()` 把它收進 unreadable）。
         """
         with self._lock:
             cached = self._latest_build_result
@@ -314,9 +325,9 @@ class PersistentSessionStore:
             return cached
         pointers, unreadable = self._read_latest_pointers()
         if unreadable:
-            for project_id, exc in unreadable:
+            for event, project_id, exc in unreadable:
                 self._log_state_issue(
-                    "latest_pointer_unreadable",
+                    event,
                     exc,
                     project_id=project_id,
                     degrades=_REPORT_ENDPOINT,
@@ -342,9 +353,9 @@ class PersistentSessionStore:
         build 載不起來才是在迴圈**之內**。
         """
         pointers, unreadable = self._read_latest_pointers()
-        for project_id, exc in unreadable:
+        for event, project_id, exc in unreadable:
             self._log_state_issue(
-                "latest_pointer_unreadable",
+                event,
                 exc,
                 project_id=project_id,
                 degrades=_VIEWER_STARTUP,
@@ -362,29 +373,40 @@ class PersistentSessionStore:
         self,
     ) -> tuple[
         tuple[LatestBuildPointer, ...],
-        tuple[tuple[str, Exception], ...],
+        tuple[_StateReadIssue, ...],
     ]:
         """讀出各 project 的 latest pointer：(由新到舊, 讀不出來的名單)。
 
-        只做 I/O 與排序，**不決定政策**——兩個呼叫端對「有 pointer 讀不
+        只做 I/O 與排序，**不決定政策**——兩個呼叫端對「有東西讀不
         出來」的處置刻意相反（`latest_build_result()` fail closed、
         `_newest_loadable_build_result()` best-effort），共用這裡是為了
         讓它們不可能對「誰比較新」有不同意見：排序只寫在這一個地方。
 
-        `list_projects()` 自己失敗不在這裡接（那代表整份清單不可知），
-        留給 `hydrate_from_latest()` 的最後一道防線。
+        `list_projects()` 自己失敗（壞掉的 `project.json`，
+        `local_json_state_storage.py:88`）也收進同一份名單而不是往上丟：
+        它發生在列 pointer **之前**，往上丟等於讓 `latest_build_result()`
+        的 fail-closed 承諾在這一種故障下變成 500。收進名單之後兩個呼叫端
+        照各自政策處置——fail closed 那支看到名單非空就回 None，
+        best-effort 那支 log 完繼續（此時本來也沒有 pointer 可走）。
         """
         # repository / artifact I/O 刻意不放在鎖裡：讀檔可能很慢，
         # 在鎖內做會讓所有 request 排隊等一次磁碟往返。
+        try:
+            projects = self._repository.list_projects()
+        except (LocalStateError, OSError) as exc:
+            issue = ("project_listing_unreadable", _ALL_PROJECTS, exc)
+            return ((), (issue,))
         pointers: list[LatestBuildPointer] = []
-        unreadable: list[tuple[str, Exception]] = []
-        for project in self._repository.list_projects():
+        unreadable: list[_StateReadIssue] = []
+        for project in projects:
             try:
                 pointer = self._repository.get_latest_pointer(
                     project.project_id
                 )
             except (LocalStateError, OSError) as exc:
-                unreadable.append((project.project_id, exc))
+                unreadable.append(
+                    ("latest_pointer_unreadable", project.project_id, exc)
+                )
                 continue
             if pointer is not None:
                 pointers.append(pointer)
@@ -408,9 +430,10 @@ class PersistentSessionStore:
         """`build_result()` 但 state JSON 損壞也算「載不起來」而非 500。
 
         `build_result()` 只接 `manifest_service.load()` 丟的
-        `BuildArtifactLoadError`/`OSError`；`get_build_manifest()` 讀到
-        壞掉的 `manifest.json` 丟的 `StateCorruptionError` 會直接穿過它。
-        兩個呼叫端都要「載不起來 → None」，只是害到的東西不同。
+        `BuildArtifactLoadError`/`OSError`；`get_latest_pointer()` /
+        `get_build_manifest()` 讀到壞掉的 `latest.json` / `manifest.json`
+        丟的 `StateCorruptionError` 會直接穿過它。
+        三個呼叫端都要「載不起來 → None」，只是害到的東西不同。
         """
         try:
             return self.build_result(project_id)
@@ -478,11 +501,24 @@ class PersistentSessionStore:
             return None
 
     def build_results(self) -> tuple[tuple[str, MapBuildResult], ...]:
+        """每個 project 各自成敗，一個壞掉的 project 不拖垮整批。
+
+        呼叫端（`GET /api/detail-scans/{detail_scan_id}`）要掃過**全部**
+        project 才找得到那一筆 detail scan，所以這裡跟另外兩個呼叫端
+        一樣走 `_loadable_build_result()`：直接呼叫 `build_result()` 的
+        話，它只接 artifact 失效，任何一個 project 的壞 `latest.json`
+        或壞 `manifest.json` 都會讓**所有** project 的查詢一起 500。
+
+        整份 project 清單讀不出來（壞掉的 `project.json`）仍會往上丟：
+        那不是「某個 project 壞了」，沒有東西可以跳過，也沒有部分結果
+        可以回——落到 middleware 的 500 才是誠實的答案。
+        """
         results: list[tuple[str, MapBuildResult]] = []
         for project in self._repository.list_projects():
-            # build_result 已在 artifact 失效時回 None，
-            # 所以單一壞掉的 project 會被跳過，不會拖垮整批。
-            result = self.build_result(project.project_id)
+            result = self._loadable_build_result(
+                project.project_id,
+                degrades=_DETAIL_SCAN_LOOKUP,
+            )
             if result is not None:
                 results.append((project.project_id, result))
         return tuple(results)
