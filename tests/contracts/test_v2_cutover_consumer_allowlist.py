@@ -23,6 +23,11 @@ LEGACY_NAMES = frozenset(
         "ExtensionComponent",
         "SystemMapValidationService",
         "new_extension_component",
+        # Enum type and member of the legacy mapping value. Without these
+        # two names an `Enum.MEMBER.value` indirection reaches the legacy
+        # literal while every AST branch below stays blind to it.
+        "LegacyManualMappingType",
+        "NEW_EXTENSION",
     }
 )
 LEGACY_LITERALS = frozenset({"ai-system-map/v1", "new_extension_component"})
@@ -74,6 +79,26 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         symbol="new_extension_component",
         classification="migrate",
         removal_plan=("Frontend owner migrates this active public UI type."),
+    ),
+    ConsumerRecord(
+        path=(
+            "src/kai_mind/core/services/"
+            "legacy_manual_mapping_migration_service.py"
+        ),
+        symbol="LegacyManualMappingType",
+        classification="migration_only",
+        removal_plan="Plan 15 Task 3b removes the legacy mapping type enum.",
+    ),
+    ConsumerRecord(
+        path=(
+            "src/kai_mind/core/services/"
+            "legacy_manual_mapping_migration_service.py"
+        ),
+        symbol="NEW_EXTENSION",
+        classification="migration_only",
+        removal_plan=(
+            "Plan 15 Task 3b removes the legacy mapping type enum member."
+        ),
     ),
     ConsumerRecord(
         path=(
