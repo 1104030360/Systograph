@@ -46,28 +46,43 @@ def test_structured_log_masks_url_credentials() -> None:
     assert "[MASKED]" in event_data
 
 
-def test_exc_info_reaches_logging_without_entering_event_data() -> None:
-    """exc_info 是獨立通道，不可以被 **fields 吸進 event_data。"""
+def test_exc_info_is_rendered_as_masked_text_not_raw_exception() -> None:
+    """例外只以遮罩過的文字進 log；raw exc_info 永遠不轉給 logging。"""
     logger = logging.getLogger("test.exc-info-channel")
     logger.setLevel(logging.ERROR)
     logger.propagate = False
     handler = RecordingHandler()
     logger.addHandler(handler)
-    failure = RuntimeError("provider exploded")
+    secret = "sk-live-secret-value"
+    local_path = "/Users/linjunting/Local_AI_Health_Doctor/.env"
 
     try:
-        safe_log_event(
-            logger,
-            logging.ERROR,
-            "provider_failed",
-            stage="unit",
-            exc_info=failure,
-        )
+        try:
+            raise RuntimeError(
+                f"failed at {local_path} with OPENAI_API_KEY={secret}"
+            )
+        except RuntimeError as exc:
+            safe_log_event(
+                logger,
+                logging.ERROR,
+                "provider_failed",
+                stage="unit",
+                exc_info=exc,
+            )
     finally:
         logger.removeHandler(handler)
 
     assert len(handler.records) == 1
-    assert handler.records[0].exc_info is not None
-    assert handler.records[0].exc_info[1] is failure
-    event_data = cast(StructuredLogRecord, handler.records[0]).event_data
+    record = handler.records[0]
+    # raw 例外物件不進 record：pytest 會把它展開進 failure report。
+    assert record.exc_info is None
+    message = record.getMessage()
+    assert message.startswith("provider_failed\n")
+    assert "Traceback (most recent call last)" in message
+    assert "RuntimeError" in message
+    assert secret not in message
+    assert local_path not in message
+    assert "<LOCAL_PATH>/.env" in message
+    # exc_info 仍不可以被 **fields 吸進 event_data。
+    event_data = cast(StructuredLogRecord, record).event_data
     assert event_data == {"event": "provider_failed", "stage": "unit"}

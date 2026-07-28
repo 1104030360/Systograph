@@ -114,20 +114,22 @@ class SafeUnhandledExceptionMiddleware:
 
         try:
             await self.app(scope, receive, _send)
-        except InvalidStateIdError:
+        except InvalidStateIdError as exc:
             await self._mask(
                 {"detail": "resource_not_found"},
                 status_code=404,
                 started=response_started,
+                exception_type=exc.__class__.__name__,
                 scope=scope,
                 receive=receive,
                 send=send,
             )
-        except ProjectStateBusyError:
+        except ProjectStateBusyError as exc:
             await self._mask(
                 {"detail": "project_state_busy"},
                 status_code=503,
                 started=response_started,
+                exception_type=exc.__class__.__name__,
                 scope=scope,
                 receive=receive,
                 send=send,
@@ -148,7 +150,8 @@ class SafeUnhandledExceptionMiddleware:
             )
         except Exception as exc:
             # exc_info 讓預設 logging 設定印得出例外類別與 file/line；
-            # 結構化欄位仍走 safe_log_event 的遮罩／路徑 redaction。
+            # safe_log_event 會把 traceback render 成遮罩過的文字才寫出去，
+            # raw 例外物件不會進 record.exc_info。
             safe_log_event(
                 logger,
                 logging.ERROR,
@@ -163,6 +166,7 @@ class SafeUnhandledExceptionMiddleware:
                 {"detail": "internal_server_error"},
                 status_code=500,
                 started=response_started,
+                exception_type=exc.__class__.__name__,
                 scope=scope,
                 receive=receive,
                 send=send,
@@ -175,11 +179,25 @@ class SafeUnhandledExceptionMiddleware:
         *,
         status_code: int,
         started: bool,
+        exception_type: str,
         scope: Scope,
         receive: Receive,
         send: Send,
     ) -> None:
         if started:
+            # response 已經開始，遮蔽回應送不出去了。這一支被吃掉的
+            # 例外對 404/503 兩個分支不會 re-raise，不留 log 就等於無聲
+            # 失敗 —— 所以固定留一筆 WARNING 說明「本來要送什麼」。
+            safe_log_event(
+                logger,
+                logging.WARNING,
+                "masked_response_suppressed",
+                stage="local_api",
+                status_code=status_code,
+                exception_type=exception_type,
+                request_method=scope.get("method"),
+                request_path=scope.get("path"),
+            )
             return
         await _json_response(
             content,

@@ -350,6 +350,71 @@ def test_client_disconnect_is_swallowed_without_error_log(
 
     assert sent == []
     assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+    # 正向證明真的走進 ClientDisconnect 分支，而不是「剛好沒事發生」。
+    disconnects = [
+        record
+        for record in caplog.records
+        if getattr(record, "event_data", {}).get("event")
+        == "local_api_client_disconnected"
+    ]
+    assert len(disconnects) == 1
+    assert disconnects[0].levelno == logging.DEBUG
+    assert getattr(disconnects[0], "event_data", {})["request_path"] == (
+        "/api/mappings"
+    )
+
+
+def test_suppressed_masked_response_is_logged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """response 已開始時吞掉的 404/503 不可以無聲消失。"""
+    sent: list[Message] = []
+
+    async def streaming_then_busy(
+        scope_: Scope,
+        receive_: Receive,
+        send_: Send,
+    ) -> None:
+        await send_(
+            {"type": "http.response.start", "status": 200, "headers": []}
+        )
+        raise ProjectStateBusyError("private lock detail")
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: Message) -> None:
+        sent.append(message)
+
+    middleware = SafeUnhandledExceptionMiddleware(streaming_then_busy)
+    scope: Scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/mappings",
+        "headers": [],
+    }
+
+    with caplog.at_level(logging.WARNING, logger=web_middleware.__name__):
+        asyncio.run(middleware(scope, receive, send))
+
+    starts = [m for m in sent if m["type"] == "http.response.start"]
+    assert len(starts) == 1
+    assert starts[0]["status"] == 200
+    records = [
+        record
+        for record in caplog.records
+        if record.name == web_middleware.__name__
+        and record.levelno == logging.WARNING
+    ]
+    assert len(records) == 1
+    event_data = getattr(records[0], "event_data", {})
+    assert event_data["event"] == "masked_response_suppressed"
+    assert event_data["stage"] == "local_api"
+    assert event_data["status_code"] == 503
+    assert event_data["exception_type"] == "ProjectStateBusyError"
+    assert event_data["request_method"] == "POST"
+    assert event_data["request_path"] == "/api/mappings"
+    assert "private lock detail" not in caplog.text
 
 
 def test_size_limit_middleware_failure_is_masked_as_json(
@@ -407,13 +472,15 @@ def test_unhandled_exception_log_carries_route_without_secrets(
     assert event_data["request_method"] == "GET"
     assert event_data["request_path"] == "/api/debug/boom-logged"
     assert event_data["exception_type"] == "RuntimeError"
-    # exc_info 是唯一能讓預設 Formatter 印出 file/line 的通道；
-    # 它走 logging 自己的 traceback 格式化，不經過遮罩，因此
-    # 只有結構化欄位與訊息本身在這裡被斷言為乾淨的。
-    # （re-raise 之後 uvicorn 本來就會印同一份 traceback。）
-    assert records[0].exc_info is not None
-    rendered = f"{event_data}{records[0].getMessage()}"
-    assert "sk-live-secret-value" not in rendered
-    assert "/Users/linjunting" not in rendered
+    # 例外細節只以「遮罩過的文字」進 message：預設 Formatter 印得出
+    # 例外類別與 file/line，但 raw 例外物件不進 record.exc_info
+    # （pytest 會把 captured exc_info 展開進 failure report → CI/PR）。
+    assert records[0].exc_info is None
+    message = records[0].getMessage()
+    assert "Traceback (most recent call last)" in message
+    assert "RuntimeError" in message
+    assert "<LOCAL_PATH>/.env" in message
+    assert "sk-live-secret-value" not in caplog.text
+    assert "/Users/linjunting" not in caplog.text
     assert "sk-live-secret-value" not in response.text
     assert "/Users/linjunting" not in response.text

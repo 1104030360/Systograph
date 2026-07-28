@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import traceback
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -23,10 +24,16 @@ def safe_log_event(
 ) -> None:
     """Emit a structured log event without raw secrets or local paths.
 
-    exc_info 刻意是 keyword-only、跟 **fields 分開的第二條通道：欄位會
-    被遮罩後放進 extra["event_data"]（預設 Formatter 不會印），而 exc_info
-    交給 logging 自己的 traceback 格式化，是讓預設設定看得到 file/line 的
-    唯一途徑。它不經過遮罩，所以要不要帶由呼叫端自己判斷。
+    政策（唯一一條，適用所有呼叫端）：**例外細節只以遮罩過的文字進 log，
+    永遠不以 raw exc_info 進。** logging 自己的 traceback 格式化不經過遮罩，
+    而它的輸出會流進預設 stream、pytest 的 failure report 與 CI/PR 頻道，
+    等於把 `str(exc)` 裡的 secret 與 traceback 的絕對路徑一起外送。
+
+    所以這個 `exc_info` 參數收到的例外會在這裡被 render 成字串、跑過
+    `mask_text` + `redact_local_paths`，再接到 message 後面（欄位放
+    `extra["event_data"]`，預設 Formatter 不印，所以 message 是唯一能讓
+    預設設定看到例外類別與 file/line 的通道）。`record.exc_info` 一律是
+    None，呼叫端不需要、也不應該自己先遮罩。
     """
 
     service = masking_service or SecretMaskingService()
@@ -41,11 +48,29 @@ def safe_log_event(
             for key, value in fields.items()
         },
     }
-    logger.log(
-        level,
-        event,
-        extra={"event_data": event_data},
-        exc_info=exc_info,
+    message = event
+    if exc_info is not None:
+        rendered = _masked_traceback(
+            exc_info,
+            workspace_root=workspace_root,
+            masking_service=service,
+        )
+        message = f"{event}\n{rendered}"
+    logger.log(level, message, extra={"event_data": event_data})
+
+
+def _masked_traceback(
+    exc: BaseException,
+    *,
+    workspace_root: Path | None,
+    masking_service: SecretMaskingService,
+) -> str:
+    """Render a traceback as text with secrets and local paths removed."""
+
+    rendered = "".join(traceback.format_exception(exc))
+    return redact_local_paths(
+        masking_service.mask_text(rendered),
+        workspace_root=workspace_root,
     )
 
 
