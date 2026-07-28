@@ -215,3 +215,24 @@ def test_committed_detail_scan_survives_restart(tmp_path: Path) -> None:
     # Then the committed detail scan remains addressable.
     assert recovered.status_code == 200
     assert recovered.json()["detail_scan"]["id"] == detail_scan_id
+
+
+def test_latest_viewer_payload_survives_restart(tmp_path: Path) -> None:
+    """新 app 物件 + 舊 state_dir 時，/api/map 仍要還原最新 build。
+
+    這條走的是 PersistentSessionStore.latest_build_result() 的
+    `_latest_build_result is None` fallback —— 同一個 process 內
+    永遠走不到，只有 restart 情境會觸發。
+    """
+    state_dir = tmp_path / "state"
+    first = TestClient(create_app(state_dir=state_dir))
+    prepare_apply(first, tmp_path)
+    before = first.get("/api/map").json()
+    assert before["viewer_load_result"]["loaded"] is True
+
+    second = TestClient(create_app(state_dir=state_dir))
+    after = second.get("/api/map").json()
+
+    assert after["viewer_load_result"]["loaded"] is True
+    assert after == before
+    assert second.get("/api/map/report").status_code == 200
