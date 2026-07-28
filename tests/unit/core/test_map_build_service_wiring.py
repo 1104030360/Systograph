@@ -41,25 +41,58 @@ ROLLBACK_MODULES: Final[tuple[str, ...]] = (
     "kai_mind.core.services.system_map_normalize_service",
 )
 
+# The active entry points that must stay free of the rollback graph. The
+# probe receives its state dir as argv[1]; web.app is fully constructed
+# rather than only imported, because create_app() is what wires the build
+# services together.
+ENTRY_POINTS: Final[dict[str, str]] = {
+    "map_build_service": (
+        "from kai_mind.core.services.map_build_service import "
+        "MapBuildService\n"
+        "MapBuildService()"
+    ),
+    "web_create_app": (
+        "from kai_mind.web.app import create_app\n"
+        "create_app(state_dir=Path(sys.argv[1]))"
+    ),
+    "cli_main": "import kai_mind.cli.main",
+}
+
 # Import purity is only observable in a fresh interpreter: an in-process
 # probe would see modules that unrelated earlier tests already imported.
-_PROBE_SOURCE: Final[str] = f"""
+_PROBE_TEMPLATE: Final[str] = """
 import json
 import sys
+from pathlib import Path
 
-from kai_mind.core.services.map_build_service import MapBuildService
+{entry_point}
 
-MapBuildService()
-targets = {json.dumps(list(ROLLBACK_MODULES))}
+targets = {targets}
 print(json.dumps(sorted(set(targets) & set(sys.modules))))
 """
 
 
-def _rollback_modules_loaded_by(canonical_output_version: str) -> set[str]:
+def _rollback_modules_loaded_by(
+    entry_point: str,
+    *,
+    canonical_output_version: str,
+    state_dir: Path,
+) -> set[str]:
     env = dict(os.environ)
     env["KAI_MIND_CANONICAL_OUTPUT_VERSION"] = canonical_output_version
+    # kai_mind.web.app builds an app at import time, so only the env keeps
+    # that side effect off the real state dir.
+    env["KAI_MIND_STATE_DIR"] = str(state_dir)
     probe = subprocess.run(
-        [sys.executable, "-c", _PROBE_SOURCE],
+        [
+            sys.executable,
+            "-c",
+            _PROBE_TEMPLATE.format(
+                entry_point=ENTRY_POINTS[entry_point],
+                targets=json.dumps(list(ROLLBACK_MODULES)),
+            ),
+            str(state_dir),
+        ],
         capture_output=True,
         text=True,
         env=env,
@@ -86,27 +119,40 @@ def _writerless_v1_pipeline() -> MapBuildPipeline:
     )
 
 
-def test_default_v2_service_imports_no_v1_rollback_module() -> None:
-    """The default build path must not touch the rollback object graph.
+@pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
+def test_active_v2_entry_points_import_no_v1_rollback_module(
+    entry_point: str,
+    tmp_path: Path,
+) -> None:
+    """No active entry point may touch the rollback object graph.
 
     Given a fresh interpreter running the active ai-system-map/v2 mode,
-    When MapBuildService is constructed with no injected dependencies,
+    When the build service, the Web app or the CLI is loaded,
     Then none of the operator rollback modules are imported, so Plan 15
-    can delete them without breaking the active path.
+    can delete them without breaking any active path.
     """
-    assert _rollback_modules_loaded_by("ai-system-map/v2") == set()
+    assert (
+        _rollback_modules_loaded_by(
+            entry_point,
+            canonical_output_version="ai-system-map/v2",
+            state_dir=tmp_path / "state",
+        )
+        == set()
+    )
 
 
-def test_operator_v1_env_loads_the_rollback_modules() -> None:
+def test_operator_v1_env_loads_the_rollback_modules(tmp_path: Path) -> None:
     """Operator rollback still builds its writer graph eagerly.
 
     Given a fresh interpreter with the operator rollback env set to v1,
     When MapBuildService is constructed with no injected dependencies,
     Then the rollback modules are imported so the v1 writer exists.
     """
-    assert _rollback_modules_loaded_by("ai-system-map/v1") == set(
-        ROLLBACK_MODULES
-    )
+    assert _rollback_modules_loaded_by(
+        "map_build_service",
+        canonical_output_version="ai-system-map/v1",
+        state_dir=tmp_path / "state",
+    ) == set(ROLLBACK_MODULES)
 
 
 def test_v2_service_leaves_the_pipeline_rollback_writer_unset() -> None:

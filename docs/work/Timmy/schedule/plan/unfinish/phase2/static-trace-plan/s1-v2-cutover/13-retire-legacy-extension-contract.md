@@ -453,8 +453,9 @@ canonical schema。
   （`canonical_output_version == ai-system-map/v1`）或呼叫端顯式注入時才 function-local import
   並建 rollback 物件圖；v2 模式下 `MapBuildService()`、`create_app()` 與 CLI 都不 import
   `legacy_v1_rollback_service`、`system_map_materialization_service`、
-  `system_map_normalize_service`（`tests/unit/core/test_map_build_service.py` 以子行程
-  `sys.modules` 探針把關）。scan-phase 共用 DTO（`models/system_map.py` 內的
+  `system_map_normalize_service`（`tests/unit/core/test_map_build_service_wiring.py`
+  的 `test_active_v2_entry_points_import_no_v1_rollback_module` 以子行程 `sys.modules`
+  探針逐一把關這三個 entry point）。scan-phase 共用 DTO（`models/system_map.py` 內的
   `Evidence`/`Endpoint`/`Flow` 等）仍被 active path import，其拆分不屬本條，歸 Plan 15
   （見 13.5 RA-8 / RB-10）。
 - [x] Task 1 allowlist 是 executable gate；backend hit只能命中`operator_rollback`、
