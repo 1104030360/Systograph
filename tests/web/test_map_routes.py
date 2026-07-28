@@ -203,6 +203,62 @@ def test_api_map_report_does_not_500_when_artifact_is_unreadable(
         map_json.chmod(original_mode)
 
 
+def _scan_one_project(tmp_path: Path, state_dir: Path, name: str) -> str:
+    """Import + scan one project through the API; return its project_id."""
+    project_root = tmp_path / name
+    project_root.mkdir()
+    (project_root / "requirements.txt").write_text(
+        "chromadb==0.5.0\n",
+        encoding="utf-8",
+    )
+    client = TestClient(create_app(state_dir=state_dir))
+    project_id = str(
+        client.post(
+            "/api/projects/import",
+            json={
+                "source_type": "local_path",
+                "project_path": str(project_root),
+            },
+        ).json()["project_id"]
+    )
+    scan = client.post(
+        "/api/scans",
+        json={
+            "project_id": project_id,
+            "output": str(tmp_path / f"{name}-output"),
+        },
+    )
+    assert scan.status_code == 200
+    return project_id
+
+
+def test_api_map_report_fails_closed_when_a_latest_pointer_is_corrupt(
+    tmp_path: Path,
+) -> None:
+    """pointer 讀不出來時要 404，不是 500，更不是「別的 project 的 report」。
+
+    `latest.json` 壞掉時「誰是最新」本身不可知 —— 壞掉的那個可能才是最新
+    的，所以拿另一個 project 的 build 頂替等於安靜地送出錯的 report。
+    （viewer 那側的政策相反：hydrate 會往下找，讓使用者至少有東西看。）
+    """
+    state_dir = tmp_path / "state"
+    _scan_one_project(tmp_path, state_dir, "older")
+    newest_id = _scan_one_project(tmp_path, state_dir, "newest")
+
+    # 正向對照：壞掉之前必須真的有 report 可回。
+    assert _restarted_report(state_dir).status_code == 200
+
+    pointer = (
+        state_dir / "projects" / newest_id.replace(":", "_") / "latest.json"
+    )
+    pointer.write_text("{not json", encoding="utf-8")
+
+    response = _restarted_report(state_dir)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "map_markdown_not_available"
+
+
 def _restarted_report(state_dir: Path) -> Response:
     """GET /api/map/report on a fresh app so the process cache is empty.
 

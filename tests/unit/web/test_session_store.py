@@ -272,6 +272,10 @@ def test_hydrate_skips_a_project_whose_latest_pointer_is_corrupt(
     hydrated = fixture.store.latest_viewer_payload().viewer_load_result
     assert hydrated.loaded is True
     assert hydrated.ai_system_map["build_id"] == "build:first"
+    # 但 latest_build_result() 必須 fail closed：pointer 讀不出來時，
+    # 「誰是最新」就是不可知的（讀不出來的那個可能才是最新），
+    # 絕不可以拿別人的 build 冒充 → 走既有的 404。
+    assert fixture.store.latest_build_result() is None
 
 
 def test_hydrate_skips_a_project_whose_manifest_is_corrupt(
@@ -293,6 +297,9 @@ def test_hydrate_skips_a_project_whose_manifest_is_corrupt(
     hydrated = fixture.store.latest_viewer_payload().viewer_load_result
     assert hydrated.loaded is True
     assert hydrated.ai_system_map["build_id"] == "build:first"
+    # latest_build_result() 這邊是「最新那一個載不起來」→ None（不是 500，
+    # 也不是回次新的那一份）。跟 artifact digest 失效同一個結局。
+    assert fixture.store.latest_build_result() is None
 
 
 def test_hydrate_survives_a_corrupt_state_directory(
