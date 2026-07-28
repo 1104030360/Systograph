@@ -4,6 +4,6 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: kai_mind
-      POSTGRES_PASSWORD: kai_mind_test
-      POSTGRES_DB: kai_mind
+      POSTGRES_USER: systograph
+      POSTGRES_PASSWORD: systograph_test
+      POSTGRES_DB: systograph

@@ -25,9 +25,9 @@ System map 不只是元件清單，還要能讓使用者看到元件關係與 re
 - 不做 runtime health check。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/services/endpoint_detection_service.py`。
-2. 建立 `src/kai_mind/core/services/risk_hint_service.py`。
-3. 建立 `src/kai_mind/core/services/flow_derivation_service.py` 或放在 normalize 前的獨立 helper。
+1. 建立 `src/systograph/core/services/endpoint_detection_service.py`。
+2. 建立 `src/systograph/core/services/risk_hint_service.py`。
+3. 建立 `src/systograph/core/services/flow_derivation_service.py` 或放在 normalize 前的獨立 helper。
 4. 實作 Docker Compose published port parser：支援 short syntax 與 long syntax，辨識 host binding 是否省略、`0.0.0.0`、`127.0.0.1`、`localhost`。
 5. 實作 Docker port -> endpoint / network exposure risk hint。
 6. 實作 Compose service-name internal endpoint hint：沒有 `ports` 時只能標示 container-network internal endpoint，不產生 host-published exposure risk。
@@ -36,9 +36,9 @@ System map 不只是元件清單，還要能讓使用者看到元件關係與 re
 9. 寫測試：Qdrant port risk、OpenAI external endpoint、malformed compose parse risk、loopback-bound port lower-risk wording、service-name internal endpoint 不產生 published-port risk。
 
 ## 預期輸出
-- `src/kai_mind/core/services/endpoint_detection_service.py`
-- `src/kai_mind/core/services/risk_hint_service.py`
-- `src/kai_mind/core/services/flow_derivation_service.py`
+- `src/systograph/core/services/endpoint_detection_service.py`
+- `src/systograph/core/services/risk_hint_service.py`
+- `src/systograph/core/services/flow_derivation_service.py`
 - `tests/unit/core/test_endpoint_detection_service.py`
 - `tests/unit/core/test_risk_hint_service.py`
 - `tests/unit/core/test_flow_derivation_service.py`
@@ -62,7 +62,7 @@ System map 不只是元件清單，還要能讓使用者看到元件關係與 re
 - Docker Compose 沒有 `ports` 不代表服務不存在 endpoint。Compose 預設會建立 project network，同 network 服務可用 service name 互相連線；這應視為 container-network internal endpoint / flow evidence，不應產生 host-published port exposure risk。
 - GitDiagram 可借鏡「LLM 產生 graph 後再用實際 file tree 驗證、bad path / invalid connection retry」的做法；但它不是純 deterministic scanner。不要把 GitDiagram 寫成完全不依賴 LLM 幻覺的 deterministic extraction 範例。
 - Understand-Anything 可借鏡 staged pipeline、project scan、file/function/class/dependency graph、dashboard exploration。若要引用「merge 階段丟棄 dangling edges」或 `importMap` recovery，必須先看該 repo 具體程式碼或先前保存的 evidence；不能只根據 README 推論。
-- Checkov、Bandit、Semgrep 都適合作為 rule-based / policy-as-code 參考，但不建議在 Epic 1 Task 14 直接引入為 runtime dependency。Checkov 官方重點是 IaC static scan 與 custom policies；Bandit 使用 AST plugin 概念；Semgrep 支援 YAML-defined custom rules。這些支持「規則可測、可迭代」的架構方向，不代表 KAI-Mind 需要接它們的引擎。
+- Checkov、Bandit、Semgrep 都適合作為 rule-based / policy-as-code 參考，但不建議在 Epic 1 Task 14 直接引入為 runtime dependency。Checkov 官方重點是 IaC static scan 與 custom policies；Bandit 使用 AST plugin 概念；Semgrep 支援 YAML-defined custom rules。這些支持「規則可測、可迭代」的架構方向，不代表 Systograph 需要接它們的引擎。
 - Python `ast` 適合做 read-only literal endpoint extraction，但要有防呆：不 import / exec / eval 使用者程式；只接受 literal string/number kwargs；`ast.parse()` 失敗或遇到超大/複雜輸入時要回到 unknown evidence，不可中止整體 map。
 - PyYAML 應維持 `yaml.safe_load()`。不要使用 `yaml.load()` / unsafe Loader 解析 project-owned config 或 Compose 檔。
 
@@ -193,7 +193,7 @@ Risk hint 是「提醒你可能有風險」，不是正式安全掃描結論。E
 |---|---|
 | LLM 輸出非確定性 | 同一 evidence 每次可能產生不同 risk hint，無法寫穩定 unit test |
 | 無法追溯 evidence | `RiskHint.evidence_id` 是必填欄位，AI 無法保證引用 valid ID |
-| 不了解威脅模型 | LLM 不知道 KAI-Mind 的 RAG slot 定義與 Epic 1 scope |
+| 不了解威脅模型 | LLM 不知道 Systograph 的 RAG slot 定義與 Epic 1 scope |
 | 違反 evidence-based 原則 | GEMINI.md 明訂 evidence-based findings，AI 生成的 hint 無來源 |
 | 違反 read-only 原則 | 引入本地 AI 增加不必要的運算與維運複雜度 |
 
@@ -227,7 +227,7 @@ Epic 1 的 5 條初始 rules 是有意識的 scope 決定，不是設計缺陷�
 
 | 候選工具 | 可借鏡處 | 不直接引入的原因 |
 |---|---|---|
-| Checkov | IaC static scan、Python/YAML custom policies、policy metadata | 對 Task 14 的 5 條初始 rules 過重；需要把 KAI-Mind facts 轉成 Checkov resource model |
+| Checkov | IaC static scan、Python/YAML custom policies、policy metadata | 對 Task 14 的 5 條初始 rules 過重；需要把 Systograph facts 轉成 Checkov resource model |
 | Bandit | AST plugin / visitor pattern，不 import 使用者程式 | Bandit 是 Python security scanner，不是 RAG endpoint/risk mapper；直接嵌入會增加 rule/context adapter 成本 |
 | Semgrep | YAML-defined rules、registry、iterative rule growth | 導入 engine 會增加安裝與跨平台成本；目前 code pattern provider 已有 deterministic rule catalog |
 | OPA/Rego | Policy-as-code | Task 14 evidence/target validation 比一般 policy eval 更依賴 local contract，MVP 用 Python 條件更容易測試 |

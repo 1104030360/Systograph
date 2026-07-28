@@ -44,7 +44,7 @@ coverage gap，且 fixture 不計入 direct import success rate。
 **2026-07-06 assessment validation decision：** Plan 14 必須驗證固定 10-plane / 52-node reference
 map + repo overlay、五態、activation、direct / indirect / explicit-negative evidence、
 field-specific conflicts、assessment scope 與 Mapping Completeness。DeepResearch 網頁中的
-Validation Simulator 僅是需求研究參考，不是 KAI-Mind 產品功能，本計畫不實作 simulator。
+Validation Simulator 僅是需求研究參考，不是 Systograph 產品功能，本計畫不實作 simulator。
 
 ## 2026-07-07 UA 整合對齊
 
@@ -53,9 +53,9 @@ sidecar、fail-closed behavior 與 parity harness 必須全部通過並留下可
 時，本計畫維持 blocked。Plan 17 `AssessmentOrchestrator` 維持 deferred，明確不是 Gate-2 或
 本計畫的依賴；`validated_candidates` 使用空集合。
 
-Plan 14 新增 UA parity gate，作為 Plan 18 退役 KAI scan TOML providers 的前置驗證：
+Plan 14 新增 UA parity gate，作為 Plan 18 退役 Systograph scan TOML providers 的前置驗證：
 
-- UA structural facts / evidence 必須與過渡期 KAI TOML providers 的代表性輸出做 parity
+- UA structural facts / evidence 必須與過渡期 Systograph TOML providers 的代表性輸出做 parity
   diff，涵蓋 dependency、docker/config、code pattern 與 endpoint/symbol 類 facts。
 - UA fail-closed 必須被驗證：schema 不合法、Node runtime 缺失、必要 batch 失敗時不得進入
   Step 4，也不得產出可被當作成功的 partial artifacts。
@@ -93,7 +93,7 @@ Import/scan API 已存在，profile sidecar/overlay 與 frontend integration 尚
 - `tests/fixtures/rag_projects/`
 - `tests/fixtures/ai_systems/`（新增四象限與 workflow fixtures）
 - `docs/work/Timmy/schedule/report/local-project-import-results-YYYY-MM-DD.md`
-- `src/kai_mind/cli/map_command.py`
+- `src/systograph/cli/map_command.py`
 - `frontend/src/` API mode viewer flow
 
 ### 實作步驟
@@ -252,7 +252,7 @@ E2E hard gate）。
 
 - Clone direct import targets 到固定的 repo-relative
   `/tests/fixtures/external_projects/`；不得改用其他未記錄位置。
-- 對 direct targets 執行 `Local AI Health Doctor` CLI scan，不安裝 target repo dependencies，不啟動 target app。
+- 對 direct targets 執行 `Systograph` CLI scan，不安裝 target repo dependencies，不啟動 target app。
 - 對 fixture / reference-only sources 抽取最小 `.py` fixture / snippet，並標明來源 commit SHA。
 - 驗證 scanner read-only：掃描前後 target repo `git status --short` 不應變化。
 - 驗證 `ai_system_map.json`、`profile_signals.json`、CLI stdout / stderr 不暴露 secret values。
@@ -300,12 +300,12 @@ E2E hard gate）。
 ### Task 3: 驗證 Two-Phase Analysis
 
 - [ ] 執行 scan 並確認 core engine 先用 UA structural path（import map、structure、
-  symbol/endpoint/call hints）產生 deterministic facts；過渡期 KAI TOML providers 僅做
+  symbol/endpoint/call hints）產生 deterministic facts；過渡期 Systograph TOML providers 僅做
   parity diff。
 - [ ] 檢查 log / test hooks，確認未將 raw source tree 整包丟給 LLM。
 - [ ] 驗證 PrivateGPT / Quivr / Kotaemon 的 baseline slot evidence 來自 deterministic facts。
 - [ ] 驗證 Neo4j LLM Graph Builder 與 graph fixtures 的 entity / relationship / graph-store signals 可追到 code/config evidence。
-- [ ] Phase2 active path 不執行 UA file-analyzer；KAI-Mind Step 6 以外不新增 AI
+- [ ] Phase2 active path 不執行 UA file-analyzer；Systograph Step 6 以外不新增 AI
   orchestration。若未來 Plan 17 重啟 semantic output，也不能新增 component/edge/evidence
   或單獨提升 profile status。
 - [ ] 驗證 `scan-project.mjs` 不執行；其語言 / fileCategory / 行數 enrichment 已在 Step 2
@@ -325,7 +325,7 @@ E2E hard gate）。
 - [ ] 驗證 Step 3 scan TOML / providers 只產 raw facts 與 evidence；掃描規則中不得含
   `plane_id`、`reference_node_id`、profile trigger 或 canonical output 欄位；且這些 providers
   在 UA-primary 過渡期只作 parity-only。
-- [ ] 驗證 UA parity gate：UA facts / evidence 對照 KAI TOML providers 的代表性輸出，
+- [ ] 驗證 UA parity gate：UA facts / evidence 對照 Systograph TOML providers 的代表性輸出，
   記錄 missing / extra / equivalent / intentionally-degraded 差異，並保存可追溯報告。
 - [ ] 驗證 UA fail-closed：invalid result schema、Node runtime 缺失、必要 batch 失敗時，
   build 停在 Step 3，不進 Step 4，不更新 latest viewer payload。
@@ -436,7 +436,7 @@ Summary:
   `undetermined`。
 - [ ] Frontend legend 能區分五態、六種 activation state、direct / indirect /
   explicit-negative evidence，並顯示 Mapping Completeness 的公式語意。
-- [ ] KAI-Mind product / viewer 不包含 Validation Simulator；DeepResearch simulator
+- [ ] Systograph product / viewer 不包含 Validation Simulator；DeepResearch simulator
   僅作 reference，不列入產品 acceptance。
 - [ ] `ai_system_map.json`、`profile_signals.json`、`readiness_report.json`、
   `ai_system_map.md`、`system_map.mmd`、viewer payload 均符合最新 contract。

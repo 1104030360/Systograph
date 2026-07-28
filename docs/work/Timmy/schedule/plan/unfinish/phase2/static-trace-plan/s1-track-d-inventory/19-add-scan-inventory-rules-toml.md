@@ -11,12 +11,12 @@ construction 的 hard prerequisite，但 UA adapter／`files[]` 不屬於本計�
 > 本計畫是 `phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md` Step 2 標示
 > 「📦 `scan_inventory_rules.toml` 待建」的唯一 owner。
 
-**Goal:** 建立 Step 2 的 `inventory selection policy catalog`，把 KAI-Mind 擁有的預設
+**Goal:** 建立 Step 2 的 `inventory selection policy catalog`，把 Systograph 擁有的預設
 path selection 規則從 Python 常數移到可驗證、可稽核、可重現的 TOML；使用者對可疑檔案的
 `scan_this_run` / `skip_this_run` 決策仍由既有 boundary lifecycle 擁有。
 
 **Architecture:** Candidate enumeration 仍分成 Git、recursive 與 Git failure fallback；三種
-source 共用同一份 KAI inventory catalog 與不可覆寫的 filesystem safety checks。Catalog
+source 共用同一份 Systograph inventory catalog 與不可覆寫的 filesystem safety checks。Catalog
 只決定 Step 2 的 path selection，不做 Step 3 scan fact、component mapping 或 profile inference。
 
 **Tech Stack:** Python 3.11、Pydantic v2、`tomllib`、`importlib.resources`、`pathspec.GitIgnoreSpec`、
@@ -40,7 +40,7 @@ pytest。
 
 - Baseline：`uv run pytest -q` = `850 passed`；`uv run ruff check src tests` 與
   `uv run mypy src tests` 均通過。
-- `src/kai_mind/core/providers/filesystem_provider.py` 目前以
+- `src/systograph/core/providers/filesystem_provider.py` 目前以
   `DIRECTORY_SKIP_REASONS`、`MODEL_WEIGHT_SUFFIXES`、`GENERATED_SUFFIXES` 保存 hidden Python
   defaults；Git mode 的 candidate list沒有一致套用 directory defaults，正是本計畫要修正的
   parity gap。
@@ -66,7 +66,7 @@ policy**。只有 `inventory_limit_metadata` 的 binary/oversize 說明文字屬
 
 | 放進 TOML | 留在 Python |
 | --- | --- |
-| KAI default path rules：dependency/build/cache/generated/model-weight 等 path pattern | outside-root symlink、unreadable、binary content detection |
+| Systograph default path rules：dependency/build/cache/generated/model-weight 等 path pattern | outside-root symlink、unreadable、binary content detection |
 | `inventory_policy_id`、`action`、`pattern`、`reason`、`category`、`message` | `max_file_size_bytes`、binary probe bytes 等數值門檻 |
 | binary/oversize 的描述 metadata | boundary proposal/decision/fingerprint lifecycle |
 | catalog schema version | scan fact、component bridge、profile inference、projection |
@@ -84,7 +84,7 @@ persistence 等可疑檔案後，詢問使用者這次要不要掃描的流程�
 Git / recursive candidate enumeration
   -> project ignore semantics
   -> non-overridable filesystem safety checks
-  -> KAI inventory selection policy catalog
+  -> Systograph inventory selection policy catalog
   -> eligible FileInventory
   -> ScanBoundaryReviewService 建立可疑檔案 proposals
   -> 使用者 decision
@@ -100,7 +100,7 @@ Git / recursive candidate enumeration
 | --- | --- | ---: | --- |
 | Project source boundary | Git / nested `.gitignore` | 否 | 不重新加入 candidate source 沒列出的路徑 |
 | Filesystem safety | Python | 否 | outside-root symlink、unreadable、binary、oversize 必須跳過 |
-| KAI default path policy | TOML | 否 | 只有 catalog 內較後面的 `action="include"` 可反轉同 catalog 的 exclude |
+| Systograph default path policy | TOML | 否 | 只有 catalog 內較後面的 `action="include"` 可反轉同 catalog 的 exclude |
 | Boundary review | Python + user decision | 是，只限本層 | `scan_this_run` / `skip_this_run` 只處理已進入 eligible inventory 的可疑檔案 |
 
 因此不再使用含糊的「runtime policy 與 TOML 衝突時一律優先」。正確 contract 是：runtime
@@ -123,18 +123,18 @@ proposal。必須用 contract test 鎖定「先進 eligible inventory，再等�
 3. **Fallback mode**：偵測到 Git worktree，但 `git ls-files` 執行失敗時，改走 recursive，
    source 必須標成 `fallback_after_git_error` 並留下 warning。
 
-三種模式共用 KAI catalog 與 filesystem safety，但 candidate source 有以下刻意差異：
+三種模式共用 Systograph catalog 與 filesystem safety，但 candidate source 有以下刻意差異：
 
 | Case | Git mode | Recursive / fallback | Target contract |
 | --- | --- | --- | --- |
 | tracked file 後來被 `.gitignore` pattern 命中 | Git 仍列出，因為 tracked file 不受 ignore 排除 | 無 tracked 資訊，依 `.gitignore` 排除 | 保留此差異並以 fixture 說明 |
 | `.git/info/exclude` / global excludes | `--exclude-standard` 會套用 | 不讀取 Git private/global state | 保留此差異；recursive 只信 target tree 內檔案 |
-| KAI `dist/`、`node_modules/` 等 default policy | catalog 套用於 Git 列出的 path | catalog 在 walk pruning / file classification 套用 | included file set 必須一致；這是本計畫的 parity correction |
+| Systograph `dist/`、`node_modules/` 等 default policy | catalog 套用於 Git 列出的 path | catalog 在 walk pruning / file classification 套用 | included file set 必須一致；這是本計畫的 parity correction |
 | outside-root symlink、binary、oversize | Python safety skip | Python safety skip | 結果一致且不可 override |
 | skip audit granularity | Git 可能是逐 file | recursive 可記 directory summary | 允許粒度不同，但 source/rule/reason 必須可解釋 |
 
 Parity 的意思不是兩種 source 永遠列出完全相同的 candidates，而是：排除上述已記錄的 source
-差異後，同一 KAI policy 與 safety condition 必須得到相同 included file set。
+差異後，同一 Systograph policy 與 safety condition 必須得到相同 included file set。
 
 ## Glob contract
 
@@ -167,7 +167,7 @@ local path。
 InventoryPolicyAuditEntry
   path: str
   outcome: included | skipped | pending_review
-  source: project_ignore | filesystem_safety | kai_inventory_catalog | runtime_boundary
+  source: project_ignore | filesystem_safety | systograph_inventory_catalog | runtime_boundary
   source_mode: git | recursive | fallback_after_git_error
   audit_scope: path | directory_summary
   reason: str
@@ -244,11 +244,11 @@ validation failure；但 fallback 必須留下上列 source mode、stable warnin
 
 Files:
 
-- Create: `src/kai_mind/core/rules/scan_inventory_rules.toml`
-- Create: `src/kai_mind/core/models/inventory_policy.py`
-- Create: `src/kai_mind/core/services/scan_inventory_rule_loader.py`
-- Create: `src/kai_mind/core/services/inventory_policy_matcher.py`
-- Modify: `src/kai_mind/core/models/errors.py`
+- Create: `src/systograph/core/rules/scan_inventory_rules.toml`
+- Create: `src/systograph/core/models/inventory_policy.py`
+- Create: `src/systograph/core/services/scan_inventory_rule_loader.py`
+- Create: `src/systograph/core/services/inventory_policy_matcher.py`
+- Modify: `src/systograph/core/models/errors.py`
 - Create: `tests/unit/core/test_scan_inventory_rule_loader.py`
 - Create: `tests/unit/core/test_inventory_policy_matcher.py`
 
@@ -271,16 +271,16 @@ Steps:
 - [x] 將 unavailable/invalid failure 對應到上述穩定 error code；不得在 message 印 catalog
   原文或 absolute resource path。
 - [x] 執行 built wheel resource smoke check，確認 wheel 內含
-  `kai_mind/core/rules/scan_inventory_rules.toml` 且 installed import 可讀。
+  `systograph/core/rules/scan_inventory_rules.toml` 且 installed import 可讀。
 
-## Task 2：統一 Git／recursive 的 KAI policy application
+## Task 2：統一 Git／recursive 的 Systograph policy application
 
 Files:
 
-- Modify: `src/kai_mind/core/models/filesystem.py`
-- Modify: `src/kai_mind/core/providers/filesystem_provider.py`
-- Modify: `src/kai_mind/core/models/scan.py`
-- Modify: `src/kai_mind/core/services/project_scan_service.py`
+- Modify: `src/systograph/core/models/filesystem.py`
+- Modify: `src/systograph/core/providers/filesystem_provider.py`
+- Modify: `src/systograph/core/models/scan.py`
+- Modify: `src/systograph/core/services/project_scan_service.py`
 - Test: `tests/unit/core/test_filesystem_provider.py`
 - Test: `tests/integration/test_phase7_filesystem_provider_behaviors.py`
 
@@ -290,7 +290,7 @@ Steps:
   file/directory × exclude/include。
 - [x] 對 tracked + ignored、`.git/info/exclude`、global exclude 建立 mode-specific expected
   tests，不把刻意差異誤判成 regression。
-- [x] 把 KAI-owned directory/suffix defaults 移入 ordered `path_rules`，Git path list 與
+- [x] 把 Systograph-owned directory/suffix defaults 移入 ordered `path_rules`，Git path list 與
   recursive walk共用 `InventoryPolicyMatcher`；不得保留 hidden Python default list，也不得
   把matcher邏輯複製回oversized provider。
 - [x] 加入「directory 先 exclude、descendant 後 include」fixture，證明 recursive 不會因過早
@@ -307,8 +307,8 @@ Steps:
 
 Files:
 
-- Modify: `src/kai_mind/core/services/scan_boundary_review_service.py`
-- Modify: `src/kai_mind/core/models/scan_boundary.py`（只有 audit contract 需要時）
+- Modify: `src/systograph/core/services/scan_boundary_review_service.py`
+- Modify: `src/systograph/core/models/scan_boundary.py`（只有 audit contract 需要時）
 - Test: `tests/unit/core/test_scan_boundary_review_service.py`
 - Test: `tests/unit/core/test_project_scan_service.py`
 
@@ -327,10 +327,10 @@ Steps:
 
 Files:
 
-- Modify: `src/kai_mind/core/models/analysis_history.py`
-- Modify: `src/kai_mind/core/services/scan_snapshot_service.py`
-- Modify: `src/kai_mind/web/routes/scan_routes.py`
-- Modify: `src/kai_mind/web/schemas.py`（若錯誤 response 有 typed schema）
+- Modify: `src/systograph/core/models/analysis_history.py`
+- Modify: `src/systograph/core/services/scan_snapshot_service.py`
+- Modify: `src/systograph/web/routes/scan_routes.py`
+- Modify: `src/systograph/web/schemas.py`（若錯誤 response 有 typed schema）
 - Test: `tests/integration/test_scan_snapshot_materialization.py`
 - Test: `tests/web/test_project_scan_routes.py`
 
@@ -363,7 +363,7 @@ Steps:
 
 ## Acceptance Criteria
 
-- [x] `scan_inventory_rules.toml` 是 KAI Step 2 default path policy 的唯一 source of truth；
+- [x] `scan_inventory_rules.toml` 是 Systograph Step 2 default path policy 的唯一 source of truth；
   Python 不保留 hidden path default list。
 - [x] TOML 名稱與文件一律使用 `inventory selection policy catalog`，不再把 executable
   path rules 稱為純 metadata。

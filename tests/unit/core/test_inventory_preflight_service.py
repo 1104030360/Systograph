@@ -7,22 +7,24 @@ from typing import IO, Any, cast
 
 import pytest
 
-from kai_mind.core.models.errors import (
+from systograph.core.models.errors import (
     InventorySelectionError,
     InventorySelectionErrorCode,
 )
-from kai_mind.core.models.inventory_selection import InventoryPreflightRequest
-from kai_mind.core.models.scan_boundary import (
+from systograph.core.models.inventory_selection import (
+    InventoryPreflightRequest,
+)
+from systograph.core.models.scan_boundary import (
     ScanBoundaryDecisionAction,
     ScanBoundaryDecisionRequest,
 )
-from kai_mind.core.services.inventory_candidate_service import (
+from systograph.core.services.inventory_candidate_service import (
     InventoryCandidateService,
 )
-from kai_mind.core.services.inventory_preflight_service import (
+from systograph.core.services.inventory_preflight_service import (
     InventoryPreflightService,
 )
-from kai_mind.core.services.scan_boundary_review_service import (
+from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
 

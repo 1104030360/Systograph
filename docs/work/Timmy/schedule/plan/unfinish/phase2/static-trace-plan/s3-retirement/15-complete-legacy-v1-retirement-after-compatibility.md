@@ -26,7 +26,7 @@ pnpm build/lint。
 ## 2026-07-05 Active Contract and Execution Gate
 
 Plan 15 是 active plan，但只能在 Gate-4 通過後開始：Plan 14 必須完成並留下通過、可回溯
-的 validation report，且 Plan 18 已完成 KAI TOML provider retirement。若 `00A`、`13`、
+的 validation report，且 Plan 18 已完成 Systograph TOML provider retirement。若 `00A`、`13`、
 `14`、`18` 任一 gate 未通過，Plan 15 必須維持 pending，不得提前清除 compatibility code。
 
 退役後的 active v2 contract 必須保留：
@@ -50,7 +50,7 @@ Legacy 三態資料只允許由 migration adapter 讀取並轉成 active 五態 
 
 Plan 15 的 legacy v1 / extension 退役不包含 UA sidecar 退役。UA 已成為 Step 3 primary
 scanner 後，Plan 15 只確認 active v2 / static execution artifacts 不依賴 legacy v1 或
-extension surface；KAI TOML scan providers 的主掃描路徑退役由 Plan 18 在 Plan 14 parity
+extension surface；Systograph TOML scan providers 的主掃描路徑退役由 Plan 18 在 Plan 14 parity
 gate 通過後處理。
 
 ## 執行摘要
@@ -99,14 +99,14 @@ Plan 13 Task 4 會先建立**過渡用** persisted mapping migration surface，�
 
 ### 相關檔案
 
-- `src/kai_mind/core/models/ai_system_map_v2.py`
-- `src/kai_mind/core/services/system_map_v1_to_v2_adapter.py`
-- `src/kai_mind/core/services/canonical_map_loader.py`
-- `src/kai_mind/core/services/system_map_normalize_service.py`
-- `src/kai_mind/core/services/system_map_validation_service.py`
-- `src/kai_mind/core/providers/output_artifact_provider.py`
-- `src/kai_mind/core/models/mapping_base.py`（確認 active enum 已無 `NEW_EXTENSION`）
-- `src/kai_mind/core/services/legacy_manual_mapping_migration_service.py`（Plan 13 建、本計畫刪）
+- `src/systograph/core/models/ai_system_map_v2.py`
+- `src/systograph/core/services/system_map_v1_to_v2_adapter.py`
+- `src/systograph/core/services/canonical_map_loader.py`
+- `src/systograph/core/services/system_map_normalize_service.py`
+- `src/systograph/core/services/system_map_validation_service.py`
+- `src/systograph/core/providers/output_artifact_provider.py`
+- `src/systograph/core/models/mapping_base.py`（確認 active enum 已無 `NEW_EXTENSION`）
+- `src/systograph/core/services/legacy_manual_mapping_migration_service.py`（Plan 13 建、本計畫刪）
 - Legacy DTO／`migrate-legacy-mappings` CLI 註冊處（Plan 13 建、本計畫刪）
 - `schemas/ai-system-map.v2.schema.json`
 - `tests/fixtures/ai_system_map/`
@@ -236,7 +236,7 @@ reload gate 通過，且 active `ManualMappingType` 已無 `NEW_EXTENSION`。
 - [ ] `static-trace-plan/README.md` 與 `dynamic-trace-plan/README.md` 更新為
   `00A -> 13 -> Gate-1 -> 16 -> Gate-2 -> 14 -> Gate-3 -> 18 -> Gate-4 -> 15`
   的順序（與 `static-trace-plan/README.md`「建議執行順序」及 `epic1-phase2.md` §20 DAG 一致）。
-- [ ] 文件明確記載：Plan 18（KAI TOML provider 主掃描退役）為 Plan 15 的 Gate-4 前置，不可跳過。
+- [ ] 文件明確記載：Plan 18（Systograph TOML provider 主掃描退役）為 Plan 15 的 Gate-4 前置，不可跳過。
 
 ### Task 6：完整 regression gate
 

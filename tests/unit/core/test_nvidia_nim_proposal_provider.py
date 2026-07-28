@@ -7,15 +7,15 @@ import httpx
 import pytest
 from pytest import MonkeyPatch
 
-from kai_mind.core.models.mapping import MappingEvidencePacket
-from kai_mind.core.providers.llm_proposal_provider import (
+from systograph.core.models.mapping import MappingEvidencePacket
+from systograph.core.providers.llm_proposal_provider import (
     NvidiaNimProposalProvider,
     nvidia_nim_provider_from_env,
 )
-from kai_mind.core.services.llm_proposal_config_loader import (
+from systograph.core.services.llm_proposal_config_loader import (
     LlmProposalConfigError,
 )
-from kai_mind.core.services.mapping_proposal_service import (
+from systograph.core.services.mapping_proposal_service import (
     MappingProposalProviderUnavailableError,
 )
 
@@ -86,7 +86,7 @@ def test_nvidia_provider_sends_masked_packet_and_schema_only() -> None:
     assert body["stream"] is False
     assert body["chat_template_kwargs"] == {"enable_thinking": True}
     assert "sk-live-1234567890" not in serialized_body
-    assert "/Users/linjunting/Local_AI_Health_Doctor" not in serialized_body
+    assert "/Users/linjunting/Systograph" not in serialized_body
     assert "read_file" not in serialized_body
     assert "shell" not in serialized_body
 
@@ -207,7 +207,7 @@ def test_nvidia_provider_can_be_created_from_dotenv(
     env_file.write_text(
         "\n".join(
             [
-                "KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true",
+                "SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS=true",
                 "NVIDIA_API_KEY=nvapi-from-dotenv",
                 "NVIDIA_NIM_MODEL=google/gemma-4-31b-it",
             ]
@@ -224,7 +224,7 @@ def test_nvidia_provider_requires_explicit_enable_flag(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", raising=False)
+    monkeypatch.delenv("SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS", raising=False)
     monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
     env_file = tmp_path / ".env"
     env_file.write_text("NVIDIA_API_KEY=nvapi-from-dotenv\n", encoding="utf-8")
@@ -277,7 +277,7 @@ template = "mapping_proposal.v1.yaml"
     env_file.write_text(
         "\n".join(
             [
-                "KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true",
+                "SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS=true",
                 "NVIDIA_API_KEY=nvapi-from-dotenv",
             ]
         ),
@@ -320,7 +320,7 @@ def test_env_can_override_non_secret_toml_values(
         )
 
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-from-env")
-    monkeypatch.setenv("KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
+    monkeypatch.setenv("SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
     monkeypatch.setenv("NVIDIA_NIM_MODEL", "google/env-model")
     monkeypatch.setenv("NVIDIA_NIM_MAX_TOKENS", "512")
     config_file = tmp_path / "llm_proposal.toml"
@@ -363,7 +363,7 @@ def test_env_overrides_outside_safe_ranges_are_rejected(
     monkeypatch: MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-from-env")
-    monkeypatch.setenv("KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
+    monkeypatch.setenv("SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
     monkeypatch.setenv("NVIDIA_NIM_MAX_TOKENS", "999999")
     config_file = tmp_path / "llm_proposal.toml"
     config_file.write_text(
@@ -402,7 +402,7 @@ def test_env_overrides_with_invalid_numeric_values_are_rejected(
     monkeypatch: MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-from-env")
-    monkeypatch.setenv("KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
+    monkeypatch.setenv("SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
     monkeypatch.setenv("NVIDIA_NIM_TOP_P", "not-a-number")
     config_file = tmp_path / "llm_proposal.toml"
     config_file.write_text(
@@ -438,7 +438,7 @@ def test_env_overrides_with_invalid_boolean_values_are_rejected(
     monkeypatch: MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-from-env")
-    monkeypatch.setenv("KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
+    monkeypatch.setenv("SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
     monkeypatch.setenv("NVIDIA_NIM_ENABLE_THINKING", "maybe")
     config_file = tmp_path / "llm_proposal.toml"
     config_file.write_text(
@@ -498,7 +498,7 @@ def test_env_var_takes_precedence_over_dotenv(
         )
 
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-from-env")
-    monkeypatch.setenv("KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
+    monkeypatch.setenv("SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS", "true")
     env_file = tmp_path / ".env"
     env_file.write_text("NVIDIA_API_KEY=nvapi-from-dotenv\n", encoding="utf-8")
 

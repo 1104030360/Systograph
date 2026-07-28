@@ -11,7 +11,7 @@
 - 已上網查證並修正 Phase 18 plan research：
   - Prefect graph schema 可作為 topology/state graph response 參考，但 invalid map 200 並非 Prefect 直接規範。
   - LangGraph 可作為 node/edge/state wiring 概念參考，不引入 agent runtime。
-  - Marquez 可作為 provenance id 概念參考，但 KAI-Mind 使用 canonical `source_id` / `evidence_ids` / `risk_hint_ids`。
+  - Marquez 可作為 provenance id 概念參考，但 Systograph 使用 canonical `source_id` / `evidence_ids` / `risk_hint_ids`。
   - React Flow + ELK layout 屬 frontend，因此 backend 不輸出 `x` / `y` / `position`。
   - FastAPI route 維持 `response_model` typed payload。
 - 已實作完整 `ViewerSessionService`：
@@ -74,7 +74,7 @@ ViewerPayload / GET /api/map
 4. 移除舊版 minimal projection：
    - 將 Phase 16 minimal projection 測試合併到 `tests/unit/core/test_viewer_session_service.py`。
    - 將 `RiskHintIndex` 內移到 `ViewerSessionService`。
-   - 移除 `src/kai_mind/core/services/minimal_viewer_projection_service.py`。
+   - 移除 `src/systograph/core/services/minimal_viewer_projection_service.py`。
    - 移除 `tests/unit/core/test_minimal_viewer_projection_service.py`。
    - 用 `rg` 確認 `src` / `tests` 已沒有 `MinimalViewerProjectionService` 或 `minimal_viewer_projection_service` caller。
 5. 更新文件：
@@ -88,7 +88,7 @@ ViewerPayload / GET /api/map
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider tests/unit/core/test_viewer_session_service.py tests/web/test_viewer_routes.py tests/cli/test_viewer_command.py`
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider tests/unit/core/test_viewer_session_service.py tests/integration/test_map_build_service.py tests/web/test_map_routes.py tests/web/test_project_scan_routes.py tests/cli/test_map_command.py tests/web/test_viewer_routes.py tests/cli/test_viewer_command.py`
 - `rg -n "MinimalViewerProjectionService|minimal_viewer_projection_service|test_minimal_viewer_projection_service" src tests`
-- `npx --yes pyright src/kai_mind/core/services/viewer_session_service.py`
+- `npx --yes pyright src/systograph/core/services/viewer_session_service.py`
 - `.venv/bin/ruff check src tests`
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/mypy src tests`
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider`

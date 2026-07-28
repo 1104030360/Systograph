@@ -119,11 +119,11 @@ backend 尚無 profile models、inference service、sidecar writer 或 profile-a
 
 ### 相關檔案
 
-- `src/kai_mind/core/models/profile_signal.py`（新增）
-- `src/kai_mind/core/services/profile_inference_service.py`（新增）
-- `src/kai_mind/core/services/profile_signal_validation_service.py`（新增）
-- `src/kai_mind/core/services/map_build_service.py`
-- `src/kai_mind/core/services/viewer_session_service.py`
+- `src/systograph/core/models/profile_signal.py`（新增）
+- `src/systograph/core/services/profile_inference_service.py`（新增）
+- `src/systograph/core/services/profile_signal_validation_service.py`（新增）
+- `src/systograph/core/services/map_build_service.py`
+- `src/systograph/core/services/viewer_session_service.py`
 - `frontend/src/types.ts`
 - `frontend/src/services/viewerApi.ts`
 - `frontend/src/hooks/useViewerPayload.ts`
@@ -360,13 +360,13 @@ Detection threshold：
 
 新增：
 
-- `src/kai_mind/core/models/profile_signal.py`
+- `src/systograph/core/models/profile_signal.py`
   - `profile-signals/v1` 的 Pydantic models。
   - 禁止 `confidence`、raw source snippets、absolute paths 與 unknown fields。
-  - 從 `src/kai_mind/core/models/capability_candidate.py` 匯入 `CapabilityCandidateComponent`；不要在 `profile_signal.py` 內重新定義 capability candidate model。
-- `src/kai_mind/core/services/profile_signal_validation_service.py`
+  - 從 `src/systograph/core/models/capability_candidate.py` 匯入 `CapabilityCandidateComponent`；不要在 `profile_signal.py` 內重新定義 capability candidate model。
+- `src/systograph/core/services/profile_signal_validation_service.py`
   - Profile evidence ids 與 artifact safety 的 cross-reference validator。
-- `src/kai_mind/core/services/profile_inference_service.py`
+- `src/systograph/core/services/profile_inference_service.py`
   - 從 validated map facts、non-baseline capability candidate components、legacy extensions、unmapped components、risk hints 與 evidence metadata 的 deterministic inference rules。
 - `tests/unit/core/test_profile_signal_models.py`
 - `tests/unit/core/test_profile_signal_validation_service.py`
@@ -375,7 +375,7 @@ Detection threshold：
 
 修改：
 
-- `src/kai_mind/core/services/map_build_service.py`
+- `src/systograph/core/services/map_build_service.py`
   - Infer profiles 一次並 validate；把 result 交給 Plan 03 lifecycle，不自行寫 artifact 或投影 graph。
 - `docs/work/Timmy/design/EPIC1/Phase2/epic1-phase2/epic1-phase2-design.md`
   - 若實作改變 planned contract，保持 decision record 一致。
@@ -387,15 +387,15 @@ Frontend 檔案、Zod contract、renderer、layout、detail panel、filter 與 t
 
 本計畫不修改：
 
-- `src/kai_mind/core/models/system_map.py`，除非另批准 schema migration。
-- `src/kai_mind/core/templates/rag-core-v1.json`，除非另批准 template contract migration。
+- `src/systograph/core/models/system_map.py`，除非另批准 schema migration。
+- `src/systograph/core/templates/rag-core-v1.json`，除非另批准 template contract migration。
 - Runtime trace persistence behavior；另由 `12-add-runtime-component-trace-contract.md` 作 deferred boundary 設計。
 - External provider 或 adapter configuration。
 
 ## Task 1：定義 `profile-signals/v1` Models
 
 **檔案：**
-- Create：`src/kai_mind/core/models/profile_signal.py`
+- Create：`src/systograph/core/models/profile_signal.py`
 - Test：`tests/unit/core/test_profile_signal_models.py`
 
 - [ ] **Step 1：先寫 model tests**
@@ -408,7 +408,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from kai_mind.core.models.profile_signal import (
+from systograph.core.models.profile_signal import (
     ProfileFinding,
     ProfileInferenceResult,
 )
@@ -559,11 +559,11 @@ def test_profile_model_rejects_raw_snippet_like_fields() -> None:
 .venv/bin/pytest tests/unit/core/test_profile_signal_models.py -v
 ```
 
-預期：FAIL，`ModuleNotFoundError: No module named 'kai_mind.core.models.profile_signal'`。
+預期：FAIL，`ModuleNotFoundError: No module named 'systograph.core.models.profile_signal'`。
 
 - [ ] **Step 3：新增 model 實作**
 
-建立 `src/kai_mind/core/models/profile_signal.py`：
+建立 `src/systograph/core/models/profile_signal.py`：
 
 ```python
 """Non-canonical profile signal models for Phase 2 inference."""
@@ -574,7 +574,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from kai_mind.core.models.capability_candidate import CapabilityCandidateComponent
+from systograph.core.models.capability_candidate import CapabilityCandidateComponent
 
 ProfileSignalSchemaVersion = Literal["profile-signals/v1"]
 SourceSchemaVersion = Literal["ai-system-map/v1", "ai-system-map/v2"]
@@ -725,7 +725,7 @@ class ProfileInferenceResult(ProfileSignalModel):
 ## Task 2：新增 Profile Validation
 
 **檔案：**
-- Create：`src/kai_mind/core/services/profile_signal_validation_service.py`
+- Create：`src/systograph/core/services/profile_signal_validation_service.py`
 - Test：`tests/unit/core/test_profile_signal_validation_service.py`
 
 - [ ] **Step 1：撰寫 validation tests**
@@ -740,16 +740,16 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.profile_signal import (
+from systograph.core.models.profile_signal import (
     ProfileFinding,
     ProfileInferenceResult,
 )
-from kai_mind.core.models.system_map import UnmappedComponent
-from kai_mind.core.services.profile_signal_validation_service import (
+from systograph.core.models.system_map import UnmappedComponent
+from systograph.core.services.profile_signal_validation_service import (
     ProfileSignalValidationError,
     ProfileSignalValidationService,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 
@@ -925,7 +925,7 @@ def test_validation_rejects_local_absolute_paths_in_profile_text() -> None:
 
 - [ ] **Step 3：實作 validation**
 
-建立 `src/kai_mind/core/services/profile_signal_validation_service.py`：
+建立 `src/systograph/core/services/profile_signal_validation_service.py`：
 
 ```python
 """Validation for non-canonical profile signal results."""
@@ -935,8 +935,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from kai_mind.core.models.profile_signal import ProfileInferenceResult
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.models.profile_signal import ProfileInferenceResult
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
 
 ABSOLUTE_PATH_MARKERS = ("/Users/", "/home/", "C:\\\\", "\\\\\\\\")
 
@@ -1044,7 +1044,7 @@ class ProfileSignalValidationService:
 ## Task 3：實作 Deterministic Profile Inference
 
 **檔案：**
-- Create：`src/kai_mind/core/services/profile_inference_service.py`
+- Create：`src/systograph/core/services/profile_inference_service.py`
 - Test：`tests/unit/core/test_profile_inference_service.py`
 
 - [ ] **Step 1：撰寫 inference tests**
@@ -1057,15 +1057,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from kai_mind.core.models.system_map import (
+from systograph.core.models.system_map import (
     Evidence,
     UnmappedComponent,
 )
-from kai_mind.core.models.capability_candidate import CapabilityCandidateComponent
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.models.capability_candidate import CapabilityCandidateComponent
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 
@@ -1272,7 +1272,7 @@ def test_marks_multi_head_rag_from_multi_aspect_retrieval_signal() -> None:
 
 - [ ] **Step 3：實作 deterministic inference**
 
-建立 `src/kai_mind/core/services/profile_inference_service.py`：
+建立 `src/systograph/core/services/profile_inference_service.py`：
 
 ```python
 """Infer stackable non-canonical profile signals from validated maps."""
@@ -1281,13 +1281,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from kai_mind.core.models.profile_signal import (
+from systograph.core.models.profile_signal import (
     ProfileFinding,
     ProfileInferenceResult,
 )
-from kai_mind.core.models.capability_candidate import CapabilityCandidateComponent
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
-from kai_mind.core.services.profile_signal_validation_service import (
+from systograph.core.models.capability_candidate import CapabilityCandidateComponent
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.services.profile_signal_validation_service import (
     ProfileSignalValidationService,
 )
 
@@ -1603,11 +1603,11 @@ assert {profile.profile_id for profile in result.profiles} == set(MVP_CAPABILITY
 > `ProfileInferenceResult`。
 
 **檔案：**
-- Modify：`src/kai_mind/core/models/scan.py`
-- Modify：`src/kai_mind/core/providers/output_artifact_provider.py`
-- Modify：`src/kai_mind/core/models/map_build.py`
-- Modify：`src/kai_mind/core/services/map_build_service.py`
-- Modify：`src/kai_mind/cli/map_command.py`
+- Modify：`src/systograph/core/models/scan.py`
+- Modify：`src/systograph/core/providers/output_artifact_provider.py`
+- Modify：`src/systograph/core/models/map_build.py`
+- Modify：`src/systograph/core/services/map_build_service.py`
+- Modify：`src/systograph/cli/map_command.py`
 - Test：`tests/unit/core/test_output_artifact_provider.py`
 - Test：`tests/integration/test_map_build_service.py`
 - Test：`tests/cli/test_map_command.py`
@@ -1708,8 +1708,8 @@ profile_signals_path: Path | None = None
 > viewer load 與 backend/frontend projection contract 全部由 Plan 06 唯一擁有。
 
 **檔案：**
-- Modify：`src/kai_mind/core/models/viewer.py`
-- Modify：`src/kai_mind/core/services/viewer_session_service.py`
+- Modify：`src/systograph/core/models/viewer.py`
+- Modify：`src/systograph/core/services/viewer_session_service.py`
 - Test：`tests/unit/core/test_viewer_profile_projection.py`
 
 - [ ] **Step 1：撰寫 viewer projection tests**
@@ -1722,10 +1722,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
-from kai_mind.core.services.viewer_session_service import ViewerSessionService
+from systograph.core.services.viewer_session_service import ViewerSessionService
 
 
 FIXTURE_PATH = Path(
@@ -1809,10 +1809,10 @@ def test_load_map_degrades_when_profile_sidecar_is_invalid(
 
 - [ ] **Step 3：擴充 viewer models**
 
-修改 `src/kai_mind/core/models/viewer.py`：
+修改 `src/systograph/core/models/viewer.py`：
 
 ```python
-from kai_mind.core.models.profile_signal import ProfileInferenceResult
+from systograph.core.models.profile_signal import ProfileInferenceResult
 
 
 class GraphDetailsModel(ViewerModel):
@@ -1835,13 +1835,13 @@ class ViewerLoadResult(ViewerModel):
 
 - [ ] **Step 4：將 profile inference 接線至 viewer projection**
 
-修改 `src/kai_mind/core/services/viewer_session_service.py`：
+修改 `src/systograph/core/services/viewer_session_service.py`：
 
 ```python
 from collections.abc import Sequence
 
-from kai_mind.core.models.profile_signal import ProfileInferenceResult
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.models.profile_signal import ProfileInferenceResult
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
 
@@ -1945,7 +1945,7 @@ return self.build(
 
 **檔案：**
 
-- Modify：`src/kai_mind/web/schemas.py`
+- Modify：`src/systograph/web/schemas.py`
 - Test：`tests/web/test_viewer_routes.py`
 
 - [ ] **Step 1：先寫 web schema / route serialization 測試**
@@ -1968,10 +1968,10 @@ assert body["viewer_load_result"]["profile_inference_result"][
 
 - [ ] **Step 3：在 web schemas re-export profile models**
 
-修改 `src/kai_mind/web/schemas.py`：
+修改 `src/systograph/web/schemas.py`：
 
 ```python
-from kai_mind.core.models.profile_signal import (
+from systograph.core.models.profile_signal import (
     ProfileFinding,
     ProfileInferenceResult,
 )

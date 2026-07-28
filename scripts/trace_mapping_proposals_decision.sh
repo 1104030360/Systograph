@@ -45,43 +45,43 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --proposal-id)
-      i=$((i + 1)); PROPOSAL_ID="${KAI_EXTRA_ARGS[$i]:?missing value for --proposal-id}" ;;
+      i=$((i + 1)); PROPOSAL_ID="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --proposal-id}" ;;
     --decision)
-      i=$((i + 1)); DECISION="${KAI_EXTRA_ARGS[$i]:?missing value for --decision}" ;;
+      i=$((i + 1)); DECISION="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --decision}" ;;
     --candidate-id)
-      i=$((i + 1)); CANDIDATE_ID="${KAI_EXTRA_ARGS[$i]:?missing value for --candidate-id}" ;;
+      i=$((i + 1)); CANDIDATE_ID="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --candidate-id}" ;;
     --reason)
-      i=$((i + 1)); REASON="${KAI_EXTRA_ARGS[$i]:?missing value for --reason}" ;;
-    *) kai_die "Unknown option: $arg" ;;
+      i=$((i + 1)); REASON="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --reason}" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
 
 case "$DECISION" in
   accept|reject|skip_for_now) ;;
-  edit) kai_die "edit requires a custom edited_mapping payload; not supported by this trace script" ;;
-  *) kai_die "Unsupported --decision: $DECISION" ;;
+  edit) systograph_die "edit requires a custom edited_mapping payload; not supported by this trace script" ;;
+  *) systograph_die "Unsupported --decision: $DECISION" ;;
 esac
-kai_bootstrap_server
+systograph_bootstrap_server
 
 if [[ -z "$PROPOSAL_ID" ]]; then
-  kai_section "準備：匯入 + 掃描 + 建立 pending proposal"
-  PROJECT_ID="$(kai_import_project)"
-  SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
-  UNMAPPED_ID="$(kai_first_unmapped_id "$SCAN_JSON")"
+  systograph_section "準備：匯入 + 掃描 + 建立 pending proposal"
+  PROJECT_ID="$(systograph_import_project)"
+  SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
+  UNMAPPED_ID="$(systograph_first_unmapped_id "$SCAN_JSON")"
   [[ -n "$UNMAPPED_ID" ]] \
-    || kai_die "Scan produced no unmapped component; try --project-path with one"
-  PROPOSAL_JSON="$(kai_create_proposal "$PROJECT_ID" "$UNMAPPED_ID")"
+    || systograph_die "Scan produced no unmapped component; try --project-path with one"
+  PROPOSAL_JSON="$(systograph_create_proposal "$PROJECT_ID" "$UNMAPPED_ID")"
   PROPOSAL_ID="$(echo "$PROPOSAL_JSON" | jq -r '.proposal_id')"
   [[ -n "$PROPOSAL_ID" && "$PROPOSAL_ID" != "null" ]] \
-    || kai_die "Failed to create a proposal"
-  kai_progress "已建立 proposal_id=$PROPOSAL_ID"
+    || systograph_die "Failed to create a proposal"
+  systograph_progress "已建立 proposal_id=$PROPOSAL_ID"
   if [[ "$DECISION" == "accept" && -z "$CANDIDATE_ID" ]]; then
     CANDIDATE_ID="$(echo "$PROPOSAL_JSON" | jq -r '
       [.candidates[]
@@ -89,16 +89,16 @@ if [[ -z "$PROPOSAL_ID" ]]; then
        | select(.candidate_type == "existing_slot_mapping" or .candidate_type == "non_baseline_capability_candidate")
        | .candidate_id][0] // empty')"
     [[ -n "$CANDIDATE_ID" ]] \
-      || kai_die "No acceptable candidate to auto-select; use --decision skip_for_now or pass --candidate-id"
-    kai_progress "自動選取 candidate_id=$CANDIDATE_ID"
+      || systograph_die "No acceptable candidate to auto-select; use --decision skip_for_now or pass --candidate-id"
+    systograph_progress "自動選取 candidate_id=$CANDIDATE_ID"
   fi
 fi
 
 if [[ "$DECISION" == "accept" && -z "$CANDIDATE_ID" ]]; then
-  kai_die "accept requires --candidate-id"
+  systograph_die "accept requires --candidate-id"
 fi
 
-kai_section "送出決策：POST /api/mapping-proposals/{id}/decision"
+systograph_section "送出決策：POST /api/mapping-proposals/{id}/decision"
 REQUEST_BODY="$(jq -n \
   --arg decision "$DECISION" \
   --arg candidate_id "$CANDIDATE_ID" \
@@ -106,12 +106,12 @@ REQUEST_BODY="$(jq -n \
   '{decision:$decision}
    + (if $candidate_id == "" then {} else {candidate_id:$candidate_id} end)
    + (if $reason == "" then {} else {reason:$reason} end)')"
-ENCODED_ID="$(kai_urlencode "$PROPOSAL_ID")"
-kai_progress "現在要對 proposal 送出決策（decision=${DECISION}）..."
+ENCODED_ID="$(systograph_urlencode "$PROPOSAL_ID")"
+systograph_progress "現在要對 proposal 送出決策（decision=${DECISION}）..."
 api_call POST "/api/mapping-proposals/$ENCODED_ID/decision" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Decision summary"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Decision summary"
 echo "$LAST_BODY" | jq '{
   proposal_id: .proposal.proposal_id,
   proposal_status: .proposal.status,

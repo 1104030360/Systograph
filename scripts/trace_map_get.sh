@@ -35,28 +35,28 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
-for arg in ${KAI_EXTRA_ARGS[@]+"${KAI_EXTRA_ARGS[@]}"}; do
+systograph_parse_common_args "$@"
+for arg in ${SYSTOGRAPH_EXTRA_ARGS[@]+"${SYSTOGRAPH_EXTRA_ARGS[@]}"}; do
   case "$arg" in
     --no-setup) NO_SETUP=1 ;;
-    *) kai_die "Unknown option: $arg" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
 if [[ "$NO_SETUP" -eq 0 ]]; then
-  kai_section "準備：先掃描，讓 /api/map 有內容"
-  PROJECT_ID="$(kai_import_project)"
-  kai_run_scan "$PROJECT_ID" >/dev/null
+  systograph_section "準備：先掃描，讓 /api/map 有內容"
+  PROJECT_ID="$(systograph_import_project)"
+  systograph_run_scan "$PROJECT_ID" >/dev/null
 fi
 
-kai_section "讀取地圖：GET /api/map"
-kai_progress "現在要讀取最新 viewer map..."
+systograph_section "讀取地圖：GET /api/map"
+systograph_progress "現在要讀取最新 viewer map..."
 api_call GET "/api/map"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Graph projection 摘要（Track A）"
-kai_summarize_viewer_payload "$LAST_BODY"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Graph projection 摘要（Track A）"
+systograph_summarize_viewer_payload "$LAST_BODY"
 if [[ "$NO_SETUP" -eq 0 ]]; then
-  kai_assert_graph_projection_loaded "$LAST_BODY"
+  systograph_assert_graph_projection_loaded "$LAST_BODY"
 fi

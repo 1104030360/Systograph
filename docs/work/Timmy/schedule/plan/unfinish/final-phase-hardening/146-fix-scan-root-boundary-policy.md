@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/146
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/146
 
 **Goal:** 限制 project import、map build 與 CLI scan 的可掃路徑與 boundary 行為，避免任意本機目錄掃描、snippet 外洩及大型目錄 DoS。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #146, assignee Timmy.
 - Origin: Backend findings M-1.
-- Primary files: `src/kai_mind/web/routes/project_routes.py`, `src/kai_mind/web/routes/map_routes.py`, `src/kai_mind/core/services/project_scan_service.py`, `src/kai_mind/cli/map_command.py`.
+- Primary files: `src/systograph/web/routes/project_routes.py`, `src/systograph/web/routes/map_routes.py`, `src/systograph/core/services/project_scan_service.py`, `src/systograph/cli/map_command.py`.
 
 ### Task 1: Add scan-root regression tests
 
@@ -33,10 +33,10 @@
 ### Task 2: Implement shared scan-root policy
 
 **Files:**
-- Create: `src/kai_mind/core/services/scan_root_policy_service.py`
-- Modify: `src/kai_mind/web/routes/project_routes.py`
-- Modify: `src/kai_mind/web/routes/map_routes.py`
-- Modify: `src/kai_mind/cli/map_command.py`
+- Create: `src/systograph/core/services/scan_root_policy_service.py`
+- Modify: `src/systograph/web/routes/project_routes.py`
+- Modify: `src/systograph/web/routes/map_routes.py`
+- Modify: `src/systograph/cli/map_command.py`
 
 - [ ] **Step 1: Validate path exists and is directory**
 - [ ] **Step 2: Enforce allowed-root policy**

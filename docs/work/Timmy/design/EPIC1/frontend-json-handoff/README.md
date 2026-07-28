@@ -19,7 +19,7 @@ Last updated: 2026-07-15（live code / contract / frontend consumer 全量對齊
 
 ## 2026-07-15 現況結論
 
-- Phase A 的 Step 3 仍由 KAI deterministic providers 產生 facts；UA-primary 是 Phase B，
+- Phase A 的 Step 3 仍由 Systograph deterministic providers 產生 facts；UA-primary 是 Phase B，
   Plan 20 inventory selection 不介接 UA。
 - Normal build 的 public `ai_system_map.json` 與 `active_schema_version` 仍是
   `ai-system-map/v1`；backend 會建立 normalized `AiSystemMapV2` 供下游使用。Plan 13 因 00A
@@ -40,7 +40,7 @@ Last updated: 2026-07-15（live code / contract / frontend consumer 全量對齊
 Step 1 Import
   -> Step 2 current boundary gate
        (Plan 20 target: inventory preflight + one-run selection; no UA)
-  -> Step 3 KAI deterministic scan（Phase A current）
+  -> Step 3 Systograph deterministic scan（Phase A current）
   -> Step 4 public v1 + normalized v2
   -> Step 5 SystemMapIndex
   -> Step 6 profile / readiness / static sidecars
@@ -55,7 +55,7 @@ Step 1 Import
 | --- | --- | --- | --- |
 | 1 Import | `POST /api/projects/import` + project registry | 無 JSON；README 記錄 current API | 已有 import flow |
 | 2 Boundary | `POST /api/scans` + sensitive proposal；尚無 preflight endpoint | 8 份 JSON 是 Plan 20 target | Modal 仍是 current sensitive-file flow |
-| 3 Scan | KAI deterministic providers + `scan-snapshot/v1` | 無 public JSON | 不直接讀 snapshot |
+| 3 Scan | Systograph deterministic providers + `scan-snapshot/v1` | 無 public JSON | 不直接讀 snapshot |
 | 4 Normalize | public v1；internal normalized `AiSystemMapV2` | v2 sample 通過 current Pydantic，但不是 current public artifact | Viewer 仍以 v1 相容資料為主 |
 | 5 Index | read-only `SystemMapIndex` 已實作 | 無 public JSON | 不直接消費 index |
 | 6 Assessment | 6 份 sidecars 已實作、同 build 發布 | 6 份 sample 通過 current Pydantic | 尚未完整顯示 profile／readiness rich details |

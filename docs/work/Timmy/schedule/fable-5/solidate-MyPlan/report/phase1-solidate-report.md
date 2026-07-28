@@ -2,14 +2,14 @@
 
 ## Executive Summary
 
-**審查範圍**：GitHub Epic 2-7（issue [#3](https://github.com/1104030360/Local-AI-Health-Doctor/issues/3)-[#8](https://github.com/1104030360/Local-AI-Health-Doctor/issues/8)），對照 `check1.md` 訂定的審查準則與 `.cursor/rules/linus_torvalds.mdc` 的 5 層分析法（資料結構 → 特殊情況 → 複雜度 → 破壞性 → 實用性）逐一檢視。
+**審查範圍**：GitHub Epic 2-7（issue [#3](https://github.com/1104030360/Systograph/issues/3)-[#8](https://github.com/1104030360/Systograph/issues/8)），對照 `check1.md` 訂定的審查準則與 `.cursor/rules/linus_torvalds.mdc` 的 5 層分析法（資料結構 → 特殊情況 → 複雜度 → 破壞性 → 實用性）逐一檢視。
 
 **頂層結論**：6 個 Epic 全數判定為 **Refine existing issue**——沒有任何 Epic 需要重新定位（滑向 chatbot / RAG-builder / 完整 observability platform / 企業安全掃描 / model-serving 平台）或拆成全新 issue。整體 roadmap 方向正確，本階段修正集中在三件事：(1) 把 Epic 1 已經做出的「預先承諾」與 Epic 2-7 的範圍明確連結；(2) 修正範圍措辭中與既有實作進度不符的低估/高估；(3) 釐清 Epic 之間（Epic 2↔5、Epic 6↔7）原本模糊的分工界線。
 
 **5 個跨 Epic 關鍵發現**：
 1. **Epic 1 的 3 個「預告」未被引用**：`recommended_next_check_rules.toml` 已存在 `runtime_readiness`（→Epic 2）、`privacy_exposure`（→Epic 3）、`rag_knowledge_trust`（→Epic 5）三條規則，原始 body 均未提及「本 Epic 正是在履行這個承諾」——重寫後已補上引用，讓 Epic 1 與 Epic 2/3/5 的敘事連起來。
 2. **Epic 3、Epic 7 的既有進度被低估**：Epic 3 範圍中過半的偵測規則（`risk_hint_rules.toml` 5 條規則 + `secret_masking_service`）已存在；Epic 7 的「Codex review / `AGENTS.md`」項目已有實質文件且已被 CLAUDE.md 引用為強制流程——兩者在原 body 中都被寫成「待建」，應改為「整理/延伸既有成果」。
-3. **Epic 6 ↔ Epic 7 的「GitHub Action」用詞重疊已釐清**：Epic 6 完成條件第三項與 Epic 7 範圍都寫「GitHub Action(s) integration」，容易讓人誤判工作重複或已涵蓋。重寫後分工為：Epic 6 提供 `kai-mind gate --ci` 的 CLI/JSON/exit-code 合約 + 通用範例；Epic 7 負責打包成可發布、可重用的 GitHub Action，且應排在 Epic 6 合約穩定後開始。
+3. **Epic 6 ↔ Epic 7 的「GitHub Action」用詞重疊已釐清**：Epic 6 完成條件第三項與 Epic 7 範圍都寫「GitHub Action(s) integration」，容易讓人誤判工作重複或已涵蓋。重寫後分工為：Epic 6 提供 `systograph gate --ci` 的 CLI/JSON/exit-code 合約 + 通用範例；Epic 7 負責打包成可發布、可重用的 GitHub Action，且應排在 Epic 6 合約穩定後開始。
 4. **Epic 5 的複雜度量級不對稱已拆分**：原範圍把 5 項機械式檢查（連線查詢等級）與 1 項「Unsupported claims detection」（LLM-as-judge 評測等級）並列，後者已移至 Epic 5 body 的 Follow-Up Candidates，作為獨立排期項目記錄（未另開新 issue），讓核心 5 項可以不依賴即時 LLM 呼叫先交付。
 5. **Epic 4 是唯一真正 0% 起點、且是「Agent」識別的關鍵 Epic**：`code_pattern_rules.toml` 確認目前完全沒有 agent/tool-call 偵測規則，也是 Epic 2-7 中唯一沒有 Epic 1 鉤子的 Epic；本階段釐清其「靜態程式碼模式偵測」vs.「動態 audit log / policy engine」的範圍模糊點，並將是否需要 `agent_tools` schema 概念列為 Follow-Up Candidate。
 
@@ -26,10 +26,10 @@
 | GitHub Issue #2（Epic 1） | `gh issue view 2` | Epic 1 基準狀態，作為 Epic 2-7 上游依賴與既有鉤子來源 |
 | GitHub Issue #3-#8（Epic 2-7，修改前） | `gh issue view N` | 原始 body 結構與內容，Epic Review Matrix 的 Repo Reality/Issue Alignment 分析對象 |
 | GitHub Issue #3-#8（Epic 2-7，修改後） | `gh issue view N`（`/tmp/epicN_after.json`） | 驗證 `gh issue edit` 套用成功、標題未變、新區塊段落存在 |
-| `src/kai_mind/core/rules/recommended_next_check_rules.toml`（24 行，全文讀取） | 規則定義 | Epic 1 對 Epic 2/3/5 的 3 個預先承諾規則 |
-| `src/kai_mind/core/rules/risk_hint_rules.toml`（84 行，全文讀取） | 規則定義 | 12 條規則，5 條對應 Epic 3、1 條（`missing_required_slot`）對應 Epic 5 |
-| `src/kai_mind/core/rules/code_pattern_rules.toml`（13 條規則） | 規則定義 | 確認 Epic 4 範圍的 agent/tool-call 偵測模式目前完全不存在 |
-| `src/kai_mind/core/templates/rag-core-v1.json` | RAG 樣板 | 13 個 slot 定義，含第 79 行 `guardrails` slot（Epic 4 命名衝突檢查對象） |
+| `src/systograph/core/rules/recommended_next_check_rules.toml`（24 行，全文讀取） | 規則定義 | Epic 1 對 Epic 2/3/5 的 3 個預先承諾規則 |
+| `src/systograph/core/rules/risk_hint_rules.toml`（84 行，全文讀取） | 規則定義 | 12 條規則，5 條對應 Epic 3、1 條（`missing_required_slot`）對應 Epic 5 |
+| `src/systograph/core/rules/code_pattern_rules.toml`（13 條規則） | 規則定義 | 確認 Epic 4 範圍的 agent/tool-call 偵測模式目前完全不存在 |
+| `src/systograph/core/templates/rag-core-v1.json` | RAG 樣板 | 13 個 slot 定義，含第 79 行 `guardrails` slot（Epic 4 命名衝突檢查對象） |
 | `web/app.py` | 後端 router 註冊 | 確認 8 個 router 已掛載；CLI 僅有 `map`/`validate-map`/`trace`，無 `gate` |
 | `frontend/src`（`rg` 搜尋結果） | 前端原始碼 | 確認 project scan flow、detail-proposal flow 尚未在前端串接 |
 | `CLAUDE.md`（專案層級） | 專案慣例 | 產品定位（Release Readiness Gate）、核心設計原則、Workflow Conventions |
@@ -42,10 +42,10 @@
 | Check | Command / source | Result |
 |---|---|---|
 | GitHub auth | `gh auth status` | 已登入 `1104030360`，具 `repo` scope |
-| Epic issue inventory | `gh issue list --repo 1104030360/Local-AI-Health-Doctor --state open --limit 100 --json number,title,state,labels,assignees,updatedAt` | Epic 2-7 仍為 issue #3-#8，皆為 OPEN |
-| Epic issue bodies | `gh issue view 3..8 --repo 1104030360/Local-AI-Health-Doctor --json number,title,state,body,url,updatedAt` + GitHub MCP `_update_issue` for #7 CLI-current-reality correction | 6/6 issue 皆已套用 `Goal` / `Current Reality` / `Scope` / `Non-Goals` / `Acceptance Criteria` / `Evidence To Preserve` / `Follow-Up Candidates` 結構 |
+| Epic issue inventory | `gh issue list --repo 1104030360/Systograph --state open --limit 100 --json number,title,state,labels,assignees,updatedAt` | Epic 2-7 仍為 issue #3-#8，皆為 OPEN |
+| Epic issue bodies | `gh issue view 3..8 --repo 1104030360/Systograph --json number,title,state,body,url,updatedAt` + GitHub MCP `_update_issue` for #7 CLI-current-reality correction | 6/6 issue 皆已套用 `Goal` / `Current Reality` / `Scope` / `Non-Goals` / `Acceptance Criteria` / `Evidence To Preserve` / `Follow-Up Candidates` 結構 |
 | Plan inventory | `find docs/work/Timmy/schedule/plan/finish -maxdepth 1 -type f`、`find docs/work/Timmy/schedule/plan/unfinish -maxdepth 1 -type f`、`find docs/work/Hardy/schedule/plan -maxdepth 3 -type f` | Backend finished/unfinish 與 Hardy frontend plan 狀態符合本報告 baseline |
-| Backend surface | `rg -n "include_router|MapBuildService|ProjectScanService|ScanBoundaryReviewService|MappingProposalService|DetailScanService|QueryTraceService|InMemorySessionStore" src/kai_mind docs/API-GUIDE.md scripts tests` | 確認 web factory 掛載既有 services/routes；`InMemorySessionStore` 仍是 session state 邊界 |
+| Backend surface | `rg -n "include_router|MapBuildService|ProjectScanService|ScanBoundaryReviewService|MappingProposalService|DetailScanService|QueryTraceService|InMemorySessionStore" src/systograph docs/API-GUIDE.md scripts tests` | 確認 web factory 掛載既有 services/routes；`InMemorySessionStore` 仍是 session state 邊界 |
 | Frontend surface | `rg -n "loadApiViewerPayload|loadSampleViewerPayload|EventSource|detail_scan_result_sample|mapping_proposal_result_sample|project_id|scan_id|boundary|proposal|createDetailScan|createMappingProposal" frontend/src frontend/API_CONTRACT.md docs/work/Hardy` | 確認 project scan / boundary decision / detail scan / mapping proposal 仍未形成完整前端閉環 |
 | Document hygiene | `git diff --check -- docs/work/Timmy/schedule/fable-5/solidate-MyPlan`、`rg -n "[ \t]+$" docs/work/Timmy/schedule/fable-5/solidate-MyPlan/...` | 無 trailing whitespace 或 patch hygiene 錯誤 |
 | Forbidden overclaim check | `rg -n "production-ready|已完成|persistent|database|chat 已完成|scan history|always_skip|metadata_only|完整 observability|企業級資安|model serving" docs/work/Timmy/schedule/fable-5/solidate-MyPlan/todo docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report` | 命中皆落在 missing / deferred / Non-Goals / Rejected Goals 語境，未發現過度宣稱 |
@@ -65,23 +65,23 @@
 | RAG eval decomposition | [DeepEval RAG Evaluation Quickstart](https://deepeval.com/docs/getting-started-rag) | DeepEval 將 RAG 指標拆成 generator-focused 與 retriever-focused metrics，支撐本報告「不要用單一 trust score 當唯一閘門」的判斷。 |
 | Agent safety research | [AgentDojo paper](https://arxiv.org/html/2406.13352v3) + [Agent-SafetyBench](https://arxiv.org/abs/2412.14470) | 近期 agent benchmark 強調 tool-calling、prompt injection、interactive environment 的安全挑戰，支撐 Epic 4 是 Agent 產品定位的關鍵 Epic，且不能只靠 prompt wording 覆蓋。 |
 | AI eval / safety process | [OpenAI Evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices) + [OpenAI Safety best practices](https://developers.openai.com/api/docs/guides/safety-best-practices) | 官方文件強調 eval objective / dataset / metrics 與 prompt injection safety controls，支撐 Epic 5 / Epic 6 的 evaluation evidence 與 safety boundary。 |
-| GenAI governance baseline | [NIST AI 600-1 Generative AI Profile](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf) | NIST GenAI profile 作為治理與風險分類背景；本階段只用於確認 governance wording，不把 KAI-Mind 擴大成企業級合規平台。 |
+| GenAI governance baseline | [NIST AI 600-1 Generative AI Profile](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf) | NIST GenAI profile 作為治理與風險分類背景；本階段只用於確認 governance wording，不把 Systograph 擴大成企業級合規平台。 |
 
 ## Current Implementation Baseline
 
 | # | 項目 | 狀態 | Evidence | 與 Epic 2-7 的關聯 |
 |---|---|---|---|---|
 | 1 | Backend L1 map build | DONE | `MapBuildService.build()` 串接 10 個服務，輸出驗證 `schemas/ai-system-map.v1.schema.json` | 所有 Epic 2-7 的輸出皆建立在 `ai_system_map.json` 之上 |
-| 2 | Scan boundary decision（[#46](https://github.com/1104030360/Local-AI-Health-Doctor/issues/46), Task24, CLOSED） | DONE | same-run-only gate；`scan_this_run`/`skip_this_run`，以 `target_path` + fingerprint 為 key，不持久化 | 確立「決策不持久化」模式，Epic 2/5/6 的 opt-in 產出物設計可參考此先例 |
-| 3 | Manual mapping（[#41](https://github.com/1104030360/Local-AI-Health-Doctor/issues/41), Task19, CLOSED） | DONE | `ManualMappingService`，使用者確認 slot 指派 | Epic 4 若新增 `agent_tools` 概念，需評估與既有 slot 指派流程的關係 |
-| 4 | AI mapping proposal（[#42](https://github.com/1104030360/Local-AI-Health-Doctor/issues/42), Task20, CLOSED） | DONE | `MappingProposalService`/`llm_proposal_provider`，masked `MappingEvidencePacket`，NVIDIA NIM opt-in + deterministic fallback | 確立「LLM 呼叫為 opt-in、有 fallback」模式，與 Epic 5 groundedness follow-up 的設計原則一致 |
-| 5 | Detail scan（[#43](https://github.com/1104030360/Local-AI-Health-Doctor/issues/43), Task21, CLOSED） | DONE | `DetailScanService`，L2/L3 component/code_path，僅限 target 範圍內、專案自身 Python 檔案 | Epic 4 的 agent-tool 程式碼模式偵測可能延伸自此 L2/L3 掃描層級 |
-| 6 | Query trace（[#44](https://github.com/1104030360/Local-AI-Health-Doctor/issues/44), Task22, CLOSED） | DONE | `QueryTraceService`，opt-in、單次、有時間戳記的黑箱 HTTP probe | Epic 2 runtime probe 的既有架構範本，Epic 2 重寫後 body 已引用 |
+| 2 | Scan boundary decision（[#46](https://github.com/1104030360/Systograph/issues/46), Task24, CLOSED） | DONE | same-run-only gate；`scan_this_run`/`skip_this_run`，以 `target_path` + fingerprint 為 key，不持久化 | 確立「決策不持久化」模式，Epic 2/5/6 的 opt-in 產出物設計可參考此先例 |
+| 3 | Manual mapping（[#41](https://github.com/1104030360/Systograph/issues/41), Task19, CLOSED） | DONE | `ManualMappingService`，使用者確認 slot 指派 | Epic 4 若新增 `agent_tools` 概念，需評估與既有 slot 指派流程的關係 |
+| 4 | AI mapping proposal（[#42](https://github.com/1104030360/Systograph/issues/42), Task20, CLOSED） | DONE | `MappingProposalService`/`llm_proposal_provider`，masked `MappingEvidencePacket`，NVIDIA NIM opt-in + deterministic fallback | 確立「LLM 呼叫為 opt-in、有 fallback」模式，與 Epic 5 groundedness follow-up 的設計原則一致 |
+| 5 | Detail scan（[#43](https://github.com/1104030360/Systograph/issues/43), Task21, CLOSED） | DONE | `DetailScanService`，L2/L3 component/code_path，僅限 target 範圍內、專案自身 Python 檔案 | Epic 4 的 agent-tool 程式碼模式偵測可能延伸自此 L2/L3 掃描層級 |
+| 6 | Query trace（[#44](https://github.com/1104030360/Systograph/issues/44), Task22, CLOSED） | DONE | `QueryTraceService`，opt-in、單次、有時間戳記的黑箱 HTTP probe | Epic 2 runtime probe 的既有架構範本，Epic 2 重寫後 body 已引用 |
 | 7 | Viewer API | DONE | `/api/map/build` + `/api/map`，無 `project_id` 的 viewer demo 流程；`app.py` 掛載全部 8 個 router | Epic 6/7 的 report/CI 輸出建立在此 API 層之上 |
 | 8 | Frontend project scan flow | MISSING | `rg` 確認 `frontend/src` 中無 `project_id`/`scan_id`/`createScan` 等字串匹配 | 不在 Epic 2-7 直接範圍內，但是「使用者如何觸發 Epic 2-6 檢查」的前端缺口 |
 | 9 | Frontend detail-proposal flow | MISSING | `rg` 確認無 `createDetailScan`/`createMappingProposal`/`listMappingProposals`/`decideMappingProposal`；`detail_scan_result_sample`/`mapping_proposal_result_sample` 僅出現在 `types.ts:111-112`、`DetailPanel.tsx:67-68` | 同上，前端串接缺口，非本階段範圍 |
-| 10 | Persistent session-scan history | MISSING | 僅有 `InMemorySessionStore`；後續工作項目為 [#126](https://github.com/1104030360/Local-AI-Health-Doctor/issues/126) | Epic 2/5/6 的「opt-in、有時間戳記的獨立產出物」設計需考慮與此既有限制的相容性 |
-| 11 | Database-backed storage | MISSING | 同上，[#126](https://github.com/1104030360/Local-AI-Health-Doctor/issues/126) | 同上 |
+| 10 | Persistent session-scan history | MISSING | 僅有 `InMemorySessionStore`；後續工作項目為 [#126](https://github.com/1104030360/Systograph/issues/126) | Epic 2/5/6 的「opt-in、有時間戳記的獨立產出物」設計需考慮與此既有限制的相容性 |
+| 11 | Database-backed storage | MISSING | 同上，[#126](https://github.com/1104030360/Systograph/issues/126) | 同上 |
 | 12 | OpenAPI generated SDK | MISSING | `viewerApi.ts` 為手寫 client，非自動生成 | 不在 Epic 2-7 直接範圍內 |
 | 13 | Testing / eval / regression | PARTIAL | pytest 套件（unit/integration/contracts/cli/web/fixtures）覆蓋功能正確性；AI 輸出評測（Ragas/DeepEval 風格 groundedness）不存在 | 即 Epic 5「Unsupported claims detection」/ RAG Answer Groundedness Evaluation 待補的缺口 |
 
@@ -89,13 +89,13 @@
 
 | Epic | Issue | State | 標題 | 本階段處理 |
 |---|---|---|---|---|
-| Epic 1 | [#2](https://github.com/1104030360/Local-AI-Health-Doctor/issues/2) | OPEN | [Epic 1] RAG System Map Builder：ai-system-map/v1、Viewer 與 Query Trace MVP | 不在本階段審查/編輯範圍（範圍為 Epic 2-7）；作為基準與上游依賴大量引用——`recommended_next_check_rules.toml` 的 3 個鉤子（`runtime_readiness`/`privacy_exposure`/`rag_knowledge_trust`）即源自此 Epic 既有實作 |
-| Epic 2 | [#3](https://github.com/1104030360/Local-AI-Health-Doctor/issues/3) | OPEN | [Epic 2] Runtime Readiness：Ollama、Docker、Native Services 與 Qdrant | 已審查 + 重寫 body，標題不變 |
-| Epic 3 | [#4](https://github.com/1104030360/Local-AI-Health-Doctor/issues/4) | OPEN | [Epic 3] Privacy & Exposure Guard：Secrets、Ports 與 Cloud Endpoints | 已審查 + 重寫 body，標題不變 |
-| Epic 4 | [#5](https://github.com/1104030360/Local-AI-Health-Doctor/issues/5) | OPEN | [Epic 4] Agent Tool Risk Guard：Tool Inventory、Permissions 與 Auditability | 已審查 + 重寫 body，標題不變 |
-| Epic 5 | [#6](https://github.com/1104030360/Local-AI-Health-Doctor/issues/6) | OPEN | [Epic 5] RAG Knowledge Trust：Collections、Metadata、Citations 與 Grounding | 已審查 + 重寫 body，標題不變 |
-| Epic 6 | [#7](https://github.com/1104030360/Local-AI-Health-Doctor/issues/7) | OPEN | [Epic 6] Release Report & CI Gate：Verdict、Evidence、JSON 與 Exit Code | 已審查 + 重寫 body，標題不變 |
-| Epic 7 | [#8](https://github.com/1104030360/Local-AI-Health-Doctor/issues/8) | OPEN | [Epic 7] Distribution & Integrations：Packaging、GitHub Action 與 Developer Workflow | 已審查 + 重寫 body，標題不變 |
+| Epic 1 | [#2](https://github.com/1104030360/Systograph/issues/2) | OPEN | [Epic 1] RAG System Map Builder：ai-system-map/v1、Viewer 與 Query Trace MVP | 不在本階段審查/編輯範圍（範圍為 Epic 2-7）；作為基準與上游依賴大量引用——`recommended_next_check_rules.toml` 的 3 個鉤子（`runtime_readiness`/`privacy_exposure`/`rag_knowledge_trust`）即源自此 Epic 既有實作 |
+| Epic 2 | [#3](https://github.com/1104030360/Systograph/issues/3) | OPEN | [Epic 2] Runtime Readiness：Ollama、Docker、Native Services 與 Qdrant | 已審查 + 重寫 body，標題不變 |
+| Epic 3 | [#4](https://github.com/1104030360/Systograph/issues/4) | OPEN | [Epic 3] Privacy & Exposure Guard：Secrets、Ports 與 Cloud Endpoints | 已審查 + 重寫 body，標題不變 |
+| Epic 4 | [#5](https://github.com/1104030360/Systograph/issues/5) | OPEN | [Epic 4] Agent Tool Risk Guard：Tool Inventory、Permissions 與 Auditability | 已審查 + 重寫 body，標題不變 |
+| Epic 5 | [#6](https://github.com/1104030360/Systograph/issues/6) | OPEN | [Epic 5] RAG Knowledge Trust：Collections、Metadata、Citations 與 Grounding | 已審查 + 重寫 body，標題不變 |
+| Epic 6 | [#7](https://github.com/1104030360/Systograph/issues/7) | OPEN | [Epic 6] Release Report & CI Gate：Verdict、Evidence、JSON 與 Exit Code | 已審查 + 重寫 body，標題不變 |
+| Epic 7 | [#8](https://github.com/1104030360/Systograph/issues/8) | OPEN | [Epic 7] Distribution & Integrations：Packaging、GitHub Action 與 Developer Workflow | 已審查 + 重寫 body，標題不變 |
 
 備註：Epic N 對應 issue #(N+1)（Epic 1 = #2 … Epic 7 = #8），本階段確認此對應關係無誤；全部 7 個 issue 狀態皆為 OPEN。
 
@@ -178,7 +178,7 @@ Outcome：Refine existing issue。
 - Missing AC：「Agent tool inventory」的結果要放在 `ai_system_map.json` 的哪裡？目前 `rag-core-v1` 樣板是 RAG 專屬的 13 個 slot，沒有「agent tools」這個概念。這可能需要 schema 層級的擴充（例如新增 `agent_tools` 陣列），但這個決定太大，不該由本 Epic 的 body 自己決定——應該標記為 Follow-Up Candidate，留給實作時的 schema 設計討論。
 
 **User/Adoption Value**
-- 高，且具差異化：principles.md 引用的 RAG 評測工具（Ragas/DeepEval）聚焦於檢索/回答品質，沒有覆蓋「agent tool 權限稽核」——這是目前 RAG 評測生態系統的空白，也正是 KAI-Mind 名稱裡「Agent」的真正落地之處。
+- 高，且具差異化：principles.md 引用的 RAG 評測工具（Ragas/DeepEval）聚焦於檢索/回答品質，沒有覆蓋「agent tool 權限稽核」——這是目前 RAG 評測生態系統的空白，也正是 Systograph 名稱裡「Agent」的真正落地之處。
 - Still weak：目前清單是「能辨識哪些高風險 tools」，但沒有交代「辨識到之後，使用者看到的是什麼」——應該明確：辨識結果＝風險清單＋每項風險對應的 evidence（檔案/行號/程式碼模式），讓使用者知道「為什麼這段程式碼被標成 file-write 風險」。
 
 **Product Positioning / Source-of-Truth Cross-Check**
@@ -236,7 +236,7 @@ Outcome：Refine existing issue。
 - Accurate：「READY / RISKY / NOT READY」直接對應 CLAUDE.md 對整個產品的定義（"outputs one of READY/RISKY/NOT READY with evidence"）——這是產品的核心收斂點，方向完全正確。
 - Missing product goal：沒有明確寫出「verdict 的訊號品質，取決於 Epic 2-5 是否已經產出對應的檢查結果」這個相依性——這應該寫進 Scope 或 Evidence To Preserve，避免被提前實作成一個訊號薄弱的 verdict engine。
 - Missing AC：「Fix First Recommendation generator」沒有定義排序依據——建議至少定為「依 `risk_hints[].severity_hint`（以及未來 Epic 2-5 的發現）做嚴重度排序」，否則無法驗收。
-- **Scope conflict（與 Epic 7 重疊）**：完成條件第三項「GitHub Actions integration path」與 Epic 7 範圍「GitHub Action integration」用詞高度重疊，讀者會問「Epic 6 不是已經做了？」。實際上兩者應該是不同層級：Epic 6＝讓 `kai-mind gate --ci` 的 JSON/exit code 可以被*任何* CI 消費（並提供一個 GitHub Actions 的*範例* workflow YAML 作為文件），Epic 7＝把這個 gate 包裝成一個*可發布、可重用*的 GitHub Action（`uses: kai-mind/action@v1`）。這個差異必須在兩個 Epic 的 body 裡都寫清楚，否則會有兩個 Epic 都認為自己該做「GitHub Actions 整合」的混亂。
+- **Scope conflict（與 Epic 7 重疊）**：完成條件第三項「GitHub Actions integration path」與 Epic 7 範圍「GitHub Action integration」用詞高度重疊，讀者會問「Epic 6 不是已經做了？」。實際上兩者應該是不同層級：Epic 6＝讓 `systograph gate --ci` 的 JSON/exit code 可以被*任何* CI 消費（並提供一個 GitHub Actions 的*範例* workflow YAML 作為文件），Epic 7＝把這個 gate 包裝成一個*可發布、可重用*的 GitHub Action（`uses: systograph/action@v1`）。這個差異必須在兩個 Epic 的 body 裡都寫清楚，否則會有兩個 Epic 都認為自己該做「GitHub Actions 整合」的混亂。
 
 **User/Adoption Value**
 - 非常高：這是「Release Readiness *Gate*」的「Gate」本身，是整個產品的收斂與命名來源，CI 可消費的 exit code 是讓這個工具能真正卡在 CI pipeline 裡的關鍵。
@@ -259,14 +259,14 @@ Outcome：Refine existing issue。
 **Repo Reality**
 - Implemented：0% 的 packaging/launcher 部分（無 `.exe`/`.app`/`.dmg` build script）。
 - Partial（被低估的既有進度）：「Codex code review workflow 與 `AGENTS.md` review guidance」——`AGENTS.md` 已存在且已被 CLAUDE.md 的 Workflow Conventions 直接引用（"Merges to main require human review and Codex review"、"AGENTS.md has PR-review focus areas"）——這個範圍項目在「指引文件已寫好並在用」的層級上，已經相當接近完成，本 Epic 在這塊的工作更像是「整理/延伸既有文件」而非「從零建立」。
-- Partial：「Local Web UI launch flow」——`pnpm dev`（frontend）與 `uv run kai-mind viewer`/web app（backend）作為*開發者*啟動流程已存在；本 Epic 缺的是「給非開發者的一鍵啟動封裝」，不是重建 Web UI 本身。
+- Partial：「Local Web UI launch flow」——`pnpm dev`（frontend）與 `uv run systograph viewer`/web app（backend）作為*開發者*啟動流程已存在；本 Epic 缺的是「給非開發者的一鍵啟動封裝」，不是重建 Web UI 本身。
 - Missing：「GitHub Action integration」0%（與 Epic 6 的重疊見上）。
 - 適當的範圍收斂（無需修改）：「VS Code / Docker Desktop extension」明確標示為「後續...討論」，已經是恰當的 hedge（非本 Epic 驗收項），建議在 Non-Goals 中明確化即可，不算缺陷。
 
 **Issue Alignment**
 - Accurate：「在 core MVP 可用後」的明確排序語句，是 Epic 2-7 中*唯一*明確寫出「這個 Epic 排在後面」的，比 Epic 6 的隱含排序更清楚，值得保留作為範本語句。
 - Missing product goal：沒有承認「Codex review / AGENTS.md guidance」已經有實質進度——應改用「整理/延伸」而非「建立」的語氣。
-- **Scope conflict（與 Epic 6 重疊）**：「GitHub Action integration」見 Epic 6 分析——本 Epic 應該是「打包成可重用 GitHub Action，建立在 Epic 6 的 `kai-mind gate --ci` exit-code 合約之上」的那一方。
+- **Scope conflict（與 Epic 6 重疊）**：「GitHub Action integration」見 Epic 6 分析——本 Epic 應該是「打包成可重用 GitHub Action，建立在 Epic 6 的 `systograph gate --ci` exit-code 合約之上」的那一方。
 - Missing Non-Goals：「VS Code / Docker Desktop extension」應從「後續討論」的措辭，明確移到 Non-Goals 區塊，避免被誤認為本 Epic 的驗收範圍。
 - 完成條件第三項「Packaging 與 Core Engine behavior 清楚分離」直接呼應 CLAUDE.md 核心設計原則「Core engine is platform-independent — CLI, Web API, and launchers must not duplicate core scanner logic」——這是 Epic 2-7 中與既有架構原則對齊度最高的一條，應保留並列入 Evidence To Preserve。
 
@@ -281,21 +281,21 @@ Outcome：Refine existing issue。
 **Decision**
 【核心判斷】✅ 方向正確，且是 Epic 2-7 中*排序語意最清楚*（明確寫「在 core MVP 可用後」）、與既有架構原則（core/packaging 分離）對齊度最高的一個。
 【關鍵洞察】真正的問題不是這個 Epic 的範圍「太雜」（路線圖佔位本來就允許雜），而是「GitHub Action integration」這四個字同時出現在 Epic 6 的完成條件與 Epic 7 的範圍裡，沒有任何文字說明兩者的差異——這是唯一需要修正的實質問題，其餘（Codex/AGENTS.md 既有進度、VS Code/Docker 的 hedge）都是措辭層級的小修。
-【Linus式方案】Epic 7 的「GitHub Action integration」改寫為「打包成可重用、可發布的 GitHub Action，封裝 Epic 6 的 `kai-mind gate --ci` exit-code 合約」；「Codex review/AGENTS.md」改用「整理/延伸既有指引」措辭；「VS Code/Docker Desktop extension」移入明確的 Non-Goals。
+【Linus式方案】Epic 7 的「GitHub Action integration」改寫為「打包成可重用、可發布的 GitHub Action，封裝 Epic 6 的 `systograph gate --ci` exit-code 合約」；「Codex review/AGENTS.md」改用「整理/延伸既有指引」措辭；「VS Code/Docker Desktop extension」移入明確的 Non-Goals。
 Outcome：Refine existing issue。
 
 ## GitHub Issue Changes
 
-所有編輯均透過 `gh issue edit <N> --repo 1104030360/Local-AI-Health-Doctor --body-file <file>` 套用，僅修改 body，**標題全部保留不變**（理由：標題在其他文件/issue 中被引用作識別碼，本階段的修正重點是 body 結構與內容，不是識別碼；範圍收斂等措辭調整已在 body 的 Scope/Non-Goals 中處理）。每筆編輯後皆重新 `gh issue view` 確認。
+所有編輯均透過 `gh issue edit <N> --repo 1104030360/Systograph --body-file <file>` 套用，僅修改 body，**標題全部保留不變**（理由：標題在其他文件/issue 中被引用作識別碼，本階段的修正重點是 body 結構與內容，不是識別碼；範圍收斂等措辭調整已在 body 的 Scope/Non-Goals 中處理）。每筆編輯後皆重新 `gh issue view` 確認。
 
 | Issue | 標題（不變） | Before（原結構） | After（新結構） | 確認 |
 |---|---|---|---|---|
-| [#3](https://github.com/1104030360/Local-AI-Health-Doctor/issues/3) | [Epic 2] Runtime Readiness：Ollama、Docker、Native Services 與 Qdrant | `## 目標` / `## 範圍` / `## 完成條件`（無 Current Reality、Non-Goals、Evidence、Follow-Up） | `## Goal` / `## Current Reality` / `## Scope`（改為「系統圖偵測到的執行期依賴，Ollama/Docker/Qdrant 為首批範例」+ not-applicable 狀態）/ `## Non-Goals`（非常駐監控、非通用 infra 工具、非 Docker socket 管理、非 model-serving 建議）/ `## Acceptance Criteria` / `## Evidence To Preserve`（引用 `runtime_readiness` 規則 + QueryTraceService 前例）/ `## Follow-Up Candidates`（與 Epic 5 共用 Qdrant 連線） | 已重新 `gh issue view`，body 長度 2012 字元，4 個新區塊段落均存在 |
-| [#4](https://github.com/1104030360/Local-AI-Health-Doctor/issues/4) | [Epic 3] Privacy & Exposure Guard：Secrets、Ports 與 Cloud Endpoints | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（列出 `risk_hint_rules.toml` 既有 5 條規則 + `secret_masking_service` 已存在）/ `## Scope`（聚焦「Data Leaves Device 報告」彙總 + 補 Ollama/Qdrant/OpenWebUI 具名 port 規則）/ `## Non-Goals`（非通用弱點掃描器、不主動掃任意 host）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（無） | 已重新 `gh issue view`，body 長度 2507 字元，4 個新區塊段落均存在 |
-| [#5](https://github.com/1104030360/Local-AI-Health-Doctor/issues/5) | [Epic 4] Agent Tool Risk Guard：Tool Inventory、Permissions 與 Auditability | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（確認 0% 起點 + `guardrails` slot 命名差異說明）/ `## Scope`（5 類高風險 tool-call 具體偵測模式）/ `## Non-Goals`（明定 log/approval check 為靜態程式碼偵測，不讀 runtime audit log、不接 policy engine）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（schema 是否需要 `agent_tools` 概念，留待實作前討論） | 已重新 `gh issue view`，body 長度 2130 字元，4 個新區塊段落均存在 |
-| [#6](https://github.com/1104030360/Local-AI-Health-Doctor/issues/6) | [Epic 5] RAG Knowledge Trust：Collections、Metadata、Citations 與 Grounding | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（引用 `rag_knowledge_trust` 規則 + `missing_required_slot`，並標出與 Epic 2 共用 vector store 連線）/ `## Scope`（Qdrant 改為「vector store，Qdrant 為首個目標」；5 項機械檢查 + trust score 訊號定位）/ `## Non-Goals`（不做完整 RAG 評測平台、不自動 re-index、不是 RAG-builder；「Unsupported claims detection」移出主體）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（groundedness evaluation 獨立排期 + 與 Epic 2 協調順序） | 已重新 `gh issue view`，body 長度 2498 字元，4 個新區塊段落均存在 |
-| [#7](https://github.com/1104030360/Local-AI-Health-Doctor/issues/7) | [Epic 6] Release Report & CI Gate：Verdict、Evidence、JSON 與 Exit Code | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（指出 verdict 訊號相依 Epic 2-5，目前皆 0%，並修正 CLI 現況為 `map` / `validate-map` / `trace`）/ `## Scope`（含「初版若 Epic 2-5 未完成，須誠實標示訊號來源範圍」）/ `## Non-Goals`（不打包 GitHub Action——劃給 Epic 7，本 Epic 只出 CLI/JSON/exit-code 合約）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（與 Epic 7 的分工說明） | 已於 2026-06-13 04:35 UTC 重新檢查，4 個新區塊段落均存在 |
-| [#8](https://github.com/1104030360/Local-AI-Health-Doctor/issues/8) | [Epic 7] Distribution & Integrations：Packaging、GitHub Action 與 Developer Workflow | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（指出 AGENTS.md/Codex review 已有實質進度，Local Web UI 開發者流程已存在）/ `## Scope`（GitHub Action 改為「封裝 Epic 6 的 `kai-mind gate --ci` 合約」）/ `## Non-Goals`（VS Code/Docker Desktop extension 明確移入 Non-Goals；不重新定義 verdict 邏輯）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（依賴 Epic 6 合約穩定後才能開始） | 已重新 `gh issue view`，body 長度 1907 字元，4 個新區塊段落均存在 |
+| [#3](https://github.com/1104030360/Systograph/issues/3) | [Epic 2] Runtime Readiness：Ollama、Docker、Native Services 與 Qdrant | `## 目標` / `## 範圍` / `## 完成條件`（無 Current Reality、Non-Goals、Evidence、Follow-Up） | `## Goal` / `## Current Reality` / `## Scope`（改為「系統圖偵測到的執行期依賴，Ollama/Docker/Qdrant 為首批範例」+ not-applicable 狀態）/ `## Non-Goals`（非常駐監控、非通用 infra 工具、非 Docker socket 管理、非 model-serving 建議）/ `## Acceptance Criteria` / `## Evidence To Preserve`（引用 `runtime_readiness` 規則 + QueryTraceService 前例）/ `## Follow-Up Candidates`（與 Epic 5 共用 Qdrant 連線） | 已重新 `gh issue view`，body 長度 2012 字元，4 個新區塊段落均存在 |
+| [#4](https://github.com/1104030360/Systograph/issues/4) | [Epic 3] Privacy & Exposure Guard：Secrets、Ports 與 Cloud Endpoints | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（列出 `risk_hint_rules.toml` 既有 5 條規則 + `secret_masking_service` 已存在）/ `## Scope`（聚焦「Data Leaves Device 報告」彙總 + 補 Ollama/Qdrant/OpenWebUI 具名 port 規則）/ `## Non-Goals`（非通用弱點掃描器、不主動掃任意 host）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（無） | 已重新 `gh issue view`，body 長度 2507 字元，4 個新區塊段落均存在 |
+| [#5](https://github.com/1104030360/Systograph/issues/5) | [Epic 4] Agent Tool Risk Guard：Tool Inventory、Permissions 與 Auditability | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（確認 0% 起點 + `guardrails` slot 命名差異說明）/ `## Scope`（5 類高風險 tool-call 具體偵測模式）/ `## Non-Goals`（明定 log/approval check 為靜態程式碼偵測，不讀 runtime audit log、不接 policy engine）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（schema 是否需要 `agent_tools` 概念，留待實作前討論） | 已重新 `gh issue view`，body 長度 2130 字元，4 個新區塊段落均存在 |
+| [#6](https://github.com/1104030360/Systograph/issues/6) | [Epic 5] RAG Knowledge Trust：Collections、Metadata、Citations 與 Grounding | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（引用 `rag_knowledge_trust` 規則 + `missing_required_slot`，並標出與 Epic 2 共用 vector store 連線）/ `## Scope`（Qdrant 改為「vector store，Qdrant 為首個目標」；5 項機械檢查 + trust score 訊號定位）/ `## Non-Goals`（不做完整 RAG 評測平台、不自動 re-index、不是 RAG-builder；「Unsupported claims detection」移出主體）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（groundedness evaluation 獨立排期 + 與 Epic 2 協調順序） | 已重新 `gh issue view`，body 長度 2498 字元，4 個新區塊段落均存在 |
+| [#7](https://github.com/1104030360/Systograph/issues/7) | [Epic 6] Release Report & CI Gate：Verdict、Evidence、JSON 與 Exit Code | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（指出 verdict 訊號相依 Epic 2-5，目前皆 0%，並修正 CLI 現況為 `map` / `validate-map` / `trace`）/ `## Scope`（含「初版若 Epic 2-5 未完成，須誠實標示訊號來源範圍」）/ `## Non-Goals`（不打包 GitHub Action——劃給 Epic 7，本 Epic 只出 CLI/JSON/exit-code 合約）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（與 Epic 7 的分工說明） | 已於 2026-06-13 04:35 UTC 重新檢查，4 個新區塊段落均存在 |
+| [#8](https://github.com/1104030360/Systograph/issues/8) | [Epic 7] Distribution & Integrations：Packaging、GitHub Action 與 Developer Workflow | `## 目標` / `## 範圍` / `## 完成條件` | `## Goal` / `## Current Reality`（指出 AGENTS.md/Codex review 已有實質進度，Local Web UI 開發者流程已存在）/ `## Scope`（GitHub Action 改為「封裝 Epic 6 的 `systograph gate --ci` 合約」）/ `## Non-Goals`（VS Code/Docker Desktop extension 明確移入 Non-Goals；不重新定義 verdict 邏輯）/ `## Acceptance Criteria` / `## Evidence To Preserve` / `## Follow-Up Candidates`（依賴 Epic 6 合約穩定後才能開始） | 已重新 `gh issue view`，body 長度 1907 字元，4 個新區塊段落均存在 |
 
 所有 6 個 Epic 的 Decision 皆為 **Refine existing issue**——詳細理由見上方 Epic Review Matrix 各 Epic 的「Decision」小節。
 
@@ -309,12 +309,12 @@ Outcome：Refine existing issue。
 
 審查過程中曾考慮、但依 check1.md 約束明確排除的候選目標，逐一對應排除類別：
 
-- **互動式 RAG 對話測試介面**（讓使用者在 Viewer 裡直接跟自己的 RAG 對話，藉此「感受」groundedness）——審查 Epic 5 時曾想到的替代方案，用來取代/輔助「Unsupported claims detection」。排除類別：**chatbot**。理由：KAI-Mind 的角色是「檢查既有系統」，一旦提供互動對話介面，產品定位會從「release gate」滑向「RAG 聊天工具」，與 CLAUDE.md 明確的「NOT a chatbot」定位衝突。
-- **自動補建/重新索引以修補 metadata 缺失**（偵測到 chunk 缺少 `source`/`page`/`chunk_id` 時，由 KAI-Mind 自動重新跑 chunking/embedding 來補上）——審查 Epic 5「Payload metadata completeness check」時考慮過的「順手修好」方案。排除類別：**full-RAG-workflow**。理由：KAI-Mind 只能「報告」metadata 缺失與其證據，不能執行 indexing/chunking/embedding 等 RAG pipeline 操作——否則就是在做 RAG-builder 的工作，違反「NOT a RAG-builder」定位，也違反本階段「不修改功能程式碼/不修補實作問題」的約束精神（若在產品設計上就把「自動修補」當成目標，會在根本上與唯讀掃描定位衝突）。
+- **互動式 RAG 對話測試介面**（讓使用者在 Viewer 裡直接跟自己的 RAG 對話，藉此「感受」groundedness）——審查 Epic 5 時曾想到的替代方案，用來取代/輔助「Unsupported claims detection」。排除類別：**chatbot**。理由：Systograph 的角色是「檢查既有系統」，一旦提供互動對話介面，產品定位會從「release gate」滑向「RAG 聊天工具」，與 CLAUDE.md 明確的「NOT a chatbot」定位衝突。
+- **自動補建/重新索引以修補 metadata 缺失**（偵測到 chunk 缺少 `source`/`page`/`chunk_id` 時，由 Systograph 自動重新跑 chunking/embedding 來補上）——審查 Epic 5「Payload metadata completeness check」時考慮過的「順手修好」方案。排除類別：**full-RAG-workflow**。理由：Systograph 只能「報告」metadata 缺失與其證據，不能執行 indexing/chunking/embedding 等 RAG pipeline 操作——否則就是在做 RAG-builder 的工作，違反「NOT a RAG-builder」定位，也違反本階段「不修改功能程式碼/不修補實作問題」的約束精神（若在產品設計上就把「自動修補」當成目標，會在根本上與唯讀掃描定位衝突）。
 - **通用網路弱點/任意主機 port 掃描器**（審查 Epic 3 時考慮：既然要做 port exposure，要不要順便對使用者整台機器或區網做一次通用安全掃描）。排除類別：**enterprise-SIEM** + **arbitrary-runtime-probing**。理由：Epic 3 的範圍應限定在「系統圖中已偵測到的元件」相關的 exposure 訊號，對任意 host/port 做主動掃描已經是企業資安掃描器（如 Nessus/Nmap 全網掃描）的領域，超出「local AI privacy guard」的定位，也違反「Local-first privacy」（掃描整台機器/區網需要遠超讀取專案目錄的權限）。
 - **常駐排程監控/Daemon 模式**（審查 Epic 2 時考慮：CPU/GPU/runtime readiness 檢查既然存在，是否應該變成背景持續監控、定期重新評分）。排除類別：**完整 observability platform**（check1.md 9 大審查準則之一，非 Task5 列舉的 6 類但同樣明確排除）。理由：CLAUDE.md 將本產品定位為 point-in-time 的「release readiness gate」，常駐監控會把產品變成 APM/observability 工具，與「不是完整 observability platform」的定位直接衝突；Epic 2 的 runtime readiness 應保持「使用者主動觸發、單次、有時間戳記」的 opt-in 檢查模式。
-- **內建 policy engine 與長期 audit log 儲存**（審查 Epic 4「approval/policy presence check」時考慮：要不要讓 KAI-Mind 自己提供一套 policy 規則定義語言，並長期儲存 agent tool 呼叫記錄）。排除類別：**long-term-policy-store**。理由：這會讓 KAI-Mind 從「檢查工具」變成「執行期治理基礎設施」，且長期儲存 tool 呼叫記錄本身就是新的隱私/留存風險（與「Local-first privacy」原則衝突）；Epic 4 應僅檢查「程式碼中是否存在這類機制的痕跡」。
-- **GPU/硬體偏好下的 model serving 調校建議**（審查 Epic 2「CPU/GPU/hybrid state detection」時考慮：偵測到特定 GPU 後，順便建議使用者該換用哪個量化模型/推論引擎設定）。排除類別：**model-serving-platform-features**。理由：KAI-Mind 的角色是回報「偵測到的硬體狀態」作為 evidence，不是提供模型服務調校建議——後者是 vLLM/Ollama/LM Studio 等推論服務本身或專門的 MLOps 工具的職責範圍。
+- **內建 policy engine 與長期 audit log 儲存**（審查 Epic 4「approval/policy presence check」時考慮：要不要讓 Systograph 自己提供一套 policy 規則定義語言，並長期儲存 agent tool 呼叫記錄）。排除類別：**long-term-policy-store**。理由：這會讓 Systograph 從「檢查工具」變成「執行期治理基礎設施」，且長期儲存 tool 呼叫記錄本身就是新的隱私/留存風險（與「Local-first privacy」原則衝突）；Epic 4 應僅檢查「程式碼中是否存在這類機制的痕跡」。
+- **GPU/硬體偏好下的 model serving 調校建議**（審查 Epic 2「CPU/GPU/hybrid state detection」時考慮：偵測到特定 GPU 後，順便建議使用者該換用哪個量化模型/推論引擎設定）。排除類別：**model-serving-platform-features**。理由：Systograph 的角色是回報「偵測到的硬體狀態」作為 evidence，不是提供模型服務調校建議——後者是 vLLM/Ollama/LM Studio 等推論服務本身或專門的 MLOps 工具的職責範圍。
 
 ## Risks And Follow-Up Items
 
@@ -346,12 +346,12 @@ Outcome：Refine existing issue。
 
 | Epic | Issue | Outcome | Edited? | New goals added? | Follow-up candidates | Blocker |
 |---|---|---|---|---|---|---|
-| Epic 2 | [#3](https://github.com/1104030360/Local-AI-Health-Doctor/issues/3) | Refine existing issue | Yes | No | 與 Epic 5 共用 Qdrant 連線（協調順序：Epic 2 → Epic 5） | 無 |
-| Epic 3 | [#4](https://github.com/1104030360/Local-AI-Health-Doctor/issues/4) | Refine existing issue | Yes | No | 無 | 無 |
-| Epic 4 | [#5](https://github.com/1104030360/Local-AI-Health-Doctor/issues/5) | Refine existing issue | Yes | No | `agent_tools` schema 概念（待 Epic 4 實作前另行討論） | 無 |
-| Epic 5 | [#6](https://github.com/1104030360/Local-AI-Health-Doctor/issues/6) | Refine existing issue | Yes | 1（RAG Answer Groundedness Evaluation，記錄為本 issue 的 Follow-Up Candidate，未另開新 issue） | Groundedness evaluation 獨立排期 + 與 Epic 2 協調 Qdrant 連線順序 | 無 |
-| Epic 6 | [#7](https://github.com/1104030360/Local-AI-Health-Doctor/issues/7) | Refine existing issue | Yes | No | 與 Epic 7 的 GitHub Action 分工（Epic 6＝CLI/JSON/exit-code 合約，Epic 7＝可重用 Action） | 無 |
-| Epic 7 | [#8](https://github.com/1104030360/Local-AI-Health-Doctor/issues/8) | Refine existing issue | Yes | No | 依賴 Epic 6 的 `kai-mind gate --ci` 合約穩定後才能開始 GitHub Action 開發 | 無 |
+| Epic 2 | [#3](https://github.com/1104030360/Systograph/issues/3) | Refine existing issue | Yes | No | 與 Epic 5 共用 Qdrant 連線（協調順序：Epic 2 → Epic 5） | 無 |
+| Epic 3 | [#4](https://github.com/1104030360/Systograph/issues/4) | Refine existing issue | Yes | No | 無 | 無 |
+| Epic 4 | [#5](https://github.com/1104030360/Systograph/issues/5) | Refine existing issue | Yes | No | `agent_tools` schema 概念（待 Epic 4 實作前另行討論） | 無 |
+| Epic 5 | [#6](https://github.com/1104030360/Systograph/issues/6) | Refine existing issue | Yes | 1（RAG Answer Groundedness Evaluation，記錄為本 issue 的 Follow-Up Candidate，未另開新 issue） | Groundedness evaluation 獨立排期 + 與 Epic 2 協調 Qdrant 連線順序 | 無 |
+| Epic 6 | [#7](https://github.com/1104030360/Systograph/issues/7) | Refine existing issue | Yes | No | 與 Epic 7 的 GitHub Action 分工（Epic 6＝CLI/JSON/exit-code 合約，Epic 7＝可重用 Action） | 無 |
+| Epic 7 | [#8](https://github.com/1104030360/Systograph/issues/8) | Refine existing issue | Yes | No | 依賴 Epic 6 的 `systograph gate --ci` 合約穩定後才能開始 GitHub Action 開發 | 無 |
 
 **驗收狀態**：
 - 6/6 Epic 完成審查與 Decision；6/6 Outcome 為 `Refine existing issue`；0 個 Epic 為 `No change needed` / `Add goals to existing issue` / `Split into follow-up issue candidate` / `Blocked by missing GitHub access`。

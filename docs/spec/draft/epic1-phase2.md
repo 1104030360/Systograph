@@ -1,4 +1,4 @@
-**對齊註記（2026-07-07）**：自 2026-07-07 起，UA 整合決策以 `docs/design/epic1-phase2.md` 與 `ref-opensource/kai-mind-understand-anything-integration-boundary.md` 為準；本 draft 未逐句同步。
+**對齊註記（2026-07-07）**：自 2026-07-07 起，UA 整合決策以 `docs/design/epic1-phase2.md` 與 `ref-opensource/systograph-understand-anything-integration-boundary.md` 為準；本 draft 未逐句同步。
 
 > **初始想法（draft note）**
 >

@@ -98,7 +98,7 @@ uv run mypy <touched>
 
 ### 主要改動檔案
 
-- `src/kai_mind/core/services/system_map_secret_boundary.py`（新）
+- `src/systograph/core/services/system_map_secret_boundary.py`（新）
 - `system_map_validation_service.py` / `system_map_v2_validation_service.py`
 - `system_map_v1_to_v2_adapter.py` / `map_build_service.py`
 - `workflow_json_provider.py` / `ai_system_map_v2.py`

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/157
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/157
 
 **Goal:** 避免 endpoint 回傳超大或深層 JSON 導致記憶體耗盡或 `_summary` recursion failure。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #157, assignee Timmy.
 - Origin: Backend findings M-11.
-- Primary files: `src/kai_mind/core/providers/endpoint_call_provider.py`, `src/kai_mind/core/services/query_trace_service.py`.
+- Primary files: `src/systograph/core/providers/endpoint_call_provider.py`, `src/systograph/core/services/query_trace_service.py`.
 
 ### Task 1: Add oversized response tests
 
@@ -32,8 +32,8 @@
 ### Task 2: Implement bounds
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/endpoint_call_provider.py`
-- Modify: `src/kai_mind/core/services/query_trace_service.py`
+- Modify: `src/systograph/core/providers/endpoint_call_provider.py`
+- Modify: `src/systograph/core/services/query_trace_service.py`
 
 - [ ] **Step 1: Limit response bytes before JSON parsing**
 - [ ] **Step 2: Add summary max depth**

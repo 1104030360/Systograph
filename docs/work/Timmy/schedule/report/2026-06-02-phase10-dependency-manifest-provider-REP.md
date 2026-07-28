@@ -55,9 +55,9 @@ dependency facts 直接轉成 final component detection 或 readiness status。
 3. 執行 targeted pytest，確認 RED：
    provider module 尚未存在，測試收集失敗。
 4. 新增：
-   `src/kai_mind/core/providers/dependency_manifest_provider.py`。
+   `src/systograph/core/providers/dependency_manifest_provider.py`。
 5. 擴充：
-   `src/kai_mind/core/models/scan.py` 的 `ParseIssue.scan_stage`，增加
+   `src/systograph/core/models/scan.py` 的 `ParseIssue.scan_stage`，增加
    `dependency_manifest_parse`。
 6. 在 `pyproject.toml` 增加 runtime direct dependency：
    `packaging>=26,<27`。
@@ -72,8 +72,8 @@ Targeted verification：
 
 ```bash
 .venv/bin/python -m pytest tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
-.venv/bin/ruff check src/kai_mind/core/models/scan.py src/kai_mind/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
-.venv/bin/mypy src/kai_mind/core/models/scan.py src/kai_mind/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
+.venv/bin/ruff check src/systograph/core/models/scan.py src/systograph/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
+.venv/bin/mypy src/systograph/core/models/scan.py src/systograph/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
 ```
 
 Full verification：
@@ -110,9 +110,9 @@ Targeted verification：
 
 - `.venv/bin/python -m pytest tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py`
   - 結果：`9 passed`
-- `.venv/bin/ruff check src/kai_mind/core/models/scan.py src/kai_mind/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py`
+- `.venv/bin/ruff check src/systograph/core/models/scan.py src/systograph/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py`
   - 結果：`All checks passed!`
-- `.venv/bin/mypy src/kai_mind/core/models/scan.py src/kai_mind/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py`
+- `.venv/bin/mypy src/systograph/core/models/scan.py src/systograph/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py`
   - 結果：`Success: no issues found in 4 source files`
 
 Full verification：

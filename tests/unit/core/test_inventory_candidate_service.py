@@ -8,14 +8,14 @@ from typing import IO, Any, cast
 
 import pytest
 
-from kai_mind.core.models.errors import InventorySelectionError
-from kai_mind.core.models.inventory_selection import (
+from systograph.core.models.errors import InventorySelectionError
+from systograph.core.models.inventory_selection import (
     InventoryCandidateOutcome,
     InventoryDirectoryLimitKind,
     InventoryRequestedTargetStatus,
     InventorySelectionSource,
 )
-from kai_mind.core.services.inventory_candidate_service import (
+from systograph.core.services.inventory_candidate_service import (
     InventoryCandidateService,
 )
 

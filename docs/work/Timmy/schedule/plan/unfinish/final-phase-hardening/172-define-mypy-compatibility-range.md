@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/172
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/172
 
 **Goal:** 避免 `mypy>=2.1.0` 無上限造成未來 dev environment 非預期 breaking change。
 

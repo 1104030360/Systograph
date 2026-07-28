@@ -7,7 +7,7 @@
 - Base branch: `feat/scan-template-mapping-ui`
 - Head branch: `codex/scan-template-ui-polish-fixes`
 - PR: #137 `Polish scan template mapping UI copy and layout`
-- URL: https://github.com/1104030360/Local-AI-Health-Doctor/pull/137
+- URL: https://github.com/1104030360/Systograph/pull/137
 - PR 狀態：open
 - 主要範圍：Scan Template / Mapping Proposal 前端介面、排版、文字與 lint/build hygiene
 
@@ -46,7 +46,7 @@
 已完成：
 
 - 新增 `Local AI setup` 說明區塊，放在 selected template summary 與 gallery 之間。
-- 補充「Kai-Mind 在本機掃描專案」與「project setup 由已確認 matches 組成」的短說明。
+- 補充「Systograph 在本機掃描專案」與「project setup 由已確認 matches 組成」的短說明。
 - 將 `Standard setup` 收斂為 `Built-in setup`，避免使用者以為它是可編輯的標準流程。
 - 將 `Best match` / `Best candidate` 改為 `Suggested match` / `Suggested first`，降低 AI 已確認完成的語氣。
 

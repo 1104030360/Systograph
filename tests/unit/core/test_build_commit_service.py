@@ -7,22 +7,26 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.analysis_history import ScanSnapshot
-from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
-from kai_mind.core.models.scan import OutputRun, ProjectScanResult
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.analysis_history import ScanSnapshot
+from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
+from systograph.core.models.scan import OutputRun, ProjectScanResult
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.providers.output_artifact_provider import (
+from systograph.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
-from kai_mind.core.services.build_commit_service import (
+from systograph.core.services.build_commit_service import (
     BuildCommitError,
     BuildCommitService,
 )
-from kai_mind.core.services.build_manifest_service import BuildManifestService
-from kai_mind.core.services.map_build_query_service import MapBuildQueryService
-from kai_mind.core.services.map_build_service import MapBuildService
+from systograph.core.services.build_manifest_service import (
+    BuildManifestService,
+)
+from systograph.core.services.map_build_query_service import (
+    MapBuildQueryService,
+)
+from systograph.core.services.map_build_service import MapBuildService
 
 
 class FailingNthWriteProvider(OutputArtifactProvider):
@@ -366,7 +370,7 @@ def test_directory_rename_failure_never_persists_manifest(
         raise OSError(f"rename unavailable: {source.name} {target.name}")
 
     monkeypatch.setattr(
-        "kai_mind.core.services.build_commit_service.os.rename",
+        "systograph.core.services.build_commit_service.os.rename",
         fail_rename,
     )
 

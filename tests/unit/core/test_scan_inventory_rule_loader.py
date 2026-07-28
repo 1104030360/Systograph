@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.inventory_policy import InventoryPolicyAction
-from kai_mind.core.services.scan_inventory_rule_loader import (
+from systograph.core.models.inventory_policy import InventoryPolicyAction
+from systograph.core.services.scan_inventory_rule_loader import (
     ScanInventoryRuleLoader,
     ScanInventoryRulesError,
     ScanInventoryRulesErrorCode,

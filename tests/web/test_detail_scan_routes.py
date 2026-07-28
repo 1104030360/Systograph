@@ -8,9 +8,9 @@ from tests.unit.core.test_detail_scan_service import (
     build_router_project,
 )
 
-from kai_mind.core.models.map_build import MapBuildResult
-from kai_mind.web.app import create_app
-from kai_mind.web.session_store import InMemorySessionStore
+from systograph.core.models.map_build import MapBuildResult
+from systograph.web.app import create_app
+from systograph.web.session_store import InMemorySessionStore
 
 
 def test_detail_scan_route_appends_result_to_project_map(

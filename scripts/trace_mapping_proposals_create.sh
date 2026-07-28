@@ -45,32 +45,32 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --unmapped-id)
-      i=$((i + 1)); UNMAPPED_ID="${KAI_EXTRA_ARGS[$i]:?missing value for --unmapped-id}" ;;
+      i=$((i + 1)); UNMAPPED_ID="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --unmapped-id}" ;;
     --description)
-      i=$((i + 1)); USER_DESCRIPTION="${KAI_EXTRA_ARGS[$i]:?missing value for --description}" ;;
-    *) kai_die "Unknown option: $arg" ;;
+      i=$((i + 1)); USER_DESCRIPTION="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --description}" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
-kai_section "準備：匯入 + 掃描，取得 unmapped component"
-PROJECT_ID="$(kai_import_project)"
-SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
+systograph_section "準備：匯入 + 掃描，取得 unmapped component"
+PROJECT_ID="$(systograph_import_project)"
+SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
 if [[ -z "$UNMAPPED_ID" ]]; then
-  UNMAPPED_ID="$(kai_first_unmapped_id "$SCAN_JSON")"
+  UNMAPPED_ID="$(systograph_first_unmapped_id "$SCAN_JSON")"
   [[ -n "$UNMAPPED_ID" ]] \
-    || kai_die "Scan produced no unmapped component; try --project-path with one"
-  kai_progress "將對 unmapped_id=$UNMAPPED_ID 建立 proposal"
+    || systograph_die "Scan produced no unmapped component; try --project-path with one"
+  systograph_progress "將對 unmapped_id=$UNMAPPED_ID 建立 proposal"
 fi
 
-kai_section "建立 proposal：POST /api/mapping-proposals"
+systograph_section "建立 proposal：POST /api/mapping-proposals"
 if [[ -n "$USER_DESCRIPTION" ]]; then
   REQUEST_BODY="$(jq -n --arg id "$PROJECT_ID" --arg u "$UNMAPPED_ID" --arg d "$USER_DESCRIPTION" \
     '{project_id:$id, source_unmapped_id:$u, user_description:$d}')"
@@ -78,11 +78,11 @@ else
   REQUEST_BODY="$(jq -n --arg id "$PROJECT_ID" --arg u "$UNMAPPED_ID" \
     '{project_id:$id, source_unmapped_id:$u}')"
 fi
-kai_progress "接著呼叫 mapping proposal..."
+systograph_progress "接著呼叫 mapping proposal..."
 api_call POST "/api/mapping-proposals" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Proposal summary"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Proposal summary"
 echo "$LAST_BODY" | jq '{
   proposal_id,
   status,
@@ -107,5 +107,5 @@ PACKET_PRESENT="$(echo "$LAST_BODY" | jq -r '.evidence_packet != null')"
 if [[ "$PACKET_PRESENT" == "true" ]]; then
   SOURCE="$(echo "$LAST_BODY" | jq -r '.evidence_packet.context_limits.source // empty')"
   [[ "$SOURCE" == "system_map_index" ]] \
-    || kai_die "Expected evidence_packet.context_limits.source=system_map_index, got: $SOURCE"
+    || systograph_die "Expected evidence_packet.context_limits.source=system_map_index, got: $SOURCE"
 fi

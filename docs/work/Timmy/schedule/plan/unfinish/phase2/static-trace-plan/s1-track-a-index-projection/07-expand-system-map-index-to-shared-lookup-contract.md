@@ -54,11 +54,11 @@ v2 validator與 fixtures已存在。Plan 05 execution會先建立 singular looku
 
 ### 相關檔案
 
-- Create: `src/kai_mind/core/services/system_map_index.py`
+- Create: `src/systograph/core/services/system_map_index.py`
 - Create: `tests/unit/core/test_system_map_index.py`
-- Read: `src/kai_mind/core/models/ai_system_map_v2.py`
-- Read: `src/kai_mind/core/services/canonical_map_loader.py`
-- Read: `src/kai_mind/core/services/system_map_v2_validation_service.py`
+- Read: `src/systograph/core/models/ai_system_map_v2.py`
+- Read: `src/systograph/core/services/canonical_map_loader.py`
+- Read: `src/systograph/core/services/system_map_v2_validation_service.py`
 
 ### 實作步驟
 
@@ -169,9 +169,9 @@ FAIL，且 failure reason不是 fixture/import錯誤。
 .venv/bin/pytest tests/unit/core/test_system_map_index.py \
   tests/unit/core/test_graph_projection_service.py \
   tests/unit/core/test_reference_map_overlay_projector.py -q
-.venv/bin/ruff check src/kai_mind/core/services/system_map_index.py \
+.venv/bin/ruff check src/systograph/core/services/system_map_index.py \
   tests/unit/core/test_system_map_index.py
-.venv/bin/mypy src/kai_mind/core/services/system_map_index.py \
+.venv/bin/mypy src/systograph/core/services/system_map_index.py \
   tests/unit/core/test_system_map_index.py
 git diff --check -- \
   docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-a-index-projection/07-expand-system-map-index-to-shared-lookup-contract.md

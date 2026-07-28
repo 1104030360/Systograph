@@ -44,7 +44,7 @@ backend 同一投影模型產生 JSON graph、Markdown 與 Mermaid，再讓 fron
 | `GraphViewModel` / `ViewerLoadResult` | `docs/MODEL-CONTRACT.md` |
 | Viewer 讀取端點 | `docs/API-GUIDE.md` `GET /api/map-builds/{build_id}` |
 | 五態 / activation | `../../capability-map-assessment-decision-summary.md` + `docs/MODEL-CONTRACT.md` |
-| Current runtime models | `src/kai_mind/core/models/viewer.py` + `frontend/src/types.ts` |
+| Current runtime models | `src/systograph/core/models/viewer.py` + `frontend/src/types.ts` |
 | Current build wiring | `map_build_pipeline.py` + `build_artifact_publisher.py` + `build_manifest_service.py` |
 
 `GraphViewModel` 是 `ViewerLoadResult` 內的 ephemeral projection，不是 persisted sibling JSON。
@@ -145,17 +145,17 @@ scope correction 延後。
 
 ### 相關檔案
 
-- `src/kai_mind/core/services/viewer_session_service.py`
-- `src/kai_mind/core/services/graph_projection_service.py`（新增）
-- `src/kai_mind/core/services/reference_map_overlay_projector.py`（新增）
-- `src/kai_mind/core/services/graph_mermaid_renderer.py`（新增）
-- `src/kai_mind/core/services/graph_markdown_renderer.py`（新增）
-- `src/kai_mind/core/models/viewer.py`
-- `src/kai_mind/core/services/map_build_pipeline.py`
-- `src/kai_mind/core/services/build_artifact_publisher.py`
-- `src/kai_mind/core/services/build_manifest_service.py`
-- `src/kai_mind/core/services/static_execution_artifact_service.py`
-- `src/kai_mind/core/services/markdown_summary_service.py`
+- `src/systograph/core/services/viewer_session_service.py`
+- `src/systograph/core/services/graph_projection_service.py`（新增）
+- `src/systograph/core/services/reference_map_overlay_projector.py`（新增）
+- `src/systograph/core/services/graph_mermaid_renderer.py`（新增）
+- `src/systograph/core/services/graph_markdown_renderer.py`（新增）
+- `src/systograph/core/models/viewer.py`
+- `src/systograph/core/services/map_build_pipeline.py`
+- `src/systograph/core/services/build_artifact_publisher.py`
+- `src/systograph/core/services/build_manifest_service.py`
+- `src/systograph/core/services/static_execution_artifact_service.py`
+- `src/systograph/core/services/markdown_summary_service.py`
 - Frontend files are handoff consumers only and are not modified in this plan run.
 
 ### 實作步驟
@@ -266,7 +266,7 @@ ViewerSessionService
 - **Candidate：** 深化 graph projection module
 - **Recommendation strength：** 強烈建議
 - **Category：** in-process
-- **Files：** `src/kai_mind/core/services/viewer_session_service.py`, `src/kai_mind/core/models/viewer.py`, `tests/unit/core/test_viewer_session_service.py`
+- **Files：** `src/systograph/core/services/viewer_session_service.py`, `src/systograph/core/models/viewer.py`, `tests/unit/core/test_viewer_session_service.py`
 - **Problem：** 目前這個 module 已經同時承擔 file load、validation、serialization、graph projection、details 與 filters；再加入 profile attachment projection 會讓 interface 太寬。
 - **Solution：** 保留 `ViewerSessionService` 做 artifact/session orchestration，另把 graph projection 深化成一個藏在 `project(system_map, profile_result=None)` interface 後面的 module。
 
@@ -325,12 +325,12 @@ flowchart TD
 
 ## 優先檢視的檔案
 
-- `src/kai_mind/core/services/viewer_session_service.py`
-- `src/kai_mind/core/models/viewer.py`
-- `src/kai_mind/core/models/profile_signal.py`
-- `src/kai_mind/core/services/build_artifact_publisher.py`
-- `src/kai_mind/core/services/build_manifest_service.py`
-- `src/kai_mind/core/services/static_execution_artifact_service.py`
+- `src/systograph/core/services/viewer_session_service.py`
+- `src/systograph/core/models/viewer.py`
+- `src/systograph/core/models/profile_signal.py`
+- `src/systograph/core/services/build_artifact_publisher.py`
+- `src/systograph/core/services/build_manifest_service.py`
+- `src/systograph/core/services/static_execution_artifact_service.py`
 - `tests/unit/core/test_viewer_session_service.py`
 
 本次不得修改 `frontend/src/`。Backend 必須以 versioned/additive JSON contract與測試

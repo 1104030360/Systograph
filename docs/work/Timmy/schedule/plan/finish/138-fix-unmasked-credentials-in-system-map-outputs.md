@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/138
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/138
 
 **Goal:** 補齊 secret masking，避免 DSN URL userinfo、`PASSWD` / `PWD`、無底線 `APIKEY` 等機密以明文進入 `ai_system_map.json`、Markdown、Viewer、trace 或 proposal evidence。
 
@@ -50,7 +50,7 @@ JSON / API / Viewer / Markdown / proposal / trace
 
 Secret masking 規則 **不在 TOML**，直接寫死在 Python：
 
-- `src/kai_mind/core/services/secret_masking_service.py` — `SECRET_KEY_MARKERS`、`KEY_VALUE_RE`、`SECRET_PATTERNS`
+- `src/systograph/core/services/secret_masking_service.py` — `SECRET_KEY_MARKERS`、`KEY_VALUE_RE`、`SECRET_PATTERNS`
 
 專案 TOML rule catalog（如 `risk_hint_rules.toml`）主要用於 component detection、risk hints 等；**#138 預期仍直接修改 `SecretMaskingService`**，不把 masking 規則外部化到 TOML（安全核心，fail-closed 優先；見 Task 5 / plan 12a 共識）。
 
@@ -133,7 +133,7 @@ Issue #138 漏網 case 通常是 **兩通道都不命中**。
 
 - GitHub issue #138, assignee Timmy.
 - Origin: `docs/work/Timmy/schedule/fable-5/find-error/report/2026-06-12-backend-security-ai-findings.md` C-1.
-- Primary files: `src/kai_mind/core/services/secret_masking_service.py`, `src/kai_mind/core/services/system_map_validation_service.py`.
+- Primary files: `src/systograph/core/services/secret_masking_service.py`, `src/systograph/core/services/system_map_validation_service.py`.
 
 ### Task 1: Reproduce the leaked secret cases
 
@@ -156,7 +156,7 @@ Create synthetic fixture values only; never use real credentials.
 ### Task 2: Fix shared masking behavior
 
 **Files:**
-- Modify: `src/kai_mind/core/services/secret_masking_service.py`
+- Modify: `src/systograph/core/services/secret_masking_service.py`
 
 - [ ] **Step 1: Normalize key markers before matching**
 
@@ -173,7 +173,7 @@ Preserve scheme/host where useful, but never preserve the full password.
 ### Task 3: Block unsafe canonical output
 
 **Files:**
-- Modify: `src/kai_mind/core/services/system_map_validation_service.py`
+- Modify: `src/systograph/core/services/system_map_validation_service.py`
 - Test: `tests/unit/core/test_system_map_validation.py`
 
 - [ ] **Step 1: Add validation tests for raw DSN credentials**

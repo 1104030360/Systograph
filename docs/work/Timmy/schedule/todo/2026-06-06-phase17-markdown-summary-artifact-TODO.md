@@ -23,7 +23,7 @@
 3. 驗證 slot coverage table 來自 `components_by_slot`。
 4. 驗證 detected / missing slots、flows、endpoints、risk hints、recommended next checks 皆由 canonical map render。
 5. 驗證 Markdown 不含 fake full secret。
-6. 實作 `src/kai_mind/core/services/markdown_summary_service.py`。
+6. 實作 `src/systograph/core/services/markdown_summary_service.py`。
 
 ### Phase B：Artifact writer 與 MapBuildService 串接
 

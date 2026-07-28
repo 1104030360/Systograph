@@ -1,4 +1,4 @@
-# KAI-Mind 前端交接文件（2026-06-20）
+# Systograph 前端交接文件（2026-06-20）
 
 這份文件是給 `codex/toolbar-sidebar-density-draft` 開 PR 前 review 用的版本。
 
@@ -15,7 +15,7 @@
 - Base branch: `main`
 - Head branch: `codex/toolbar-sidebar-density-draft`
 - PR: #186 `Polish viewer density and scan template UI`
-- URL: https://github.com/1104030360/Local-AI-Health-Doctor/pull/186
+- URL: https://github.com/1104030360/Systograph/pull/186
 - PR 狀態：open，等待 review / merge 確認
 - 主要範圍：主 Viewer toolbar/sidebar density、Scan Template header/workflow/copy、Map key、scan status、proposal wording
 
@@ -151,7 +151,7 @@ Review 需要知道是哪一個 node / file 的 review，所以不能在 Setup �
 目前主說明方向：
 
 ```text
-A scan template tells Kai-Mind how to name detected files.
+A scan template tells Systograph how to name detected files.
 The project template keeps confirmed matches for future scans.
 ```
 
@@ -169,7 +169,7 @@ Review 重點：
 3. Pending review modal 移除冗長說明：
 
 ```text
-Kai-Mind found 3 mapping suggestions for this file...
+Systograph found 3 mapping suggestions for this file...
 ```
 
 4. `AI found it` / `Matched by a rule` 等過度內部來源感的 badge 已移除或降調。

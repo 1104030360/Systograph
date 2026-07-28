@@ -5,8 +5,8 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from kai_mind.cli import main as cli_main
-from kai_mind.cli import viewer_command
+from systograph.cli import main as cli_main
+from systograph.cli import viewer_command
 
 FIXTURE_PATH = Path(
     "tests/fixtures/ai_system_map/valid_rich_frontend_sample.v1.json"

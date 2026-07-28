@@ -318,7 +318,7 @@
   - 出處：[OpenAI Streaming responses](https://developers.openai.com/api/docs/guides/streaming-responses) — 官方文件 — 2026 查證
   - 出處：[OpenAI Latency optimization](https://developers.openai.com/api/docs/guides/latency-optimization) — 官方文件 — 2026 查證
 
-- **Agent 前端互動可評估 AG-UI，不要只把 SSE 當成文字 token stream**：AG-UI 是 Agent-User Interaction protocol，定位是把 agentic backend 和 user-facing frontend 之間的事件流標準化；它涵蓋 run lifecycle、message streaming、tool call、tool result、state snapshot/delta、error event、interrupt、人審、generative UI、frontend tool call 與 backend tool rendering。對 KAI-Mind 這類 readiness / scan report 產品，這代表前端可以即時渲染「正在掃描哪個檔案、哪個檢查點通過、哪個 evidence 需要使用者確認」，而不是等最後一次性吐出長報告。
+- **Agent 前端互動可評估 AG-UI，不要只把 SSE 當成文字 token stream**：AG-UI 是 Agent-User Interaction protocol，定位是把 agentic backend 和 user-facing frontend 之間的事件流標準化；它涵蓋 run lifecycle、message streaming、tool call、tool result、state snapshot/delta、error event、interrupt、人審、generative UI、frontend tool call 與 backend tool rendering。對 Systograph 這類 readiness / scan report 產品，這代表前端可以即時渲染「正在掃描哪個檔案、哪個檢查點通過、哪個 evidence 需要使用者確認」，而不是等最後一次性吐出長報告。
   - 出處：[AG-UI Documentation](https://docs.ag-ui.com/introduction) — 官方文件 — 2026 查證
   - 出處：[AG-UI GitHub](https://github.com/ag-ui-protocol/ag-ui) — GitHub repo — 持續更新
 

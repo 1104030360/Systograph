@@ -6,21 +6,21 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.analysis_history import ScanSnapshot
-from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
-from kai_mind.core.models.scan import OutputRun, ProjectScanResult
-from kai_mind.core.services.canonical_map_loader import (
+from systograph.core.models.analysis_history import ScanSnapshot
+from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
+from systograph.core.models.scan import OutputRun, ProjectScanResult
+from systograph.core.services.canonical_map_loader import (
     CanonicalMapLoader,
     CanonicalMapLoadError,
 )
-from kai_mind.core.services.canonical_output_configuration import (
+from systograph.core.services.canonical_output_configuration import (
     CanonicalOutputConfigurationError,
 )
-from kai_mind.core.services.legacy_v1_rollback_service import (
+from systograph.core.services.legacy_v1_rollback_service import (
     LegacyV1RollbackError,
 )
-from kai_mind.core.services.map_build_service import MapBuildService
-from kai_mind.web.app import create_app
+from systograph.core.services.map_build_service import MapBuildService
+from systograph.web.app import create_app
 
 
 def _build(
@@ -154,7 +154,7 @@ def test_invalid_operator_version_prevents_app_startup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(
-        "KAI_MIND_CANONICAL_OUTPUT_VERSION",
+        "SYSTOGRAPH_CANONICAL_OUTPUT_VERSION",
         "ai-system-map/v999",
     )
 

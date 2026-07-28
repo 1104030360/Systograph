@@ -1,11 +1,11 @@
-# KAI-Mind Frontend Sync：Phase2 十層架構 Viewer 與互動收尾（2026-07-15）
+# Systograph Frontend Sync：Phase2 十層架構 Viewer 與互動收尾（2026-07-15）
 
 本文件對應 `codex/phase2-plan06-contract` 對 `main` 的 frontend PR。
 
 ```text
 目標：以 backend GraphViewModel / build-scoped payload 驅動十層 AI Agent System 架構 Viewer，
 取代舊白板式主畫面，並完成 Filter Views、Node Inspector、Readiness、狀態資訊與連線互動。
-範圍：frontend + docs；不修改 src/kai_mind/ backend contract 或 scanner 行為。
+範圍：frontend + docs；不修改 src/systograph/ backend contract 或 scanner 行為。
 ```
 
 ## 1. PR scope

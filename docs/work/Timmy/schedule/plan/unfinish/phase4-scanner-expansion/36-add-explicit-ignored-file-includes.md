@@ -33,7 +33,7 @@
 ### Task 1: Define include policy model
 
 **Files:**
-- Create: `src/kai_mind/core/models/scan_policy.py`
+- Create: `src/systograph/core/models/scan_policy.py`
 - Test: `tests/unit/core/test_scan_policy_model.py`
 
 - [ ] **Step 1: Write tests for allowed and rejected paths**
@@ -54,7 +54,7 @@ node_modules/package/.env
 ### Task 2: Extend filesystem inventory behavior
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/filesystem_provider.py`
+- Modify: `src/systograph/core/providers/filesystem_provider.py`
 - Test: `tests/unit/core/test_filesystem_provider.py`
 
 - [ ] **Step 1: Add fixture where `.gitignore` excludes `.env.example`**
@@ -65,10 +65,10 @@ node_modules/package/.env
 ### Task 3: Wire through scan route and map build service
 
 **Files:**
-- Modify: `src/kai_mind/core/models/map_build.py`
-- Modify: `src/kai_mind/core/services/map_build_service.py`
-- Modify: `src/kai_mind/web/schemas.py`
-- Modify: `src/kai_mind/web/routes/scan_routes.py`
+- Modify: `src/systograph/core/models/map_build.py`
+- Modify: `src/systograph/core/services/map_build_service.py`
+- Modify: `src/systograph/web/schemas.py`
+- Modify: `src/systograph/web/routes/scan_routes.py`
 - Test: `tests/web/test_project_scan_routes.py`
 - Test: `tests/unit/core/test_project_scan_service.py`
 

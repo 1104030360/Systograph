@@ -22,7 +22,7 @@
 - `OutputArtifactProvider.write_markdown()` 寫出 `ai_system_map.md`。
 - `MapBuildService` 在同一個 output run directory 寫出 `ai_system_map.json` 與 `ai_system_map.md`。
 - `MapBuildResult` 增加 `map_markdown_path`。
-- CLI `kai-mind map` 成功時同時輸出 JSON 與 Markdown artifact path。
+- CLI `systograph map` 成功時同時輸出 JSON 與 Markdown artifact path。
 - Local API 新增 `GET /api/map/report`，讓前端可以檢視 latest Markdown report。
 - `GET /api/map/report?download=true` 支援 attachment download。
 - API guide 已更新 Markdown report contract。

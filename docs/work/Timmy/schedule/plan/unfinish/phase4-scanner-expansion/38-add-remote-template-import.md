@@ -33,8 +33,8 @@
 ### Task 1: Define import model and provenance
 
 **Files:**
-- Create: `src/kai_mind/core/models/template_import.py`
-- Modify: `src/kai_mind/core/models/scan_profile.py`
+- Create: `src/systograph/core/models/template_import.py`
+- Modify: `src/systograph/core/models/scan_profile.py`
 - Test: `tests/unit/core/test_template_import_models.py`
 
 - [ ] **Step 1: Add validation tests for import source types**
@@ -79,20 +79,20 @@ entrypoint
 ### Task 2: Implement local file import
 
 **Files:**
-- Create: `src/kai_mind/core/services/template_import_service.py`
+- Create: `src/systograph/core/services/template_import_service.py`
 - Test: `tests/unit/core/test_template_import_service.py`
 
 - [ ] **Step 1: Accept only allowlisted local import directory or explicit file handle from API layer**
 - [ ] **Step 2: Validate template schema before storing**
-- [ ] **Step 3: Store template under KAI-Mind managed registry path**
+- [ ] **Step 3: Store template under Systograph managed registry path**
 - [ ] **Step 4: Save digest and provenance metadata**
 
 ### Task 3: Add API route behind explicit capability
 
 **Files:**
-- Create: `src/kai_mind/web/routes/template_import_routes.py`
-- Modify: `src/kai_mind/web/app.py`
-- Modify: `src/kai_mind/web/schemas.py`
+- Create: `src/systograph/web/routes/template_import_routes.py`
+- Modify: `src/systograph/web/app.py`
+- Modify: `src/systograph/web/schemas.py`
 - Test: `tests/web/test_template_import_routes.py`
 
 - [ ] **Step 1: Add route disabled by default**

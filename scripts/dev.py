@@ -52,7 +52,7 @@ def backend_command(args: argparse.Namespace) -> list[str]:
         uv,
         "run",
         "uvicorn",
-        "kai_mind.web.app:create_app",
+        "systograph.web.app:create_app",
         "--factory",
         "--host",
         args.host,

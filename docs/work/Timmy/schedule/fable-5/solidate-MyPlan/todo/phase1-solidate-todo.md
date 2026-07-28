@@ -14,7 +14,7 @@
 - **[#7 ↔ #8] Epic 6 與 Epic 7 的「GitHub Action」分工**
   - 問題：原始 body 中，Epic 6 完成條件「GitHub Actions integration path」與 Epic 7 範圍「GitHub Action integration」用詞重疊，容易讓人誤判工作已被涵蓋或重複規劃。
   - 影響：若不釐清，未來可能出現兩個 Epic 都想做「GitHub Actions 整合」、或都認為對方已經做了的協調落差。
-  - Evidence：Epic 6（#7）與 Epic 7（#8）重寫後 body 已分工：Epic 6 提供 `kai-mind gate --ci` 的 CLI/JSON/exit-code 合約 + 通用範例；Epic 7 負責打包成可發布、可重用的 GitHub Action。
+  - Evidence：Epic 6（#7）與 Epic 7（#8）重寫後 body 已分工：Epic 6 提供 `systograph gate --ci` 的 CLI/JSON/exit-code 合約 + 通用範例；Epic 7 負責打包成可發布、可重用的 GitHub Action。
   - 建議下一步：Epic 7 的 GitHub Action 開發應排在 Epic 6 的 CLI 合約穩定之後開始。
   - Owner bucket：Backend
 

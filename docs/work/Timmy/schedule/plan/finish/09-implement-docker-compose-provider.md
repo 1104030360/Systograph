@@ -25,7 +25,7 @@ Docker Compose 是 local RAG 系統中最穩定的 infrastructure evidence。Qdr
 - 不判斷 final component slot。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/providers/docker_compose_provider.py`。
+1. 建立 `src/systograph/core/providers/docker_compose_provider.py`。
 2. 從 `FileInventory` 選出 compose files。
 3. 使用 safe YAML parser 讀檔。
 4. 將每個 service 轉成 `ScanFact` candidate。
@@ -35,7 +35,7 @@ Docker Compose 是 local RAG 系統中最穩定的 infrastructure evidence。Qdr
 8. 測試 Qdrant image、Ollama image、`6333:6333` port、malformed compose。
 
 ## 預期輸出
-- `src/kai_mind/core/providers/docker_compose_provider.py`
+- `src/systograph/core/providers/docker_compose_provider.py`
 - `tests/unit/core/test_docker_compose_provider.py`
 
 ## 驗收標準

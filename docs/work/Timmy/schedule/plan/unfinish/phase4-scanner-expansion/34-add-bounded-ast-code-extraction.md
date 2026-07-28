@@ -84,8 +84,8 @@ Keep snippets bounded through existing snippet/masking policy.
 ### Task 2: Extend rule catalog schema
 
 **Files:**
-- Modify: `src/kai_mind/core/services/rule_catalog_loader.py`
-- Modify: `src/kai_mind/core/rules/code_pattern_rules.toml`
+- Modify: `src/systograph/core/services/rule_catalog_loader.py`
+- Modify: `src/systograph/core/rules/code_pattern_rules.toml`
 - Test: `tests/unit/core/test_rule_catalog_loader.py`
 
 - [ ] **Step 1: Add failing tests for `engine = "python_ast"`**
@@ -96,7 +96,7 @@ Keep snippets bounded through existing snippet/masking policy.
 ### Task 3: Wire AST extraction into `CodePatternProvider`
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/code_pattern_provider.py`
+- Modify: `src/systograph/core/providers/code_pattern_provider.py`
 - Test: `tests/unit/core/test_code_pattern_provider.py`
 - Test: `tests/integration/test_phase11_code_pattern_provider_behaviors.py`
 
@@ -108,7 +108,7 @@ Keep snippets bounded through existing snippet/masking policy.
 ### Task 4: Migrate only high-value rules
 
 **Files:**
-- Modify: `src/kai_mind/core/rules/code_pattern_rules.toml`
+- Modify: `src/systograph/core/rules/code_pattern_rules.toml`
 - Test: `tests/integration/test_phase13_component_detection_behaviors.py`
 
 - [ ] **Step 1: Migrate FastAPI route detection**

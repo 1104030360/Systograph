@@ -90,7 +90,7 @@ profile 的 presentation metadata 從 Python 遷移至 package-bundled TOML，�
   TypeScript + Vite build 成功。
 - Ruff format：`272 files already formatted`；Ruff check：all checks passed；
   Mypy：`258 source files` 無問題。
-- Wheel build 成功，且包含 package resource `kai_mind/core/rules/profile_registry.toml`。
+- Wheel build 成功，且包含 package resource `systograph/core/rules/profile_registry.toml`。
 - Manual QA：CLI help exit 0、fixture map exit 0 並產 52/15、missing project exit 1
   且回報 `project_path_not_found`。
 - 舊 `HEAD` 與新實作的 4 個 v2 fixtures semantic diff 完全相同。

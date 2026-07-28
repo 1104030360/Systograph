@@ -70,7 +70,7 @@ Local web API 產生 JSON 後，使用者還需要可讀報告快速理解 syste
 - 不建立 public sharing URL；report endpoint 只服務 local frontend / desktop flow。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/services/markdown_summary_service.py`。
+1. 建立 `src/systograph/core/services/markdown_summary_service.py`。
 2. 設計 deterministic Markdown section order，固定 heading 文字，方便 tests assert。
 3. 建立內部 view-model/helper，例如 `_build_summary_view(system_map)`；它只能讀 `RagSystemMap` 欄位，不可讀 project files。
 4. 用純 Python renderer 產生 Markdown tables / lists；先保持小函式與 section-level helpers，不用 Jinja2。
@@ -89,12 +89,12 @@ Local web API 產生 JSON 後，使用者還需要可讀報告快速理解 syste
 17. 寫測試：sections 存在、GFM task list 存在、secret masked、不讀 raw project file、precondition error 不產生 Markdown、report endpoint 不接受任意 path 且可讀 latest Markdown。
 
 ## 預期輸出
-- `src/kai_mind/core/services/markdown_summary_service.py`
+- `src/systograph/core/services/markdown_summary_service.py`
 - `tests/unit/core/test_markdown_summary_service.py`
-- 更新 `src/kai_mind/core/services/map_build_service.py`
-- 更新 `src/kai_mind/core/providers/output_artifact_provider.py`
-- 視需要更新 `src/kai_mind/core/models/map_build.py`
-- 更新 `src/kai_mind/web/routes/map_routes.py`
+- 更新 `src/systograph/core/services/map_build_service.py`
+- 更新 `src/systograph/core/providers/output_artifact_provider.py`
+- 視需要更新 `src/systograph/core/models/map_build.py`
+- 更新 `src/systograph/web/routes/map_routes.py`
 - 更新 `tests/web/` 或既有 API route tests，覆蓋 Markdown report endpoint。
 - 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
 

@@ -35,7 +35,7 @@ graph；同時補齊 profile semantics characterization 並同步 canonical owne
   tests/unit/core/test_profile_signal_models.py -q
 .venv/bin/ruff check src tests
 .venv/bin/mypy
-test ! -e src/kai_mind/core/rules/profile_registry.toml
+test ! -e src/systograph/core/rules/profile_registry.toml
 git diff --check
 ```
 

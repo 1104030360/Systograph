@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from tests.helpers.fixtures import fixture_file_text
 
-from kai_mind.core.services.secret_masking_service import SecretMaskingService
+from systograph.core.services.secret_masking_service import (
+    SecretMaskingService,
+)
 
 
 def test_report_markdown_and_trace_outputs_share_one_masking_policy() -> None:

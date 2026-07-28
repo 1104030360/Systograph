@@ -62,8 +62,8 @@ create scanner facts
 ### Task 1: Define assistant schemas
 
 **Files:**
-- Create: `src/kai_mind/core/models/assistant.py`
-- Modify: `src/kai_mind/web/schemas.py`
+- Create: `src/systograph/core/models/assistant.py`
+- Modify: `src/systograph/web/schemas.py`
 - Test: `tests/unit/core/test_assistant_models.py`
 
 - [ ] **Step 1: Add request/response model tests**
@@ -93,7 +93,7 @@ safety_notes
 ### Task 2: Build deterministic assistant context service
 
 **Files:**
-- Create: `src/kai_mind/core/services/assistant_context_service.py`
+- Create: `src/systograph/core/services/assistant_context_service.py`
 - Test: `tests/unit/core/test_assistant_context_service.py`
 
 - [ ] **Step 1: Collect product docs sections from allowlisted docs**
@@ -113,7 +113,7 @@ docs/work/Meeting-Sync/meeting_sync_2026_06_12/frontend-sync.md
 ### Task 3: Implement explain-only assistant service
 
 **Files:**
-- Create: `src/kai_mind/core/services/product_assistant_service.py`
+- Create: `src/systograph/core/services/product_assistant_service.py`
 - Test: `tests/unit/core/test_product_assistant_service.py`
 
 - [ ] **Step 1: Add deterministic keyword/section retrieval**
@@ -125,9 +125,9 @@ docs/work/Meeting-Sync/meeting_sync_2026_06_12/frontend-sync.md
 ### Task 4: Add backend route
 
 **Files:**
-- Create: `src/kai_mind/web/routes/assistant_routes.py`
-- Modify: `src/kai_mind/web/app.py`
-- Modify: `src/kai_mind/web/dependencies.py`
+- Create: `src/systograph/web/routes/assistant_routes.py`
+- Modify: `src/systograph/web/app.py`
+- Modify: `src/systograph/web/dependencies.py`
 - Test: `tests/web/test_assistant_routes.py`
 
 - [ ] **Step 1: Add `POST /api/assistant/messages`**
@@ -168,7 +168,7 @@ redacted labels/risk titles/evidence titles
 ### Task 6: Suggested actions allowlist
 
 **Files:**
-- Modify: `src/kai_mind/core/models/assistant.py`
+- Modify: `src/systograph/core/models/assistant.py`
 - Modify: `frontend/src/components/ChatPanel.tsx`
 - Test: `tests/unit/core/test_assistant_models.py`
 

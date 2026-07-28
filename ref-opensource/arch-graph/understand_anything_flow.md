@@ -186,6 +186,6 @@ flowchart TB
 
 ---
 
-## 六、與 KAI-Mind 對照
+## 六、與 Systograph 對照
 
-見 `kai_mind_flow.md`：KAI-Mind 由 **Python Core** 線性編排；UA 由 **IDE 內 AI agent** 依 Markdown 劇本編排。
+見 `systograph_flow.md`：Systograph 由 **Python Core** 線性編排；UA 由 **IDE 內 AI agent** 依 Markdown 劇本編排。

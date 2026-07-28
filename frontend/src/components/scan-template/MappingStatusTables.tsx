@@ -101,7 +101,7 @@ export function PendingTable({
       <EmptyRow
         Icon={CheckCircle2}
         title="Nothing waiting for you"
-        body="Every file Kai-Mind found has a match or a decision."
+        body="Every file Systograph found has a match or a decision."
       />
     );
   return (

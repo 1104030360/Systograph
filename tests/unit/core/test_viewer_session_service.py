@@ -4,19 +4,21 @@ import inspect
 import json
 from pathlib import Path
 
-import kai_mind.core.services.viewer_session_service as viewer_session_module
-from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
-from kai_mind.core.services.graph_projection_service import (
+import systograph.core.services.viewer_session_service as viewer_session_module
+from systograph.core.services.canonical_map_loader import CanonicalMapLoader
+from systograph.core.services.graph_projection_service import (
     _component_node_id,
     _unmapped_node_id,
 )
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
-from kai_mind.core.services.viewer_session_service import ViewerSessionService
+from systograph.core.services.viewer_session_service import (
+    ViewerSessionService,
+)
 
 FIXTURE_PATH = Path(
     "tests/fixtures/ai_system_map/valid_rich_frontend_sample.v1.json"

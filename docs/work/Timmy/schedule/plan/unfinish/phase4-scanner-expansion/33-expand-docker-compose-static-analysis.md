@@ -35,7 +35,7 @@
 ### Task 1: Fix masking precondition from #141
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/docker_compose_provider.py`
+- Modify: `src/systograph/core/providers/docker_compose_provider.py`
 - Test: `tests/unit/core/test_docker_compose_provider.py`
 
 - [ ] **Step 1: Add regression test for `./secrets:/run/secrets:ro`**
@@ -45,7 +45,7 @@
 ### Task 2: Add static interpolation support
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/docker_compose_provider.py`
+- Modify: `src/systograph/core/providers/docker_compose_provider.py`
 - Test: `tests/unit/core/test_docker_compose_provider.py`
 
 - [ ] **Step 1: Add failing tests for `${VAR}` and default syntax**
@@ -56,7 +56,7 @@
 ### Task 3: Add multiple compose file merge
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/docker_compose_provider.py`
+- Modify: `src/systograph/core/providers/docker_compose_provider.py`
 - Test: `tests/unit/core/test_docker_compose_provider.py`
 - Test: `tests/integration/test_phase9_docker_compose_provider_behaviors.py`
 
@@ -68,8 +68,8 @@
 ### Task 4: Add profile and health semantics
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/docker_compose_provider.py`
-- Modify: `src/kai_mind/core/services/risk_hint_service.py`
+- Modify: `src/systograph/core/providers/docker_compose_provider.py`
+- Modify: `src/systograph/core/services/risk_hint_service.py`
 - Test: `tests/unit/core/test_docker_compose_provider.py`
 - Test: `tests/unit/core/test_risk_hint_service.py`
 
@@ -81,8 +81,8 @@
 ### Task 5: Add network exposure refinement
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/docker_compose_provider.py`
-- Modify: `src/kai_mind/core/services/risk_hint_service.py`
+- Modify: `src/systograph/core/providers/docker_compose_provider.py`
+- Modify: `src/systograph/core/services/risk_hint_service.py`
 - Test: `tests/integration/test_phase14_endpoints_risk_hints_flows_behaviors.py`
 
 - [ ] **Step 1: Distinguish published host port, expose-only port, and internal network**

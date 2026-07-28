@@ -6,18 +6,18 @@ from typing import Any, cast
 
 import pytest
 
-from kai_mind.core.models.filesystem import (
+from systograph.core.models.filesystem import (
     FileInventory,
     FileInventorySource,
     FileRecord,
     SkippedFile,
     SkipReason,
 )
-from kai_mind.core.models.scan import ProviderScanResult, ScanFact
-from kai_mind.core.models.system_map import Evidence
-from kai_mind.core.providers.filesystem_provider import FilesystemProvider
-from kai_mind.core.services import project_scan_service
-from kai_mind.core.services.project_scan_service import ProjectScanService
+from systograph.core.models.scan import ProviderScanResult, ScanFact
+from systograph.core.models.system_map import Evidence
+from systograph.core.providers.filesystem_provider import FilesystemProvider
+from systograph.core.services import project_scan_service
+from systograph.core.services.project_scan_service import ProjectScanService
 
 
 class FakeInventoryPolicy:
@@ -81,7 +81,7 @@ class FailingProvider:
     def collect(self, inventory: FileInventory) -> ProviderScanResult:
         raise RuntimeError(
             "provider exploded at "
-            "/Users/linjunting/Local_AI_Health_Doctor/.env "
+            "/Users/linjunting/Systograph/.env "
             "with sk-live-secret-value"
         )
 
@@ -284,9 +284,7 @@ def test_scan_logs_provider_crash_traceback_for_developers(
 
     assert len(result.issues) == 1
     assert "sk-live-secret-value" not in result.issues[0].message
-    assert "/Users/linjunting/Local_AI_Health_Doctor" not in (
-        result.issues[0].message
-    )
+    assert "/Users/linjunting/Systograph" not in (result.issues[0].message)
     matching_records = [
         record
         for record in caplog.records
@@ -309,7 +307,7 @@ def test_scan_logs_provider_crash_traceback_for_developers(
         "frame_count": 2,
     }
     assert "sk-live-secret-value" not in caplog.text
-    assert "/Users/linjunting/Local_AI_Health_Doctor" not in caplog.text
+    assert "/Users/linjunting/Systograph" not in caplog.text
 
 
 def test_scan_merges_duplicate_facts_and_keeps_all_evidence(

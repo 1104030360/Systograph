@@ -12,7 +12,7 @@ Classification = Literal[
     "remove",
 ]
 
-PYTHON_ROOT = Path("src/kai_mind")
+PYTHON_ROOT = Path("src/systograph")
 FRONTEND_ROOT = Path("frontend/src")
 SCRIPT_ROOT = Path("scripts")
 FRONTEND_SUFFIXES = frozenset({".json", ".ts", ".tsx"})
@@ -41,7 +41,7 @@ class ConsumerRecord(NamedTuple):
 CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
     ConsumerRecord(
         path=(
-            "src/kai_mind/core/services/"
+            "src/systograph/core/services/"
             "legacy_manual_mapping_migration_service.py"
         ),
         symbol="new_extension_component",
@@ -49,49 +49,51 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         removal_plan="Plan 15 removes the legacy migration DTO and command.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/cli/map_command.py",
+        path="src/systograph/cli/map_command.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Plan 15 removes the deprecated rejected CLI input.",
     ),
     ConsumerRecord(
-        path=("src/kai_mind/core/services/canonical_output_configuration.py"),
+        path=(
+            "src/systograph/core/services/canonical_output_configuration.py"
+        ),
         symbol="ai-system-map/v1",
         classification="operator_rollback",
         removal_plan="Plan 15 removes the operator rollback setting.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/models/ai_system_map_v2.py",
+        path="src/systograph/core/models/ai_system_map_v2.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Remove provenance literal after v1 read support ends.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/models/analysis_history.py",
+        path="src/systograph/core/models/analysis_history.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Plan 15 removes legacy manifest provenance literals.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/models/map_build.py",
+        path="src/systograph/core/models/map_build.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Plan 15 removes the deprecated rejected request value.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/models/profile_signal.py",
+        path="src/systograph/core/models/profile_signal.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Remove provenance literal after v1 read support ends.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/models/readiness_report.py",
+        path="src/systograph/core/models/readiness_report.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Remove provenance literal after v1 read support ends.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/models/system_map.py",
+        path="src/systograph/core/models/system_map.py",
         symbol="ExtensionComponent",
         classification="migration_only",
         removal_plan=(
@@ -99,19 +101,19 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         ),
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/models/system_map.py",
+        path="src/systograph/core/models/system_map.py",
         symbol="RagSystemMap",
         classification="migration_only",
         removal_plan="Remove the read-only v1 DTO after migration support.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/models/system_map.py",
+        path="src/systograph/core/models/system_map.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Remove the v1 contract badge after migration support.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/canonical_map_loader.py",
+        path="src/systograph/core/services/canonical_map_loader.py",
         symbol="RagSystemMap",
         classification="migration_only",
         removal_plan=(
@@ -119,7 +121,7 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         ),
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/canonical_map_loader.py",
+        path="src/systograph/core/services/canonical_map_loader.py",
         symbol="SystemMapValidationService",
         classification="migration_only",
         removal_plan=(
@@ -127,55 +129,55 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         ),
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/canonical_map_loader.py",
+        path="src/systograph/core/services/canonical_map_loader.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Remove the v1 dispatch branch after migration support.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/map_build_pipeline.py",
+        path="src/systograph/core/services/map_build_pipeline.py",
         symbol="ai-system-map/v1",
         classification="operator_rollback",
         removal_plan="Plan 15 removes the operator rollback branch.",
     ),
     ConsumerRecord(
-        path=("src/kai_mind/core/services/legacy_v1_rollback_service.py"),
+        path=("src/systograph/core/services/legacy_v1_rollback_service.py"),
         symbol="RagSystemMap",
         classification="operator_rollback",
         removal_plan="Plan 15 removes the isolated rollback writer.",
     ),
     ConsumerRecord(
-        path=("src/kai_mind/core/services/legacy_v1_rollback_service.py"),
+        path=("src/systograph/core/services/legacy_v1_rollback_service.py"),
         symbol="ai-system-map/v1",
         classification="operator_rollback",
         removal_plan="Plan 15 removes the isolated rollback writer.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/system_map_materialization_service.py",
+        path="src/systograph/core/services/system_map_materialization_service.py",
         symbol="RagSystemMap",
         classification="operator_rollback",
         removal_plan="Plan 15 removes the isolated rollback materializer.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/system_map_materialization_service.py",
+        path="src/systograph/core/services/system_map_materialization_service.py",
         symbol="SystemMapValidationService",
         classification="operator_rollback",
         removal_plan="Plan 15 removes the isolated rollback validator.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/system_map_normalize_service.py",
+        path="src/systograph/core/services/system_map_normalize_service.py",
         symbol="RagSystemMap",
         classification="operator_rollback",
         removal_plan="Plan 15 removes the isolated rollback normalizer.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/system_map_normalize_service.py",
+        path="src/systograph/core/services/system_map_normalize_service.py",
         symbol="ai-system-map/v1",
         classification="operator_rollback",
         removal_plan="Plan 15 removes the isolated rollback output badge.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/system_map_v1_to_v2_adapter.py",
+        path="src/systograph/core/services/system_map_v1_to_v2_adapter.py",
         symbol="ExtensionComponent",
         classification="migration_only",
         removal_plan=(
@@ -183,7 +185,7 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         ),
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/system_map_v1_to_v2_adapter.py",
+        path="src/systograph/core/services/system_map_v1_to_v2_adapter.py",
         symbol="RagSystemMap",
         classification="migration_only",
         removal_plan=(
@@ -191,13 +193,13 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         ),
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/system_map_v1_to_v2_adapter.py",
+        path="src/systograph/core/services/system_map_v1_to_v2_adapter.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Remove the adapter source badge after support ends.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/system_map_validation_service.py",
+        path="src/systograph/core/services/system_map_validation_service.py",
         symbol="RagSystemMap",
         classification="migration_only",
         removal_plan=(
@@ -205,13 +207,13 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         ),
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/system_map_validation_service.py",
+        path="src/systograph/core/services/system_map_validation_service.py",
         symbol="SystemMapValidationService",
         classification="migration_only",
         removal_plan="Remove the v1 validator after migration support ends.",
     ),
     ConsumerRecord(
-        path=("src/kai_mind/core/services/viewer_legacy_compatibility.py"),
+        path=("src/systograph/core/services/viewer_legacy_compatibility.py"),
         symbol="RagSystemMap",
         classification="migration_only",
         removal_plan=(
@@ -219,19 +221,19 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         ),
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/viewer_session_service.py",
+        path="src/systograph/core/services/viewer_session_service.py",
         symbol="RagSystemMap",
         classification="migration_only",
         removal_plan="Plan 15 removes the legacy Viewer reload input.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/core/services/viewer_session_service.py",
+        path="src/systograph/core/services/viewer_session_service.py",
         symbol="SystemMapValidationService",
         classification="migration_only",
         removal_plan="Plan 15 removes legacy Viewer validation injection.",
     ),
     ConsumerRecord(
-        path="src/kai_mind/web/schemas.py",
+        path="src/systograph/web/schemas.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Plan 15 removes deprecated rejected request values.",

@@ -6,8 +6,8 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
-from kai_mind.core.models.map_build import SystemMapSchemaSelection
-from kai_mind.web.app import create_app
+from systograph.core.models.map_build import SystemMapSchemaSelection
+from systograph.web.app import create_app
 
 
 def prepare_detail_scan(

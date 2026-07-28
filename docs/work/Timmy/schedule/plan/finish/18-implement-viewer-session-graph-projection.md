@@ -8,8 +8,8 @@
 
 - 「後端輸出語義 graph、前端負責 layout/interaction」是正確方向。目前前端 `frontend/src/utils/graph.ts` 已用 React Flow + ELK 在前端把 nodes/edges 排版成畫布座標；React Flow 官方文件也把 layouting 視為由 dagre/ELK 等外部 layout 工具在前端處理的工作。後端 `GraphViewModel` 因此不得輸出 `x` / `y` / `position`。
 - Prefect 可以作為「workflow graph response schema」的概念參考。Prefect `prefect.server.schemas.graph` 的 `Node` / `Edge` / `Graph` 模型表達 flow/task run、parents/children、state/artifacts 等拓撲與狀態資料，沒有畫布座標。這支持 Task 18 的 graph projection 只輸出 topology/state semantics。
-- LangGraph 可以作為「節點、邊、狀態流轉」的概念參考。LangGraph 官方文件以 `StateGraph.add_node()` / `add_edge()` 建構 state graph，node 回傳 state updates，並可用 `get_graph().draw_mermaid_png()` 視覺化；可參考其把 graph wiring 與 runtime state 分開的邊界，但不要把 LangGraph 的 agent runtime model 搬進 KAI-Mind。
-- Marquez 可以作為「lineage/provenance id」的概念參考。Marquez lineage API 用 `nodeId` 查 lineage graph，回傳 graph node id、node type、inEdges/outEdges；Task 18 應採同樣可追溯精神，但使用 KAI-Mind canonical `source_id`、`evidence_ids`、`risk_hint_ids`，而不是引入 Marquez dataset/job namespace。
+- LangGraph 可以作為「節點、邊、狀態流轉」的概念參考。LangGraph 官方文件以 `StateGraph.add_node()` / `add_edge()` 建構 state graph，node 回傳 state updates，並可用 `get_graph().draw_mermaid_png()` 視覺化；可參考其把 graph wiring 與 runtime state 分開的邊界，但不要把 LangGraph 的 agent runtime model 搬進 Systograph。
+- Marquez 可以作為「lineage/provenance id」的概念參考。Marquez lineage API 用 `nodeId` 查 lineage graph，回傳 graph node id、node type、inEdges/outEdges；Task 18 應採同樣可追溯精神，但使用 Systograph canonical `source_id`、`evidence_ids`、`risk_hint_ids`，而不是引入 Marquez dataset/job namespace。
 - FastAPI route 使用 `response_model` / Pydantic response model 仍是正確做法。官方文件說 `response_model` 會做 response 文件、驗證、轉換與過濾；Task 18 的 route handler 應只做 request schema 轉換、呼叫 service、回 typed payload。
 
 ### 需要修正的研究結論
@@ -24,7 +24,7 @@ viewer_load_result
 └─ graph_view_model
 ```
 
-因此 `GraphViewModel` 應保持 rendering projection；載入狀態由 `ViewerLoadResult.loaded` / `error_reason` 表達。invalid map 時 HTTP 可回 200 且 payload `viewer_load_result.loaded=false`，這是 KAI-Mind frontend contract 的 graceful degradation，不是 Prefect 的直接規範。
+因此 `GraphViewModel` 應保持 rendering projection；載入狀態由 `ViewerLoadResult.loaded` / `error_reason` 表達。invalid map 時 HTTP 可回 200 且 payload `viewer_load_result.loaded=false`，這是 Systograph frontend contract 的 graceful degradation，不是 Prefect 的直接規範。
 
 - `ViewerSessionService` 可以提供 `load_map(path)` 讀取並 validate `ai_system_map.json`，但真正的 projection 函式必須保持無 FastAPI dependency、無 provider dependency、無重新掃描 project folder。換句話說：讀檔/validate 是 viewer session load 邊界；`project_to_graph(canonical_map)` 才是純 projection 邊界。
 
@@ -76,8 +76,8 @@ viewer_load_result
 - 不在 backend graph node/edge 輸出 `x`、`y`、`position` 或 ELK/React Flow layout 狀態。
 
 ## 建議實作步驟
-1. 建立或補齊 `src/kai_mind/core/models/graph_view.py`。若 Task 16 已有 `core/models/viewer.py`，此檔可作為相容 re-export，避免破壞既有 import 與前端 schema。
-2. 建立 `src/kai_mind/core/services/viewer_session_service.py`。
+1. 建立或補齊 `src/systograph/core/models/graph_view.py`。若 Task 16 已有 `core/models/viewer.py`，此檔可作為相容 re-export，避免破壞既有 import 與前端 schema。
+2. 建立 `src/systograph/core/services/viewer_session_service.py`。
 3. 實作 map JSON load + validation。
 4. 實作 standard slot component nodes。
 5. 實作 extension/unmapped nodes。
@@ -88,10 +88,10 @@ viewer_load_result
 10. 寫測試：valid map loaded、invalid map error、viewer 不呼叫 providers、API 不掃 project folder。
 
 ## 預期輸出
-- `src/kai_mind/core/models/graph_view.py`
-- `src/kai_mind/core/services/viewer_session_service.py`
-- `src/kai_mind/web/routes/viewer_routes.py`
-- `src/kai_mind/cli/viewer_command.py` 或等價 validate command
+- `src/systograph/core/models/graph_view.py`
+- `src/systograph/core/services/viewer_session_service.py`
+- `src/systograph/web/routes/viewer_routes.py`
+- `src/systograph/cli/viewer_command.py` 或等價 validate command
 - 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
 - `tests/unit/core/test_viewer_session_service.py`
 - `tests/web/test_viewer_routes.py`

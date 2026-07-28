@@ -5,13 +5,13 @@ from typer.testing import CliRunner
 
 
 def test_package_can_be_imported() -> None:
-    package = importlib.import_module("kai_mind")
+    package = importlib.import_module("systograph")
 
     assert package.__version__
 
 
 def test_cli_help_is_available() -> None:
-    cli_main = importlib.import_module("kai_mind.cli.main")
+    cli_main = importlib.import_module("systograph.cli.main")
     runner = CliRunner()
 
     result = runner.invoke(cli_main.app, ["--help"])
@@ -23,6 +23,6 @@ def test_cli_help_is_available() -> None:
 def test_core_import_does_not_load_fastapi_adapter() -> None:
     sys.modules.pop("fastapi", None)
 
-    importlib.import_module("kai_mind.core")
+    importlib.import_module("systograph.core")
 
     assert "fastapi" not in sys.modules

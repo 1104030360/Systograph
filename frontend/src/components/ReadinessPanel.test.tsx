@@ -15,7 +15,7 @@ const graph = graphViewModelSchema.parse({
   filters: { available: [], lenses: [] },
 });
 
-/* Shape mirrors kai_mind.core.models.readiness_report.ReadinessReport. */
+/* Shape mirrors systograph.core.models.readiness_report.ReadinessReport. */
 const report = {
   schema_version: "readiness-report/v1",
   source_schema_version: "ai-system-map/v2",

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import inspect
 
-from kai_mind.core.services import map_build_service
-from kai_mind.web.routes import map_routes
+from systograph.core.services import map_build_service
+from systograph.web.routes import map_routes
 
 
 def test_static_map_paths_do_not_depend_on_query_trace_runtime_callers() -> (

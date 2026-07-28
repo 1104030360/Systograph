@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/158
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/158
 
 **Goal:** 修正 `docs/API-GUIDE.md` 與實作對 `MapBuildResult.error`、`output_run_dir` 的型別 drift。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #158, assignee Timmy.
 - Origin: Backend findings M-12.
-- Primary files: `docs/API-GUIDE.md`, `src/kai_mind/core/models/map_build.py`, `src/kai_mind/core/models/errors.py`.
+- Primary files: `docs/API-GUIDE.md`, `src/systograph/core/models/map_build.py`, `src/systograph/core/models/errors.py`.
 
 ### Task 1: Trace runtime error shape
 

@@ -21,7 +21,7 @@ evidence_table.json
 execution_map.mmd
 ```
 
-這些 artifacts 的來源依 staged rollout 切換：Phase A 使用現有 KAI scan TOML provider facts；
+這些 artifacts 的來源依 staged rollout 切換：Phase A 使用現有 Systograph scan TOML provider facts；
 Phase B 使用 UA-primary structural facts（imports、symbols、endpoints、call-like hints）並保留
 TOML parity；Phase C 為 UA only。它們也可使用 workflow JSON edges 與既有 map components，
 且必須含 static-only limitations 與 `runtime_verified=false`。

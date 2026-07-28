@@ -1583,7 +1583,7 @@ compile 完後還要 parse。
 
 ## 它沒有保證的事情
 
-這點對 KAI-Mind 很重要。
+這點對 Systograph 很重要。
 
 GitDiagram 做了很多格式與結構正確性保護，但它沒有完全保證「架構理解一定正確」。
 
@@ -1603,9 +1603,9 @@ GitDiagram 做了很多格式與結構正確性保護，但它沒有完全保證
 它不能完全確保 LLM 對 codebase 的語意理解一定正確。
 ```
 
-## 對 KAI-Mind 的直接啟發
+## 對 Systograph 的直接啟發
 
-GitDiagram 的做法如果搬到 KAI-Mind，應該改成：
+GitDiagram 的做法如果搬到 Systograph，應該改成：
 
 ```text
 ┌────────────┐
@@ -1651,9 +1651,9 @@ GitDiagram 的做法如果搬到 KAI-Mind，應該改成：
   └─→ 只產生白話，不改 facts
 ```
 
-對 Local AI Health Doctor 來說，最重要的原則是：
+對 Systograph 來說，最重要的原則是：
 
-| GitDiagram | KAI-Mind 應該怎麼改 |
+| GitDiagram | Systograph 應該怎麼改 |
 |---|---|
 | LLM 從 file tree + README 推 graph | scanner 從實際檔案/config/log/evidence 產 facts |
 | graph JSON 是主要圖模型 | `ai_system_map.json` 是主要 contract |
@@ -1962,7 +1962,7 @@ TypeScript 版 schema 在 `src/features/diagram/graph.ts` lines 7-67。
 MAX_GRAPH_ATTEMPTS = 3
 ```
 
-這點很值得 KAI-Mind 參考：
+這點很值得 Systograph 參考：
 
 ```text
 ┌──────────────────┐
@@ -2009,7 +2009,7 @@ Graph JSON 是主資料
 Mermaid 只是 render output
 ```
 
-這和 KAI-Mind 的 `ai_system_map.json` 很像：JSON 應該是主資料，viewer 或 Mermaid 是投影結果。
+這和 Systograph 的 `ai_system_map.json` 很像：JSON 應該是主資料，viewer 或 Mermaid 是投影結果。
 
 ## Mermaid 語法也會被驗證
 
@@ -2130,7 +2130,7 @@ validation_error: ...
 latest_session_audit: ...
 ```
 
-這對 KAI-Mind 的 replay / viewer 很有參考價值，因為使用者不熟 AI 時，看到「現在做到哪一步」會比只看到最後結果更容易理解。
+這對 Systograph 的 replay / viewer 很有參考價值，因為使用者不熟 AI 時，看到「現在做到哪一步」會比只看到最後結果更容易理解。
 
 ## 和 Understand-Anything 的差別
 
@@ -2150,13 +2150,13 @@ GitDiagram 比較像「快速產生架構圖」
 Understand-Anything 比較像「建立可探索的 codebase knowledge graph」
 ```
 
-## 對 KAI-Mind Epic 1 的參考價值
+## 對 Systograph Epic 1 的參考價值
 
-KAI-Mind 可以參考 GitDiagram 的「流程設計」，但不建議直接照抄它的資料來源。
+Systograph 可以參考 GitDiagram 的「流程設計」，但不建議直接照抄它的資料來源。
 
 ### 可以抄的部分
 
-| 可參考設計 | 為什麼適合 KAI-Mind |
+| 可參考設計 | 為什麼適合 Systograph |
 |---|---|
 | JSON graph 作為主資料 | `ai_system_map.json` 本來就應該是 viewer 的 contract |
 | deterministic renderer | 不要讓 LLM 直接決定最後畫面 |
@@ -2170,12 +2170,12 @@ KAI-Mind 可以參考 GitDiagram 的「流程設計」，但不建議直接照�
 
 | 不建議 | 原因 |
 |---|---|
-| 只靠 file tree + README 理解系統 | KAI-Mind 要做 release readiness，必須靠 scanner evidence |
+| 只靠 file tree + README 理解系統 | Systograph 要做 release readiness，必須靠 scanner evidence |
 | 讓 LLM 決定 readiness facts | 會有 hallucination 風險 |
-| Mermaid 當唯一資料模型 | KAI-Mind 需要 query trace、retriever、index、config、risk evidence |
-| 只做高階架構圖 | KAI-Mind 需要能看 RAG pipeline 和 readiness gap |
+| Mermaid 當唯一資料模型 | Systograph 需要 query trace、retriever、index、config、risk evidence |
+| 只做高階架構圖 | Systograph 需要能看 RAG pipeline 和 readiness gap |
 
-## 建議 KAI-Mind 採用的版本
+## 建議 Systograph 採用的版本
 
 對 Epic 1，可以設計成這樣：
 
@@ -2303,7 +2303,7 @@ Viewer 不要直接吃 scanner raw output，而是先轉成 view model：
 
 GitDiagram 可以當作「互動架構圖 pipeline」參考，不應該當作「RAG readiness scanner」參考。
 
-對 KAI-Mind 來說，正確方向是：
+對 Systograph 來說，正確方向是：
 
 ```text
 ┌─────────┐
@@ -2317,4 +2317,4 @@ GitDiagram 可以當作「互動架構圖 pipeline」參考，不應該當作「
   └─【verified JSON / viewer】→ 白話互動解釋
 ```
 
-這樣才符合 Local AI Health Doctor 的定位：release readiness gate，而不是單純的 codebase diagram generator。
+這樣才符合 Systograph 的定位：release readiness gate，而不是單純的 codebase diagram generator。

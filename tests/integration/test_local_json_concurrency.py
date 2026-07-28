@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 from filelock import FileLock
 
-from kai_mind.core.models.analysis_history import (
+from systograph.core.models.analysis_history import (
     MapBuildLineage,
     MapBuildManifest,
     ProjectState,
 )
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
     ProjectStateBusyError,
     StateConflictError,

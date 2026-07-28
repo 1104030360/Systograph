@@ -5,13 +5,13 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from kai_mind.core.models.analysis_history import (
+from systograph.core.models.analysis_history import (
     LatestBuildPointer,
     MapBuildLineage,
     ScanSnapshot,
     ScanSnapshotManifest,
 )
-from kai_mind.core.models.scan import ProjectScanResult
+from systograph.core.models.scan import ProjectScanResult
 
 
 def test_apply_build_requires_parent_and_unique_mapping_ids() -> None:

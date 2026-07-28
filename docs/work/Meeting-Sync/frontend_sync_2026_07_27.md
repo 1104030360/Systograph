@@ -9,7 +9,7 @@ Branch: `feature/v2-frontend-integration`
 - Integrate the current `ai-system-map/v2` project/build-scoped frontend flows.
 - Keep Profile and Readiness facts backend-owned and build-scoped.
 - Integrate Detail Scan child builds, Mapping Proposal/Apply, Query Trace, and build history.
-- Rename the user-facing product from KAI-Mind / Local AI Health Doctor to **Systograph**.
+- Use **Systograph** consistently as the user-facing product name.
 - Finalize the DeepResearch-style three-column workspace:
   - remove the redundant normalized-map title block and move Reset View to the top toolbar;
   - keep the 10-plane architecture map as the central, backend-driven surface;
@@ -17,15 +17,11 @@ Branch: `feature/v2-frontend-integration`
   - replace compressed CSS-drawn Filter marks with bounded, scalable semantic SVG glyphs;
   - let Mapping Profile and Readiness callouts scroll normally instead of obscuring content;
   - dismiss toolbar menus when focus moves to another surface.
-- Preserve compatibility identifiers that cannot be renamed by text replacement:
-  - Python import namespace: `kai_mind`
-  - legacy CLI alias: `kai-mind`
-  - state environment/directory: `KAI_MIND_STATE_DIR` / `.kai-mind`
-  - existing schema IDs and schema-version strings
-  - current GitHub repository URL
+- This integration PR changed product-facing branding only. The later hard-cutover
+  migration owns package, CLI, state, schema-ID, and repository identifiers.
 
-The primary CLI command is now `systograph`; `kai-mind` remains an alias. Query Trace reads
-`[tool.systograph.trace]` and keeps `[tool.kai-mind.trace]` compatibility.
+The primary CLI command is `systograph`. Query Trace reads
+`[tool.systograph.trace]`.
 
 ## Checkout and external reference submodule
 
@@ -141,5 +137,5 @@ No GitHub issues were closed or edited during this triage.
 - Ask the backend owner to freeze `ArtifactRef`, scope checks, and controlled fetch routes before adding
   build-scoped report or artifact download actions.
 - Run live backend smoke QA when a safe callable Query Trace fixture is available.
-- Do not rename `kai_mind`, existing schema IDs, persisted state paths, or the GitHub repository with a
+- Do not rename `systograph`, existing schema IDs, persisted state paths, or the GitHub repository with a
   blind text replacement; each requires an explicit compatibility/migration plan.

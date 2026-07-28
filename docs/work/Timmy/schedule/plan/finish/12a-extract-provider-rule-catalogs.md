@@ -119,12 +119,12 @@ Task 12 Aggregate Raw Scan Facts
 建立共用 loader，例如：
 
 ```text
-src/kai_mind/core/rules/
+src/systograph/core/rules/
   dependency_manifest_rules.toml
   docker_image_rules.toml
   code_pattern_rules.toml
 
-src/kai_mind/core/services/rule_catalog_loader.py
+src/systograph/core/services/rule_catalog_loader.py
 ```
 
 Provider 預設使用 package-bundled catalogs；測試可注入 custom catalog path。
@@ -199,7 +199,7 @@ snippet_group = ""
 
 ## 建議實作步驟
 
-1. 建立 `src/kai_mind/core/rules/` 目錄。
+1. 建立 `src/systograph/core/rules/` 目錄。
 2. 建立三份 TOML catalogs：
    - `dependency_manifest_rules.toml`
    - `docker_image_rules.toml`
@@ -231,15 +231,15 @@ snippet_group = ""
 
 ## 預期輸出
 
-- `src/kai_mind/core/rules/dependency_manifest_rules.toml`
-- `src/kai_mind/core/rules/docker_image_rules.toml`
-- `src/kai_mind/core/rules/code_pattern_rules.toml`
-- `src/kai_mind/core/services/rule_catalog_loader.py`
+- `src/systograph/core/rules/dependency_manifest_rules.toml`
+- `src/systograph/core/rules/docker_image_rules.toml`
+- `src/systograph/core/rules/code_pattern_rules.toml`
+- `src/systograph/core/services/rule_catalog_loader.py`
 - `tests/unit/core/test_rule_catalog_loader.py`
 - 更新：
-  - `src/kai_mind/core/providers/dependency_manifest_provider.py`
-  - `src/kai_mind/core/providers/docker_compose_provider.py`
-  - `src/kai_mind/core/providers/code_pattern_provider.py`
+  - `src/systograph/core/providers/dependency_manifest_provider.py`
+  - `src/systograph/core/providers/docker_compose_provider.py`
+  - `src/systograph/core/providers/code_pattern_provider.py`
 
 ## 驗收標準
 

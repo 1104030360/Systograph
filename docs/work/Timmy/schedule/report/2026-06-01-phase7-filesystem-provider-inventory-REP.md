@@ -26,7 +26,7 @@ filesystem inventory。這一層只決定「哪些檔案值得後續 providers �
 
 這次用 TDD + BDD vertical slice 實作：
 
-1. 先寫 unit tests，讓測試因缺少 `kai_mind.core.models.filesystem`
+1. 先寫 unit tests，讓測試因缺少 `systograph.core.models.filesystem`
    失敗，確認 RED。
 2. 補最小 models 與 provider，讓 git-aware inventory、recursive
    inventory、path normalization 先通過。
@@ -110,7 +110,7 @@ filesystem inventory。這一層只決定「哪些檔案值得後續 providers �
 
 新增：
 
-- `src/kai_mind/core/models/filesystem.py`
+- `src/systograph/core/models/filesystem.py`
 
 主要型別：
 
@@ -124,7 +124,7 @@ filesystem inventory。這一層只決定「哪些檔案值得後續 providers �
 
 新增：
 
-- `src/kai_mind/core/providers/filesystem_provider.py`
+- `src/systograph/core/providers/filesystem_provider.py`
 
 主要行為：
 
@@ -223,8 +223,8 @@ Targeted tests：
 Targeted lint/type checks：
 
 ```bash
-.venv/bin/ruff check src/kai_mind/core/models/filesystem.py src/kai_mind/core/providers/filesystem_provider.py tests/unit/core/test_filesystem_provider.py tests/integration/test_phase7_filesystem_provider_behaviors.py
-.venv/bin/mypy src/kai_mind/core/models/filesystem.py src/kai_mind/core/providers/filesystem_provider.py tests/unit/core/test_filesystem_provider.py tests/integration/test_phase7_filesystem_provider_behaviors.py
+.venv/bin/ruff check src/systograph/core/models/filesystem.py src/systograph/core/providers/filesystem_provider.py tests/unit/core/test_filesystem_provider.py tests/integration/test_phase7_filesystem_provider_behaviors.py
+.venv/bin/mypy src/systograph/core/models/filesystem.py src/systograph/core/providers/filesystem_provider.py tests/unit/core/test_filesystem_provider.py tests/integration/test_phase7_filesystem_provider_behaviors.py
 ```
 
 Full validation：

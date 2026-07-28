@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/147
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/147
 
 **Goal:** 避免 API caller 透過 `output` 指定任意絕對或 traversal 路徑建立報告檔。
 
-**Architecture:** Output artifacts must be confined to a KAI-Mind controlled output root. User-provided output is treated as project-relative or app-output-relative, never arbitrary filesystem authority.
+**Architecture:** Output artifacts must be confined to a Systograph controlled output root. User-provided output is treated as project-relative or app-output-relative, never arbitrary filesystem authority.
 
 **Tech Stack:** Path safety service, OutputArtifactProvider, FastAPI schemas, pytest.
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #147, assignee Timmy.
 - Origin: Backend findings M-2.
-- Primary files: `src/kai_mind/web/schemas.py`, `src/kai_mind/core/providers/output_artifact_provider.py`, `src/kai_mind/web/routes/scan_routes.py`.
+- Primary files: `src/systograph/web/schemas.py`, `src/systograph/core/providers/output_artifact_provider.py`, `src/systograph/web/routes/scan_routes.py`.
 
 ### Task 1: Add path confinement tests
 
@@ -32,9 +32,9 @@
 ### Task 2: Implement output policy
 
 **Files:**
-- Create: `src/kai_mind/core/services/output_path_policy_service.py`
-- Modify: `src/kai_mind/core/providers/output_artifact_provider.py`
-- Modify: `src/kai_mind/web/schemas.py`
+- Create: `src/systograph/core/services/output_path_policy_service.py`
+- Modify: `src/systograph/core/providers/output_artifact_provider.py`
+- Modify: `src/systograph/web/schemas.py`
 
 - [ ] **Step 1: Normalize output path through shared policy**
 - [ ] **Step 2: Confine run directories to configured output root**

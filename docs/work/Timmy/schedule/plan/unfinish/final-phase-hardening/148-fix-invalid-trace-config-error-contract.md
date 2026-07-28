@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/148
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/148
 
 **Goal:** `POST /api/trace` 不得把 config parser exception、errno 或本機絕對路徑放進 HTTP detail。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #148, assignee Timmy.
 - Origin: Backend findings M-3.
-- Primary files: `src/kai_mind/web/routes/trace_routes.py`, `src/kai_mind/core/services/query_trace_config_loader.py`, `docs/API-GUIDE.md`.
+- Primary files: `src/systograph/web/routes/trace_routes.py`, `src/systograph/core/services/query_trace_config_loader.py`, `docs/API-GUIDE.md`.
 
 ### Task 1: Add regression tests
 
@@ -32,8 +32,8 @@
 ### Task 2: Stabilize route error mapping
 
 **Files:**
-- Modify: `src/kai_mind/web/routes/trace_routes.py`
-- Modify: `src/kai_mind/core/services/query_trace_config_loader.py`
+- Modify: `src/systograph/web/routes/trace_routes.py`
+- Modify: `src/systograph/core/services/query_trace_config_loader.py`
 
 - [ ] **Step 1: Convert loader exceptions to safe domain error**
 - [ ] **Step 2: Route maps domain error to stable HTTP detail**

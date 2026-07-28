@@ -17,8 +17,8 @@ TEST_DIRECTORY_MARKERS: Final[frozenset[str]] = frozenset(
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-PYTEST_STATE_ROOT = TemporaryDirectory(prefix="kai-mind-pytest-state-")
-os.environ["KAI_MIND_STATE_DIR"] = PYTEST_STATE_ROOT.name
+PYTEST_STATE_ROOT = TemporaryDirectory(prefix="systograph-pytest-state-")
+os.environ["SYSTOGRAPH_STATE_DIR"] = PYTEST_STATE_ROOT.name
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -37,4 +37,4 @@ def isolate_default_state_root(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("KAI_MIND_STATE_DIR", str(tmp_path / "default-state"))
+    monkeypatch.setenv("SYSTOGRAPH_STATE_DIR", str(tmp_path / "default-state"))

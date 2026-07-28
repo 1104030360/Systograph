@@ -28,7 +28,7 @@ Pydantic、Zod、API contract tests 與 E2E tests 凍結正式 schema。
 3. [Frontend Meeting-Sync handoff](../../../../../Meeting-Sync/meeting_sync_2026_07_15/frontend-inventory-selection-review.md)
    擁有畫面分區、state machine、copy、accessibility 與 frontend task checklist。
 
-前提固定為：KAI-Mind 先提供已驗證、可獨立運作的 TOML product baseline，使用者只在這份
+前提固定為：Systograph 先提供已驗證、可獨立運作的 TOML product baseline，使用者只在這份
 推薦基礎上調整「這一次」要掃或略過的 exact file／bounded recursive directory。
 
 Plan 20 不是空白 file explorer，也不能在 catalog missing／invalid 時要求使用者自行重建
@@ -252,7 +252,7 @@ file picker modal，也不要重用 Step 9 Manual Mapping store。
 ```text
 +------------------------------------------------------------------+
 | Review scan scope                                                |
-| KAI-Mind prepared a recommended baseline for this project.       |
+| Systograph prepared a recommended baseline for this project.       |
 | Adjustments apply once; project rules are not modified.          |
 +------------------------------------------------------------------+
 | Summary: included | excluded | blocked | missing                 |

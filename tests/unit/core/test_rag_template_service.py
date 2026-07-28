@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.services.rag_template_service import (
+from systograph.core.services.rag_template_service import (
     RagTemplateService,
     RagTemplateValidationError,
 )

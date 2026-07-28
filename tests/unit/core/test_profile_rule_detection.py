@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from tests.helpers.profile_inference import map_with_profile_signals
 
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
 

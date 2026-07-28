@@ -60,7 +60,7 @@ build、Trace binding 與 proposal/profile boundary 都已落成。
 
 - 新增 `ProjectState`、`ScanSnapshot`、`MapBuildLineage`、`MapBuildManifest`、
   `LatestBuildPointer`。
-- `${KAI_MIND_STATE_DIR:-~/.kai-mind}` 為 default durable state root；測試透過 fixture
+- `${SYSTOGRAPH_STATE_DIR:-~/.systograph}` 為 default durable state root；測試透過 fixture
   隔離，不污染使用者 home。
 - project import 以 canonical path digest 重用 identity；restart 後可讀 project、mapping、
   snapshot、history 與 latest build。
@@ -87,7 +87,7 @@ build、Trace binding 與 proposal/profile boundary 都已落成。
 
 | 問題 | Runtime / test 證據 | 解法 |
 |------|-----------------------|------|
-| `create_app()` default state 曾使用 temporary directory | restart recovery red test | 改為 `${KAI_MIND_STATE_DIR:-~/.kai-mind}`，tests 自動隔離 |
+| `create_app()` default state 曾使用 temporary directory | restart recovery red test | 改為 `${SYSTOGRAPH_STATE_DIR:-~/.systograph}`，tests 自動隔離 |
 | mapping decision 未反映 evidence review state | static artifact red test | 由 durable mapping decision 推導四種 review state |
 | weak profile signal 缺少 unmapped/candidate/risk navigation refs | inference boundary red test | 保留 `undetermined`，只增加 read-only related refs |
 | artifact publisher 中途失敗可能留下 sibling | failing writer integration test | 集中 cleanup 所有 public paths/temp files |
@@ -150,12 +150,12 @@ scripts/trace_apply_confirmations_build_lineage.sh \
   --project-path tests/fixtures/rag_projects/basic_qdrant_ollama_rag \
   --output <temp-output>
 
-.venv/bin/kai-mind map --help
-.venv/bin/kai-mind map \
+.venv/bin/systograph map --help
+.venv/bin/systograph map \
   tests/fixtures/rag_projects/basic_qdrant_ollama_rag \
   --output <temp-output> \
   --system-map-schema-version ai-system-map/v2
-.venv/bin/kai-mind map /tmp/kai-mind-does-not-exist --output <temp-output>
+.venv/bin/systograph map /tmp/systograph-does-not-exist --output <temp-output>
 ```
 
 ## 測試結果

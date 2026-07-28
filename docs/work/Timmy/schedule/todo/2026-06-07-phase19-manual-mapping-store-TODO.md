@@ -6,7 +6,7 @@
 ## 實作邏輯
 - `ai_system_map.json` 是輸出結果，不是設定來源；API 不直接修改既有 artifact。
 - Manual mapping 是 project-level decision，不是新的完整 canonical template。
-- Confirmed mapping 先寫入 KAI-Mind-managed storage / repository，再由下一次 scan 的 component detection 階段套用。
+- Confirmed mapping 先寫入 Systograph-managed storage / repository，再由下一次 scan 的 component detection 階段套用。
 - Route 只呼叫 service；validation、digest、decision state、canonical map 影響都集中在 core service。
 - 測試中使用 fake / in-memory repository，避免寫 developer 真實 DB 或 user home。
 

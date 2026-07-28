@@ -6,23 +6,23 @@ Status: planned — **blocked until Gate-1 passes**（2026-07-07 UA-primary 決�
 
 ## 目標
 
-新增 `UnderstandAnythingAnalysisService`，讓 KAI-Mind 在 Step 2 boundary 完成後呼叫
+新增 `UnderstandAnythingAnalysisService`，讓 Systograph 在 Step 2 boundary 完成後呼叫
 Understand-Anything sidecar，取得 deterministic structural facts；semantic sidecar slot 保持
 nullable deferred。
-Gate-1 後的 Phase B 由 UA 擔任 Step 3 primary 掃描來源；既有 KAI scan TOML providers
-在過渡期只做 parity 對比。Gate-1 前的 Phase A 仍由現有 KAI providers 擔任 primary。
+Gate-1 後的 Phase B 由 UA 擔任 Step 3 primary 掃描來源；既有 Systograph scan TOML providers
+在過渡期只做 parity 對比。Gate-1 前的 Phase A 仍由現有 Systograph providers 擔任 primary。
 
 ## 架構
 
 ```text
-Step 2 FileInventory（KAI boundary owner）
+Step 2 FileInventory（Systograph boundary owner）
   + inventory enrichment（語言 / fileCategory / 行數，移植自 scan-project）
   -> UnderstandAnythingAnalysisService
        NodeRuntimePreflight
        UnderstandAnythingSubprocessRunner
        UnderstandAnythingResultValidator
        UaStructuralAdapter
-  -> kai-mind-analyze.mjs
+  -> systograph-analyze.mjs
        extract-import-map
        compute-batches
        extract-structure
@@ -35,11 +35,11 @@ Step 2 FileInventory（KAI boundary owner）
 Sidecar request / result schema：
 
 ```text
-kai-mind-ua-request/v1
-kai-mind-ua-result/v1
+systograph-ua-request/v1
+systograph-ua-result/v1
 ```
 
-`scan-project.mjs` 不執行；只移植其 enrichment 邏輯。UA work-dir 由 KAI-Mind 提供，
+`scan-project.mjs` 不執行；只移植其 enrichment 邏輯。UA work-dir 由 Systograph 提供，
 不得寫入 target repo。
 
 ## 依賴
@@ -57,9 +57,9 @@ kai-mind-ua-result/v1
 
 **Files**
 
-- Create: `src/kai_mind/core/models/ua_analysis.py`
-- Create: `schemas/kai-mind-ua-request.v1.schema.json`
-- Create: `schemas/kai-mind-ua-result.v1.schema.json`
+- Create: `src/systograph/core/models/ua_analysis.py`
+- Create: `schemas/systograph-ua-request.v1.schema.json`
+- Create: `schemas/systograph-ua-result.v1.schema.json`
 - Test: `tests/unit/core/test_ua_analysis_models.py`
 - Test: `tests/contracts/test_ua_analysis_schema.py`
 
@@ -77,8 +77,8 @@ kai-mind-ua-result/v1
 
 **Files**
 
-- Modify: `src/kai_mind/core/providers/filesystem_provider.py`
-- Modify: `src/kai_mind/core/models/scan.py`
+- Modify: `src/systograph/core/providers/filesystem_provider.py`
+- Modify: `src/systograph/core/models/scan.py`
 - Test: `tests/unit/core/test_filesystem_provider.py`
 - Test: `tests/contracts/test_secret_snapshot_safety.py`
 
@@ -86,7 +86,7 @@ kai-mind-ua-result/v1
 
 - [ ] 將 `scan-project.mjs` 有價值的 enrichment 移植到 Python inventory：語言偵測、
   `file_category`、行數統計。
-- [ ] Enrichment 不改變 boundary policy；可掃描檔案仍由 KAI Step 2 決定。
+- [ ] Enrichment 不改變 boundary policy；可掃描檔案仍由 Systograph Step 2 決定。
 - [ ] 對 binary、large、generated、ignored files 維持 skip audit trail。
 - [ ] Windows/macOS path normalization 與 encoding fallback 有 focused tests。
 
@@ -94,8 +94,8 @@ kai-mind-ua-result/v1
 
 **Files**
 
-- Create: `src/kai_mind/core/services/understand_anything_analysis_service.py`
-- Create: `src/kai_mind/core/services/ua_structural_adapter.py`
+- Create: `src/systograph/core/services/understand_anything_analysis_service.py`
+- Create: `src/systograph/core/services/ua_structural_adapter.py`
 - Test: `tests/unit/core/test_understand_anything_analysis_service.py`
 - Test: `tests/unit/core/test_ua_structural_adapter.py`
 
@@ -108,15 +108,15 @@ kai-mind-ua-result/v1
 - [ ] `UnderstandAnythingResultValidator` 驗證 schema、path allowlist、line ranges、stats 與
   batch completion。
 - [ ] `UaStructuralAdapter` 將 import map、symbols、endpoints、resources、call hints 轉成
-  KAI `ScanFact` / `Evidence` / `Issue`。
+  Systograph `ScanFact` / `Evidence` / `Issue`。
 - [ ] UA structural facts 的 `rule_id` 使用穩定前綴，例如 `ua_import_*`、
   `ua_symbol_*`、`ua_endpoint_*`、`ua_call_hint_*`。
 
-## Task 4：新增 `kai-mind-analyze.mjs` wrapper
+## Task 4：新增 `systograph-analyze.mjs` wrapper
 
 **Files**
 
-- Create: `ref-opensource/understand-anything/kai-mind-analyze.mjs` 或實際 vendored sidecar path
+- Create: `ref-opensource/understand-anything/systograph-analyze.mjs` 或實際 vendored sidecar path
 - Test: `tests/integration/test_understand_anything_sidecar_contract.py`
 
 **Steps**
@@ -125,16 +125,16 @@ kai-mind-ua-result/v1
 - [ ] Wrapper 只分析 request `files[]` allowlist，不自行 walk target repo。
 - [ ] Orchestrate Phase2 active path：`extract-import-map -> compute-batches ->
   extract-structure`。
-- [ ] `file-analyzer` bounded LLM / semantic graph / `kai-mind-ua-result/v1` 保持
+- [ ] `file-analyzer` bounded LLM / semantic graph / `systograph-ua-result/v1` 保持
   deferred；本計畫只預留 nullable sidecar slot，不執行 LLM。
-- [ ] Intermediate artifacts 全部寫入 KAI work-dir，不寫 target repo `.understand-anything/`。
+- [ ] Intermediate artifacts 全部寫入 Systograph work-dir，不寫 target repo `.understand-anything/`。
 
 ## Task 5：read-only / path safety / secret masking
 
 **Files**
 
-- Modify: `src/kai_mind/core/services/path_safety_service.py`
-- Modify: `src/kai_mind/core/services/secret_masking_service.py`
+- Modify: `src/systograph/core/services/path_safety_service.py`
+- Modify: `src/systograph/core/services/secret_masking_service.py`
 - Test: `tests/contracts/test_secret_snapshot_safety.py`
 - Test: `tests/unit/core/test_understand_anything_analysis_service.py`
 
@@ -163,24 +163,24 @@ kai-mind-ua-result/v1
 
 **Files**
 
-- Create: `src/kai_mind/core/services/ua_parity_service.py`
+- Create: `src/systograph/core/services/ua_parity_service.py`
 - Create: `tests/integration/test_ua_parity_service.py`
 - Modify: `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/14-local-project-import-and-test.md`
 
 **Steps**
 
-- [ ] 過渡期並跑 KAI `code_pattern`、`dependency_manifest`、`docker_image`、config patterns。
-- [ ] 將 UA structural facts 與 KAI provider facts 分類為 equivalent / missing / extra /
+- [ ] 過渡期並跑 Systograph `code_pattern`、`dependency_manifest`、`docker_image`、config patterns。
+- [ ] 將 UA structural facts 與 Systograph provider facts 分類為 equivalent / missing / extra /
   intentionally-degraded。
 - [ ] Parity report 不影響 canonical facts，但會成為 Plan 14 gate 與 Plan 18 退役依據。
 - [ ] Phase4 31 fixtures 轉為 parity corpus 的第一批資料來源。
 
 ## Acceptance Criteria
 
-- [ ] `UnderstandAnythingAnalysisService` 可從 KAI approved inventory 產生 UA request。
-- [ ] `kai-mind-analyze.mjs` 不執行 `scan-project.mjs`，不寫 target repo。
-- [ ] `kai-mind-ua-request/v1` 與 `kai-mind-ua-result/v1` schema 通過 contract tests。
-- [ ] Structural result 可轉成 KAI facts / evidence / issues，且 evidence path/line 可追溯。
+- [ ] `UnderstandAnythingAnalysisService` 可從 Systograph approved inventory 產生 UA request。
+- [ ] `systograph-analyze.mjs` 不執行 `scan-project.mjs`，不寫 target repo。
+- [ ] `systograph-ua-request/v1` 與 `systograph-ua-result/v1` schema 通過 contract tests。
+- [ ] Structural result 可轉成 Systograph facts / evidence / issues，且 evidence path/line 可追溯。
 - [ ] `ScanSnapshot.ua_analysis_result` 為 reserved nullable internal slot（`03A` 預留）；
   Phase2 active path **不產生、不消費** semantic payload；`semantic` 欄位維持 `null`。
 - [ ] Phase B/C 可選保存 structural wrapper JSON 於 snapshot 內供追溯，但 Step 4～7 / Apply /
@@ -190,8 +190,8 @@ kai-mind-ua-result/v1
 
 ## 邊界 / 不做事項
 
-- 不採用 UA Phase 3～7、dashboard、`knowledge-graph.json` 作為 KAI canonical truth。
+- 不採用 UA Phase 3～7、dashboard、`knowledge-graph.json` 作為 Systograph canonical truth。
 - 不把 UA semantic nodes/edges 直接寫入 `ai_system_map.json`。
 - 不新增 frontend contract 欄位。
-- 不把 existing KAI scan TOML providers 立即刪除；退役由 Plan 18 在 parity gate 後處理。
+- 不把 existing Systograph scan TOML providers 立即刪除；退役由 Plan 18 在 parity gate 後處理。
 - 不執行 target app、不安裝 target repo dependencies、不修改 target repo。

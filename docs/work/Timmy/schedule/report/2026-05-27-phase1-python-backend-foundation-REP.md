@@ -18,15 +18,15 @@
 5. 先建立 `tests/test_smoke.py`：
    - package 可 import。
    - CLI help 可用。
-   - import `kai_mind.core` 不會載入 `fastapi`。
+   - import `systograph.core` 不會載入 `fastapi`。
 6. 建立 `pyproject.toml`，設定 build backend、dependencies、dev dependencies、pytest、ruff、CLI entry point。
-7. 執行 RED 測試，確認 3 個測試因 `kai_mind` package 不存在而失敗。
+7. 執行 RED 測試，確認 3 個測試因 `systograph` package 不存在而失敗。
 8. 建立最小 package skeleton：
-   - `src/kai_mind/__init__.py`
-   - `src/kai_mind/cli/__init__.py`
-   - `src/kai_mind/cli/main.py`
-   - `src/kai_mind/core/__init__.py`
-   - `src/kai_mind/web/__init__.py`
+   - `src/systograph/__init__.py`
+   - `src/systograph/cli/__init__.py`
+   - `src/systograph/cli/main.py`
+   - `src/systograph/core/__init__.py`
+   - `src/systograph/web/__init__.py`
 9. 修正 Typer 空 app 無法產生 help command 的問題。
 10. 依 UV 專案模式把 dev dependencies 放到 `[dependency-groups].dev`。
 11. 執行 `uv lock` 建立 `uv.lock`。
@@ -38,10 +38,10 @@
 ```bash
 uv run pytest
 uv run ruff check .
-uv run python -m kai_mind.cli.main --help
+uv run python -m systograph.cli.main --help
 uv lock --check
-uv run --project /Users/linjunting/Local_AI_Health_Doctor python -c 'import kai_mind; print(kai_mind.__version__)'
-uv run --project /Users/linjunting/Local_AI_Health_Doctor python -m kai_mind.cli.main --help
+uv run --project /Users/linjunting/Systograph python -c 'import systograph; print(systograph.__version__)'
+uv run --project /Users/linjunting/Systograph python -m systograph.cli.main --help
 ```
 
 最後兩個命令從 `/private/tmp` 執行，用來確認 package import 與 CLI help 不依賴 repo cwd。
@@ -50,7 +50,7 @@ uv run --project /Users/linjunting/Local_AI_Health_Doctor python -m kai_mind.cli
 
 - 問題：系統 Python 沒有 `pytest`，本機也沒有 `uv` 或 `ruff`。
   - 解法：先安裝 UV CLI，再以 UV 建立與同步專案環境。
-- 問題：RED 階段尚未建立 `src/kai_mind`，package install/import 會失敗。
+- 問題：RED 階段尚未建立 `src/systograph`，package install/import 會失敗。
   - 解法：先確認 smoke tests 因缺少 package 失敗，再建立最小 package skeleton。
 - 問題：Typer 空 app 無法被 `CliRunner` 轉成 command。
   - 解法：增加 no-op callback，讓 CLI help 成為穩定的最小行為。
@@ -70,8 +70,8 @@ uv run --project /Users/linjunting/Local_AI_Health_Doctor python -m kai_mind.cli
 ## 驗收核對
 
 - `pyproject.toml`: 已建立。
-- `src/kai_mind/` package skeleton: 已建立。
-- `src/kai_mind/web/`、`src/kai_mind/cli/`、`src/kai_mind/core/`: 已建立。
+- `src/systograph/` package skeleton: 已建立。
+- `src/systograph/web/`、`src/systograph/cli/`、`src/systograph/core/`: 已建立。
 - `tests/` 與 smoke test: 已建立。
 - pytest 設定: 已建立。
 - ruff 設定: 已建立。

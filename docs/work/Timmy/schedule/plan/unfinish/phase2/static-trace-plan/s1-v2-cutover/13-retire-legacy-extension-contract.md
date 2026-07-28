@@ -121,58 +121,58 @@ Task 1B/2，不表示 cutover 已完成。
 
 ### 相關檔案
 
-- Reuse: `src/kai_mind/core/models/ai_system_map_v2.py`
-- Reuse: `src/kai_mind/core/services/system_map_v1_to_v2_adapter.py`
-- Reuse: `src/kai_mind/core/services/canonical_map_loader.py`
+- Reuse: `src/systograph/core/models/ai_system_map_v2.py`
+- Reuse: `src/systograph/core/services/system_map_v1_to_v2_adapter.py`
+- Reuse: `src/systograph/core/services/canonical_map_loader.py`
 - Reuse: `schemas/ai-system-map.v2.schema.json`
-- Modify: `src/kai_mind/core/models/map_build.py`
-- Modify: `src/kai_mind/core/models/analysis_history.py`
-- Modify: `src/kai_mind/core/models/mapping_base.py`
-- Modify: `src/kai_mind/core/models/mapping_candidates.py`
-- Modify: `src/kai_mind/core/services/system_map_normalize_service.py`
-- Modify: `src/kai_mind/core/services/system_map_materialization_service.py`
-- Create: `src/kai_mind/core/services/legacy_v1_rollback_service.py`
-- Modify: `src/kai_mind/core/services/map_build_service.py`
-- Modify: `src/kai_mind/core/services/map_build_pipeline.py`
-- Modify: `src/kai_mind/core/services/apply_confirmations_service.py`
-- Modify: `src/kai_mind/core/services/apply_confirmations_contracts.py`
-- Modify: `src/kai_mind/core/services/build_artifact_publisher.py`
-- Modify: `src/kai_mind/core/services/build_manifest_service.py`
-- Create: `src/kai_mind/core/services/build_commit_service.py`
-- Modify: `src/kai_mind/core/services/map_build_query_service.py`
-- Modify: `src/kai_mind/core/services/graph_projection_service.py`
-- Modify: `src/kai_mind/core/services/graph_markdown_renderer.py`
-- Modify: `src/kai_mind/core/services/graph_mermaid_renderer.py`
-- Modify: `src/kai_mind/core/services/profile_inference_service.py`
-- Modify: `src/kai_mind/core/services/readiness_report_service.py`
-- Modify: `src/kai_mind/core/services/static_execution_artifact_service.py`
-- Modify: `src/kai_mind/core/services/viewer_session_service.py`
-- Modify: `src/kai_mind/core/services/system_map_index.py`
-- Modify: `src/kai_mind/core/services/detail_scan_service.py`
-- Modify: `src/kai_mind/core/services/detail_scan_build_service.py`
-- Modify: `src/kai_mind/core/services/query_trace_service.py`
-- Modify: `src/kai_mind/core/services/mapping_proposal_service.py`
-- Modify: `src/kai_mind/core/services/mapping_proposal_candidates.py`
-- Modify: `src/kai_mind/core/services/mapping_proposal_mapping_factory.py`
-- Modify: `src/kai_mind/core/services/manual_mapping_service.py`
-- Modify: `src/kai_mind/core/services/manual_mapping_materializer.py`
-- Modify: `src/kai_mind/core/services/manual_mapping_support.py`
-- Create: `src/kai_mind/core/services/legacy_manual_mapping_migration_service.py`
-- Modify: `src/kai_mind/core/providers/output_artifact_provider.py`
-- Modify: `src/kai_mind/core/providers/local_json_project_repository.py`
-- Modify: `src/kai_mind/core/providers/local_json_history_repository.py`
-- Modify: `src/kai_mind/core/providers/local_json_state_provider.py`
-- Modify: `src/kai_mind/core/providers/local_json_state_storage.py`
-- Modify: `src/kai_mind/cli/main.py`
-- Modify: `src/kai_mind/cli/map_command.py`
-- Modify: `src/kai_mind/cli/trace_command.py`
-- Create: `src/kai_mind/cli/migrate_legacy_mappings_command.py`
-- Modify: `src/kai_mind/web/schemas.py`
-- Modify: `src/kai_mind/web/routes/scan_routes.py`
-- Modify: `src/kai_mind/web/routes/detail_scan_routes.py`
-- Modify: `src/kai_mind/web/routes/trace_routes.py`
-- Modify: `src/kai_mind/web/routes/mapping_proposal_routes.py`
-- Modify: `src/kai_mind/web/session_store.py`
+- Modify: `src/systograph/core/models/map_build.py`
+- Modify: `src/systograph/core/models/analysis_history.py`
+- Modify: `src/systograph/core/models/mapping_base.py`
+- Modify: `src/systograph/core/models/mapping_candidates.py`
+- Modify: `src/systograph/core/services/system_map_normalize_service.py`
+- Modify: `src/systograph/core/services/system_map_materialization_service.py`
+- Create: `src/systograph/core/services/legacy_v1_rollback_service.py`
+- Modify: `src/systograph/core/services/map_build_service.py`
+- Modify: `src/systograph/core/services/map_build_pipeline.py`
+- Modify: `src/systograph/core/services/apply_confirmations_service.py`
+- Modify: `src/systograph/core/services/apply_confirmations_contracts.py`
+- Modify: `src/systograph/core/services/build_artifact_publisher.py`
+- Modify: `src/systograph/core/services/build_manifest_service.py`
+- Create: `src/systograph/core/services/build_commit_service.py`
+- Modify: `src/systograph/core/services/map_build_query_service.py`
+- Modify: `src/systograph/core/services/graph_projection_service.py`
+- Modify: `src/systograph/core/services/graph_markdown_renderer.py`
+- Modify: `src/systograph/core/services/graph_mermaid_renderer.py`
+- Modify: `src/systograph/core/services/profile_inference_service.py`
+- Modify: `src/systograph/core/services/readiness_report_service.py`
+- Modify: `src/systograph/core/services/static_execution_artifact_service.py`
+- Modify: `src/systograph/core/services/viewer_session_service.py`
+- Modify: `src/systograph/core/services/system_map_index.py`
+- Modify: `src/systograph/core/services/detail_scan_service.py`
+- Modify: `src/systograph/core/services/detail_scan_build_service.py`
+- Modify: `src/systograph/core/services/query_trace_service.py`
+- Modify: `src/systograph/core/services/mapping_proposal_service.py`
+- Modify: `src/systograph/core/services/mapping_proposal_candidates.py`
+- Modify: `src/systograph/core/services/mapping_proposal_mapping_factory.py`
+- Modify: `src/systograph/core/services/manual_mapping_service.py`
+- Modify: `src/systograph/core/services/manual_mapping_materializer.py`
+- Modify: `src/systograph/core/services/manual_mapping_support.py`
+- Create: `src/systograph/core/services/legacy_manual_mapping_migration_service.py`
+- Modify: `src/systograph/core/providers/output_artifact_provider.py`
+- Modify: `src/systograph/core/providers/local_json_project_repository.py`
+- Modify: `src/systograph/core/providers/local_json_history_repository.py`
+- Modify: `src/systograph/core/providers/local_json_state_provider.py`
+- Modify: `src/systograph/core/providers/local_json_state_storage.py`
+- Modify: `src/systograph/cli/main.py`
+- Modify: `src/systograph/cli/map_command.py`
+- Modify: `src/systograph/cli/trace_command.py`
+- Create: `src/systograph/cli/migrate_legacy_mappings_command.py`
+- Modify: `src/systograph/web/schemas.py`
+- Modify: `src/systograph/web/routes/scan_routes.py`
+- Modify: `src/systograph/web/routes/detail_scan_routes.py`
+- Modify: `src/systograph/web/routes/trace_routes.py`
+- Modify: `src/systograph/web/routes/mapping_proposal_routes.py`
+- Modify: `src/systograph/web/session_store.py`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/components/proposal/EditForm.tsx`
 - Modify: `frontend/src/data/scanTemplate.mock.ts`
@@ -236,7 +236,7 @@ Plan 13 不再同時要求「刪除 v1 writer」與「可切回 v1」。目標 c
 
 - Normal mode：`ai-system-map/v2`，所有一般 CLI/API build 都走這條路。
 - Operator rollback mode：process-level setting
-  `KAI_MIND_CANONICAL_OUTPUT_VERSION=ai-system-map/v1`；預設值是 v2，非法值 fail startup。
+  `SYSTOGRAPH_CANONICAL_OUTPUT_VERSION=ai-system-map/v1`；預設值是 v2，非法值 fail startup。
 - 同一次 build 只能寫一份 `ai_system_map.json`，禁止 v1/v2 dual-write。
 - Public `system_map_schema_version="ai-system-map/v1"` request 不再是 rollback surface；cutover
   期間回傳 stable `legacy_output_not_selectable`，Plan 15 再移除 deprecated input field/flag。
@@ -284,7 +284,7 @@ direct v1 hit 都是 blocker，直到分類為 `migrate`、`operator-rollback`�
 ## 2026-07-07 UA 整合對齊
 
 Plan 13 cutover 不採用 UA Phase 3～7，也不改 canonical output 名稱。Active output 仍是
-KAI-Mind 的 `ai_system_map.json`、`profile_signals.json` 與 `GraphViewModel`；UA
+Systograph 的 `ai_system_map.json`、`profile_signals.json` 與 `GraphViewModel`；UA
 `ua-analysis-result` 只在 scan snapshot 內作 internal sidecar。Plan 13 的 gate 應確認
 v2 active output 可消費 UA structural facts，但不得把 UA graph vocabulary 變成新的
 canonical schema。
@@ -349,7 +349,7 @@ canonical schema。
 - [x] 一般 CLI/API 的 `system_map_schema_version` 不再選擇 output。要求 v1 時回傳
   `legacy_output_not_selectable`；新 manifest 不再把 `requested_schema_version` 當決策欄位，
   舊 manifest 讀取時只視為 compatibility provenance。
-- [x] composition root 讀取 `KAI_MIND_CANONICAL_OUTPUT_VERSION`，只接受
+- [x] composition root 讀取 `SYSTOGRAPH_CANONICAL_OUTPUT_VERSION`，只接受
   `ai-system-map/v2` 或 `ai-system-map/v1`；缺省為 v2，非法值以 stable
   `invalid_canonical_output_version` 阻止 process 啟動。
 - [x] 將現有 v1 materialization 封裝成 `LegacyV1RollbackService` operator-only boundary；normal
@@ -396,7 +396,7 @@ canonical schema。
   `LegacyManualMappingMigrationService`，先以隔離 DTO 讀 raw JSON，再轉成 active
   `ManualMapping`；normal repository 不得長期接受 legacy shape。
 - [x] 建立 `migrate-legacy-mappings` CLI。預設只做 `--dry-run` 且零寫入；必須明確傳入
-  `--apply` 才能更新 KAI-Mind state directory，禁止修改被掃描的 target project。
+  `--apply` 才能更新 Systograph state directory，禁止修改被掃描的 target project。
 - [x] 轉換矩陣固定如下，實作者不得自行推測：
 
 | Legacy row | Active result | 必須保留／禁止 |
@@ -412,7 +412,7 @@ canonical schema。
 
 - [x] migration 使用固定 `migration_version`，且必須 idempotent：成功轉換時只更新一次
   `updated_at` 與 `mapping_digest`；重跑相同輸入回報 `already_migrated`，不得重複產生 row。
-- [x] `--apply` 先在 KAI-Mind state directory 建立原始 mapping backup 與 index。Backup 可能含
+- [x] `--apply` 先在 Systograph state directory 建立原始 mapping backup 與 index。Backup 可能含
   legacy free-text，因此必須使用平台可提供的 owner-only access、不得寫入 target repo，也不得把
   payload 複製到 log/report；report 只記 opaque ref 與 digest。
 - [x] 在 project-level lock 內以 same-directory temp + replace 原子更新每個 mapping file；單檔
@@ -603,7 +603,7 @@ cd frontend && npm run build && npm run lint
   commit。本計畫只借用「payload first、pointer last」的 visibility boundary，不照搬其 object
   store 或 optimistic concurrency 架構。
 - [earth-mover/icechunk](https://github.com/earth-mover/icechunk) 用來確認上述 specification
-  對應目前 active open-source repository；KAI-Mind 仍以 local same-directory replace、manifest
+  對應目前 active open-source repository；Systograph 仍以 local same-directory replace、manifest
   digest 與 project lock 實作自己的較小範圍 contract。
 
 ## P0 Execution Mapping 補充（2026-07-03）

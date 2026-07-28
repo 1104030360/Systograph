@@ -20,7 +20,7 @@ service，不依賴 `InMemorySessionStore` concrete type。PostgreSQL concrete a
 - `InMemorySessionStore` 同時承擔 project registry、latest map、build-result lookup，且無 TTL/容量上限。
 - routes 直接 type-hint `InMemorySessionStore`。
 - 無 history list/get routes、restart persistence、retention policy。
-- GitHub issues：[#126](https://github.com/1104030360/Local-AI-Health-Doctor/issues/126)、[#150](https://github.com/1104030360/Local-AI-Health-Doctor/issues/150)、[#174](https://github.com/1104030360/Local-AI-Health-Doctor/issues/174)。
+- GitHub issues：[#126](https://github.com/1104030360/Systograph/issues/126)、[#150](https://github.com/1104030360/Systograph/issues/150)、[#174](https://github.com/1104030360/Systograph/issues/174)。
 - 本計畫必須在 Task 27 前完成；Task 27 只能實作 repository adapters 與 transaction wiring，不應再重新定義 project/scan domain。
 - Phase2 Plan `03A-implement-apply-build-lineage-and-local-json-persistence.md` 已先定義
   `project_id`、`scan_id`、`build_id`、Apply/B1→B2 lineage、immutable artifacts與 atomic
@@ -58,8 +58,8 @@ Task 26 owns
 ### Task 1: Define domain models and repository ports
 
 **Files:**
-- Create: `src/kai_mind/core/models/session_history.py`
-- Create: `src/kai_mind/core/repositories/session_history.py`
+- Create: `src/systograph/core/models/session_history.py`
+- Create: `src/systograph/core/repositories/session_history.py`
 - Test: `tests/unit/core/test_session_history_models.py`
 
 - [ ] **Step 1: Write failing tests for project/scan invariants and stable statuses**
@@ -90,7 +90,7 @@ class BuildHistoryRepository(Protocol):
 ### Task 2: Characterize Phase2 persistence and build bounded caches
 
 **Files:**
-- Modify: `src/kai_mind/web/session_store.py`
+- Modify: `src/systograph/web/session_store.py`
 - Test: `tests/unit/web/test_session_store.py`
 
 - [ ] **Step 1: Write compatibility tests against Plan 03A local JSON repositories and build lineage**
@@ -102,7 +102,7 @@ class BuildHistoryRepository(Protocol):
 ### Task 3: Introduce `SessionHistoryService`
 
 **Files:**
-- Create: `src/kai_mind/core/services/session_history_service.py`
+- Create: `src/systograph/core/services/session_history_service.py`
 - Test: `tests/unit/core/test_session_history_service.py`
 
 - [ ] **Step 1: Write service behavior tests**
@@ -112,11 +112,11 @@ class BuildHistoryRepository(Protocol):
 ### Task 4: Make web routes depend on abstractions
 
 **Files:**
-- Modify: `src/kai_mind/web/dependencies.py`
-- Modify: `src/kai_mind/web/routes/project_routes.py`
-- Modify: `src/kai_mind/web/routes/scan_routes.py`
-- Create: `src/kai_mind/web/routes/history_routes.py`
-- Modify: `src/kai_mind/web/app.py`
+- Modify: `src/systograph/web/dependencies.py`
+- Modify: `src/systograph/web/routes/project_routes.py`
+- Modify: `src/systograph/web/routes/scan_routes.py`
+- Create: `src/systograph/web/routes/history_routes.py`
+- Modify: `src/systograph/web/app.py`
 - Test: `tests/web/test_history_routes.py`
 
 - [ ] **Step 1: Write route contract tests**

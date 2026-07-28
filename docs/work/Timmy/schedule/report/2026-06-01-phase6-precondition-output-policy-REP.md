@@ -108,8 +108,8 @@ precondition check 與 output directory policy。
 
 新增：
 
-- `src/kai_mind/core/models/errors.py`
-- `src/kai_mind/core/models/scan.py`
+- `src/systograph/core/models/errors.py`
+- `src/systograph/core/models/scan.py`
 
 主要型別：
 
@@ -122,8 +122,8 @@ precondition check 與 output directory policy。
 
 新增：
 
-- `src/kai_mind/core/providers/__init__.py`
-- `src/kai_mind/core/providers/output_artifact_provider.py`
+- `src/systograph/core/providers/__init__.py`
+- `src/systograph/core/providers/output_artifact_provider.py`
 
 主要 API：
 
@@ -143,8 +143,8 @@ RED 階段執行：
 結果符合預期：
 
 ```text
-ModuleNotFoundError: No module named 'kai_mind.core.models.errors'
-ModuleNotFoundError: No module named 'kai_mind.core.providers'
+ModuleNotFoundError: No module named 'systograph.core.models.errors'
+ModuleNotFoundError: No module named 'systograph.core.providers'
 ```
 
 GREEN / 完整驗證執行：

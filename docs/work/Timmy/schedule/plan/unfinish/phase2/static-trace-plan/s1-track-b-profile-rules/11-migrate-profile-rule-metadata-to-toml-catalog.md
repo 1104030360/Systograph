@@ -199,7 +199,7 @@ class ProfileRegistryLoader:
 ```
 
 - `load_default()` 只用 `importlib.resources` 讀 package-bundled TOML。
-- `load(path)` 只供 tests 或明確的 KAI-Mind-owned admin tooling；不得接 target repo path、API body 或 scan config。
+- `load(path)` 只供 tests 或明確的 Systograph-owned admin tooling；不得接 target repo path、API body 或 scan config。
 - Loader 完成後立刻驗證 catalog id set 等於 `MVP_CAPABILITY_PROFILE_IDS`。
 
 ### 5.3 Error taxonomy
@@ -265,7 +265,7 @@ class ProfileMetadataCoverageError(ProfileRegistryError): ...
 ## 7. UA 與 Plan 18 對照
 
 ```text
-UA 接手前：KAI matching providers -> ScanFact -> Profile Engine -> profile metadata
+UA 接手前：Systograph matching providers -> ScanFact -> Profile Engine -> profile metadata
 UA 接手後：UA + adapter           -> ScanFact -> Profile Engine -> profile metadata
                                                ^                 ^
                                                |                 |
@@ -327,11 +327,11 @@ uv run pytest tests/unit/core/test_profile_inference_service.py -q
 
 **Files**
 
-- Create: `src/kai_mind/core/services/profile_rule_definitions.py`
-- Modify: `src/kai_mind/core/services/profile_finding_service.py`
-- Modify: `src/kai_mind/core/services/profile_inference_service.py`
-- Modify: `src/kai_mind/core/services/profile_signal_validation_service.py`
-- Delete after callers migrate: `src/kai_mind/core/services/profile_registry.py`
+- Create: `src/systograph/core/services/profile_rule_definitions.py`
+- Modify: `src/systograph/core/services/profile_finding_service.py`
+- Modify: `src/systograph/core/services/profile_inference_service.py`
+- Modify: `src/systograph/core/services/profile_signal_validation_service.py`
+- Delete after callers migrate: `src/systograph/core/services/profile_registry.py`
 - Test: existing profile tests
 
 **Produces**
@@ -356,8 +356,8 @@ uv run pytest \
 
 **Files**
 
-- Create: `src/kai_mind/core/rules/profile_registry.toml`
-- Create: `src/kai_mind/core/services/profile_registry_loader.py`
+- Create: `src/systograph/core/rules/profile_registry.toml`
+- Create: `src/systograph/core/services/profile_registry_loader.py`
 - Modify: `tests/unit/core/test_profile_registry_loader.py`
 
 **Produces**
@@ -382,9 +382,9 @@ uv run pytest tests/unit/core/test_profile_registry_loader.py -q
 
 **Files**
 
-- Modify: `src/kai_mind/core/services/profile_finding_service.py`
-- Create: `src/kai_mind/core/services/profile_finding_assembler.py`
-- Modify: `src/kai_mind/core/services/profile_inference_service.py`（只有 default wiring 必要時）
+- Modify: `src/systograph/core/services/profile_finding_service.py`
+- Create: `src/systograph/core/services/profile_finding_assembler.py`
+- Modify: `src/systograph/core/services/profile_inference_service.py`（只有 default wiring 必要時）
 - Create: `tests/unit/core/test_profile_metadata_runtime.py`
 - Modify: `tests/unit/core/test_profile_inference_boundaries.py`
 
@@ -413,8 +413,8 @@ uv run pytest tests/unit/core/test_profile_inference_boundaries.py -q
 
 **Files**
 
-- Create: `src/kai_mind/core/models/profile_registry_projection.py`
-- Create: `src/kai_mind/core/services/profile_registry_projection_service.py`
+- Create: `src/systograph/core/models/profile_registry_projection.py`
+- Create: `src/systograph/core/services/profile_registry_projection_service.py`
 - Create: `schemas/profile-registry.v1.schema.json`
 - Create: `tests/contracts/test_profile_registry_schema.py`
 - Create: `tests/unit/core/test_profile_registry_projection_service.py`
@@ -489,7 +489,7 @@ uv run pytest \
 uv run pytest
 uv run ruff check src tests
 uv run mypy
-uv run kai-mind --help
+uv run systograph --help
 git diff --check \
   docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-b-profile-rules/10-define-profile-rule-catalog-boundary.md \
   docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-b-profile-rules/11-migrate-profile-rule-metadata-to-toml-catalog.md
@@ -498,8 +498,8 @@ git diff --check \
 額外 mechanical checks：
 
 ```bash
-test -e src/kai_mind/core/rules/profile_registry.toml
-test ! -e src/kai_mind/core/services/profile_registry.py
+test -e src/systograph/core/rules/profile_registry.toml
+test ! -e src/systograph/core/services/profile_registry.py
 rg -n "profile_registry|profile_rule_definitions|ProfileRegistryLoader" src tests docs/MODEL-CONTRACT.md
 ```
 

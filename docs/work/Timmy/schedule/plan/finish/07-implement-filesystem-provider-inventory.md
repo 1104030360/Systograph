@@ -27,7 +27,7 @@ Stage 2 是後續所有 providers 的掃描邊界。設計文件明確要求後�
 - 不預設掃描 gitignored files；若使用者把重要 source/config 放進 `.gitignore`，這不是 baseline inventory 的責任。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/providers/filesystem_provider.py`。
+1. 建立 `src/systograph/core/providers/filesystem_provider.py`。
 2. 實作 git repo detection。
 3. 實作 git file list fallback。
 4. 實作 recursive listing fallback。
@@ -36,7 +36,7 @@ Stage 2 是後續所有 providers 的掃描邊界。設計文件明確要求後�
 7. 寫測試：git repo、non-git repo、skip dependency/build/binary、POSIX relative path。
 
 ## 預期輸出
-- `src/kai_mind/core/providers/filesystem_provider.py`
+- `src/systograph/core/providers/filesystem_provider.py`
 - `tests/unit/core/test_filesystem_provider.py`
 - `tests/fixtures/rag_projects/*` 視需要補小型檔案
 

@@ -7,30 +7,30 @@
 # target endpoint with full request/response tracing.
 
 # Resolve repo root from this file location (scripts/lib/ -> repo root).
-KAI_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SYSTOGRAPH_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Defaults (override via env or common flags).
 API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:8000}"
-PROJECT_PATH="${PROJECT_PATH:-$KAI_ROOT_DIR/tests/fixtures/rag_projects/custom_router_rag}"
+PROJECT_PATH="${PROJECT_PATH:-$SYSTOGRAPH_ROOT_DIR/tests/fixtures/rag_projects/custom_router_rag}"
 OUTPUT_DIR="${OUTPUT_DIR:-outputs}"
-SERVER_LOG="${SERVER_LOG:-$KAI_ROOT_DIR/outputs/api-trace-server.log}"
+SERVER_LOG="${SERVER_LOG:-$SYSTOGRAPH_ROOT_DIR/outputs/api-trace-server.log}"
 
 START_SERVER=0
 SERVER_PID=""
-KAI_EXTRA_ARGS=()
+SYSTOGRAPH_EXTRA_ARGS=()
 
 # Globals populated by api_call / setup_* helpers.
 LAST_STATUS=""
 LAST_BODY=""
 
-kai_die() {
+systograph_die() {
   echo "ERROR: $*" >&2
   exit 1
 }
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
-    kai_die "Missing required command: $1"
+    systograph_die "Missing required command: $1"
   fi
 }
 
@@ -40,10 +40,10 @@ require_tools() {
 }
 
 # Parse flags common to every endpoint script. Endpoint-specific flags are
-# collected into KAI_EXTRA_ARGS for the caller to handle. Each caller must
+# collected into SYSTOGRAPH_EXTRA_ARGS for the caller to handle. Each caller must
 # define a usage() function before calling this.
-kai_parse_common_args() {
-  KAI_EXTRA_ARGS=()
+systograph_parse_common_args() {
+  SYSTOGRAPH_EXTRA_ARGS=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --start-server)
@@ -67,14 +67,14 @@ kai_parse_common_args() {
         exit 0
         ;;
       *)
-        KAI_EXTRA_ARGS+=("$1")
+        SYSTOGRAPH_EXTRA_ARGS+=("$1")
         shift
         ;;
     esac
   done
 }
 
-kai_cleanup() {
+systograph_cleanup() {
   if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" >/dev/null 2>&1; then
     kill "$SERVER_PID" >/dev/null 2>&1 || true
     wait "$SERVER_PID" >/dev/null 2>&1 || true
@@ -99,29 +99,29 @@ wait_for_api() {
 
 # Boot a local server when --start-server was passed, then block until ready.
 # When --start-server is not passed, just wait for an already running server.
-kai_bootstrap_server() {
-  cd "$KAI_ROOT_DIR"
+systograph_bootstrap_server() {
+  cd "$SYSTOGRAPH_ROOT_DIR"
   if [[ "$START_SERVER" -eq 1 ]]; then
     if [[ ! -x ".venv/bin/uvicorn" ]]; then
-      kai_die "Cannot find executable .venv/bin/uvicorn (create the venv first)"
+      systograph_die "Cannot find executable .venv/bin/uvicorn (create the venv first)"
     fi
     mkdir -p "$(dirname "$SERVER_LOG")"
-    .venv/bin/uvicorn kai_mind.web.app:create_app --factory \
+    .venv/bin/uvicorn systograph.web.app:create_app --factory \
       --host 127.0.0.1 --port 8000 >"$SERVER_LOG" 2>&1 &
     SERVER_PID="$!"
-    trap kai_cleanup EXIT
+    trap systograph_cleanup EXIT
     echo "Started FastAPI PID=$SERVER_PID log=$SERVER_LOG"
   fi
   wait_for_api
 }
 
-kai_section() {
+systograph_section() {
   echo
   echo "==================== $* ===================="
 }
 
 # Short Traditional Chinese progress line before an API call / phase step.
-kai_progress() {
+systograph_progress() {
   echo ">> $*"
 }
 
@@ -179,49 +179,49 @@ setup_get() {
   curl -fsS "$API_BASE_URL$endpoint" -H 'Accept: application/json'
 }
 
-kai_urlencode() {
+systograph_urlencode() {
   jq -rn --arg v "$1" '$v|@uri'
 }
 
 # Import PROJECT_PATH and echo the resulting project_id.
-kai_import_project() {
+systograph_import_project() {
   local path="${1:-$PROJECT_PATH}"
-  [[ -d "$path" ]] || kai_die "Project path does not exist: $path"
-  kai_progress "現在要匯入專案：$path" >&2
+  [[ -d "$path" ]] || systograph_die "Project path does not exist: $path"
+  systograph_progress "現在要匯入專案：$path" >&2
   local body project_id
   body="$(jq -n --arg p "$path" \
     '{source_type:"local_path", project_path:$p}')"
   project_id="$(setup_post "/api/projects/import" "$body" | jq -r '.project_id')"
   [[ -n "$project_id" && "$project_id" != "null" ]] \
-    || kai_die "Failed to import project: $path"
-  kai_progress "匯入完成，project_id=$project_id" >&2
+    || systograph_die "Failed to import project: $path"
+  systograph_progress "匯入完成，project_id=$project_id" >&2
   echo "$project_id"
 }
 
 # Run a system scan for a project_id and echo the full scan response JSON.
-kai_run_scan() {
+systograph_run_scan() {
   local project_id="$1"
-  kai_progress "現在要建立 scan（系統掃描）project_id=$project_id" >&2
+  systograph_progress "現在要建立 scan（系統掃描）project_id=$project_id" >&2
   local body scan status build_id
   body="$(jq -n --arg id "$project_id" --arg out "$OUTPUT_DIR" \
     '{project_id:$id, scan_depth:"system", output:$out, redact_root_path:true, no_snippets:false}')"
   scan="$(setup_post "/api/scans" "$body")"
   status="$(echo "$scan" | jq -r '.status')"
   [[ "$status" == "completed" ]] \
-    || kai_die "Scan did not complete (status=$status)"
+    || systograph_die "Scan did not complete (status=$status)"
   build_id="$(echo "$scan" | jq -r '.build_result.lineage.build_id // empty')"
   if [[ -n "$build_id" ]]; then
-    kai_progress "掃描完成，build_id=$build_id" >&2
+    systograph_progress "掃描完成，build_id=$build_id" >&2
   else
-    kai_progress "掃描完成（無 lineage.build_id）" >&2
+    systograph_progress "掃描完成（無 lineage.build_id）" >&2
   fi
   echo "$scan"
 }
 
 # Create one confirmed existing_slot manual mapping using a real slot key and a
 # real evidence id derived from a scan response. Echoes the created mapping JSON.
-# Usage: kai_create_demo_mapping PROJECT_ID SCAN_JSON [COMPONENT_NAME]
-kai_create_demo_mapping() {
+# Usage: systograph_create_demo_mapping PROJECT_ID SCAN_JSON [COMPONENT_NAME]
+systograph_create_demo_mapping() {
   local project_id="$1"
   local scan_json="$2"
   local component_name="${3:-TraceDemoComponent}"
@@ -232,11 +232,11 @@ kai_create_demo_mapping() {
   evidence_id="$(echo "$scan_json" \
     | jq -r '.build_result.ai_system_map.evidence[0].id // empty')"
   [[ -n "$slot" && "$slot" != "null" ]] \
-    || kai_die "Could not derive a target slot from the scan"
+    || systograph_die "Could not derive a target slot from the scan"
   [[ -n "$evidence_id" ]] \
-    || kai_die "Could not derive an evidence id from the scan"
+    || systograph_die "Could not derive an evidence id from the scan"
 
-  kai_progress "現在要建立 manual mapping（slot=${slot}）" >&2
+  systograph_progress "現在要建立 manual mapping（slot=${slot}）" >&2
   body="$(jq -n \
     --arg id "$project_id" \
     --arg slot "$slot" \
@@ -248,7 +248,7 @@ kai_create_demo_mapping() {
 }
 
 # Echo the first unmapped component id from a scan response JSON.
-kai_first_unmapped_id() {
+systograph_first_unmapped_id() {
   local scan_json="$1"
   echo "$scan_json" \
     | jq -r '.build_result.ai_system_map.unmapped_components[0].id // empty'
@@ -256,11 +256,11 @@ kai_first_unmapped_id() {
 
 # Create a pending mapping proposal for an unmapped component and echo the
 # proposal JSON. Falls back to a deterministic provider when no NVIDIA key.
-# Usage: kai_create_proposal PROJECT_ID UNMAPPED_ID
-kai_create_proposal() {
+# Usage: systograph_create_proposal PROJECT_ID UNMAPPED_ID
+systograph_create_proposal() {
   local project_id="$1"
   local unmapped_id="$2"
-  kai_progress "接著呼叫 mapping proposal（unmapped=${unmapped_id}）" >&2
+  systograph_progress "接著呼叫 mapping proposal（unmapped=${unmapped_id}）" >&2
   local body
   body="$(jq -n --arg id "$project_id" --arg u "$unmapped_id" \
     '{project_id:$id, source_unmapped_id:$u}')"
@@ -269,7 +269,7 @@ kai_create_proposal() {
 
 # Summarize a ViewerPayload JSON (stdin or arg) for Track A graph projection QA.
 # Expects root shape: { viewer_load_result: { loaded, error_reason, graph_view_model: {...} } }
-kai_summarize_viewer_payload() {
+systograph_summarize_viewer_payload() {
   local json="${1:-}"
   if [[ -z "$json" ]]; then
     json="$(cat)"
@@ -312,27 +312,27 @@ kai_summarize_viewer_payload() {
 }
 
 # Soft asserts for a loaded ViewerPayload. Fail only when map is expected loaded.
-# Usage: kai_assert_graph_projection_loaded "$LAST_BODY"
-kai_assert_graph_projection_loaded() {
+# Usage: systograph_assert_graph_projection_loaded "$LAST_BODY"
+systograph_assert_graph_projection_loaded() {
   local json="$1"
   local loaded schema lenses refs behavior
   loaded="$(echo "$json" | jq -r '.viewer_load_result.loaded')"
-  [[ "$loaded" == "true" ]] || kai_die "Expected viewer_load_result.loaded=true, got: $loaded"
+  [[ "$loaded" == "true" ]] || systograph_die "Expected viewer_load_result.loaded=true, got: $loaded"
   schema="$(echo "$json" | jq -r '.viewer_load_result.graph_view_model.schema_version // empty')"
   [[ "$schema" == "graph-view-model/v1" ]] \
-    || kai_die "Expected graph schema_version=graph-view-model/v1, got: $schema"
+    || systograph_die "Expected graph schema_version=graph-view-model/v1, got: $schema"
   lenses="$(echo "$json" | jq -r '(.viewer_load_result.graph_view_model.filters.lenses // []) | length')"
-  [[ "$lenses" == "6" ]] || kai_die "Expected 6 graph lenses, got: $lenses"
+  [[ "$lenses" == "6" ]] || systograph_die "Expected 6 graph lenses, got: $lenses"
   behavior="$(echo "$json" | jq -r '.viewer_load_result.graph_view_model.filters.behavior // empty')"
   [[ "$behavior" == "highlight_and_dim" ]] \
-    || kai_die "Expected filters.behavior=highlight_and_dim, got: $behavior"
+    || systograph_die "Expected filters.behavior=highlight_and_dim, got: $behavior"
   refs="$(echo "$json" | jq -r '(.viewer_load_result.graph_view_model.details.reference_assessments_by_id // {}) | length')"
   [[ "$refs" == "52" ]] \
-    || kai_die "Expected 52 reference assessments, got: $refs"
+    || systograph_die "Expected 52 reference assessments, got: $refs"
 }
 
 # Summarize MapBuildResult-shaped JSON (root or .build_result) for projection sidecar QA.
-kai_summarize_map_build_result() {
+systograph_summarize_map_build_result() {
   local json="$1"
   echo "$json" | jq '{
     status,

@@ -36,7 +36,7 @@ input repo
   -> local dashboard fetch + validate + render
 ```
 
-對 KAI-Mind / Local AI Health Doctor 的最大啟發是：
+對 Systograph 的最大啟發是：
 
 ```text
 release-readiness scanner 不應該直接讓 LLM 產生最終 report。
@@ -447,7 +447,7 @@ bin/ 沒有預設排除，因為 Node.js / Ruby 專案可能把 CLI launcher 放
 | scripts | `*.sh`、`*.bash`、`*.ps1`、`*.bat` |
 | Kubernetes | `*.k8s.yaml`、`k8s/`、`kubernetes/` |
 
-`.env` 會出現在 file list 裡，但 prompt 明確要求 downstream agent 不得把 `.env` variable values 寫進 summary 或 output。這對 KAI-Mind 很重要：可以知道「有 env config」，但不應暴露 secret value。
+`.env` 會出現在 file list 裡，但 prompt 明確要求 downstream agent 不得把 `.env` variable values 寫進 summary 或 output。這對 Systograph 很重要：可以知道「有 env config」，但不應暴露 secret value。
 
 ### 1.4 `.understandignore` unified filter
 
@@ -2208,7 +2208,7 @@ process.cwd()/../../../.understand-anything/<fileName>
 | > 1MB | 413 |
 | buffer 含 NUL，疑似 binary | 415 |
 
-這個設計非常適合 KAI-Mind viewer 參考：
+這個設計非常適合 Systograph viewer 參考：
 
 ```text
 viewer 可以 preview evidence source，
@@ -2609,7 +2609,7 @@ packages/core/src/plugins/extractors/__tests__/*.test.ts
 
 ## 它不能完全確保的地方
 
-這些是重要限制，KAI-Mind 若借鏡必須補強。
+這些是重要限制，Systograph 若借鏡必須補強。
 
 ### 1. Summary / tags 仍是 LLM judgment
 
@@ -2674,7 +2674,7 @@ ALWAYS save partial results
 
 這對 UX 好，但對 release-readiness gate 可能危險。
 
-KAI-Mind 如果用在 CI/CD gate，應該把 partial result 區分成：
+Systograph 如果用在 CI/CD gate，應該把 partial result 區分成：
 
 ```text
 scan_status: complete | partial | failed
@@ -2690,16 +2690,16 @@ prompt 要求不得輸出 `.env` values，但如果 source preview 允許 `.env`
 
 Understand-Anything 的 file-content endpoint 只限制「必須是 graph 裡的 filePath」，但沒有針對 `.env` 做 redaction。
 
-對 KAI-Mind 來說，這是需要補強的點：
+對 Systograph 來說，這是需要補強的點：
 
 ```text
 secret-like files 可以列為 evidence path，
 但 preview/report/log/snapshot 不應顯示 raw values。
 ```
 
-## 對 KAI-Mind 的設計建議
+## 對 Systograph 的設計建議
 
-KAI-Mind 是 AI Agent / RAG Release Readiness Gate，不是一般 codebase graph viewer。
+Systograph 是 AI Agent / RAG Release Readiness Gate，不是一般 codebase graph viewer。
 
 所以可以借鏡流程，但不要照搬 schema。
 
@@ -2729,11 +2729,11 @@ KAI-Mind 是 AI Agent / RAG Release Readiness Gate，不是一般 codebase graph
    對 RAG 系統 map，可帶使用者從 query entry -> retriever -> vector store -> prompt -> LLM -> response/citation。
 ```
 
-### KAI-Mind 不應照搬的地方
+### Systograph 不應照搬的地方
 
 ```text
 1. 不要用 file/function/class 作為主 domain model。
-   KAI-Mind 主體應是 RAG slots/components/endpoints/evidence/risk_hints。
+   Systograph 主體應是 RAG slots/components/endpoints/evidence/risk_hints。
 
 2. 不要讓 LLM 創造 readiness facts。
    release readiness 結論必須能追 evidence。
@@ -2748,7 +2748,7 @@ KAI-Mind 是 AI Agent / RAG Release Readiness Gate，不是一般 codebase graph
    CI/CD gate 應把 scanner failures 當 P1/P0 depending scope。
 ```
 
-## KAI-Mind 可參考的 ai_system_map.json 形狀
+## Systograph 可參考的 ai_system_map.json 形狀
 
 不是 Understand-Anything 的原 schema，而是借它的 pipeline pattern：
 
@@ -2806,7 +2806,7 @@ KAI-Mind 是 AI Agent / RAG Release Readiness Gate，不是一般 codebase graph
 }
 ```
 
-KAI-Mind 的 correctness rule 應更嚴：
+Systograph 的 correctness rule 應更嚴：
 
 ```text
 任何 component / endpoint / risk_hint 都必須連到 evidence_ids。
@@ -2848,7 +2848,7 @@ tests 覆蓋 schema、merge recovery、extractor、fingerprint 等核心路徑
 
 但它不是 release gate 等級的完整 correctness guarantee。
 
-對 KAI-Mind 來說，最重要的採用原則是：
+對 Systograph 來說，最重要的採用原則是：
 
 ```text
 JSON report 裡的每個 readiness conclusion 都必須 evidence-based。

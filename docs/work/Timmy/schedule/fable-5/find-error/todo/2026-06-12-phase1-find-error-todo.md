@@ -3,7 +3,7 @@
 - 日期：2026-06-12
 - 來源：`../report/2026-06-12-phase1-find-error-overview.md` 及兩份詳細發現
 - 用途：把本次「只檢查、不修補」的發現轉成可獨立拆解的 issue 候選。**本次未修補任何項目**，以下為下一階段工作。
-- 性質提醒：所有項目都已用 repo 實際程式碼 / 實跑驗證確認存在（Critical/High 附 `/tmp/kai_verify/` 驗證腳本佐證）。
+- 性質提醒：所有項目都已用 repo 實際程式碼 / 實跑驗證確認存在（Critical/High 附 `/tmp/systograph_verify/` 驗證腳本佐證）。
 
 > 勾選框代表「是否已修補」，目前全部未修補（`[ ]`）。
 
@@ -13,36 +13,36 @@
 
 ### [ ] T-C1：Secret masking 補洞（DSN / 變體 key / URL userinfo）
 - 對應：C-1（Critical）
-- 檔案：`src/kai_mind/core/services/secret_masking_service.py`
+- 檔案：`src/systograph/core/services/secret_masking_service.py`
 - 動作：(1) `SECRET_KEY_MARKERS` 增 `PASSWD/PWD/CREDENTIAL/PRIVATE_KEY/ACCESS_KEY/CLIENT_SECRET/SESSION/COOKIE`；(2) key marker 比對正規化掉底線（`MYAPIKEY`→命中）；(3) 新增 URL userinfo pattern 遮罩 `scheme://user:pass@host` 的 password 群組。
-- 驗收：fixture 專案含 `DATABASE_URL`/`DB_PASSWD`/`MYAPIKEY`/`config.yaml url 帳密` 四種 case，跑 `kai map` 後 `ai_system_map.json` 無明文；`mask_text` parametrized 單元測試全綠；既有 435 測試不退步。
+- 驗收：fixture 專案含 `DATABASE_URL`/`DB_PASSWD`/`MYAPIKEY`/`config.yaml url 帳密` 四種 case，跑 `systograph map` 後 `ai_system_map.json` 無明文；`mask_text` parametrized 單元測試全綠；既有 435 測試不退步。
 - 風險：marker 太寬可能誤遮正常值 → 需配合 T-M8 異源偵測與既有 snapshot 測試確認無過度遮罩。
 - 角色：後端 / 資安
 
 ### [ ] T-H1：Query trace SSRF egress 控制
 - 對應：H-1（High）
-- 檔案：`src/kai_mind/core/providers/endpoint_call_provider.py`（preflight）
+- 檔案：`src/systograph/core/providers/endpoint_call_provider.py`（preflight）
 - 動作：解析 host → resolve IP → 拒絕 loopback / link-local(`169.254.0.0/16`) / 私網(RFC1918) / `0.0.0.0` / `::1` / metadata；resolve 後對「連線的 IP」比對以防 DNS rebinding；「允許非 loopback trace」設為預設關閉的明確 opt-in；保留 localhost 給本地 LLM 需顯式開關。
 - 驗收：對 `169.254.169.254`/`127.0.0.1:22`/`10.x`/`192.168.x`/`[::1]` 斷言回 `unsupported_endpoint`/`blocked`、`query_sent=False`、provider 未被呼叫；正常外部 https endpoint 仍可 trace。
 - 角色：後端 AI / 資安
 
 ### [ ] T-H2：`viewer/load` 路徑封閉 + 錯誤碼穩定化
 - 對應：H-2（High）
-- 檔案：`src/kai_mind/web/routes/viewer_routes.py`、`src/kai_mind/core/services/viewer_session_service.py`
+- 檔案：`src/systograph/web/routes/viewer_routes.py`、`src/systograph/core/services/viewer_session_service.py`
 - 動作：限制可載入範圍在 session output allowlist 或要求 `project_id` + 相對路徑經 `normalize_project_relative_path()` 封閉檢查；`error_reason` 改穩定碼（`map_read_failed`/`invalid_json`/`invalid_map`），不嵌 `str(exc)`，細節僅進 masked log。
 - 驗收：傳不存在/目錄/非 JSON 路徑斷言 `error_reason` 不含 `/Users`、`[Errno`、引號路徑；傳 `..`/絕對路徑斷言被拒。
 - 角色：後端 / 資安
 
 ### [ ] T-H3：docker-compose 崩潰修復 + 非 env 欄位遮罩 + build 結構化錯誤處理
 - 對應：H-3（High）
-- 檔案：`src/kai_mind/core/providers/docker_compose_provider.py`、`src/kai_mind/core/services/map_build_service.py`
+- 檔案：`src/systograph/core/providers/docker_compose_provider.py`、`src/systograph/core/services/map_build_service.py`
 - 動作：compose volume/env_file/image/port 一律過 `mask_text`（volume host 段走 `redact_local_paths`）；`MapBuildService` 在 normalize/validate/write 外層加 try/except，validation 失敗輸出 `map-error.md`（新增 failure reason）而非冒泡 traceback。
 - 驗收：`volumes: ./secrets:/run/secrets:ro` 的 compose fixture，build 成功且 evidence 已遮罩；validation 失敗回 error 結果而非拋例外。
 - 角色：後端
 
 ### [ ] T-H4：非 UTF-8 檔案不可讓掃描崩潰（含 inventory 階段隔離）
 - 對應：H-4（High）
-- 檔案：`src/kai_mind/core/providers/filesystem_provider.py`、`src/kai_mind/core/providers/config_parse_provider.py`
+- 檔案：`src/systograph/core/providers/filesystem_provider.py`、`src/systograph/core/providers/config_parse_provider.py`
 - 動作：`read_text` 改 `errors="replace"`（或 try/except 跳過該檔記 warning）；`config_parse_provider` 改 per-file 隔離；`build_inventory` 納入更廣錯誤隔離（降級 recursive/empty + warning）。
 - 驗收：non-UTF8 `.gitignore`/`.env` fixture，斷言掃描不崩潰、其他檔案仍被掃、有 warning。
 - 角色：後端
@@ -63,7 +63,7 @@
 
 ### [ ] T-H7：`.env` 不從被掃描 repo 的 CWD 讀取
 - 對應：H-7（High）
-- 檔案：`src/kai_mind/web/app.py`、`src/kai_mind/core/providers/llm_proposal_provider.py`
+- 檔案：`src/systograph/web/app.py`、`src/systograph/core/providers/llm_proposal_provider.py`
 - 動作：`.env` 改從明確設定路徑 / 使用者 home 讀，不依賴 CWD；或啟動時 log 實際讀取的 `.env` 路徑並文件化「CWD 不可為被掃描 repo」。
 - 驗收：以 tmp「被掃描 repo」（含惡意 `.env`）為 CWD 啟動，斷言不自動 wire NVIDIA provider。
 - 角色：後端 / 資安
@@ -229,10 +229,10 @@
 
 ### [ ] T-L14：README roadmap / command drift 修正
 - 對應：L-14。檔案：`README.md`。
-- 驗收：READY/RISKY/NOT READY 明確標成 roadmap 或對齊實作；補 API-GUIDE、CLI commands、`kai-mind` entry point。
+- 驗收：READY/RISKY/NOT READY 明確標成 roadmap 或對齊實作；補 API-GUIDE、CLI commands、`systograph` entry point。
 
 ### [ ] T-L15：`viewer_command.py` 命名與 validate-map command 對齊
-- 對應：L-15。檔案：`src/kai_mind/cli/viewer_command.py`、`src/kai_mind/cli/main.py`。
+- 對應：L-15。檔案：`src/systograph/cli/viewer_command.py`、`src/systograph/cli/main.py`。
 - 驗收：rename 或 docstring 說明職責；CLI tests 不退步。
 
 ### [ ] T-L16：dev dependency upper bound review
@@ -243,6 +243,6 @@
 
 ## 驗證腳本備查（本次臨時，未進版控）
 
-- `/tmp/kai_verify/verify_findings.py` — C-1 secret masking、H-1 SSRF preflight
-- `/tmp/kai_verify/verify_findings2.py` — M-4 容器路徑 redact、H-4 `.env` 編碼例外
+- `/tmp/systograph_verify/verify_findings.py` — C-1 secret masking、H-1 SSRF preflight
+- `/tmp/systograph_verify/verify_findings2.py` — M-4 容器路徑 redact、H-4 `.env` 編碼例外
 - 這些為一次性驗證腳本，若要納入正式 regression，請改寫為 `tests/` 下的測試（見各 T-* 驗收）。

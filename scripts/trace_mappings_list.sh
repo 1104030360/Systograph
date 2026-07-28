@@ -32,35 +32,35 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --project-id)
       i=$((i + 1))
-      PROJECT_ID="${KAI_EXTRA_ARGS[$i]:?missing value for --project-id}"
+      PROJECT_ID="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --project-id}"
       ;;
-    *) kai_die "Unknown option: $arg" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
 if [[ -z "$PROJECT_ID" ]]; then
-  kai_section "準備：匯入 + 掃描 + 先建一筆 mapping"
-  PROJECT_ID="$(kai_import_project)"
-  SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
-  kai_create_demo_mapping "$PROJECT_ID" "$SCAN_JSON" >/dev/null
+  systograph_section "準備：匯入 + 掃描 + 先建一筆 mapping"
+  PROJECT_ID="$(systograph_import_project)"
+  SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
+  systograph_create_demo_mapping "$PROJECT_ID" "$SCAN_JSON" >/dev/null
 fi
 
-ENCODED_ID="$(kai_urlencode "$PROJECT_ID")"
-kai_section "列出 mappings：GET /api/mappings"
-kai_progress "現在要列出此專案的 manual mappings..."
+ENCODED_ID="$(systograph_urlencode "$PROJECT_ID")"
+systograph_section "列出 mappings：GET /api/mappings"
+systograph_progress "現在要列出此專案的 manual mappings..."
 api_call GET "/api/mappings?project_id=$ENCODED_ID"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Mappings summary"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Mappings summary"
 echo "$LAST_BODY" | jq '{
   project_id,
   mapping_count: (.mappings | length),

@@ -23,7 +23,7 @@
 
 ### Current / target 邊界
 
-- Current Phase A 仍是 KAI deterministic scan；UA-primary 是 future Phase B。
+- Current Phase A 仍是 Systograph deterministic scan；UA-primary 是 future Phase B。
 - Current public map 仍是 v1，normalized v2 供 backend consumers；Plan 13 仍 blocked。
 - `SystemMapIndex` 與 richer `GraphProjectionService` 已實作，不再列為 future。
 - Current build-scoped envelope 是 `MapBuildScopedResponse`；`ArtifactRef[]` 仍是 target。
@@ -72,7 +72,7 @@ reference assessments、15 個 profiles 與 6 個 lenses，但最後一行把未
 `$SESSION_RELS` 緊接全形分號。Bash 將它解讀成不同變數名稱；雖然第一次外層執行狀態顯示
 exit 0，log tail 已明確出現 unbound-variable error，因此該次結果未被接受。
 
-後續隔離驗證確認同一未加大括號案例會回 127，`kai_cleanup` EXIT trap 也會保留原本的
+後續隔離驗證確認同一未加大括號案例會回 127，`systograph_cleanup` EXIT trap 也會保留原本的
 non-zero status；因此不把第一次外層狀態異常歸因於 cleanup trap。已證實且需要修正的 root
 cause 是變數邊界不明確。
 

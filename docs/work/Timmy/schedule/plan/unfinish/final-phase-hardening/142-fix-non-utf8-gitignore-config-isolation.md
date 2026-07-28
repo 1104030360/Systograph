@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/142
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/142
 
 **Goal:** 非 UTF-8 `.gitignore` 或 `.env` 不得讓 inventory 或整個 config provider 崩潰。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #142, assignee Timmy.
 - Origin: Backend findings H-4.
-- Primary files: `src/kai_mind/core/providers/filesystem_provider.py`, `src/kai_mind/core/providers/config_parse_provider.py`.
+- Primary files: `src/systograph/core/providers/filesystem_provider.py`, `src/systograph/core/providers/config_parse_provider.py`.
 
 ### Task 1: Add non-UTF-8 fixtures and tests
 
@@ -32,8 +32,8 @@
 ### Task 2: Implement decode policy
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/filesystem_provider.py`
-- Modify: `src/kai_mind/core/providers/config_parse_provider.py`
+- Modify: `src/systograph/core/providers/filesystem_provider.py`
+- Modify: `src/systograph/core/providers/config_parse_provider.py`
 
 - [ ] **Step 1: Convert decode errors to warning/parse issue**
 - [ ] **Step 2: Use `errors=\"replace\"` only where preserving partial parse is safe**

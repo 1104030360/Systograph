@@ -23,7 +23,7 @@
 ## 測試方式
 
 - RED：`uv run pytest tests/contracts tests/core`
-  - 初始失敗原因：`kai_mind.core.models.system_map` 與 `system_map_validation_service` 尚未存在。
+  - 初始失敗原因：`systograph.core.models.system_map` 與 `system_map_validation_service` 尚未存在。
 - GREEN focused：`uv run pytest tests/contracts tests/core`
   - 結果：12 passed。
 - Full test：`uv run pytest`

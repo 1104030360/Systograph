@@ -7,29 +7,29 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final, TypeAlias
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
     CanonicalRiskHint,
     CanonicalUnmappedComponent,
 )
-from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services.canonical_map_loader import CanonicalMapLoader
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 SOURCE_ROOT: Final = Path("src")
-PROFILE_SERVICE_ROOT: Final = SOURCE_ROOT / "kai_mind/core/services"
-PROFILE_MODEL_ROOT: Final = SOURCE_ROOT / "kai_mind/core/models"
+PROFILE_SERVICE_ROOT: Final = SOURCE_ROOT / "systograph/core/services"
+PROFILE_MODEL_ROOT: Final = SOURCE_ROOT / "systograph/core/models"
 REFERENCE_ASSESSMENT_MODULE: Final = (
-    "kai_mind.core.services.reference_capability_assessment_service"
+    "systograph.core.services.reference_capability_assessment_service"
 )
 FORBIDDEN_IMPORT_PREFIXES: Final = (
-    "kai_mind.core.services.manual_mapping",
-    "kai_mind.core.services.mapping_proposal",
-    "kai_mind.core.services.llm_proposal_config_loader",
-    "kai_mind.core.providers.llm_proposal_provider",
-    "kai_mind.web",
+    "systograph.core.services.manual_mapping",
+    "systograph.core.services.mapping_proposal",
+    "systograph.core.services.llm_proposal_config_loader",
+    "systograph.core.providers.llm_proposal_provider",
+    "systograph.web",
 )
 FIXTURE: Final = Path(
     "tests/fixtures/ai_system_map/v2/non_grounded_llm_app.v2.json"
@@ -89,7 +89,7 @@ def _imported_modules(path: Path, module_name: str) -> tuple[str, ...]:
 def _repo_import_graph() -> dict[str, tuple[str, ...]]:
     return {
         _module_name(path): _imported_modules(path, _module_name(path))
-        for path in SOURCE_ROOT.joinpath("kai_mind").rglob("*.py")
+        for path in SOURCE_ROOT.joinpath("systograph").rglob("*.py")
     }
 
 
@@ -155,7 +155,7 @@ def test_profile_dependency_guard_discovers_profile_modules() -> None:
 
 def test_profile_dependency_guard_includes_projection_models() -> None:
     # Given: the read-only profile registry projection model.
-    projection_module = "kai_mind.core.models.profile_registry_projection"
+    projection_module = "systograph.core.models.profile_registry_projection"
 
     # When / Then: profile boundary discovery includes the model layer.
     assert projection_module in _profile_module_names()
@@ -164,25 +164,25 @@ def test_profile_dependency_guard_includes_projection_models() -> None:
 def test_profile_dependency_guard_reports_transitive_import_chain() -> None:
     # Given: a profile module that reaches a forbidden owner indirectly.
     graph = {
-        "kai_mind.core.services.profile_demo": (
-            "kai_mind.core.services.safe_bridge",
+        "systograph.core.services.profile_demo": (
+            "systograph.core.services.safe_bridge",
         ),
-        "kai_mind.core.services.safe_bridge": (
-            "kai_mind.core.services.mapping_proposal_service",
+        "systograph.core.services.safe_bridge": (
+            "systograph.core.services.mapping_proposal_service",
         ),
     }
 
     # When: the dependency guard traces the profile module.
     chain = _find_forbidden_import_chain(
-        "kai_mind.core.services.profile_demo",
+        "systograph.core.services.profile_demo",
         graph,
     )
 
     # Then: the full shortest import chain identifies the boundary violation.
     assert chain == (
-        "kai_mind.core.services.profile_demo",
-        "kai_mind.core.services.safe_bridge",
-        "kai_mind.core.services.mapping_proposal_service",
+        "systograph.core.services.profile_demo",
+        "systograph.core.services.safe_bridge",
+        "systograph.core.services.mapping_proposal_service",
     )
 
 

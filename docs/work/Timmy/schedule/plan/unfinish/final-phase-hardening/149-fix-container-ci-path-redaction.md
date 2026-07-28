@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/149
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/149
 
 **Goal:** 補齊 `/app`、`/workspace`、`/srv`、`/data`、`/mnt`、`/root` 等容器/CI 常見絕對路徑的 redaction。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #149, assignee Timmy.
 - Origin: Backend findings M-4.
-- Primary file: `src/kai_mind/core/services/path_safety_service.py`.
+- Primary file: `src/systograph/core/services/path_safety_service.py`.
 
 ### Task 1: Add path redaction tests
 
@@ -30,7 +30,7 @@
 ### Task 2: Implement safer path redaction
 
 **Files:**
-- Modify: `src/kai_mind/core/services/path_safety_service.py`
+- Modify: `src/systograph/core/services/path_safety_service.py`
 
 - [ ] **Step 1: Expand POSIX absolute path coverage or adopt general absolute-path detector**
 - [ ] **Step 2: Preserve safe placeholders such as `<project_root>`**

@@ -7,37 +7,37 @@ from types import SimpleNamespace
 
 import pytest
 
-from kai_mind.core.models.errors import (
+from systograph.core.models.errors import (
     InventorySelectionError,
     InventorySelectionErrorCode,
 )
-from kai_mind.core.models.inventory_selection import (
+from systograph.core.models.inventory_selection import (
     InventoryPreflightRequest,
     InventorySelectionScope,
 )
-from kai_mind.core.models.scan_boundary import (
+from systograph.core.models.scan_boundary import (
     ScanBoundaryDecisionAction,
     ScanBoundaryDecisionRequest,
     ScanBoundaryProposal,
 )
-from kai_mind.core.providers.filesystem_provider import FilesystemProvider
-from kai_mind.core.services.inventory_candidate_service import (
+from systograph.core.providers.filesystem_provider import FilesystemProvider
+from systograph.core.services.inventory_candidate_service import (
     InventoryCandidateService,
 )
-from kai_mind.core.services.inventory_post_decision_safety_service import (
+from systograph.core.services.inventory_post_decision_safety_service import (
     InventoryPostDecisionSafetyResult,
     InventoryPostDecisionSafetyService,
 )
-from kai_mind.core.services.inventory_preflight_service import (
+from systograph.core.services.inventory_preflight_service import (
     InventoryPreflightService,
 )
-from kai_mind.core.services.inventory_selection_materializer import (
+from systograph.core.services.inventory_selection_materializer import (
     InventorySelectionMaterializer,
 )
-from kai_mind.core.services.inventory_selection_service import (
+from systograph.core.services.inventory_selection_service import (
     InventorySelectionService,
 )
-from kai_mind.core.services.scan_boundary_review_service import (
+from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
 

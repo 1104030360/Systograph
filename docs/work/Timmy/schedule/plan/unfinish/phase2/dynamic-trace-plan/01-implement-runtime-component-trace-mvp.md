@@ -60,10 +60,10 @@ Frontend 只 consume observed steps，不 infer path。
 
 **Primary files**
 
-- `src/kai_mind/core/models/trace.py`
-- `src/kai_mind/core/services/query_trace_service.py`
-- `src/kai_mind/core/providers/endpoint_call_provider.py`
-- `src/kai_mind/web/routes/trace_routes.py`
+- `src/systograph/core/models/trace.py`
+- `src/systograph/core/services/query_trace_service.py`
+- `src/systograph/core/providers/endpoint_call_provider.py`
+- `src/systograph/web/routes/trace_routes.py`
 
 **Tasks**
 

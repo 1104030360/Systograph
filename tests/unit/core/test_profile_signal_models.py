@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from kai_mind.core.models.profile_signal import (
+from systograph.core.models.profile_signal import (
     ActivationState,
     MappingCompleteness,
     ProfileFinding,

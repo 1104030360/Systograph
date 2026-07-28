@@ -6,10 +6,10 @@ from typing import Any, cast
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def import_project(client: TestClient, project_root: Path) -> str:

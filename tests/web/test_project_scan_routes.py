@@ -5,21 +5,21 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.models.errors import (
+from systograph.core.models.errors import (
     ScanInventoryRulesError,
     ScanInventoryRulesErrorCode,
 )
-from kai_mind.core.models.inventory_policy import ScanInventoryPolicyCatalog
-from kai_mind.core.providers.filesystem_provider import FilesystemProvider
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.inventory_policy import ScanInventoryPolicyCatalog
+from systograph.core.providers.filesystem_provider import FilesystemProvider
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.services.project_scan_service import ProjectScanService
-from kai_mind.core.services.scan_inventory_rule_loader import (
+from systograph.core.services.project_scan_service import ProjectScanService
+from systograph.core.services.scan_inventory_rule_loader import (
     ScanInventoryRuleLoader,
 )
-from kai_mind.core.services.scan_snapshot_service import ScanSnapshotService
-from kai_mind.web.app import create_app
+from systograph.core.services.scan_snapshot_service import ScanSnapshotService
+from systograph.web.app import create_app
 
 
 class MissingInventoryRuleLoader(ScanInventoryRuleLoader):

@@ -322,4 +322,4 @@ flowchart LR
 
 - `understand_anything_flow.md` — 循序圖版
 - `understand_anything_architecture_detailed.md` — 元件級架構圖
-- `kai_mind_flow.md` — KAI-Mind 對照
+- `systograph_flow.md` — Systograph 對照

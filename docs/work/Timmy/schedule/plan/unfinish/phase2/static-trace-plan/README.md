@@ -53,14 +53,14 @@ materialize 成新 `build_id`，不直接 mutate 舊 map artifact。
 本 README 只擁有 **執行順序、stage 與 gate**；不修改各編號 plan 的 task、acceptance
 criteria 或實作內容。Phase2 Step 3 採三階段切換：
 
-1. **Phase A：TOML primary。** 先用現有 KAI scan TOML providers 打通 Step 1～7 publish +
+1. **Phase A：TOML primary。** 先用現有 Systograph scan TOML providers 打通 Step 1～7 publish +
    Step 8 viewer（**B1 initial build 不必跑 Step 9**）、deterministic
    `ProfileInferenceService` 與 Apply B1→B2。Plan 03A 在此階段即使用既有 nullable
    `ScanSnapshot.ua_analysis_result` 接縫，`sidecar=null` 必須可完成 build / Apply。
 2. **Phase B：UA primary + TOML parity。** Gate-1 通過後才開始 Plan 16；UA structural
-   facts 成為 primary，KAI TOML providers 暫時並跑，只產 parity report。
+   facts 成為 primary，Systograph TOML providers 暫時並跑，只產 parity report。
 3. **Phase C：UA only。** Plan 14 留下通過的 UA parity / fail-closed / Apply replay report
-   後，Plan 18 才退役 KAI TOML providers 的主掃描路徑。
+   後，Plan 18 才退役 Systograph TOML providers 的主掃描路徑。
 
 Step 6 在 Plan 14 前維持純 Python deterministic assessment；Plan 17
 `AssessmentOrchestrator` 與 AI semantic candidate flow deferred，不阻擋 Plan 14。Apply
@@ -150,7 +150,7 @@ capability assessment 與 Step 7 projection 混在一起。
 | Pipeline step | Owner plan | 語意 | TOML / Python 邊界 |
 |---|---|---|---|
 | Step 2 Boundary | `19`（已實作的 inventory selection policy catalog）+ `20`（metadata-only preflight / one-run exact-file與bounded recursive-directory override）；`16` Task 2 是後續獨立 UA enrichment | Plan 19 保存 schema/digest/audit/run digest；Plan 20 只完成 default inventory、可覆寫 soft exclusion、不可覆寫 safety與final allowlist；**不接 UA** | TOML 擁有 default path policy；Python 擁有preflight、bounded directory expansion、decision overlay、safety與final inventory；frontend只回傳scope decisions；UA adapter/request/parity由Plan 16另行負責 |
-| Step 3 Scan | Phase A：既有 KAI providers；Phase B：`16`；Phase C：`18` | Phase A 以 TOML facts 打通 E2E；Phase B 改為 UA structural primary + TOML parity；Phase C 退役 TOML 主掃描路徑 | 所有階段禁止 scan layer 寫 `plane_id` / `reference_node_id` |
+| Step 3 Scan | Phase A：既有 Systograph providers；Phase B：`16`；Phase C：`18` | Phase A 以 TOML facts 打通 E2E；Phase B 改為 UA structural primary + TOML parity；Phase C 退役 TOML 主掃描路徑 | 所有階段禁止 scan layer 寫 `plane_id` / `reference_node_id` |
 | Step 4 Bridge 1 | `01B` + `01` + `03A` | `rule_id + evidence` → repo component / `unmapped_components[]` / candidate input | Python `component_bridge_registry.py`；risk/next-check TOML 只放文案 |
 | Step 5 Index | `05`～`09` | validated map 的 read-only lookup | 不寫檔、不 validate、不 infer capability |
 | Step 6 Bridge 2 | `01A` + `02` + `10` + `11` | repo component / unmapped / confirmed non-baseline candidates ↔ 10 planes / 52 reference nodes，產五態與 profiles | `ProfileInferenceService` 以 Python 算對位、五態、coverage；Plan 17 AI candidates deferred 且非 Plan 14 前置 |
@@ -258,7 +258,7 @@ static-trace-plan/
    同時保留 TOML parity report 與 fail-closed 邊界。
 9. `s3-validation/`：用本機真實專案與 fixtures 做 final validation，確認 Apply、UA parity、
    static execution artifacts 與安全邊界都可回溯。
-10. `s3-retirement/`：在驗證報告保存後，退役 KAI scan TOML providers 主掃描路徑，最後完成
+10. `s3-retirement/`：在驗證報告保存後，退役 Systograph scan TOML providers 主掃描路徑，最後完成
    legacy v1 compatibility retirement。
 11. `deferred/`：放 Phase2 static MVP 不阻擋的項目，例如 runtime boundary 文件與 AI
     `AssessmentOrchestrator` candidate flow。
@@ -335,7 +335,7 @@ static-trace-plan/
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 18 | [18-retire-kai-scan-toml-providers-after-parity.md](./s3-retirement/18-retire-kai-scan-toml-providers-after-parity.md) | Plan 14 parity gate 後退役 KAI scan TOML providers 主掃描路徑 | 需 Gate-3 |
+| 18 | [18-retire-systograph-scan-toml-providers-after-parity.md](./s3-retirement/18-retire-systograph-scan-toml-providers-after-parity.md) | Plan 14 parity gate 後退役 Systograph scan TOML providers 主掃描路徑 | 需 Gate-3 |
 | 15 | [15-complete-legacy-v1-retirement-after-compatibility.md](./s3-retirement/15-complete-legacy-v1-retirement-after-compatibility.md) | 相容驗證後完全遷移 / v1 compatibility 退役 | 需 Gate-4 |
 
 ### Deferred — `deferred/`
@@ -352,7 +352,7 @@ S0  s0-contract-compatibility/
     00 -> 00A
     ──[Gate-0: legacy boundary + v2 compatibility]──►
 
-S1  TOML-primary pipeline（Step 3 = 現有 KAI scan TOML providers）
+S1  TOML-primary pipeline（Step 3 = 現有 Systograph scan TOML providers）
     s1-pipeline-core/: 01 -> 01B -> 01A -> 02 -> 03 -> 03A* -> 04
          ├─ s1-track-a-index-projection/: 05 -> 06 -> 07 -> 08 -> 09
          ├─ s1-track-b-profile-rules/: 10 -> 11（與 05+ 並行）
@@ -378,7 +378,7 @@ S2  s2-ua-integration/
 S3  s3-validation/ + s3-retirement/
     14（含 UA parity；不要求 Plan 17）
     ──[Gate-3: Plan 14 validation + UA parity report]──►
-    18（退役 KAI TOML providers 主掃描路徑）
+    18（退役 Systograph TOML providers 主掃描路徑）
     ──[Gate-4: Plan 18 通過 + Plan 14 report 已保存]──►
     15（退役 legacy v1 compatibility）
 

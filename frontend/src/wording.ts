@@ -64,7 +64,7 @@ export interface Wording {
 }
 
 export const COPY: Wording = {
-  pageSubtitle: "Choose the scan template Kai-Mind uses the next time it scans this project.",
+  pageSubtitle: "Choose the scan template Systograph uses the next time it scans this project.",
   sampleBadge: "Sample data",
   sampleBadgeHint: "This page shows example mappings. It is not connected to your project yet.",
   newScanUnavailable: "New scan is not available from this page yet. Use Start scan in the viewer toolbar.",
@@ -72,7 +72,7 @@ export const COPY: Wording = {
   tabCustom: "Project template",
   galleryOpen: "Open",
   systemName: "Built-in template",
-  systemDesc: "The default template Kai-Mind uses to recognize common AI system parts.",
+  systemDesc: "The default template Systograph uses to recognize common AI system parts.",
   customName: "Project template",
   customDesc: "A saved template for this project, made from the matches you confirm.",
   readOnlyBadge: "Read-only",
@@ -81,7 +81,7 @@ export const COPY: Wording = {
   nextScanWillUse: "Next scan will use",
   localAiTitle: "Scan template",
   localAiBody:
-    "A scan template tells Kai-Mind how to name detected files. The project template keeps confirmed matches for future scans.",
+    "A scan template tells Systograph how to name detected files. The project template keeps confirmed matches for future scans.",
   baselineHead: "Template parts",
   baselineNote: "These are the common pieces of a local AI or RAG project.",
   useForNextScan: "Use for next scan",
@@ -99,7 +99,7 @@ export const COPY: Wording = {
   colBestCandidate: "Suggested mapping",
   reviewProposal: "Review",
   noCustomTitle: "No project template yet",
-  noCustomBody: "Start by reviewing files Kai-Mind could not place. Confirmed matches will be saved as this project's template.",
+  noCustomBody: "Start by reviewing files Systograph could not place. Confirmed matches will be saved as this project's template.",
   reviewUnmapped: "Review pending files",
   buildDesc: "Review the files below and confirm the mappings that should be saved to this project template.",
   modalTitle: "Review mapping suggestions",
@@ -118,9 +118,9 @@ export const COPY: Wording = {
   rejectBtn: "Reject",
   lookingForSuggestions: "Looking for mapping suggestions...",
   suggestionsUnavailable: "Mapping suggestions are unavailable right now.",
-  fallbackSuggestions: "Suggestion lookup timed out, so Kai-Mind is showing rule-based suggestions.",
+  fallbackSuggestions: "Suggestion lookup timed out, so Systograph is showing rule-based suggestions.",
   noSuggestionsFound: "No mapping suggestions found.",
-  noSuggestionSummary: "Kai-Mind needs more evidence before it can suggest a mapping for this file.",
+  noSuggestionSummary: "Systograph needs more evidence before it can suggest a mapping for this file.",
   sourceAi: "Suggested",
   sourceRule: "Rule suggestion",
   sourceUser: "You confirmed it",

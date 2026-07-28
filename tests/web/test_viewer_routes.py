@@ -5,8 +5,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-import kai_mind.web.routes.viewer_routes as viewer_routes
-from kai_mind.web.app import create_app
+import systograph.web.routes.viewer_routes as viewer_routes
+from systograph.web.app import create_app
 
 FIXTURE_PATH = Path(
     "tests/fixtures/ai_system_map/valid_rich_frontend_sample.v1.json"

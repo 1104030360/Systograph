@@ -13,13 +13,13 @@ Last updated: 2026-07-07
 > 本文件是 Phase2 設計摘要。實作細節與驗收順序以
 > `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/README.md`
 > 及其 `00`～`19` 計畫為準；UA 整合邊界以
-> `ref-opensource/kai-mind-understand-anything-integration-boundary.md` 為準。若本文件與計畫衝突，以較新的 accepted decision 為準。
+> `ref-opensource/systograph-understand-anything-integration-boundary.md` 為準。若本文件與計畫衝突，以較新的 accepted decision 為準。
 
 ## 2026-07-07 UA 整合決策
 
 | 決策面 | 定案 |
 |---|---|
-| Step 3 scanner | staged rollout：Phase A 先以現有 KAI scan TOML providers 打通 Step 1～9；Gate-1 後 Phase B 改由 `UnderstandAnythingAnalysisService` / UA structural primary、TOML providers 僅做 parity；Plan 14 通過後由 Plan 18 進入 Phase C UA-only |
+| Step 3 scanner | staged rollout：Phase A 先以現有 Systograph scan TOML providers 打通 Step 1～9；Gate-1 後 Phase B 改由 `UnderstandAnythingAnalysisService` / UA structural primary、TOML providers 僅做 parity；Plan 14 通過後由 Plan 18 進入 Phase C UA-only |
 | UA sidecar 範圍 | Phase2 active path 只執行 deterministic structural extraction：`extract-import-map` → `compute-batches` → `extract-structure`；不執行 `scan-project.mjs`，其 enrichment 移植到 Step 2 inventory；不執行 `file-analyzer` bounded LLM，`ua-analysis-result.json` / semantic sidecar 保持 nullable deferred |
 | Step 6 評估 | Phase2 純 Python deterministic `ProfileInferenceService`；Plan 17 `AssessmentOrchestrator` / AI semantic candidate flow deferred，不阻擋 Plan 14 |
 | Apply / Rescan | Apply 不重跑 Step 3 / UA，重放 `scan_id` 對應的 immutable scan 後重跑 Step 4～7；Rescan 才建立新 `scan_id`，Phase B/C 才重跑 UA |
@@ -287,11 +287,11 @@ Mapping proposal 是 pending suggestion。Profile finding 是 read-only derived 
 
 ### 7.3 Staged scan 與 Step 6 deterministic boundary
 
-Step 2 先建立 KAI-Mind allowlisted inventory，並移植 `scan-project.mjs` 的 language /
-fileCategory / line count enrichment；KAI-Mind 不執行 `scan-project.mjs`，避免 Understand-Anything
+Step 2 先建立 Systograph allowlisted inventory，並移植 `scan-project.mjs` 的 language /
+fileCategory / line count enrichment；Systograph 不執行 `scan-project.mjs`，避免 Understand-Anything
 另行決定掃描邊界。
 
-Phase A 先由現有 KAI scan TOML providers 打通 Step 1～9，且
+Phase A 先由現有 Systograph scan TOML providers 打通 Step 1～9，且
 `ua_analysis_result=null` 必須可完成 build / Apply。Gate-1 通過後，Phase B 的 Step 3 才由
 Python `UnderstandAnythingAnalysisService` 呼叫 UA sidecar：
 
@@ -304,7 +304,7 @@ FileInventory
   -> ua-analysis-result.json nullable deferred sidecar
 ```
 
-Phase B UA structural output 是 primary facts/evidence 來源，KAI matching providers 只並跑
+Phase B UA structural output 是 primary facts/evidence 來源，Systograph matching providers 只並跑
 parity；Plan 14 保存通過的 parity / fail-closed / Apply replay report 後，Plan 18 進入 Phase C，
 並退役 `code_pattern`、`dependency_manifest`、`docker_image` 與 config patterns 的主掃描
 ownership。Risk、next-check、reference、profile、inventory 與 LLM config 等 Metadata／設定
@@ -544,7 +544,7 @@ catalog、13 cutover、14 final validation 或 15 complete retirement。
 14. Step 6 在 Phase2 純 Python deterministic；Plan 17 `AssessmentOrchestrator` deferred。
 15. Apply 不重跑 UA；Rescan 才重跑 UA。
 16. UA semantic sidecar 是 reserved nullable scan internal slot，不列 public artifact、不新增 frontend public 欄位，Phase2 active path 不產生、不消費。
-17. 不採用 UA Phase 3～7、`knowledge-graph.json` 或 dashboard 作為 KAI-Mind canonical truth。
+17. 不採用 UA Phase 3～7、`knowledge-graph.json` 或 dashboard 作為 Systograph canonical truth。
 
 ## 16. Source Of Truth
 
@@ -552,7 +552,7 @@ catalog、13 cutover、14 final validation 或 15 complete retirement。
 
 1. executable code、schemas、tests 與 generated artifacts。
 2. `docs/MODEL-CONTRACT.md` 與 `docs/API-GUIDE.md`。
-3. `ref-opensource/kai-mind-understand-anything-integration-boundary.md`。
+3. `ref-opensource/systograph-understand-anything-integration-boundary.md`。
 4. `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/README.md`。
 5. static plans `00`～`18` 與 `dynamic-trace-plan/00`。
 6. 本文件。

@@ -14,7 +14,7 @@ planes、reference nodes 與顯示 metadata，讓 backend projection 可把實�
 overlay 到共同底圖；catalog 不得成為 scanner truth、偵測規則或 executable DSL。
 
 **Architecture:** 新增 package-bundled
-`src/kai_mind/core/rules/capability_reference_map.toml`。TOML 只擁有 reference
+`src/systograph/core/rules/capability_reference_map.toml`。TOML 只擁有 reference
 planes/nodes metadata與 declarative `activation_applicable`；Python 擁有 component/profile
 判定、五態 status、evidence、anchor、edge、activation outcome 與 overlay projection。
 DeepResearch 只作概念與 UX 參考，不複製其 HTML、CSS、
@@ -315,8 +315,8 @@ activation_applicable = true
 ### Task 1: Define loader models and rejection tests
 
 **Files:**
-- Create: `src/kai_mind/core/models/capability_reference_map.py`
-- Create: `src/kai_mind/core/services/capability_reference_map_loader.py`
+- Create: `src/systograph/core/models/capability_reference_map.py`
+- Create: `src/systograph/core/services/capability_reference_map_loader.py`
 - Test: `tests/unit/core/test_capability_reference_map_loader.py`
 
 - [ ] 先寫 failing tests，涵蓋 duplicate plane/node id、unknown plane ref、invalid order。
@@ -328,7 +328,7 @@ activation_applicable = true
 ### Task 2: Add the package-bundled metadata catalog
 
 **Files:**
-- Create: `src/kai_mind/core/rules/capability_reference_map.toml`
+- Create: `src/systograph/core/rules/capability_reference_map.toml`
 - Test: `tests/unit/core/test_capability_reference_map_loader.py`
 
 - [ ] 建立固定 10 planes / 52 reference nodes initial catalog，並以 exact-id snapshot test 鎖定。

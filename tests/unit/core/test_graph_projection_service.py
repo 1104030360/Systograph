@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
     CanonicalComponent,
     CanonicalEdge,
@@ -17,38 +17,38 @@ from kai_mind.core.models.ai_system_map_v2 import (
     CanonicalProject,
     CanonicalRiskHint,
 )
-from kai_mind.core.models.system_map import RagSystemMap
-from kai_mind.core.models.viewer import GraphNodeModel
-from kai_mind.core.services.capability_reference_map_loader import (
+from systograph.core.models.system_map import RagSystemMap
+from systograph.core.models.viewer import GraphNodeModel
+from systograph.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapLoader,
 )
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.services.component_detection_service import (
     ComponentDetectionService,
 )
-from kai_mind.core.services.endpoint_detection_service import (
+from systograph.core.services.endpoint_detection_service import (
     EndpointDetectionService,
 )
-from kai_mind.core.services.flow_derivation_service import (
+from systograph.core.services.flow_derivation_service import (
     FlowDerivationService,
 )
-from kai_mind.core.services.graph_projection_service import (
+from systograph.core.services.graph_projection_service import (
     GraphProjectionService,
     _assert_unique_graph_node_ids,
     _slug,
 )
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.project_scan_service import ProjectScanService
-from kai_mind.core.services.rag_template_service import RagTemplateService
-from kai_mind.core.services.risk_hint_service import RiskHintService
-from kai_mind.core.services.system_map_normalize_service import (
+from systograph.core.services.project_scan_service import ProjectScanService
+from systograph.core.services.rag_template_service import RagTemplateService
+from systograph.core.services.risk_hint_service import RiskHintService
+from systograph.core.services.system_map_normalize_service import (
     SystemMapNormalizeService,
 )
-from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+from systograph.core.services.system_map_v1_to_v2_adapter import (
     SystemMapV1ToV2Adapter,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 
@@ -70,7 +70,7 @@ def canonical_map() -> AiSystemMapV2:
 
 def test_graph_projection_service_contract_is_available() -> None:
     # Given
-    module_name = "kai_mind.core.services.graph_projection_service"
+    module_name = "systograph.core.services.graph_projection_service"
 
     # When
     try:
@@ -87,7 +87,7 @@ def test_graph_projection_service_contract_is_available() -> None:
 
 def test_graph_projection_service_exposes_narrow_project_interface() -> None:
     # Given
-    module = import_module("kai_mind.core.services.graph_projection_service")
+    module = import_module("systograph.core.services.graph_projection_service")
     service_type = module.GraphProjectionService
 
     # When

@@ -71,10 +71,10 @@ read-only candidates；不得觸發 proposal generation 或 profile-level confir
 
 ### 相關檔案
 
-- `src/kai_mind/core/services/mapping_proposal_service.py`
-- `src/kai_mind/core/services/manual_mapping_service.py`
-- `src/kai_mind/core/services/map_build_service.py`
-- `src/kai_mind/core/services/profile_inference_service.py`（新增）
+- `src/systograph/core/services/mapping_proposal_service.py`
+- `src/systograph/core/services/manual_mapping_service.py`
+- `src/systograph/core/services/map_build_service.py`
+- `src/systograph/core/services/profile_inference_service.py`（新增）
 - `tests/unit/core/test_profile_inference_boundaries.py`（新增）
 
 ### 實作步驟
@@ -194,10 +194,10 @@ flowchart TD
 
 ## 優先檢視的檔案
 
-- `src/kai_mind/core/services/mapping_proposal_service.py`
-- `src/kai_mind/core/services/manual_mapping_service.py`
-- `src/kai_mind/core/services/map_build_service.py`
-- `src/kai_mind/core/models/mapping.py`
+- `src/systograph/core/services/mapping_proposal_service.py`
+- `src/systograph/core/services/manual_mapping_service.py`
+- `src/systograph/core/services/map_build_service.py`
+- `src/systograph/core/models/mapping.py`
 - `tests/unit/core/test_mapping_proposal_service.py`
 - `tests/unit/core/test_manual_mapping_service.py`
 - `tests/web/test_mapping_proposal_routes.py`
@@ -235,7 +235,7 @@ flowchart TD
 - [ ] `.venv/bin/pytest tests/unit/core/test_mapping_proposal_service.py tests/unit/core/test_manual_mapping_service.py -q`
 - [ ] `.venv/bin/pytest tests/web/test_mapping_proposal_routes.py -q`
 - [ ] 當 service 存在時，新增 focused profile inference tests。
-- [ ] `rg -n "MappingProposalService|ManualMappingService" src/kai_mind/core/services/profile* tests/unit/core/test_profile*` 並確認任何 hit 僅為 intentional test documentation，而非 runtime dependency。
+- [ ] `rg -n "MappingProposalService|ManualMappingService" src/systograph/core/services/profile* tests/unit/core/test_profile*` 並確認任何 hit 僅為 intentional test documentation，而非 runtime dependency。
 
 ## 相依關係
 

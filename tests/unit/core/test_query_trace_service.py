@@ -4,12 +4,12 @@ from dataclasses import dataclass, field
 
 from tests.unit.core.test_detail_scan_service import base_map
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
     CanonicalEndpoint,
 )
-from kai_mind.core.providers.endpoint_call_provider import EndpointCallResult
-from kai_mind.core.services.query_trace_service import QueryTraceService
+from systograph.core.providers.endpoint_call_provider import EndpointCallResult
+from systograph.core.services.query_trace_service import QueryTraceService
 
 
 @dataclass

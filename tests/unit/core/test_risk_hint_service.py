@@ -5,17 +5,17 @@ from typing import Literal
 
 import pytest
 
-from kai_mind.core.models.scan import ParseIssue, ScanFact
-from kai_mind.core.models.system_map import Endpoint, Evidence, RiskHint
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.models.scan import ParseIssue, ScanFact
+from systograph.core.models.system_map import Endpoint, Evidence, RiskHint
+from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
     ComponentDetectionService,
 )
-from kai_mind.core.services.endpoint_detection_service import (
+from systograph.core.services.endpoint_detection_service import (
     EndpointDetectionService,
 )
-from kai_mind.core.services.rag_template_service import RagTemplateService
-from kai_mind.core.services.risk_hint_service import (
+from systograph.core.services.rag_template_service import RagTemplateService
+from systograph.core.services.risk_hint_service import (
     RiskHintMetadataError,
     RiskHintService,
 )

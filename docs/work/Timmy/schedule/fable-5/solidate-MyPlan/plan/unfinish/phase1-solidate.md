@@ -17,9 +17,9 @@
 要做的事：
 
 - 讀目前 repo 的實際 code、docs、tests、scripts。
-- 讀 `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/check-list/principles.md`。
-- 讀本計畫檔與 `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/solifate-prompt/check1.md`。
-- 查 GitHub repo `1104030360/Local-AI-Health-Doctor` 上實際存在的 Epic 2 到 Epic 7 issues。
+- 讀 `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/check-list/principles.md`。
+- 讀本計畫檔與 `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/solifate-prompt/check1.md`。
+- 查 GitHub repo `1104030360/Systograph` 上實際存在的 Epic 2 到 Epic 7 issues。
 - 根據目前實作進度，判斷每個 Epic 是否要 refine、修正文案、補新目標、補驗收標準、調整 scope、或拆出後續 issue。
 - 直接修改 GitHub issue 內容；若權限或認證阻擋，輸出可貼上的 replacement body。
 - 建立 TODO / Report，記錄證據、修改摘要、仍未修補的風險與後續建議。
@@ -29,36 +29,36 @@
 - 不修改功能程式碼。
 - 不直接修補 scanner、frontend、backend、AI provider、storage、API、tests。
 - 不把 sample、placeholder、mock progress、in-memory state 寫成 production-ready。
-- 不把 KAI-Mind 寫成 chatbot、RAG builder、完整 observability 平台、企業級資安掃描器或模型 serving 平台。
+- 不把 Systograph 寫成 chatbot、RAG builder、完整 observability 平台、企業級資安掃描器或模型 serving 平台。
 - 不把後續 backlog 任意塞進既有 Epic 2；必須先確認 GitHub 上 Epic 2 的真實 scope。
 
 ## Files And External Targets
 
 **Read:**
 
-- `/Users/linjunting/Local_AI_Health_Doctor/AGENTS.md`
-- `/Users/linjunting/Local_AI_Health_Doctor/.cursor/rules/linus_torvalds.mdc`
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/check-list/principles.md`
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/solifate-prompt/check1.md`
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/plan/finish`
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/plan/unfinish`
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/design`
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/API-GUIDE.md`
-- `/Users/linjunting/Local_AI_Health_Doctor/frontend/API_CONTRACT.md`
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy`
-- `/Users/linjunting/Local_AI_Health_Doctor/src/kai_mind`
-- `/Users/linjunting/Local_AI_Health_Doctor/frontend/src`
-- `/Users/linjunting/Local_AI_Health_Doctor/tests`
-- `/Users/linjunting/Local_AI_Health_Doctor/scripts`
+- `/Users/linjunting/Systograph/AGENTS.md`
+- `/Users/linjunting/Systograph/.cursor/rules/linus_torvalds.mdc`
+- `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/check-list/principles.md`
+- `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/solifate-prompt/check1.md`
+- `/Users/linjunting/Systograph/docs/work/Timmy/schedule/plan/finish`
+- `/Users/linjunting/Systograph/docs/work/Timmy/schedule/plan/unfinish`
+- `/Users/linjunting/Systograph/docs/work/Timmy/design`
+- `/Users/linjunting/Systograph/docs/API-GUIDE.md`
+- `/Users/linjunting/Systograph/frontend/API_CONTRACT.md`
+- `/Users/linjunting/Systograph/docs/work/Hardy`
+- `/Users/linjunting/Systograph/src/systograph`
+- `/Users/linjunting/Systograph/frontend/src`
+- `/Users/linjunting/Systograph/tests`
+- `/Users/linjunting/Systograph/scripts`
 
 **Modify or create during execution:**
 
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/todo/phase1-solidate-todo.md`
-- `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
+- `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/todo/phase1-solidate-todo.md`
+- `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
 
 **External targets to inspect and possibly modify:**
 
-- GitHub repo: `1104030360/Local-AI-Health-Doctor`
+- GitHub repo: `1104030360/Systograph`
 - GitHub issues: actual Epic 2, Epic 3, Epic 4, Epic 5, Epic 6, Epic 7 issues as discovered from GitHub. Do not assume issue numbers.
 
 ## Evidence Rules
@@ -92,11 +92,11 @@ The task is complete only when all of these are true:
 
 **Files:**
 
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/AGENTS.md`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/.cursor/rules/linus_torvalds.mdc`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/check-list/principles.md`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/solifate-prompt/check1.md`
-- Modify: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
+- Read: `/Users/linjunting/Systograph/AGENTS.md`
+- Read: `/Users/linjunting/Systograph/.cursor/rules/linus_torvalds.mdc`
+- Read: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/check-list/principles.md`
+- Read: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/solifate-prompt/check1.md`
+- Modify: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
 
 - [x] **Step 1: Read project rules and prompt**
 
@@ -152,17 +152,17 @@ Acceptance:
 
 **Files:**
 
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/plan/finish`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/plan/unfinish`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/design`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/API-GUIDE.md`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/frontend/API_CONTRACT.md`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Hardy`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/src/kai_mind`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/frontend/src`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/tests`
-- Read: `/Users/linjunting/Local_AI_Health_Doctor/scripts`
-- Modify: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
+- Read: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/plan/finish`
+- Read: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/plan/unfinish`
+- Read: `/Users/linjunting/Systograph/docs/work/Timmy/design`
+- Read: `/Users/linjunting/Systograph/docs/API-GUIDE.md`
+- Read: `/Users/linjunting/Systograph/frontend/API_CONTRACT.md`
+- Read: `/Users/linjunting/Systograph/docs/work/Hardy`
+- Read: `/Users/linjunting/Systograph/src/systograph`
+- Read: `/Users/linjunting/Systograph/frontend/src`
+- Read: `/Users/linjunting/Systograph/tests`
+- Read: `/Users/linjunting/Systograph/scripts`
+- Modify: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
 
 - [x] **Step 1: Inventory finished and unfinished plans**
 
@@ -184,7 +184,7 @@ Expected:
 Run:
 
 ```bash
-rg -n "include_router|MapBuildService|ProjectScanService|ScanBoundaryReviewService|MappingProposalService|DetailScanService|QueryTraceService|InMemorySessionStore" src/kai_mind docs/API-GUIDE.md scripts tests
+rg -n "include_router|MapBuildService|ProjectScanService|ScanBoundaryReviewService|MappingProposalService|DetailScanService|QueryTraceService|InMemorySessionStore" src/systograph docs/API-GUIDE.md scripts tests
 ```
 
 Record:
@@ -240,8 +240,8 @@ Acceptance:
 
 **Files / external targets:**
 
-- External: GitHub repo `1104030360/Local-AI-Health-Doctor`
-- Modify: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
+- External: GitHub repo `1104030360/Systograph`
+- Modify: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
 
 - [x] **Step 1: Confirm GitHub authentication**
 
@@ -261,7 +261,7 @@ Expected:
 Run:
 
 ```bash
-gh issue list --repo 1104030360/Local-AI-Health-Doctor --state all --search "Epic" --limit 100
+gh issue list --repo 1104030360/Systograph --state all --search "Epic" --limit 100
 ```
 
 Expected:
@@ -274,7 +274,7 @@ Expected:
 For each discovered Epic 2 to Epic 7 issue:
 
 ```bash
-gh issue view <ISSUE_NUMBER> --repo 1104030360/Local-AI-Health-Doctor --json number,title,state,body,labels,assignees,comments,url
+gh issue view <ISSUE_NUMBER> --repo 1104030360/Systograph --json number,title,state,body,labels,assignees,comments,url
 ```
 
 Record in Report:
@@ -301,7 +301,7 @@ Acceptance:
 
 - Read: repo baseline from Task 2
 - Read: GitHub issue bodies from Task 3
-- Modify: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
+- Modify: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
 
 - [x] **Step 1: Apply the same review rubric to every Epic**
 
@@ -371,7 +371,7 @@ Acceptance:
 
 - Read: Report review sections
 - Modify: GitHub Epic 2 to Epic 7 issues when appropriate
-- Modify: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
+- Modify: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
 
 - [x] **Step 1: Identify adoption-focused gaps**
 
@@ -427,7 +427,7 @@ Acceptance:
 **Files / external targets:**
 
 - Modify: GitHub Epic 2 to Epic 7 issues
-- Modify: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
+- Modify: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
 
 - [x] **Step 1: Draft issue replacement sections**
 
@@ -462,7 +462,7 @@ Rules:
 For each issue:
 
 ```bash
-gh issue edit <ISSUE_NUMBER> --repo 1104030360/Local-AI-Health-Doctor --title "<REFINED_TITLE>" --body-file <TEMP_BODY_FILE>
+gh issue edit <ISSUE_NUMBER> --repo 1104030360/Systograph --title "<REFINED_TITLE>" --body-file <TEMP_BODY_FILE>
 ```
 
 If writing a temp body file is not convenient, use GitHub MCP or another safe non-secret method. Do not expose secrets in issue body.
@@ -472,7 +472,7 @@ If writing a temp body file is not convenient, use GitHub MCP or another safe no
 Run:
 
 ```bash
-gh issue view <ISSUE_NUMBER> --repo 1104030360/Local-AI-Health-Doctor --json number,title,body,url
+gh issue view <ISSUE_NUMBER> --repo 1104030360/Systograph --json number,title,body,url
 ```
 
 Acceptance:
@@ -485,8 +485,8 @@ Acceptance:
 
 **Files:**
 
-- Create or modify: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/todo/phase1-solidate-todo.md`
-- Modify: `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
+- Create or modify: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/todo/phase1-solidate-todo.md`
+- Modify: `/Users/linjunting/Systograph/docs/work/Timmy/schedule/fable-5/solidate-MyPlan/report/phase1-solidate-report.md`
 
 - [x] **Step 1: Write TODO**
 

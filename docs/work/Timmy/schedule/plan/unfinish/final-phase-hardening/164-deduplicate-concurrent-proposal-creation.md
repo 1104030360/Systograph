@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/164
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/164
 
 **Goal:** 避免同一 `source_unmapped_id` 並發 create proposal 時同時 miss pending proposal，造成重複呼叫 AI provider 與重複 pending proposal。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #164, assignee Timmy.
 - Origin: Backend findings L-3.
-- Primary file: `src/kai_mind/core/services/mapping_proposal_service.py`.
+- Primary file: `src/systograph/core/services/mapping_proposal_service.py`.
 - Related plans: #162 retry/backoff, #174 in-memory store thread safety.
 
 ### Task 1: Add concurrency regression tests
@@ -35,7 +35,7 @@ Use an event/barrier so two threads enter create concurrently.
 ### Task 2: Implement single-flight policy
 
 **Files:**
-- Modify: `src/kai_mind/core/services/mapping_proposal_service.py`
+- Modify: `src/systograph/core/services/mapping_proposal_service.py`
 
 - [ ] **Step 1: Define key as `(project_id, source_unmapped_id)`**
 - [ ] **Step 2: Re-check repository after acquiring per-key coordination**
@@ -45,8 +45,8 @@ Use an event/barrier so two threads enter create concurrently.
 ### Task 3: Keep repository contract clear
 
 **Files:**
-- Modify: `src/kai_mind/core/services/mapping_proposal_service.py`
-- Modify: `src/kai_mind/storage/repositories.py` if repository behavior needs support
+- Modify: `src/systograph/core/services/mapping_proposal_service.py`
+- Modify: `src/systograph/storage/repositories.py` if repository behavior needs support
 
 - [ ] **Step 1: Document whether dedup lives in service or repository**
 - [ ] **Step 2: Preserve future DB unique constraint path for Task 27**

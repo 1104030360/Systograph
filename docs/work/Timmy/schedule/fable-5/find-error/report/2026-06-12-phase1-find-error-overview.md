@@ -30,7 +30,7 @@
 
 ### 0.2 檢查方式
 
-- 主審查者實際閱讀 code / tests / scripts / docs，並用臨時 Python one-liner 與既有驗證指令複核 Critical/High 問題（SSRF preflight、secret masking、path redaction、`.env` 編碼例外）。`/tmp/kai_verify/` 只作為本次一次性驗證備查；正式修補時應改寫成 `tests/` regression。
+- 主審查者實際閱讀 code / tests / scripts / docs，並用臨時 Python one-liner 與既有驗證指令複核 Critical/High 問題（SSRF preflight、secret masking、path redaction、`.env` 編碼例外）。`/tmp/systograph_verify/` 只作為本次一次性驗證備查；正式修補時應改寫成 `tests/` regression。
 - 本輪追加 3 個唯讀 subagent 複核：後端/資安 Critical/High、前端/UX、文件 contract。subagent 意見已合併到本報告與兩份詳細發現。
 - 外部研究：OWASP LLM Top 10 (2025)、OWASP SSRF 防護、MCP Security Best Practices、AgentDojo、OpenTelemetry GenAI（見第 7 節來源）。
 
@@ -40,11 +40,11 @@
 |---|---|---|
 | UI/UX | `frontend/src/components/*`、`App.tsx`、Hardy design/plan | A-1/A-2/A-3；另補 A-4/A-5/A-6（`error_reason`、scan/boundary flow、accessibility） |
 | 前端工程 | `frontend/src/services`、`hooks`、`store`、`types.ts`、`vite.config.ts`、`package.json` | B-1/B-2/B-3/B-4；B-5/B-6 為正面確認 |
-| 後端工程 | `src/kai_mind/web`、`core/services`、`core/providers`、CLI/tests/scripts | H-2/H-3/H-4/H-6、M-1～M-14、L 系列 |
+| 後端工程 | `src/systograph/web`、`core/services`、`core/providers`、CLI/tests/scripts | H-2/H-3/H-4/H-6、M-1～M-14、L 系列 |
 | 後端 AI / AI application | `mapping_proposal_service.py`、`llm_proposal_provider.py`、`query_trace_service.py`、`endpoint_call_provider.py` | C-1、H-1、H-7、M-10/M-15；proposal output validation 是強防線 |
 | AI infra / observability | provider config、NVIDIA NIM provider、trace/provider boundary、外部 OTel GenAI 參考 | M-10、H-5/H-7；目前沒有模型 serving / queue / gateway infra 實作 |
 | RAG / Agent / tool calling | scanner pipeline、mapping proposal、detail scan、query trace、frontend replay | M-15、M-11；目前是 deterministic-first workflow，未發現 open-ended agent 自動執行風險 |
-| 資料庫 | `src/kai_mind/storage`、unfinish 26/27 | 已檢查，現況沒有 DB/migration/ORM；未發現資料庫層 runtime 問題 |
+| 資料庫 | `src/systograph/storage`、unfinish 26/27 | 已檢查，現況沒有 DB/migration/ORM；未發現資料庫層 runtime 問題 |
 | 資安 / privacy | path safety、secret masking、API routes、CORS/middleware、trace egress、tests/env | C-1、H-1～H-7、M-1～M-8、M-14 |
 | API / contract docs | `docs/API-GUIDE.md`、`web/schemas.py`、route tests | M-12/M-13：已記錄 drift，**本次不直接修 API-GUIDE**，下一階段由 TODO 修補 |
 
@@ -64,7 +64,7 @@
 
 5. **【High】測試與 CI 的安全/品質治理缺口。** `tests/web` 多數測試會透過 `create_app()` 讀取 process CWD 的 `.env` / process env，可能把真實 provider 或 credential 帶進測試程序，測試結果也會依賴本機環境；`.github/workflows/` 為空，完全沒有 CI gate。（H-5、H-6）
 
-6. **【High，條件式】`.env` 從 process CWD 讀取的信任邊界問題。** 若 KAI-Mind 以 CWD = 被掃描 repo 執行，且 mapping proposal provider 被啟用並被呼叫，惡意 repo 可放 `.env` 影響 NVIDIA provider / endpoint 邊界。這不是一般 map build 自動外洩，但前提成立時會變成資料外送風險。（H-7）
+6. **【High，條件式】`.env` 從 process CWD 讀取的信任邊界問題。** 若 Systograph 以 CWD = 被掃描 repo 執行，且 mapping proposal provider 被啟用並被呼叫，惡意 repo 可放 `.env` 影響 NVIDIA provider / endpoint 邊界。這不是一般 map build 自動外洩，但前提成立時會變成資料外送風險。（H-7）
 
 7. **【Medium】掃描入口缺乏路徑/資源邊界。** `projects/import`、`map/build`、CLI `map` 對 `project_path` 零驗證，可掃 `/`、`~/.ssh`；`output` 參數可寫任意目錄；無檔案總數上限（大 repo 記憶體無界）；`map/build` 與 CLI 還繞過 scan boundary gate。（M-1、M-2、M-6）
 
@@ -80,7 +80,7 @@
 
 > 標示「✅ 無明顯問題 / ⚠️ 有發現」。完整逐項在詳細發現檔。
 
-### 後端 core services（`src/kai_mind/core/services/`）
+### 後端 core services（`src/systograph/core/services/`）
 
 | 檔案 | 是否發現問題 | 主要觀察 |
 |---|---|---|
@@ -98,7 +98,7 @@
 | `markdown_summary_service.py` | ✅ | 輸出再過 mask_text |
 | `component_detection_service.py` / `endpoint_detection_service.py` / `flow_derivation_service.py` / `risk_hint_service.py` / `rag_template_service.py` / `logging_service.py` | ✅ | 邏輯健全；`safe_log_event` 缺直接測試（M-14） |
 
-### 後端 providers（`src/kai_mind/core/providers/`）
+### 後端 providers（`src/systograph/core/providers/`）
 
 | 檔案 | 是否發現問題 | 主要觀察 |
 |---|---|---|
@@ -111,7 +111,7 @@
 | `llm_proposal_provider.py` | ⚠️ | M-10 無 logging、L-1 無 backoff/circuit breaker |
 | `output_artifact_provider.py` | ⚠️ | M-2 寫入位置受 `output` 參數控制；timestamp 防覆寫正確 |
 
-### Web layer（`src/kai_mind/web/`）
+### Web layer（`src/systograph/web/`）
 
 | 檔案 | 是否發現問題 | 主要觀察 |
 |---|---|---|

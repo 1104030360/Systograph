@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.services.project_scan_service import ProjectScanService
+from systograph.core.services.project_scan_service import ProjectScanService
 
 
 def test_basic_local_rag_fixture_aggregates_raw_scan_facts() -> None:

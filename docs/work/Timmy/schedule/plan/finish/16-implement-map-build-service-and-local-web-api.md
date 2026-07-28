@@ -46,33 +46,33 @@ graph_view_model
 - `docs/work/Timmy/schedule/plan/unfinish/22-implement-query-trace-mvp.md`
 
 ### 外部查證來源
-- FastAPI features: FastAPI 基於 OpenAPI / JSON Schema，並使用 Pydantic 做資料驗證與文件化，適合 typed local API contract。  
+- FastAPI features: FastAPI 基於 OpenAPI / JSON Schema，並使用 Pydantic 做資料驗證與文件化，適合 typed local API contract。
   https://fastapi.tiangolo.com/features/
-- FastAPI response model: `response_model` 會用於文件、validation、serialization/filtering，因此 route 應宣告 typed response model，不要直接回任意 dict。  
+- FastAPI response model: `response_model` 會用於文件、validation、serialization/filtering，因此 route 應宣告 typed response model，不要直接回任意 dict。
   https://fastapi.tiangolo.com/tutorial/response-model/
-- FastAPI bigger applications: `APIRouter` 適合拆分多檔 route，避免 route 全塞在 app entrypoint。  
+- FastAPI bigger applications: `APIRouter` 適合拆分多檔 route，避免 route 全塞在 app entrypoint。
   https://fastapi.tiangolo.com/tutorial/bigger-applications/
-- FastAPI testing: 官方建議使用 `TestClient` 以 pytest 方式測試 API route。  
+- FastAPI testing: 官方建議使用 `TestClient` 以 pytest 方式測試 API route。
   https://fastapi.tiangolo.com/tutorial/testing/
-- FastAPI CORS: `CORSMiddleware` 預設限制，local frontend/backend 開發若跨 origin，必須明確列出允許 origin。  
+- FastAPI CORS: `CORSMiddleware` 預設限制，local frontend/backend 開發若跨 origin，必須明確列出允許 origin。
   https://fastapi.tiangolo.com/tutorial/cors/
-- FastAPI SSE: FastAPI 官方 SSE 使用 `EventSourceResponse` 與 `text/event-stream`，瀏覽器原生 `EventSource` 可消費；目前 `uv.lock` FastAPI 為 `0.136.3`，可用官方 SSE 路線，但版本下限 `fastapi>=0.115,<1` 仍需在 API guide 標註。  
+- FastAPI SSE: FastAPI 官方 SSE 使用 `EventSourceResponse` 與 `text/event-stream`，瀏覽器原生 `EventSource` 可消費；目前 `uv.lock` FastAPI 為 `0.136.3`，可用官方 SSE 路線，但版本下限 `fastapi>=0.115,<1` 仍需在 API guide 標註。
   https://fastapi.tiangolo.com/tutorial/server-sent-events/
-- FastAPI SSE version boundary: `EventSourceResponse` 是 FastAPI `0.135.0` 新增；若 Task 16 實作用它，`pyproject.toml` 應把 FastAPI 下限調整為 `>=0.135,<1`，避免 lock 重解時退回不支援 SSE 的版本。  
+- FastAPI SSE version boundary: `EventSourceResponse` 是 FastAPI `0.135.0` 新增；若 Task 16 實作用它，`pyproject.toml` 應把 FastAPI 下限調整為 `>=0.135,<1`，避免 lock 重解時退回不支援 SSE 的版本。
   https://fastapi.tiangolo.com/tutorial/server-sent-events/
-- WHATWG / MDN SSE format: SSE response 必須是 `text/event-stream`；event stream 以 UTF-8 文字傳輸，message 由空白行分隔，`data:` 欄位可被瀏覽器 `EventSource` 消費。`Cache-Control: no-cache` 與 `X-Accel-Buffering: no` 屬於實務上的 buffering 防護，特別是日後若經過 proxy。  
-  https://html.spec.whatwg.org/multipage/server-sent-events.html  
+- WHATWG / MDN SSE format: SSE response 必須是 `text/event-stream`；event stream 以 UTF-8 文字傳輸，message 由空白行分隔，`data:` 欄位可被瀏覽器 `EventSource` 消費。`Cache-Control: no-cache` 與 `X-Accel-Buffering: no` 屬於實務上的 buffering 防護，特別是日後若經過 proxy。
+  https://html.spec.whatwg.org/multipage/server-sent-events.html
   https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
-- OWASP API Security Top 10 2023: API4 unrestricted resource consumption、API8 security misconfiguration 直接對應 local scan API 的資源限制與 local-only policy。  
+- OWASP API Security Top 10 2023: API4 unrestricted resource consumption、API8 security misconfiguration 直接對應 local scan API 的資源限制與 local-only policy。
   https://owasp.org/API-Security/editions/2023/en/0x00-header/
-- React single source of truth / Thinking in React: 前端 state 應只保存互動狀態，canonical facts 與 graph projection 不應在前端重複推導。  
-  https://react.dev/learn/sharing-state-between-components  
+- React single source of truth / Thinking in React: 前端 state 應只保存互動狀態，canonical facts 與 graph projection 不應在前端重複推導。
+  https://react.dev/learn/sharing-state-between-components
   https://react.dev/learn/thinking-in-react
-- Langflow 1.9.x: 官方文件顯示 Langflow 由 React/TypeScript frontend 與 Python/FastAPI backend 組成，開發時 frontend/backend 分 port 執行，API 文件也列出 `/api/v1/...` endpoint。它適合參考 route 分層、typed API 與 graph/backend state 轉前端 payload 的模式；但資料庫、權限、自訂程式碼、public build endpoint 與 file upload 不是 Task 16 範圍，且 Langflow 曾有 public build endpoint RCE，因此只能借鑑邊界設計，不可照抄其執行/上傳/公開 build 行為。  
-  https://docs.langflow.org/contributing-how-to-contribute  
-  https://docs.langflow.org/api  
+- Langflow 1.9.x: 官方文件顯示 Langflow 由 React/TypeScript frontend 與 Python/FastAPI backend 組成，開發時 frontend/backend 分 port 執行，API 文件也列出 `/api/v1/...` endpoint。它適合參考 route 分層、typed API 與 graph/backend state 轉前端 payload 的模式；但資料庫、權限、自訂程式碼、public build endpoint 與 file upload 不是 Task 16 範圍，且 Langflow 曾有 public build endpoint RCE，因此只能借鑑邊界設計，不可照抄其執行/上傳/公開 build 行為。
+  https://docs.langflow.org/contributing-how-to-contribute
+  https://docs.langflow.org/api
   https://github.com/langflow-ai/langflow/security/advisories/GHSA-vwmf-pq79-vjvx
-- Microsoft Promptflow: `promptflow` 已拆成 `promptflow-core`、`promptflow-devkit` 等套件；官方 changelog 顯示 local serve 已加入 FastAPI engine，且 devkit 負責啟動本地 serving、解析 flow path 與處理 host/port。可參考其 core serving 與 devkit serving helper 的分層，但 KAI-Mind Task 16 不應引入 Promptflow 的 flow execution、連線管理或瀏覽器開啟行為。  
+- Microsoft Promptflow: `promptflow` 已拆成 `promptflow-core`、`promptflow-devkit` 等套件；官方 changelog 顯示 local serve 已加入 FastAPI engine，且 devkit 負責啟動本地 serving、解析 flow path 與處理 host/port。可參考其 core serving 與 devkit serving helper 的分層，但 Systograph Task 16 不應引入 Promptflow 的 flow execution、連線管理或瀏覽器開啟行為。
   https://microsoft.github.io/promptflow/reference/changelog/promptflow.html
 
 ### Research 校正結論
@@ -113,7 +113,7 @@ graph_view_model
   - 若本任務不做真進度串流，仍需提供 contract-compatible basic event / completed event。
   - event payload 必須保留前端 target priority：`node_id`、`edge_id`、`component_id`、`source_id`、`slot`。
 - 建立 Epic 1 local API guide，作為前端、desktop app、CLI adapter 共用的 API contract 文件。
-- 在 local web API 完成後，補上 `kai-mind map` thin adapter；CLI 只能呼叫同一個 `MapBuildService`。
+- 在 local web API 完成後，補上 `systograph map` thin adapter；CLI 只能呼叫同一個 `MapBuildService`。
 
 ## 不包含範圍
 - 不產生 Markdown，留給 Task 17。
@@ -136,10 +136,10 @@ Task 16 是 L1 map build + local API shell。凡是會引入第二層產品語�
 | Markdown artifact / readable report | Task 17: `17-implement-markdown-summary-artifact.md` | 已有 | 從 validated `RagSystemMap` 產生 `ai_system_map.md`；不重新掃 project files，也不成為第二份 truth。 |
 | 完整 `ViewerSessionService` / `GraphViewModel` projection | Task 18: `18-implement-viewer-session-graph-projection.md` | 已有 | Task 16 只提供 minimal viewer wrapper；components、extensions、unmapped、flows、risk hints 的完整 nodes/edges/details projection 留 Task 18。 |
 | viewer command / map validate CLI UX | Task 18 | 已有 | 若要補 CLI viewer 或 validate command，只能 thin-wrap `ViewerSessionService`；不能在 CLI 重新實作 projection。 |
-| manual mapping / user-confirmed mapping store | Task 19: `19-implement-manual-mapping-store.md` | 已有 | 使用者確認 unmapped component 後，寫入 KAI-Mind-managed store；不寫入被掃描 repo。 |
+| manual mapping / user-confirmed mapping store | Task 19: `19-implement-manual-mapping-store.md` | 已有 | 使用者確認 unmapped component 後，寫入 Systograph-managed store；不寫入被掃描 repo。 |
 | AI / rule-assisted mapping proposal | Task 20: `20-implement-ai-mapping-proposal-flow.md` | 已有 | 只產生 pending proposal；accept/edit/reject 後才交給 Task 19 的 manual mapping store。 |
 | progressive detail scan / L2-L3 lazy loading | Task 21: `21-implement-progressive-detail-scan.md` | 已有 | 針對 component、extension、unmapped、edge、evidence 做 bounded scan；不做 whole-repo call graph。 |
-| query trace / runtime endpoint 呼叫 | Task 22: `22-implement-query-trace-mvp.md` | 已有 | 會真的呼叫 RAG endpoint，必須 opt-in；不得由 `kai-mind map` 或 Task 16 預設觸發。 |
+| query trace / runtime endpoint 呼叫 | Task 22: `22-implement-query-trace-mvp.md` | 已有 | 會真的呼叫 RAG endpoint，必須 opt-in；不得由 `systograph map` 或 Task 16 預設觸發。 |
 | cross-platform path、logging、snapshot safety hardening | Task 23: `23-hardening-cross-platform-logging-and-snapshot-safety.md` | 已有 | Task 16 先提供 end-to-end baseline；大範圍 hardening 在功能完成後集中收斂。 |
 | AI-assisted scan boundary review / local template import | Task 24: `24-final-ai-scan-boundary-review-and-template-import.md` | 已有 | 這是 Epic 1 final milestone；依賴 baseline scanner、policy store、masking、validation 穩定後再做。 |
 | project zip upload / multipart upload | Task 25: `25-implement-project-upload-ingestion.md` | 新增 | 這不是 Task 24 的 template import。它是把使用者專案 archive 當 scan input，必須獨立處理 size limit、archive extraction safety、path traversal、binary/model/dependency skip policy。 |
@@ -261,8 +261,8 @@ Accept: text/event-stream
 ```
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/services/map_build_service.py`。
-2. 建立 core build request/result models；可放 `src/kai_mind/core/models/map_build.py`，避免 web framework 型別滲進 core。
+1. 建立 `src/systograph/core/services/map_build_service.py`。
+2. 建立 core build request/result models；可放 `src/systograph/core/models/map_build.py`，避免 web framework 型別滲進 core。
 3. 將 precondition、template、scan、detection、endpoint/risk/flow、normalize、validate 串起來。
 4. 確保 `MapBuildService` 寫出 artifact 前一定使用 Task 15 的 normalize result；若上游 detection/risk/trace 沒有資料，仍由 normalize result 輸出 canonical 空陣列，不可直接 serialize 半成品 dict。
 5. 補強 `OutputArtifactProvider.write_json()`，使用 validated `RagSystemMap.model_dump(mode="json")`。
@@ -273,12 +273,12 @@ Accept: text/event-stream
    - `evidence_by_id` 與 `risk_hints_by_id` index。
    - empty/default filters。
    - stable `source_id`，對應 canonical component/edge/slot id。
-8. 建立 FastAPI app scaffold：`src/kai_mind/web/app.py`。
+8. 建立 FastAPI app scaffold：`src/systograph/web/app.py`。
 9. 建立 route modules：
-   - `src/kai_mind/web/routes/map_routes.py`
-   - `src/kai_mind/web/routes/project_routes.py`
-   - `src/kai_mind/web/routes/scan_routes.py`
-10. 建立 `src/kai_mind/web/schemas.py`，用 Pydantic 定義 request/response model，route decorator 使用 `response_model`。
+   - `src/systograph/web/routes/map_routes.py`
+   - `src/systograph/web/routes/project_routes.py`
+   - `src/systograph/web/routes/scan_routes.py`
+10. 建立 `src/systograph/web/schemas.py`，用 Pydantic 定義 request/response model，route decorator 使用 `response_model`。
 11. 設定 local-only app policy：
     - 預設文件建議只 bind `127.0.0.1`。
     - CORS 只允許明確 local frontend origins，例如 `http://127.0.0.1:5173`、`http://localhost:5173`。
@@ -305,20 +305,20 @@ Accept: text/event-stream
 21. 寫 missing project test：API 回傳 error result，且只產生 error report。
 22. 寫 existing output test：outputs 已存在時產生 timestamped directory。
 23. 寫 local-only/CORS config test：app 設定不使用 wildcard origin 作為預設。
-24. 建立 `src/kai_mind/cli/map_command.py`，讓 CLI 呼叫同一個 `MapBuildService` method。
+24. 建立 `src/systograph/cli/map_command.py`，讓 CLI 呼叫同一個 `MapBuildService` method。
 25. 寫 CLI thin adapter test：確認 CLI 產生的 artifact contract 與 local API 相同，且 CLI 不直接呼叫 providers。
 
 ## 預期輸出
-- `src/kai_mind/core/models/map_build.py`
-- `src/kai_mind/core/services/map_build_service.py`
-- `src/kai_mind/core/services/minimal_viewer_projection_service.py` 或等價 minimal projection helper
-- `src/kai_mind/web/app.py`
-- `src/kai_mind/web/routes/map_routes.py`
-- `src/kai_mind/web/routes/project_routes.py`
-- `src/kai_mind/web/routes/scan_routes.py`
-- `src/kai_mind/web/schemas.py`
-- `src/kai_mind/cli/map_command.py`
-- `src/kai_mind/cli/main.py`
+- `src/systograph/core/models/map_build.py`
+- `src/systograph/core/services/map_build_service.py`
+- `src/systograph/core/services/minimal_viewer_projection_service.py` 或等價 minimal projection helper
+- `src/systograph/web/app.py`
+- `src/systograph/web/routes/map_routes.py`
+- `src/systograph/web/routes/project_routes.py`
+- `src/systograph/web/routes/scan_routes.py`
+- `src/systograph/web/schemas.py`
+- `src/systograph/cli/map_command.py`
+- `src/systograph/cli/main.py`
 - `docs/work/Timmy/design/epic1-local-api-guide.md`
 - `tests/web/test_map_routes.py`
 - `tests/web/test_project_scan_routes.py`
@@ -341,7 +341,7 @@ Accept: text/event-stream
 - `POST /api/projects/import` MVP 僅接受 `source_type="local_path"`；不支援 upload。
 - `POST /api/scans` 回傳 `scan_id` 與 status，且 API guide 清楚說明 session 是否 in-memory。
 - `GET /api/scan/events` basic SSE response 符合 `ScanProgressEvent` 欄位與 target priority。
-- `kai-mind map ./fixture --output outputs` 作為 thin adapter 產生同 contract 的 valid JSON。
+- `systograph map ./fixture --output outputs` 作為 thin adapter 產生同 contract 的 valid JSON。
 - `epic1-local-api-guide.md` 已記錄 map build API、viewer load wrapper、request/response schema、error format、local-only policy、CORS policy、SSE event schema、Task 18/21/22 後續邊界。
 - PR / task 完成前若 API contract 有變更，必須同步更新 API guide。
 

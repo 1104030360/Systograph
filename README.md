@@ -1,8 +1,8 @@
 # Systograph
 
-> **命名狀態：** 產品名稱已統一為 **Systograph**。為避免破壞既有安裝、資料與
-> schema contract，Repository URL、Python import `kai_mind`、舊 CLI alias `kai-mind`、
-> `${KAI_MIND_STATE_DIR:-~/.kai-mind}` 與既有 schema IDs 暫時維持相容名稱。
+> **Breaking rename:** Systograph is now the only supported project identity.
+> Previous package, import, CLI, environment, state-directory, schema-ID, and
+> repository identifiers are no longer accepted.
 
 Systograph 是一個 AI Agent / RAG 系統的 **Release Readiness Gate**。它協助團隊在
 demo、交付、部署或進入 CI/CD 前，掃描既有 local AI 系統、建立 AI System Map，並產出
@@ -25,10 +25,10 @@ README 必須區分「目前程式碼已能執行」與「roadmap / 尚未交付
   `profile_signals.json`、`readiness_report.json`、static execution JSON 等）。
 - package-bundled **10-plane / 52-node** capability reference catalog 與 **15 MVP profiles**；
   `ProfileInferenceService` 為確定性 Python 評估（與 mapping proposal 運行時分離）。
-- durable local JSON state：`${KAI_MIND_STATE_DIR:-~/.kai-mind}`，含 project／scan／build
+- durable local JSON state：`${SYSTOGRAPH_STATE_DIR:-~/.systograph}`，含 project／scan／build
   lineage、manual mappings、latest pointer；支援 restart recovery。
 - Apply confirmations、map-builds query／history、Detail Scan child build、Trace build binding。
-- CLI（`systograph`；`kai-mind` 為相容 alias）、FastAPI local web API 與 frontend Viewer
+- CLI（`systograph`）、FastAPI local web API 與 frontend Viewer
   共用同一套 core services。
 - scan boundary review、path redaction、secret masking 與 snapshot safety checks。
 - sample projects、contract／unit／integration／web／e2e tests 與 frontend 基礎串接
@@ -73,14 +73,14 @@ macOS、Linux、本機開發與 CI。
 
 目前 roadmap 以 Parent / Epic issues 管理：
 
-- [Epic 0：專案基礎](https://github.com/1104030360/Local-AI-Health-Doctor/issues/1)
-- [Epic 1：System Map Builder](https://github.com/1104030360/Local-AI-Health-Doctor/issues/2)
-- [Epic 2：Runtime Readiness](https://github.com/1104030360/Local-AI-Health-Doctor/issues/3)
-- [Epic 3：Privacy & Exposure Guard](https://github.com/1104030360/Local-AI-Health-Doctor/issues/4)
-- [Epic 4：Agent Tool Risk Guard](https://github.com/1104030360/Local-AI-Health-Doctor/issues/5)
-- [Epic 5：RAG Knowledge Trust](https://github.com/1104030360/Local-AI-Health-Doctor/issues/6)
-- [Epic 6：Release Report & CI Gate](https://github.com/1104030360/Local-AI-Health-Doctor/issues/7)
-- [Epic 7：Distribution & Integrations](https://github.com/1104030360/Local-AI-Health-Doctor/issues/8)
+- [Epic 0：專案基礎](https://github.com/1104030360/Systograph/issues/1)
+- [Epic 1：System Map Builder](https://github.com/1104030360/Systograph/issues/2)
+- [Epic 2：Runtime Readiness](https://github.com/1104030360/Systograph/issues/3)
+- [Epic 3：Privacy & Exposure Guard](https://github.com/1104030360/Systograph/issues/4)
+- [Epic 4：Agent Tool Risk Guard](https://github.com/1104030360/Systograph/issues/5)
+- [Epic 5：RAG Knowledge Trust](https://github.com/1104030360/Systograph/issues/6)
+- [Epic 6：Release Report & CI Gate](https://github.com/1104030360/Systograph/issues/7)
+- [Epic 7：Distribution & Integrations](https://github.com/1104030360/Systograph/issues/8)
 
 Epic 1 已能產出可用的 `ai_system_map.json` 與 Phase2 S1 後端契約；後續依 Phase2 static
 pipeline／各 Epic 子任務推進，不要把未合併的 design-only 文件當成已交付。
@@ -91,6 +91,7 @@ pipeline／各 Epic 子任務推進，不要把未合併的 design-only 文件�
 |------|------|
 | HTTP 契約 | [`docs/API-GUIDE.md`](docs/API-GUIDE.md) |
 | Artifact／欄位語意 | [`docs/MODEL-CONTRACT.md`](docs/MODEL-CONTRACT.md) |
+| Systograph hard cutover | [`docs/SYSTOGRAPH-HARD-CUTOVER.md`](docs/SYSTOGRAPH-HARD-CUTOVER.md) |
 | Phase2 設計基線 | [`docs/design/epic1-phase2.md`](docs/design/epic1-phase2.md) |
 | Epic 1 設計 | [`docs/design/epic1.md`](docs/design/epic1.md) |
 | Frontend JSON handoff | [`docs/work/Timmy/design/EPIC1/frontend-json-handoff/`](docs/work/Timmy/design/EPIC1/frontend-json-handoff/) |
@@ -121,10 +122,10 @@ pipeline／各 Epic 子任務推進，不要把未合併的 design-only 文件�
 目前 Python backend 採 `src/` layout：
 
 ```text
-src/kai_mind/
+src/systograph/
   core/       # services、models、providers、rules（不可依賴 web／cli）
   web/        # FastAPI adapter（routes／schemas／Depends／session）
-  cli/        # Typer adapter（systograph；legacy alias：kai-mind）
+  cli/        # Typer adapter（systograph）
   storage/    # 薄 re-export；durable JSON 在 core/providers
 tests/        # unit／integration／contracts／web／cli／e2e／fixtures
 ```
@@ -138,7 +139,7 @@ Web / CLI adapters -> Core services -> Providers / Models
 兩種持久化平面：
 
 ```text
-~/.kai-mind（或 KAI_MIND_STATE_DIR）  → project／scan／build／mapping／latest
+~/.systograph（或 SYSTOGRAPH_STATE_DIR）  → project／scan／build／mapping／latest
 專案 output_dir                       → 10 sibling artifacts（map／profile／…）
 ```
 
@@ -183,10 +184,8 @@ uv run pytest
 uv run ruff check src tests
 uv run mypy
 uv run systograph --help
-# legacy compatibility alias
-uv run kai-mind --help
 # 或
-uv run python -m kai_mind.cli.main --help
+uv run python -m systograph.cli.main --help
 ```
 
 `uv run` 會在專案環境裡執行命令，不需要先手動啟用 `.venv`。正式 lint gate 以

@@ -56,10 +56,10 @@ trace endpoint lookup都不是 duplicate。
 
 ### 相關檔案
 
-- Modify: `src/kai_mind/core/services/detail_scan_service.py`
-- Modify: `src/kai_mind/core/services/detail_scan_target_resolver.py`
-- Modify: `src/kai_mind/core/services/mapping_evidence_packet_builder.py`
-- Modify: `src/kai_mind/web/routes/mapping_proposal_routes.py`
+- Modify: `src/systograph/core/services/detail_scan_service.py`
+- Modify: `src/systograph/core/services/detail_scan_target_resolver.py`
+- Modify: `src/systograph/core/services/mapping_evidence_packet_builder.py`
+- Modify: `src/systograph/web/routes/mapping_proposal_routes.py`
 - Modify: `tests/unit/core/test_system_map_index.py`
 - Modify: `tests/unit/core/test_detail_scan_service.py`
 - Modify: `tests/web/test_mapping_proposal_routes.py`
@@ -156,7 +156,7 @@ Runtime endpoint execution                      -> QueryTraceService
 .venv/bin/ruff check src tests
 .venv/bin/mypy src tests
 rg -n "RagSystemMap|\.extensions|schema_version" \
-  src/kai_mind/core/services src/kai_mind/web/routes
+  src/systograph/core/services src/systograph/web/routes
 git diff --check -- \
   docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-a-index-projection/09-consolidate-legacy-system-map-lookups.md
 ```

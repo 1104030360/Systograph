@@ -4,14 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
-from kai_mind.core.models.system_map import RagSystemMap
-from kai_mind.core.services.detail_scan_target_resolver import (
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.models.system_map import RagSystemMap
+from systograph.core.services.detail_scan_target_resolver import (
     DetailScanTargetError,
     DetailScanTargetResolver,
 )
-from kai_mind.core.services.system_map_index import SystemMapIndex
-from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+from systograph.core.services.system_map_index import SystemMapIndex
+from systograph.core.services.system_map_v1_to_v2_adapter import (
     SystemMapV1ToV2Adapter,
 )
 

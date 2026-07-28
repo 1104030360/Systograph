@@ -1,4 +1,4 @@
-# KAI-Mind Frontend Sync：Phase2 Graph Studio 進度與待討論事項（2026-07-12）
+# Systograph Frontend Sync：Phase2 Graph Studio 進度與待討論事項（2026-07-12）
 
 先抓住這份文件的主軸：
 
@@ -9,7 +9,7 @@
 ```
 
 分支：`feature/phase2-frontend-contract`（base：`origin/main` = `8b38c7f`）。
-全部變更為 frontend-only；`src/kai_mind/` 未動。
+全部變更為 frontend-only；`src/systograph/` 未動。
 
 ## 1. 前端目前完成範圍
 

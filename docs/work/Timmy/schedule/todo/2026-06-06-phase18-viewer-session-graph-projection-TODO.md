@@ -28,18 +28,18 @@
    - 驗證 valid map、invalid map、unmapped island node、source_id、filters、no layout fields、API 不掃 project folder、CLI thin adapter。
 
 3. GREEN：實作 core projection
-   - 新增 `src/kai_mind/core/models/graph_view.py` 相容 re-export。
-   - 新增 `src/kai_mind/core/services/viewer_session_service.py`。
+   - 新增 `src/systograph/core/models/graph_view.py` 相容 re-export。
+   - 新增 `src/systograph/core/services/viewer_session_service.py`。
    - 將 Phase 16 minimal projection 測試併入 `ViewerSessionService`，並移除舊 service。
    - 更新 `MapBuildService` 使用完整 projection。
 
 4. GREEN：實作 local web API
-   - 新增 `src/kai_mind/web/routes/viewer_routes.py`。
+   - 新增 `src/systograph/web/routes/viewer_routes.py`。
    - 新增 web schema `ViewerLoadMapRequest`。
    - 更新 app/dependencies/session store，讓 `/api/viewer/load` 可更新 latest `/api/map` payload。
 
 5. GREEN：實作 CLI thin adapter
-   - 新增 `src/kai_mind/cli/viewer_command.py` 或等價 validate command。
+   - 新增 `src/systograph/cli/viewer_command.py` 或等價 validate command。
    - 更新 CLI entrypoint。
    - CLI 只呼叫 `ViewerSessionService`，不直接 import scanner providers。
 

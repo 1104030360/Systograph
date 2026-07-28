@@ -10,14 +10,14 @@
 內容：Phase2 contract layer（三種 payload 來源統一正規化）、Graph Studio 固定 plane-band
 版面（捨棄白板互動）、六 lens rail、profile attachment overlay、ReadinessPanel、
 Mapping Completeness、build-scoped API 接線與 build history 切換。
-後端一律以 Timmy 的 main 為準（#248 已含完整 Phase2 S1 API）；前端不動 src/kai_mind/。
+後端一律以 Timmy 的 main 為準（#248 已含完整 Phase2 S1 API）；前端不動 src/systograph/。
 需後端配合的事項已列在 docs/work/Meeting-Sync/frontend_sync_2026_07_12.md，等會議定案。
 ```
 
 ## 0. 環境與啟動
 
 ```bash
-git clone <repo> && cd Local-AI-Health-Doctor
+git clone <repo> && cd Systograph
 git checkout feature/phase2-frontend-contract
 git submodule update --init --recursive   # ref-opensource/Understand-Anything 是 submodule，必跑一次
 
@@ -32,7 +32,7 @@ pnpm dev         # http://127.0.0.1:5173
 # 後端（uv；驗證 API mode 用）
 cd ..
 uv sync
-uv run uvicorn kai_mind.web.app:create_app --factory --host 127.0.0.1 --port 8000
+uv run uvicorn systograph.web.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
 UI 驗證 API mode 流程：開 dev server → 右上 Source 切到 API → 填一個本機專案路徑
@@ -66,7 +66,7 @@ scan/build/environment lineage，toolbar 出現 Builds 選單）。
 2. **Backend 是唯一 truth**：五態、activation、Mapping Completeness、lens membership、
    plane 歸屬、readiness findings 全部只渲染 backend 提供的資料；缺資料就顯示
    degraded/unavailable 並說明原因，**不得**前端推導或補值。
-3. **後端歸 Timmy**：`src/kai_mind/` 不動。需要後端改動（欄位、endpoint）一律寫進
+3. **後端歸 Timmy**：`src/systograph/` 不動。需要後端改動（欄位、endpoint）一律寫進
    Meeting-Sync 文件向 Timmy 提出，不自己實作。
 4. **Build immutability**：apply/rescan 產生新 build；前端永不 in-place 改 canonical 資料。
    跨 build 的 sidecar（identity 不符）在 parser 層直接拒絕。
@@ -80,8 +80,8 @@ frontend/src/
 │     parseMapBuildPayload()     current MapBuildScopedResponse（外層 lineage +
 │                                build_result sidecars + v1 base graph）
 │     extractMappingCompleteness()  graph 優先、profile sidecar 回退、皆無→undefined
-│     readinessReportSchema      鏡射 kai_mind.core.models.readiness_report
-│     mapBuildHistory*Schema     鏡射 kai_mind.web.schemas
+│     readinessReportSchema      鏡射 systograph.core.models.readiness_report
+│     mapBuildHistory*Schema     鏡射 systograph.web.schemas
 ├── types.ts                    # contract_source: legacy-v1 | phase2 | phase2-build
 ├── utils/
 │   ├── planes.ts               # 10-plane 呈現順序 + layoutPlaneBands()（帶內排卡、

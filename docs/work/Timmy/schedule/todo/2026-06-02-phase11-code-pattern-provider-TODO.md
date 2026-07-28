@@ -74,8 +74,8 @@ files 做 bounded deterministic pattern scan，輸出 RAG code signals 的
 
 ### 2. GREEN：實作最小 provider
 
-- 新增 `src/kai_mind/core/providers/code_patterns.py`。
-- 新增 `src/kai_mind/core/providers/code_pattern_provider.py`。
+- 新增 `src/systograph/core/providers/code_patterns.py`。
+- 新增 `src/systograph/core/providers/code_pattern_provider.py`。
 - 擴充 `ParseIssue.scan_stage`，增加 `code_pattern_scan`。
 - 實作 source file extension filter。
 - 實作 bounded UTF-8 text read。
@@ -96,8 +96,8 @@ Targeted verification：
 
 ```bash
 .venv/bin/python -m pytest tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
-.venv/bin/ruff check src/kai_mind/core/models/scan.py src/kai_mind/core/providers/code_patterns.py src/kai_mind/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
-.venv/bin/mypy src/kai_mind/core/models/scan.py src/kai_mind/core/providers/code_patterns.py src/kai_mind/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
+.venv/bin/ruff check src/systograph/core/models/scan.py src/systograph/core/providers/code_patterns.py src/systograph/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
+.venv/bin/mypy src/systograph/core/models/scan.py src/systograph/core/providers/code_patterns.py src/systograph/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
 ```
 
 Full verification：

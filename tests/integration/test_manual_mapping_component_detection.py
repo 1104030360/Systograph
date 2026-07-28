@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from kai_mind.core.models.mapping import (
+from systograph.core.models.mapping import (
     ManualMappingCreate,
     ManualMappingDecision,
     ManualMappingType,
 )
-from kai_mind.core.models.scan import ScanFact
-from kai_mind.core.models.system_map import Evidence
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.models.scan import ScanFact
+from systograph.core.models.system_map import Evidence
+from systograph.core.services.component_detection_service import (
     ComponentDetectionService,
 )
-from kai_mind.core.services.manual_mapping_service import (
+from systograph.core.services.manual_mapping_service import (
     InMemoryManualMappingRepository,
     ManualMappingService,
 )
-from kai_mind.core.services.rag_template_service import RagTemplateService
+from systograph.core.services.rag_template_service import RagTemplateService
 
 
 def ambiguous_vector_dependency() -> tuple[ScanFact, Evidence]:

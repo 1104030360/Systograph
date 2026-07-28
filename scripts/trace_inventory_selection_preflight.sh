@@ -54,45 +54,45 @@ proposal_field() {
 
 require_tools
 require_cmd cksum
-kai_parse_common_args "$@"
-if [[ ${#KAI_EXTRA_ARGS[@]} -gt 0 ]]; then
-  kai_die "Unknown option: ${KAI_EXTRA_ARGS[*]}"
+systograph_parse_common_args "$@"
+if [[ ${#SYSTOGRAPH_EXTRA_ARGS[@]} -gt 0 ]]; then
+  systograph_die "Unknown option: ${SYSTOGRAPH_EXTRA_ARGS[*]}"
 fi
-kai_bootstrap_server
+systograph_bootstrap_server
 
-kai_section "準備 metadata-only preflight fixture"
+systograph_section "準備 metadata-only preflight fixture"
 DEMO_PROJECT_DIR="$(make_demo_project)"
 BEFORE_DIGEST="$(tree_digest "$DEMO_PROJECT_DIR")"
-PROJECT_ID="$(kai_import_project "$DEMO_PROJECT_DIR")"
+PROJECT_ID="$(systograph_import_project "$DEMO_PROJECT_DIR")"
 
-kai_section "Preflight：非法路徑 fail closed"
+systograph_section "Preflight：非法路徑 fail closed"
 api_call POST "/api/projects/${PROJECT_ID}/scan-preflights" \
   '{"requested_paths":["../outside"]}'
 [[ "$LAST_STATUS" == "422" ]] \
-  || kai_die "Unexpected invalid-path HTTP: $LAST_STATUS"
+  || systograph_die "Unexpected invalid-path HTTP: $LAST_STATUS"
 [[ "$(jq -r '.detail.code' <<<"$LAST_BODY")" == \
   "inventory_selection_path_invalid" ]] \
-  || kai_die "Expected typed invalid-path error"
+  || systograph_die "Expected typed invalid-path error"
 [[ "$(jq -r '.detail | has("scan_id")' <<<"$LAST_BODY")" == "false" ]] \
-  || kai_die "Invalid preflight must not return scan_id"
+  || systograph_die "Invalid preflight must not return scan_id"
 
-kai_section "Preflight：展開 ignored directory 與 exact child"
+systograph_section "Preflight：展開 ignored directory 與 exact child"
 PREFLIGHT_BODY="$(jq -n \
   '{requested_paths:["ignored","ignored/skip.py"],
     reviewable_excluded_limit:100}')"
 api_call POST "/api/projects/${PROJECT_ID}/scan-preflights" "$PREFLIGHT_BODY"
 [[ "$LAST_STATUS" == "200" ]] \
-  || kai_die "Unexpected preflight HTTP: $LAST_STATUS"
+  || systograph_die "Unexpected preflight HTTP: $LAST_STATUS"
 PREFLIGHT="$LAST_BODY"
 PREFLIGHT_ID="$(jq -r '.preflight_request_id // empty' <<<"$PREFLIGHT")"
-[[ -n "$PREFLIGHT_ID" ]] || kai_die "Missing preflight_request_id"
+[[ -n "$PREFLIGHT_ID" ]] || systograph_die "Missing preflight_request_id"
 [[ "$(jq -r 'has("scan_id")' <<<"$PREFLIGHT")" == "false" ]] \
-  || kai_die "Preflight must not return scan_id"
+  || systograph_die "Preflight must not return scan_id"
 [[ "$(proposal_field "$PREFLIGHT" "ignored" \
   'selection_context.selection_scope')" == "recursive_directory" ]] \
-  || kai_die "Expected recursive_directory proposal"
+  || systograph_die "Expected recursive_directory proposal"
 if grep -Fq 'entries' <<<"$(jq -c '.requested_target_results' <<<"$PREFLIGHT")"; then
-  kai_die "Directory internal entries leaked through API"
+  systograph_die "Directory internal entries leaked through API"
 fi
 
 DIR_FINGERPRINT="$(proposal_field "$PREFLIGHT" "ignored" \
@@ -116,19 +116,19 @@ SCAN_BODY="$(jq -n \
   '{project_id:$project_id, scan_depth:"system", output:$output,
     preflight_request_id:$preflight_id, boundary_decisions:$decisions}')"
 
-kai_section "Scan：directory scan + exact child skip"
+systograph_section "Scan：directory scan + exact child skip"
 api_call POST "/api/scans" "$SCAN_BODY"
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected scan HTTP: $LAST_STATUS"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected scan HTTP: $LAST_STATUS"
 [[ "$(jq -r '.status' <<<"$LAST_BODY")" == "completed" ]] \
-  || kai_die "Expected completed scan"
+  || systograph_die "Expected completed scan"
 [[ "$(jq -r '.inventory_selection_summary.directory_scope_results[0].included_file_count' <<<"$LAST_BODY")" == "2" ]] \
-  || kai_die "Expected two included directory descendants"
+  || systograph_die "Expected two included directory descendants"
 [[ "$(jq -r '.inventory_selection_summary.directory_scope_results[0].post_decision_blocked_file_count' <<<"$LAST_BODY")" == "1" ]] \
-  || kai_die "Expected binary child to be post-decision blocked"
+  || systograph_die "Expected binary child to be post-decision blocked"
 
 AFTER_DIGEST="$(tree_digest "$DEMO_PROJECT_DIR")"
 [[ "$AFTER_DIGEST" == "$BEFORE_DIGEST" ]] \
-  || kai_die "Target project changed during preflight/scan"
+  || systograph_die "Target project changed during preflight/scan"
 
-kai_section "PASS"
+systograph_section "PASS"
 echo "inventory preflight and one-run directory selection are correct"

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from kai_mind.core.models.profile_registry_projection import (
+from systograph.core.models.profile_registry_projection import (
     build_profile_registry_schema,
 )
 

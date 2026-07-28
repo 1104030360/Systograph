@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from kai_mind.core.models.filesystem import (
+from systograph.core.models.filesystem import (
     FileInventory,
     FileInventorySource,
     FileRecord,
 )
-from kai_mind.core.providers.workflow_json_provider import WorkflowJsonProvider
+from systograph.core.providers.workflow_json_provider import (
+    WorkflowJsonProvider,
+)
 
 
 def _inventory(tmp_path: Path, relative: str, content: str) -> FileInventory:

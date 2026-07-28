@@ -75,8 +75,8 @@ v1 map 或 local lookup 為主。
 
 ### 相關檔案
 
-- `src/kai_mind/core/models/ai_system_map_v2.py`
-- `src/kai_mind/core/services/system_map_index.py`（新增）
+- `src/systograph/core/models/ai_system_map_v2.py`
+- `src/systograph/core/services/system_map_index.py`（新增）
 - `tests/unit/core/test_system_map_index.py`（新增）
 
 ### 實作步驟
@@ -116,11 +116,11 @@ flowchart TD
 
 ## 優先檢視的檔案
 
-- `src/kai_mind/core/models/ai_system_map_v2.py`
-- `src/kai_mind/core/services/canonical_map_loader.py`
-- `src/kai_mind/core/services/system_map_v2_validation_service.py`
-- `src/kai_mind/core/services/viewer_session_service.py`
-- `src/kai_mind/core/services/map_build_pipeline.py`
+- `src/systograph/core/models/ai_system_map_v2.py`
+- `src/systograph/core/services/canonical_map_loader.py`
+- `src/systograph/core/services/system_map_v2_validation_service.py`
+- `src/systograph/core/services/viewer_session_service.py`
+- `src/systograph/core/services/map_build_pipeline.py`
 - `tests/unit/core/test_system_map_v2_validation.py`
 - `tests/unit/core/test_viewer_session_service.py`
 
@@ -158,8 +158,8 @@ flowchart TD
 
 - [x] `.venv/bin/pytest tests/unit/core/test_system_map_v2_validation.py tests/unit/core/test_viewer_session_service.py -q`
 - [x] 新增 focused `tests/unit/core/test_system_map_index.py`。
-- [x] `.venv/bin/ruff check src/kai_mind/core/services/system_map_index.py tests/unit/core/test_system_map_index.py`
-- [x] `.venv/bin/mypy src/kai_mind/core/services/system_map_index.py tests/unit/core/test_system_map_index.py`
+- [x] `.venv/bin/ruff check src/systograph/core/services/system_map_index.py tests/unit/core/test_system_map_index.py`
+- [x] `.venv/bin/mypy src/systograph/core/services/system_map_index.py tests/unit/core/test_system_map_index.py`
 - [x] `rg -n "SystemMapIndex" src tests` 以確認 usage 有限且 intentional。
 - [x] `git diff --check -- docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-a-index-projection/05-add-read-only-system-map-index.md`
 

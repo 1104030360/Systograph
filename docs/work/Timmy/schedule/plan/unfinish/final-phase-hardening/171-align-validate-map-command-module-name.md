@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/171
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/171
 
 **Goal:** 消除 `viewer_command.py` 檔名與實際註冊命令 `validate-map` 的命名歧義。
 
@@ -16,14 +16,14 @@
 
 - GitHub issue #171, assignee Timmy.
 - Origin: Backend findings L-15.
-- Primary files: `src/kai_mind/cli/viewer_command.py`, `src/kai_mind/cli/main.py`.
+- Primary files: `src/systograph/cli/viewer_command.py`, `src/systograph/cli/main.py`.
 - Related tests: `tests/cli/test_viewer_command.py`.
 
 ### Task 1: Choose rename or docstring-only strategy
 
 **Files:**
-- Inspect: `src/kai_mind/cli/viewer_command.py`
-- Inspect: `src/kai_mind/cli/main.py`
+- Inspect: `src/systograph/cli/viewer_command.py`
+- Inspect: `src/systograph/cli/main.py`
 - Inspect: `tests/cli/test_viewer_command.py`
 
 - [ ] **Step 1: Check whether external imports rely on `viewer_command`**
@@ -33,8 +33,8 @@
 ### Task 2A: If renaming module
 
 **Files:**
-- Move: `src/kai_mind/cli/viewer_command.py` to `src/kai_mind/cli/validate_map_command.py`
-- Modify: `src/kai_mind/cli/main.py`
+- Move: `src/systograph/cli/viewer_command.py` to `src/systograph/cli/validate_map_command.py`
+- Modify: `src/systograph/cli/main.py`
 - Modify: `tests/cli/test_viewer_command.py` name if useful
 
 - [ ] **Step 1: Update imports**
@@ -44,7 +44,7 @@
 ### Task 2B: If keeping module name
 
 **Files:**
-- Modify: `src/kai_mind/cli/viewer_command.py`
+- Modify: `src/systograph/cli/viewer_command.py`
 
 - [ ] **Step 1: Add precise module docstring explaining viewer projection validation**
 - [ ] **Step 2: Avoid touching user-facing command behavior**
@@ -53,7 +53,7 @@
 
 ```bash
 .venv/bin/pytest tests/cli/test_viewer_command.py -v
-.venv/bin/kai-mind validate-map --help
+.venv/bin/systograph validate-map --help
 .venv/bin/pytest
 .venv/bin/ruff check .
 .venv/bin/mypy

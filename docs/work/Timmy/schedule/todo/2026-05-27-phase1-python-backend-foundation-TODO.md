@@ -18,18 +18,18 @@
 2. 閱讀 `epic1-backend-design.md` Sections 6、17、19.2、19.17，確認模組邊界與 FastAPI 決策。
 3. 建立最小測試，涵蓋 package import、CLI help、core 不載入 FastAPI。
 4. 執行測試，確認因尚未建立 package 而失敗。
-5. 建立 `pyproject.toml`、`src/kai_mind/`、`core/`、`web/`、`cli/`。
+5. 建立 `pyproject.toml`、`src/systograph/`、`core/`、`web/`、`cli/`。
 6. 把 runtime dependencies 放在 `[project].dependencies`，把 pytest/ruff 放在 `[dependency-groups].dev`。
 7. 執行 `uv lock` 建立 `uv.lock`。
 8. 執行 `uv sync` 驗證 UV 環境同步。
-9. 執行 `uv run pytest`、`uv run ruff check .`、`uv run python -m kai_mind.cli.main --help`。
+9. 執行 `uv run pytest`、`uv run ruff check .`、`uv run python -m systograph.cli.main --help`。
 10. 撰寫 report 並逐項核對驗收標準。
 
 ## 驗收
 
 - `uv sync` 通過。
 - `uv run pytest` 通過。
-- `uv run python -m kai_mind.cli.main --help` 可以顯示 help。
+- `uv run python -m systograph.cli.main --help` 可以顯示 help。
 - `pyproject.toml` 含 direct dependency range pin。
 - repo 中存在 `uv.lock`。
 - `core` package 不 import FastAPI。

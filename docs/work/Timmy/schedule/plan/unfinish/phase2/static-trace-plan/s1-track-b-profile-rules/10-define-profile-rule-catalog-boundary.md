@@ -17,7 +17,7 @@ matching catalogs 都不能改寫 canonical facts、五態或 Mapping Completene
 
 ## Global Constraints
 
-- Scanner 對 target repo 維持 read-only；catalog 只能從 KAI-Mind package 載入。
+- Scanner 對 target repo 維持 read-only；catalog 只能從 Systograph package 載入。
 - Two-Phase Analysis：先由 deterministic parser/adapter 產出 facts，再做 deterministic profile inference。
 - `detected` 必須有 direct evidence；absence 不等於 explicit-negative。
 - `not_detected` 必須通過 profile-specific coverage gate。
@@ -50,9 +50,9 @@ matching catalogs 都不能改寫 canonical facts、五態或 Mapping Completene
 
 | 能力 | 目前狀態 | 證據 |
 |---|---|---|
-| 15 個 profile ids 與 executable rule definitions | 已完成 | `src/kai_mind/core/services/profile_registry.py` |
-| Profile inference orchestration | 已完成 | `src/kai_mind/core/services/profile_inference_service.py` |
-| 五態、六種 activation、evidence kinds、scope、Mapping Completeness | 已完成 backend contract | `src/kai_mind/core/models/profile_signal.py` |
+| 15 個 profile ids 與 executable rule definitions | 已完成 | `src/systograph/core/services/profile_registry.py` |
+| Profile inference orchestration | 已完成 | `src/systograph/core/services/profile_inference_service.py` |
+| 五態、六種 activation、evidence kinds、scope、Mapping Completeness | 已完成 backend contract | `src/systograph/core/models/profile_signal.py` |
 | Profile aggregation 與 evidence strength | 已完成 | `profile_finding_service.py`、`profile_finding_rules.py` |
 | 52-node reference metadata catalog | 已完成 | `capability_reference_map.toml`、Plan 01A |
 | Profile dependency guard | 部分完成 | 現有 AST test 只檢查手列 modules 與 direct imports |
@@ -71,8 +71,8 @@ executable definitions 分檔，不能只把相同資料複製一份到 TOML。
 ```text
 Phase A / S1          Gate-1          Plan 16 / Gate-2        Plan 14 / Gate-3       Plan 18
 ------------------    ---------       -------------------     ------------------     ------------------
-KAI TOML providers -> 解鎖 UA 整合 -> UA = Step 3 primary  -> parity 驗證通過   -> default Step 3
-= Step 3 primary                       KAI = parity-only                              不再跑舊 providers
+Systograph TOML providers -> 解鎖 UA 整合 -> UA = Step 3 primary  -> parity 驗證通過   -> default Step 3
+= Step 3 primary                       Systograph = parity-only                              不再跑舊 providers
 
 Profile Engine        一直由 Python deterministic semantics 擁有，不隨 scanner owner 切換
 Metadata catalogs     risk / next-check / reference / profile / inventory / llm config 保留
@@ -115,7 +115,7 @@ Target repo
    |
    v
 Step 3 deterministic scanner owner
-   Phase A: KAI TOML providers
+   Phase A: Systograph TOML providers
    Phase B/C: UA sidecar + UaStructuralAdapter
    |
    v
@@ -239,7 +239,7 @@ Plan 11 error contract：
 
 - Modify: `tests/unit/core/test_profile_inference_boundaries.py`
 
-- [x] 自動探索 `src/kai_mind/core/services/profile*.py`，並納入
+- [x] 自動探索 `src/systograph/core/services/profile*.py`，並納入
   `reference_capability_assessment_service.py`；不要再只維護四個手列檔案。
 - [x] 建立 repo-local import graph，檢查 direct 與 transitive imports。
 - [x] 禁止 profile path 依賴 manual mapping、mapping proposal、LLM proposal config/provider、web routes。
@@ -294,7 +294,7 @@ uv run pytest \
   tests/unit/core/test_profile_signal_models.py -q
 uv run ruff check src tests
 uv run mypy
-test ! -e src/kai_mind/core/rules/profile_registry.toml
+test ! -e src/systograph/core/rules/profile_registry.toml
 git diff --check \
   docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-b-profile-rules/10-define-profile-rule-catalog-boundary.md \
   docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-b-profile-rules/11-migrate-profile-rule-metadata-to-toml-catalog.md

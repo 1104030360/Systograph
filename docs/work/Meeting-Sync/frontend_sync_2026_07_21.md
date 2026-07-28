@@ -1,4 +1,4 @@
-# KAI-Mind Frontend Sync：Plan 13 v2 contract 對齊與 Dialog 收尾（2026-07-21）
+# Systograph Frontend Sync：Plan 13 v2 contract 對齊與 Dialog 收尾（2026-07-21）
 
 本文件對應 `codex/phase2-plan06-contract` 對 `main` 的 frontend PR #252。
 
