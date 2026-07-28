@@ -16,7 +16,6 @@ from kai_mind.core.models.ai_system_map_v2 import (
     CanonicalRecommendedNextCheck,
     CanonicalRiskHint,
     CanonicalUnmappedComponent,
-    CompatibilityLayer,
     DetectionStatus,
     RiskTargetTypeV2,
 )
@@ -29,22 +28,7 @@ from kai_mind.core.services.canonical_evidence_service import (
 from kai_mind.core.services.component_detection_service import (
     ComponentDetectionResult,
 )
-
-SLOT_LAYER_BY_ID: dict[str, CompatibilityLayer] = {
-    "app_api_or_orchestrator": "control",
-    "data_sources": "ingestion_indexing",
-    "document_loader": "ingestion_indexing",
-    "chunking": "ingestion_indexing",
-    "embedding_model": "ingestion_indexing",
-    "vector_store": "retrieval",
-    "query_processing": "retrieval",
-    "retriever": "retrieval",
-    "prompt_builder": "generation",
-    "llm": "generation",
-    "citation_or_response_composer": "generation",
-    "guardrails": "governance_observability",
-    "observability": "governance_observability",
-}
+from kai_mind.core.services.legacy_slot_layer_map import SLOT_LAYER_BY_ID
 
 
 class SystemMapV2NormalizeService:

@@ -47,27 +47,13 @@ from kai_mind.core.models.system_map import (
     RagSystemMap,
     RiskHint,
 )
+from kai_mind.core.services.legacy_slot_layer_map import SLOT_LAYER_BY_ID
 from kai_mind.core.services.path_safety_service import (
     WINDOWS_DRIVE_RE,
     WINDOWS_UNC_RE,
 )
 
 SLOT_PLACEHOLDER_PREFIX: Final[str] = "component:slot_placeholder:"
-SLOT_LAYER_BY_ID: Final[dict[str, CompatibilityLayer]] = {
-    "app_api_or_orchestrator": "control",
-    "data_sources": "ingestion_indexing",
-    "document_loader": "ingestion_indexing",
-    "chunking": "ingestion_indexing",
-    "embedding_model": "ingestion_indexing",
-    "vector_store": "retrieval",
-    "query_processing": "retrieval",
-    "retriever": "retrieval",
-    "prompt_builder": "generation",
-    "llm": "generation",
-    "citation_or_response_composer": "generation",
-    "guardrails": "governance_observability",
-    "observability": "governance_observability",
-}
 
 
 @dataclass(frozen=True, slots=True)
