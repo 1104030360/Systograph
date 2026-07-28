@@ -243,11 +243,14 @@ def create_app(
     # payload 也不再被磁碟上既有的 build 蓋掉。
     store.hydrate_from_latest()
     origins = tuple(allowed_origins or DEFAULT_ALLOWED_ORIGINS)
-    app.add_middleware(SafeUnhandledExceptionMiddleware)
+    # add_middleware 是 insert(0)，後掛的在外層。
+    # 這個順序 = SafeUnhandledException 包住 RequestSizeLimit，
+    # 讓 size limit 自身的例外也回統一的 JSON 錯誤格式。
     app.add_middleware(
         RequestSizeLimitMiddleware,
         max_request_body_bytes=max_request_body_bytes,
     )
+    app.add_middleware(SafeUnhandledExceptionMiddleware)
     app.include_router(map_routes.router)
     app.include_router(map_build_routes.router)
     app.include_router(detail_scan_routes.router)

@@ -2,18 +2,22 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 
 import pytest
 from fastapi import APIRouter
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 from starlette.types import Message, Receive, Scope, Send
 
 from kai_mind.core.providers.local_json_state_errors import (
     ProjectStateBusyError,
 )
-from kai_mind.web.app import create_app
+from kai_mind.web import middleware as web_middleware
+from kai_mind.web.app import LocalApiApp, create_app
 from kai_mind.web.middleware import (
     RequestSizeLimitMiddleware,
+    SafeUnhandledExceptionMiddleware,
     _declared_content_length,
 )
 
@@ -264,3 +268,152 @@ def test_declared_content_length_falls_back_on_hostile_values(
     scope: Scope = {"type": "http", "headers": headers}
 
     assert _declared_content_length(scope) == expected
+
+
+def test_streaming_failure_does_not_double_start_response() -> None:
+    """response 已開始後才拋例外，不可再送第二個 http.response.start。"""
+    sent: list[Message] = []
+
+    async def streaming_then_boom(
+        scope_: Scope,
+        receive_: Receive,
+        send_: Send,
+    ) -> None:
+        await send_(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-type", b"text/event-stream")],
+            }
+        )
+        await send_(
+            {"type": "http.response.body", "body": b"x", "more_body": True}
+        )
+        raise RuntimeError("db handle died mid-stream")
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: Message) -> None:
+        sent.append(message)
+
+    middleware = SafeUnhandledExceptionMiddleware(streaming_then_boom)
+    scope: Scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/api/scan/events",
+        "headers": [],
+    }
+
+    # 死因必須原樣傳出去，不能被 "ASGI protocol violation" 蓋掉。
+    with pytest.raises(RuntimeError, match="db handle died mid-stream"):
+        asyncio.run(middleware(scope, receive, send))
+
+    starts = [m for m in sent if m["type"] == "http.response.start"]
+    assert len(starts) == 1
+
+
+def test_client_disconnect_is_swallowed_without_error_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """中途斷線不是 server 錯誤：不送回應、不留 ERROR、不 re-raise。"""
+    sent: list[Message] = []
+
+    async def guard_style_json_read(
+        scope_: Scope,
+        receive_: Receive,
+        send_: Send,
+    ) -> None:
+        # 形狀對齊 legacy_mapping_guards.reject_legacy_mapping_type 的
+        # raw await request.json()：對方斷線時 starlette 會拋
+        # ClientDisconnect。目前那三條掛 guard 的 route 都有 body field，
+        # FastAPI 會先讀掉 body 並自行轉成 400，所以這裡直接測 middleware
+        # 契約本身，涵蓋任何自己讀 raw stream 的路徑。
+        await Request(scope_, receive_).json()
+
+    async def receive() -> Message:
+        return {"type": "http.disconnect"}
+
+    async def send(message: Message) -> None:
+        sent.append(message)
+
+    middleware = SafeUnhandledExceptionMiddleware(guard_style_json_read)
+    scope: Scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/mappings",
+        "headers": [],
+    }
+
+    with caplog.at_level(logging.DEBUG, logger=web_middleware.__name__):
+        asyncio.run(middleware(scope, receive, send))
+
+    assert sent == []
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+
+
+def test_size_limit_middleware_failure_is_masked_as_json(
+    local_api_app: LocalApiApp,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """遮蔽層必須包住 size limit —— 它的例外也要回 JSON 而非 plain text。"""
+    client = TestClient(local_api_app, raise_server_exceptions=False)
+
+    def boom(scope_: Scope) -> None:
+        raise RuntimeError("size limit exploded")
+
+    monkeypatch.setattr(
+        "kai_mind.web.middleware._declared_content_length",
+        boom,
+    )
+
+    response = client.post("/api/scans", json={"project_id": "p"})
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "internal_server_error"}
+
+
+def test_unhandled_exception_log_carries_route_without_secrets(
+    local_api_app: LocalApiApp,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """500 的 log 必須能定位，但結構化欄位不得含 secret 或絕對路徑。"""
+    router = APIRouter()
+
+    @router.get("/api/debug/boom-logged")
+    def boom() -> None:
+        raise RuntimeError(
+            "failed at /Users/linjunting/Local_AI_Health_Doctor/.env "
+            "with OPENAI_API_KEY=sk-live-secret-value"
+        )
+
+    local_api_app.include_router(router)
+    client = TestClient(local_api_app, raise_server_exceptions=False)
+
+    with caplog.at_level(logging.ERROR, logger=web_middleware.__name__):
+        response = client.get("/api/debug/boom-logged")
+
+    assert response.status_code == 500
+    records = [
+        record
+        for record in caplog.records
+        if record.name == web_middleware.__name__
+        and record.levelno == logging.ERROR
+    ]
+    assert len(records) == 1
+    event_data = getattr(records[0], "event_data", {})
+    assert event_data["event"] == "local_api_unhandled_exception"
+    assert event_data["stage"] == "local_api"
+    assert event_data["request_method"] == "GET"
+    assert event_data["request_path"] == "/api/debug/boom-logged"
+    assert event_data["exception_type"] == "RuntimeError"
+    # exc_info 是唯一能讓預設 Formatter 印出 file/line 的通道；
+    # 它走 logging 自己的 traceback 格式化，不經過遮罩，因此
+    # 只有結構化欄位與訊息本身在這裡被斷言為乾淨的。
+    # （re-raise 之後 uvicorn 本來就會印同一份 traceback。）
+    assert records[0].exc_info is not None
+    rendered = f"{event_data}{records[0].getMessage()}"
+    assert "sk-live-secret-value" not in rendered
+    assert "/Users/linjunting" not in rendered
+    assert "sk-live-secret-value" not in response.text
+    assert "/Users/linjunting" not in response.text

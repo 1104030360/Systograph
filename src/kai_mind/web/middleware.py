@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
+from starlette.requests import ClientDisconnect
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -83,7 +84,12 @@ class RequestSizeLimitMiddleware:
 
 
 class SafeUnhandledExceptionMiddleware:
-    """Return stable masked 500 errors for unexpected local API failures."""
+    """Return stable masked errors for unexpected local API failures.
+
+    行為對齊 Starlette 的 ServerErrorMiddleware：
+    - response 已開始時不再送第二個 http.response.start
+    - 遮蔽回應送出後仍 re-raise，讓 uvicorn / TestClient 看得到死因
+    """
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -94,45 +100,94 @@ class SafeUnhandledExceptionMiddleware:
         receive: Receive,
         send: Send,
     ) -> None:
-        try:
+        if scope["type"] != "http":
             await self.app(scope, receive, send)
+            return
+
+        response_started = False
+
+        async def _send(message: Message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, _send)
         except InvalidStateIdError:
-            if scope["type"] != "http":
-                raise
-            await _json_response(
+            await self._mask(
                 {"detail": "resource_not_found"},
                 status_code=404,
+                started=response_started,
                 scope=scope,
                 receive=receive,
                 send=send,
             )
         except ProjectStateBusyError:
-            if scope["type"] != "http":
-                raise
-            await _json_response(
+            await self._mask(
                 {"detail": "project_state_busy"},
                 status_code=503,
+                started=response_started,
                 scope=scope,
                 receive=receive,
                 send=send,
             )
-        except Exception as exc:  # noqa: BLE001
+        except ClientDisconnect:
+            # 對方走了：送遮蔽回應沒有收件人，re-raise 只會讓 uvicorn 把
+            # 一次正常的中斷印成 ERROR traceback。掛 guard 的那幾條 route
+            # 有 body field，FastAPI 會先讀 body 並自行轉成 400；這一支
+            # 接的是任何自己讀 raw stream 的路徑（例如未來的 streaming
+            # 上傳），讓中途 Ctrl+C 不要變成 ERROR + 假的 500。
+            safe_log_event(
+                logger,
+                logging.DEBUG,
+                "local_api_client_disconnected",
+                stage="local_api",
+                request_method=scope.get("method"),
+                request_path=scope.get("path"),
+            )
+        except Exception as exc:
+            # exc_info 讓預設 logging 設定印得出例外類別與 file/line；
+            # 結構化欄位仍走 safe_log_event 的遮罩／路徑 redaction。
             safe_log_event(
                 logger,
                 logging.ERROR,
                 "local_api_unhandled_exception",
                 stage="local_api",
                 exception_type=exc.__class__.__name__,
+                request_method=scope.get("method"),
+                request_path=scope.get("path"),
+                exc_info=exc,
             )
-            if scope["type"] != "http":
-                raise
-            await _json_response(
+            await self._mask(
                 {"detail": "internal_server_error"},
                 status_code=500,
+                started=response_started,
                 scope=scope,
                 receive=receive,
                 send=send,
             )
+            raise
+
+    @staticmethod
+    async def _mask(
+        content: dict[str, Any],
+        *,
+        status_code: int,
+        started: bool,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if started:
+            return
+        await _json_response(
+            content,
+            status_code=status_code,
+            scope=scope,
+            receive=receive,
+            send=send,
+        )
 
 
 class _ReplayReceive:
