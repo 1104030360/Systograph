@@ -1,4 +1,15 @@
-"""FastAPI dependency helpers for local API routes."""
+"""FastAPI dependency helpers for local API routes.
+
+責任：把 `app.state` 上那個動態、無型別的容器換成一個 typed 的
+`AppServices`，讓 route 的 `Depends(...)` 拿到的東西 mypy 檢查得到。
+
+呼叫鏈：`web/app.py::create_app` → `app.state.services`（`AppServices`）
+→ 本檔 `app_services(request)` → 各 helper → `routes/*` 的 `Depends`。
+
+全檔只剩 `app_services` 這一處型別斷言——那是 Starlette state 動態本質
+唯一需要斷言的邊界；跨過它之後全部都是 dataclass 的屬性存取，打錯字
+（`map_biuld_service`）在 mypy 就會紅，不用等 route 執行才 AttributeError。
+"""
 
 from __future__ import annotations
 
@@ -36,90 +47,72 @@ from kai_mind.core.services.scan_boundary_review_service import (
 )
 from kai_mind.core.services.scan_snapshot_service import ScanSnapshotService
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
+from kai_mind.web.app_services import AppServices
 from kai_mind.web.session_store import SessionStore
 
 
+def app_services(request: Request) -> AppServices:
+    """Single untyped boundary: Starlette state is dynamic by design."""
+    return cast(AppServices, request.app.state.services)
+
+
 def apply_confirmations_service(request: Request) -> ApplyConfirmationsService:
-    return cast(
-        ApplyConfirmationsService,
-        request.app.state.apply_confirmations_service,
-    )
+    return app_services(request).apply_confirmations_service
 
 
 def map_build_query_service(request: Request) -> MapBuildQueryService:
-    return cast(
-        MapBuildQueryService,
-        request.app.state.map_build_query_service,
-    )
+    return app_services(request).map_build_query_service
 
 
 def build_commit_service(request: Request) -> BuildCommitService:
-    return cast(BuildCommitService, request.app.state.build_commit_service)
+    return app_services(request).build_commit_service
 
 
 def scan_snapshot_service(request: Request) -> ScanSnapshotService:
-    return cast(ScanSnapshotService, request.app.state.scan_snapshot_service)
+    return app_services(request).scan_snapshot_service
 
 
 def inventory_preflight_service(request: Request) -> InventoryPreflightService:
-    return cast(
-        InventoryPreflightService,
-        request.app.state.inventory_preflight_service,
-    )
+    return app_services(request).inventory_preflight_service
 
 
 def inventory_selection_service(request: Request) -> InventorySelectionService:
-    return cast(
-        InventorySelectionService,
-        request.app.state.inventory_selection_service,
-    )
+    return app_services(request).inventory_selection_service
 
 
 def state_repository(request: Request) -> LocalJsonStateProvider:
-    return cast(LocalJsonStateProvider, request.app.state.state_repository)
+    return app_services(request).state_repository
 
 
 def map_build_service(request: Request) -> MapBuildService:
-    return cast(MapBuildService, request.app.state.map_build_service)
+    return app_services(request).map_build_service
 
 
 def manual_mapping_service(request: Request) -> ManualMappingService:
-    return cast(ManualMappingService, request.app.state.manual_mapping_service)
+    return app_services(request).manual_mapping_service
 
 
 def mapping_proposal_service(request: Request) -> MappingProposalService:
-    return cast(
-        MappingProposalService,
-        request.app.state.mapping_proposal_service,
-    )
+    return app_services(request).mapping_proposal_service
 
 
 def detail_scan_build_service(request: Request) -> DetailScanBuildService:
-    return cast(
-        DetailScanBuildService,
-        request.app.state.detail_scan_build_service,
-    )
+    return app_services(request).detail_scan_build_service
 
 
 def query_trace_service(request: Request) -> QueryTraceService:
-    return cast(QueryTraceService, request.app.state.query_trace_service)
+    return app_services(request).query_trace_service
 
 
 def scan_boundary_review_service(
     request: Request,
 ) -> ScanBoundaryReviewService:
-    return cast(
-        ScanBoundaryReviewService,
-        request.app.state.scan_boundary_review_service,
-    )
+    return app_services(request).scan_boundary_review_service
 
 
 def viewer_session_service(request: Request) -> ViewerSessionService:
-    return cast(
-        ViewerSessionService,
-        request.app.state.viewer_session_service,
-    )
+    return app_services(request).viewer_session_service
 
 
 def session_store(request: Request) -> SessionStore:
-    return cast(SessionStore, request.app.state.session_store)
+    return app_services(request).session_store

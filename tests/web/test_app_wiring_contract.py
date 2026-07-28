@@ -104,6 +104,15 @@ DEPENDENCY_HELPER_PAIRS: tuple[
     (dependencies.session_store, "session_store"),
 )
 
+# `app_services` 不是 Depends helper（零 route 用它），而是上面 15 個
+# helper 共用的那一道邊界：它負責把 Starlette 的動態 state 斷言成
+# AppServices，其餘 helper 只是在它回傳的 dataclass 上取欄位。
+# 它沒有「對應的 state 屬性」可以配對，所以從反射清單裡明列排除；
+# 排除的是這一個具名函式，不是整類函式，真的新增 Depends helper 時
+# 下面那條 tripwire 仍然會紅。它本身的接線由
+# test_dependency_helpers_return_the_wired_instances 直接驗。
+CONTAINER_ACCESSORS = frozenset({dependencies.app_services})
+
 
 def _names(functions: Iterable[object]) -> list[str]:
     return sorted(
@@ -148,6 +157,10 @@ def test_dependency_helpers_return_the_wired_instances(
             self.app = app
 
     request = _FakeRequest(local_api_app)
+    assert (
+        dependencies.app_services(request)  # type: ignore[arg-type]
+        is local_api_app.state.services
+    )
     for helper, attribute in DEPENDENCY_HELPER_PAIRS:
         resolved = helper(request)  # type: ignore[arg-type]
         assert resolved is getattr(local_api_app.state, attribute), attribute
@@ -168,5 +181,5 @@ def test_every_public_dependency_helper_is_under_contract() -> None:
     }
     covered = {helper for helper, _ in DEPENDENCY_HELPER_PAIRS}
 
-    assert _names(declared - covered) == []
+    assert _names(declared - covered - CONTAINER_ACCESSORS) == []
     assert _names(covered - declared) == []
