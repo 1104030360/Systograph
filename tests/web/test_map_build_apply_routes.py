@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
+from tests.helpers.web import app_session_store
 
 from kai_mind.core.models.map_build import SystemMapSchemaSelection
 from kai_mind.web.app import create_app
@@ -120,7 +121,7 @@ def test_committed_apply_survives_session_projection_failure(
         raise RuntimeError("injected session projection failure")
 
     monkeypatch.setattr(
-        app.state.session_store,
+        app_session_store(app),
         "save_build_result",
         fail_save,
     )

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.helpers.web import app_mapping_proposal_service
+
 from kai_mind.core.providers.llm_proposal_provider import (
     NvidiaNimProposalProvider,
 )
@@ -16,7 +18,7 @@ def test_app_does_not_wire_nvidia_provider_without_explicit_flag(
 
     app = create_app(env_file=env_file)
 
-    service = app.state.mapping_proposal_service
+    service = app_mapping_proposal_service(app)
     assert service.provider is None
 
 
@@ -36,5 +38,5 @@ def test_app_wires_nvidia_provider_when_enabled_from_dotenv(
 
     app = create_app(env_file=env_file)
 
-    service = app.state.mapping_proposal_service
+    service = app_mapping_proposal_service(app)
     assert isinstance(service.provider, NvidiaNimProposalProvider)
