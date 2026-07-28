@@ -185,3 +185,17 @@ schema sync `1 passed`、renderer `9 passed`，全套回到1031 passed。
   allowlisted `migrate` hit；這是明確frontend handoff，不得在backend report中標成已退場。
 - Plan 15仍負責移除 operator v1 writer/env、migration DTO/command/quarantine與不再需要的 v1
   compatibility fixtures；frontend handoff不屬Plan 15 cleanup。
+
+## 2026-07-28 追記：RA-4 缺口已由 Plan 13.5 回補
+
+Cutover 當時 `recommended_next_checks` 只有 legacy v1 writer 會填，v2 build **恆為空**
+（residue audit RA-4；本報告原本未把它列進 remaining warnings）。Plan 13.5 Stage A 已把它
+當功能缺口補回：`AiSystemMapV2` 新增 additive `recommended_next_checks[]`（A2）、
+`SystemMapV2MaterializationService` 接上與 v1 共用的 `RecommendedNextCheckService.derive`
+（A3）、v1/v2 viewer projection 統一（A4）；markdown report 改為 `### Scan-fact checks` 與
+`### Capability review checks` 兩段並列，System 1 不再遮蔽 System 2 的 per-node profile
+checks（A5）。欄位語意、additive schema migration 與兩套 checks 的分工見
+`docs/MODEL-CONTRACT.md` §5.3。
+
+Plan 13 window 內產生的 v2 artifact 此欄位為空，屬**已知歷史狀態**：該欄位為 additive、不在
+schema `required`，舊 artifact 仍可正常載入，不需要 rebuild 或 migration。

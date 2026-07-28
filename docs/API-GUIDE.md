@@ -376,6 +376,10 @@ Current runtime response `200`（`MapBuildResult`）：
 > Current runtime 的 `output_run_dir` 與 `*_path` 可能是 server-local absolute path，
 > 僅屬 compatibility contract。Phase2 target response 不得新增或延續 absolute-path 欄位。
 
+> `ai_system_map` 帶 deterministic `recommended_next_checks[]`（scan-fact checks，欄位語意
+> 見 MODEL-CONTRACT §5.3）。此欄位為 additive，缺此欄位的舊 artifact 仍可載入；但 pin 舊
+> v2 schema copy 的 strict validator 需先更新 schema copy 才能驗證新 artifact。
+
 正式 project workflow 不使用這個 demo response 當 history contract；它透過下節的
 `MapBuildScopedResponse` 回傳 scan/build lineage，且不暴露上述 absolute paths。
 Plan 06 後續才加入 safe lazy artifact refs：
@@ -623,6 +627,11 @@ GET /api/map/report?download=true   # 觸發附件下載
 ```
 
 Response `200`：`Content-Type: text/markdown; charset=utf-8`（純文字）。
+
+Report 的 `## Recommended Next Checks` 底下**並列兩段**：`### Scan-fact checks`（map 的
+`recommended_next_checks[]`）與 `### Capability review checks`（profile 評估的 per-node
+checks）。兩段各自去重、互不遮蔽；任一段為空時仍保留標題並標示 no checks（見
+MODEL-CONTRACT §5.3）。
 
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |

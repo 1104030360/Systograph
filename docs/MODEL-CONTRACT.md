@@ -2,7 +2,7 @@
 
 **Status:** Phase 2 S1 implemented contract + later projection/cutover targets（runtime query trace deferred）
 **Audience:** frontend / viewer implementers
-**Last updated:** 2026-07-17
+**Last updated:** 2026-07-28
 
 HTTP endpoint 契約見 [`API-GUIDE.md`](API-GUIDE.md)。本文件定義欄位語意、artifact lifecycle、GraphViewModel 規則。實作以 `src/kai_mind/core/models/` 為準；本文件描述 **target contract**，不代表每欄位已在 current runtime 落地。
 
@@ -308,6 +308,7 @@ Plan 13 已切換的 active public contract；正常 CLI/API build 只能產生 
 | `endpoints[]` | API entrypoints |
 | `risk_hints[]` | risk hints |
 | `unmapped_components[]` | 待使用者決策的 ambiguous components |
+| `recommended_next_checks[]` | deterministic scan-fact checks；見 §5.3 |
 
 ### 5.2 Step 4 Bridge Pipeline
 
@@ -324,6 +325,35 @@ Step 4  component_bridge_registry  (deterministic Python)
 **Apply 路徑：** 跳 Step 3 / UA → **4-1 bridge replay** → **4-2 confirmed mappings** → 重跑 Step 4 normalize 至 Step 7。
 
 Canonical map 只含 evidence-backed facts。Grounding readiness、profiles、`primary_map_type`、viewer ids **不得**寫回 canonical。
+
+### 5.3 `recommended_next_checks[]`（System 1 · scan-fact checks）
+
+由 `RecommendedNextCheckService` 從 normalized scan signals（components / endpoints / risk hints）deterministic 推導；reason / action 文案來自 `recommended_next_check_rules.toml`，v1（rollback writer）與 v2（active writer）兩條 build 路徑共用同一個 derive。
+
+| 欄位 | 說明 |
+|------|------|
+| `id` | `check:<rule_id>:<target_type>:<target>`；同 rule + 同 target 只出現一次 |
+| `target_type` / `target` | **evidence-targeted**：指向具體 `component_instance` / `component_slot` / `endpoint`，不得是整體性評語 |
+| `reason` | 觸發這條 check 的靜態掃描事實 |
+| `action` | 建議人工執行的下一步驗證動作 |
+
+- **不是 score、不是 verdict**：只列「靜態證據尚未涵蓋、需人工確認」的項目；**禁止** `confidence` 或 pass/fail 語彙。
+- 關注面是 runtime readiness 與 privacy exposure（missing runtime-critical slot、published port、external provider、secret-like config…），**不**評估 capability。
+- 依 `id` 排序；同一 `scan_id` 重跑結果一致。
+
+**Additive schema migration：** 此欄位為 `ai-system-map/v2` 的 additive 欄位，不在 schema `required`，因此缺此欄位的舊 artifact 仍可載入。但 root `additionalProperties` 為 `false`，**pin 了舊 v2 schema copy 的 strict validator 必須先更新 schema copy**，才能驗證帶此欄位的新 artifact。
+
+**與 System 2 的分工（兩者不互斥、不互相覆蓋）：**
+
+| | System 1 · scan-fact checks | System 2 · capability review checks |
+|---|---|---|
+| Owner | `RecommendedNextCheckService`（Step 4） | `ProfileInferenceService` + `profile_registry.toml`（Step 6） |
+| 落點 | `ai_system_map.json` 的 `recommended_next_checks[]` | `readiness_report.json`（頂層 `recommended_next_checks[]` 與 `findings[].recommended_next_checks`）、profile finding → profile attachment node 的 `recommended_next_checks` |
+| 關注面 | runtime / privacy 的掃描事實 | 52 格 capability 與 15 profiles 評估後的後續驗證 |
+
+Markdown report 在 `## Recommended Next Checks` 下**並列兩段**：`### Scan-fact checks`（System 1）與 `### Capability review checks`（System 2，per-node），各自去重；任一段為空時仍保留標題並標示 no checks，兩段不得互相遮蔽。
+
+**歷史狀態：** Plan 13 v2 cutover 期間，v2 build 未接上 derive，此欄位恆為空（RA-4 缺口）；Plan 13.5 回補後正常 build 才有值，該期間產出的 v2 artifact 屬已知歷史狀態。
 
 ---
 
@@ -420,7 +450,7 @@ Read-only sidecar。Build validation / CI strict mode可 fail-closed；**viewer 
 | `grounding` | applicability、status、dimensions、evidence 與 reason |
 | `capability_summaries[]` | `profile_id`, `status`, `activation`, `evidence_ids` |
 | `findings[]` | `finding_id`, `category`, `status`（五態）, `title`, `reason`, `evidence_ids`, `recommended_next_checks` |
-| `recommended_next_checks[]` / `limitations[]` | 後續驗證與靜態分析限制 |
+| `recommended_next_checks[]` / `limitations[]` | 後續驗證與靜態分析限制；此處為 capability 面的 System 2 checks，與 map 的 scan-fact checks 分工見 §5.3 |
 | `primary_map_type` | optional derived summary；**非** canonical |
 
 Current contract 不輸出 `release_verdict`、`severity` 或 `finding_registry_version`。**禁止** naming：`confidence`、`quality`、`accuracy`、score、pass/fail。
