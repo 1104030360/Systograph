@@ -262,8 +262,11 @@ class PersistentSessionStore:
         try:
             result = self._newest_loadable_build_result()
         except (LocalStateError, OSError) as exc:
-            # list_projects()/get_latest_pointer() 讀到損壞的 state JSON 會
-            # 丟 StateCorruptionError（local_json_state_storage.py:88）。
+            # 最後一道防線，只剩「整份 project 清單讀不出來」會走到這裡
+            # （`list_projects()` 自己丟 StateCorruptionError，
+            # local_json_state_storage.py:88）。單一 project 的壞 pointer
+            # 或壞 manifest 已經在 walk 裡面就地跳過，不會落到這裡 ——
+            # 一個壞掉的 project 不可以讓整個 viewer 空白。
             # 這裡若不接，create_app() 會直接炸掉 → server 開不起來。
             safe_log_event(
                 logger,
@@ -297,11 +300,24 @@ class PersistentSessionStore:
 
         跟 `latest_build_result()` 的差別是刻意的：開機預熱時，一個壞掉
         的 project 不應該讓 viewer 整個空白 —— 其他 project 還有好的
-        build 可以顯示。`build_result()` 已經把失效 artifact 轉成 None
-        並記一筆 `build_artifact_invalid`，所以這裡只要往下走。
+        build 可以顯示。要真的做到這件事，容錯必須**逐個 project**，
+        分兩層：pointer 列舉在 `_latest_pointers_newest_first()`，
+        build 載入在下面這個迴圈裡。包在整段外面是不夠的。
         """
         for pointer in self._latest_pointers_newest_first():
-            result = self.build_result(pointer.project_id)
+            try:
+                result = self.build_result(pointer.project_id)
+            except (LocalStateError, OSError) as exc:
+                # `build_result()` 只接 `manifest_service.load()` 丟的
+                # BuildArtifactLoadError/OSError；`get_build_manifest()`
+                # 讀到壞掉的 manifest.json 丟的 StateCorruptionError 會
+                # 直接穿過它，所以要在迴圈裡面再接一層。
+                # （artifact digest 失效那條已經在 build_result() 內轉成
+                # None + `build_artifact_invalid`，走下面的 if。）
+                self._log_project_skipped(
+                    "hydrate_build_unreadable", exc, pointer.project_id
+                )
+                continue
             if result is not None:
                 return result
         return None
@@ -309,11 +325,30 @@ class PersistentSessionStore:
     def _latest_pointers_newest_first(
         self,
     ) -> tuple[LatestBuildPointer, ...]:
+        """列出各 project 的 latest pointer，由新到舊；讀不出來的跳過。
+
+        逐個 project 容錯：壞掉的 `latest.json` 只能拖垮它自己那個
+        project。這一步發生在 `_newest_loadable_build_result()` 的迴圈
+        **之前**，只把容錯包在迴圈裡救不到它。
+
+        對 `latest_build_result()` 的影響是刻意接受的：某個 project 的
+        pointer 讀不出來時，它從「整支 raise → `/api/map/report` 500」
+        變成「那個 project 當作沒有 latest build」。artifact 失效的語意
+        沒變 —— 仍然只試最新那一個，載不起來就是 None。
+        """
         # repository / artifact I/O 刻意不放在鎖裡：讀檔可能很慢，
         # 在鎖內做會讓所有 request 排隊等一次磁碟往返。
         pointers = []
         for project in self._repository.list_projects():
-            pointer = self._repository.get_latest_pointer(project.project_id)
+            try:
+                pointer = self._repository.get_latest_pointer(
+                    project.project_id
+                )
+            except (LocalStateError, OSError) as exc:
+                self._log_project_skipped(
+                    "latest_pointer_unreadable", exc, project.project_id
+                )
+                continue
             if pointer is not None:
                 pointers.append(pointer)
         return tuple(
@@ -322,6 +357,24 @@ class PersistentSessionStore:
                 key=lambda item: (item.updated_at, item.latest_build_id),
                 reverse=True,
             )
+        )
+
+    @staticmethod
+    def _log_project_skipped(
+        event: str,
+        exc: Exception,
+        project_id: str,
+    ) -> None:
+        # detail 走 safe_log_event 的遮罩／路徑 redaction，
+        # 只會留下檔名，不會外洩本機絕對路徑。
+        safe_log_event(
+            logger,
+            logging.WARNING,
+            event,
+            stage="web_session_store",
+            project_id=project_id,
+            exception_type=exc.__class__.__name__,
+            detail=str(exc),
         )
 
     def build_result(self, project_id: str) -> MapBuildResult | None:

@@ -230,15 +230,18 @@ def create_app(
     app.state.viewer_session_service = (
         viewer_session_service or ViewerSessionService()
     )
-    app.state.session_store = session_store or PersistentSessionStore(
+    # 走 typed local（而不是 app.state 那個 Any）呼叫 hydrate，
+    # 讓 SessionStore Protocol 真的替這個呼叫做型別檢查。
+    store: SessionStore = session_store or PersistentSessionStore(
         repository=repository,
         manifest_service=manifest_service,
         projection_service=app.state.viewer_session_service,
     )
+    app.state.session_store = store
     # 開機預熱一次：之後 GET /api/map 只讀快取，不會每個 request 重走
     # repository + 重載 artifact，而 POST /api/viewer/load 寫進去的
     # payload 也不再被磁碟上既有的 build 蓋掉。
-    app.state.session_store.hydrate_from_latest()
+    store.hydrate_from_latest()
     origins = tuple(allowed_origins or DEFAULT_ALLOWED_ORIGINS)
     app.add_middleware(SafeUnhandledExceptionMiddleware)
     app.add_middleware(

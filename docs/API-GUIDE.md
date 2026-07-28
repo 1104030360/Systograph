@@ -625,6 +625,10 @@ map 無效時仍回 `200`，但 `loaded:false` 並帶 `error_reason`，讓前端
 
 回傳目前 session 最新的 Markdown report（讀 `map_build` 寫出的 `map_markdown_path`，不接受任意路徑）。
 
+這支永遠反映**最新的那一次 build**，不會反映 `POST /api/viewer/load` 載入的 map（載入的 map 是一份
+既有檔案，沒有對應的 report artifact）。因此在一次 `POST /api/viewer/load` 之後、下一次 build 或
+apply 之前，`GET /api/map` 與 `GET /api/map/report` 描述的可以是不同的 map；要兩者一致就重新 build。
+
 ```http
 GET /api/map/report            # 行內檢視
 GET /api/map/report?download=true   # 觸發附件下載

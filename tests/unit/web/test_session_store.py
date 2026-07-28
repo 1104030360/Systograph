@@ -78,6 +78,29 @@ def _publish_build(
     return project.project_id, result.map_json_path
 
 
+def _project_dir(tmp_path: Path, project_id: str) -> Path:
+    return tmp_path / "state" / "projects" / project_id.replace(":", "_")
+
+
+def _latest_pointer_path(tmp_path: Path, project_id: str) -> Path:
+    return _project_dir(tmp_path, project_id) / "latest.json"
+
+
+def _manifest_path(tmp_path: Path, project_id: str, build_id: str) -> Path:
+    return (
+        _project_dir(tmp_path, project_id)
+        / "builds"
+        / build_id.replace(":", "_")
+        / "manifest.json"
+    )
+
+
+def _corrupt(path: Path) -> None:
+    """真的把 state JSON 寫壞（不是 monkeypatch）。"""
+    assert path.is_file(), path
+    path.write_text("{not json", encoding="utf-8")
+
+
 def _store_with_two_builds(tmp_path: Path) -> StoreFixture:
     """Two projects, each with one published build; the second is newest."""
     repository = LocalJsonStateProvider(tmp_path / "state")
@@ -230,6 +253,46 @@ def test_hydrate_keeps_the_empty_payload_when_every_build_is_invalid(
     payload = fixture.store.latest_viewer_payload().viewer_load_result
     assert payload.loaded is False
     assert payload.error_reason == "no_map_loaded"
+
+
+def test_hydrate_skips_a_project_whose_latest_pointer_is_corrupt(
+    tmp_path: Path,
+) -> None:
+    """壞掉的 `latest.json` 只能拖垮它自己那個 project。
+
+    `get_latest_pointer()` 讀到壞 JSON 會丟 `StateCorruptionError`，
+    而且是在「由新到舊」的迴圈**開始之前**（列 pointer 的時候）——
+    容錯若只包在迴圈裡，最新那個 project 的壞 pointer 照樣清空 viewer。
+    """
+    fixture = _store_with_two_builds(tmp_path)
+    _corrupt(_latest_pointer_path(tmp_path, fixture.newer_project_id))
+
+    fixture.store.hydrate_from_latest()
+
+    hydrated = fixture.store.latest_viewer_payload().viewer_load_result
+    assert hydrated.loaded is True
+    assert hydrated.ai_system_map["build_id"] == "build:first"
+
+
+def test_hydrate_skips_a_project_whose_manifest_is_corrupt(
+    tmp_path: Path,
+) -> None:
+    """壞掉的 `manifest.json` 同理，只是它是從迴圈**裡面**丟出來的。
+
+    `build_result()` 只接 `manifest_service.load()` 的
+    `BuildArtifactLoadError`/`OSError`；`get_build_manifest()` 自己丟的
+    `StateCorruptionError` 會直接穿過去。
+    """
+    fixture = _store_with_two_builds(tmp_path)
+    _corrupt(
+        _manifest_path(tmp_path, fixture.newer_project_id, "build:second")
+    )
+
+    fixture.store.hydrate_from_latest()
+
+    hydrated = fixture.store.latest_viewer_payload().viewer_load_result
+    assert hydrated.loaded is True
+    assert hydrated.ai_system_map["build_id"] == "build:first"
 
 
 def test_hydrate_survives_a_corrupt_state_directory(
