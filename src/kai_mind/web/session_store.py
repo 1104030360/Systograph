@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -139,6 +140,18 @@ class InMemorySessionStore:
 
 
 class PersistentSessionStore:
+    """Durable local API state plus a "this process wrote it" cache.
+
+    快取語意：`_latest_build_result` / `_latest_viewer_payload` 只代表
+    「**本 process 剛寫入**的那一份」，不是「磁碟上最新的那一份」。
+    只有 save_* 會寫這兩個欄位；getter 一律不寫（查某個 project 的舊
+    build 不可以把「最新」換掉）。快取沒命中時才回頭問 repository。
+
+    `create_app()` 只建一個 store 給所有 request 共用，而 route handler
+    多半是 sync `def` → FastAPI 丟進 anyio threadpool，所以這兩個可變欄位
+    真的會被多執行緒同時存取，需要 `_lock` 保護。
+    """
+
     def __init__(
         self,
         *,
@@ -149,6 +162,7 @@ class PersistentSessionStore:
         self._repository = repository
         self._manifest_service = manifest_service
         self._projection = projection_service or ViewerSessionService()
+        self._lock = threading.RLock()
         self._latest_viewer_payload = ViewerPayload(
             viewer_load_result=self._projection.empty()
         )
@@ -189,24 +203,35 @@ class PersistentSessionStore:
         *,
         project_id: str | None = None,
     ) -> None:
-        self._latest_build_result = result
-        if result.viewer_load_result is not None:
-            self.save_viewer_payload(
-                ViewerPayload(viewer_load_result=result.viewer_load_result)
-            )
+        # 直接寫欄位（而非轉呼叫 save_viewer_payload）是為了讓兩個欄位
+        # 在同一個 critical section 內更新，不會被 threadpool 切成
+        # 「build 已換、viewer 還沒換」的中間狀態。RLock 的可重入性
+        # 只解決死鎖，不解決原子性。
+        with self._lock:
+            self._latest_build_result = result
+            if result.viewer_load_result is not None:
+                self._latest_viewer_payload = ViewerPayload(
+                    viewer_load_result=result.viewer_load_result
+                )
 
     def save_viewer_payload(self, payload: ViewerPayload) -> None:
-        self._latest_viewer_payload = payload
+        with self._lock:
+            self._latest_viewer_payload = payload
 
     def latest_viewer_payload(self) -> ViewerPayload:
         result = self.latest_build_result()
         if result is not None and result.viewer_load_result is not None:
             return ViewerPayload(viewer_load_result=result.viewer_load_result)
-        return self._latest_viewer_payload
+        with self._lock:
+            return self._latest_viewer_payload
 
     def latest_build_result(self) -> MapBuildResult | None:
-        if self._latest_build_result is not None:
-            return self._latest_build_result
+        with self._lock:
+            cached = self._latest_build_result
+        if cached is not None:
+            return cached
+        # 這裡的 repository / artifact I/O 刻意放在鎖外面：讀檔可能很慢，
+        # 在鎖內做會讓所有 request 排隊等一次磁碟往返。
         candidates = []
         for project in self._repository.list_projects():
             pointer = self._repository.get_latest_pointer(project.project_id)

@@ -4,6 +4,10 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 from tests.helpers.fixtures import rag_project_fixture_path
+from tests.web.test_mapping_proposal_routes import (
+    create_deterministic_test_app,
+    import_and_scan_weak_project,
+)
 
 from kai_mind.web.app import create_app
 
@@ -154,6 +158,47 @@ def test_api_map_report_does_not_500_when_artifacts_are_tampered(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "map_markdown_not_available"
+
+
+def test_api_map_returns_newest_build_after_querying_an_older_project(
+    tmp_path: Path,
+) -> None:
+    """查舊 project 的 mapping proposal 之後，/api/map 仍要回最新的 build。"""
+    client = create_deterministic_test_app()
+    older_id, older_unmapped_id = import_and_scan_weak_project(
+        client,
+        tmp_path,
+        name="older_project",
+        dependency="chromadb==0.5.0",
+    )
+    older_map = client.get("/api/map").json()
+    older_build_id = older_map["viewer_load_result"]["ai_system_map"][
+        "build_id"
+    ]
+    import_and_scan_weak_project(
+        client,
+        tmp_path,
+        name="newer_project",
+        dependency="qdrant-client==1.7.0",
+    )
+    newest = client.get("/api/map").json()
+    newest_build_id = newest["viewer_load_result"]["ai_system_map"]["build_id"]
+    assert newest_build_id != older_build_id
+
+    proposal = client.post(
+        "/api/mapping-proposals",
+        json={
+            "project_id": older_id,
+            "source_unmapped_id": older_unmapped_id,
+        },
+    )
+
+    assert proposal.status_code == 200
+    after = client.get("/api/map").json()
+    assert after["viewer_load_result"]["ai_system_map"]["build_id"] == (
+        newest_build_id
+    )
+    assert after == newest
 
 
 def test_map_report_route_ignores_arbitrary_path_query(

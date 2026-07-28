@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
@@ -124,3 +125,71 @@ def test_build_results_skips_projects_with_invalid_artifacts(
     assert [project_id for project_id, _ in results] == [
         fixture.newer_project_id
     ]
+
+
+def test_build_result_lookup_does_not_change_latest_build_result(
+    tmp_path: Path,
+) -> None:
+    """查舊 project 不可以讓 latest_build_result 變成舊的那個。"""
+    fixture = _store_with_two_builds(tmp_path)
+
+    newest_before = fixture.store.latest_build_result()
+    assert newest_before is not None
+    assert newest_before.lineage is not None
+    assert newest_before.lineage.build_id == "build:second"
+
+    fixture.store.build_result(fixture.older_project_id)
+
+    newest_after = fixture.store.latest_build_result()
+    assert newest_after is not None
+    assert newest_after.lineage is not None
+    assert newest_after.lineage.build_id == "build:second"
+    assert newest_after == newest_before
+
+
+def test_concurrent_save_and_read_keeps_state_consistent(
+    tmp_path: Path,
+) -> None:
+    """並行讀寫不可以炸出例外。
+
+    這是回歸護欄，不是 RED-first 證明：兩個欄位被切開更新的中間狀態
+    無法從公開 API 穩定觀察到，所以這裡只確認鎖沒有造成死鎖／例外，
+    且收斂後的狀態仍然可用。
+    """
+    fixture = _store_with_two_builds(tmp_path)
+    store = fixture.store
+    newer = fixture.newer_project_id
+    errors: list[BaseException] = []
+
+    def reader() -> None:
+        try:
+            for _ in range(200):
+                store.latest_build_result()
+                store.latest_viewer_payload()
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    def writer() -> None:
+        try:
+            for _ in range(200):
+                result = store.build_result(newer)
+                if result is not None:
+                    store.save_build_result(result, project_id=newer)
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [
+            pool.submit(reader),
+            pool.submit(reader),
+            pool.submit(writer),
+            pool.submit(writer),
+        ]
+        for future in futures:
+            future.result()
+
+    assert not errors
+    settled = store.latest_build_result()
+    assert settled is not None
+    assert settled.lineage is not None
+    assert settled.lineage.build_id == "build:second"
