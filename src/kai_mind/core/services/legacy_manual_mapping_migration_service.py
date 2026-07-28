@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -226,14 +227,11 @@ class LegacyManualMappingMigrationService:
         )
         if not complete:
             if apply:
+                ref = quarantine_ref or self._quarantine_ref(input_digest)
                 try:
                     self._backup(legacy, payload, input_digest)
-                    self._quarantine(
-                        legacy,
-                        payload,
-                        input_digest,
-                        quarantine_ref or self._quarantine_ref(input_digest),
-                    )
+                    self._quarantine(legacy, payload, input_digest, ref)
+                    self._retire_original(legacy, path, ref)
                 except OSError:
                     return LegacyMappingMigrationItem(
                         mapping_id=legacy.mapping_id,
@@ -395,16 +393,7 @@ class LegacyManualMappingMigrationService:
         input_digest: str,
         quarantine_ref: str,
     ) -> None:
-        token = quarantine_ref.removeprefix("quarantine:")
-        path = (
-            self._storage.root
-            / "migration-quarantine"
-            / self._storage.segment(legacy.project_id)
-            / (
-                f"{self._storage.segment(legacy.mapping_id)}."
-                f"{token}.legacy.json"
-            )
-        )
+        path = self._quarantine_file(legacy, quarantine_ref, "legacy")
         if not path.exists():
             self._storage.write_json(
                 path,
@@ -415,6 +404,59 @@ class LegacyManualMappingMigrationService:
                 },
                 mode=0o600,
             )
+
+    def _retire_original(
+        self,
+        legacy: LegacyManualMappingDTO,
+        path: Path,
+        quarantine_ref: str,
+    ) -> None:
+        """Move an unconverted legacy row out of the active mappings glob.
+
+        A row that cannot be converted keeps its legacy shape, and
+        `projects/<p>/mappings/*.json` is the glob that
+        `LocalJsonProjectRepository.list_for_project` reads as
+        `ManualMapping`. Leaving the original in place therefore fails the
+        whole project's mapping listing closed with `StateCorruptionError`
+        — one unconverted row takes down every flow that lists mappings.
+
+        Provenance chain after this move (owner-only `0600` throughout):
+        - `migration-backups/<project>/<mapping>.<token>.legacy.json`
+          plus an `index.json` entry — re-serialized payload (`_backup`)
+        - `migration-quarantine/<project>/<mapping>.<token>.legacy.json`
+          — re-serialized payload wrapped with migration version and
+          input digest (`_quarantine`)
+        - `migration-quarantine/<project>/<mapping>.<token>.original.json`
+          — the file moved here, byte-for-byte as the operator held it.
+
+        Both copies above are re-serializations (sorted keys, normalized
+        indent), so the moved file is the only byte-exact evidence of the
+        pre-migration state; that is why this retires the original by
+        moving it rather than unlinking it. The row is quarantined, never
+        skipped in place: a per-file skip would be the silent dual-read
+        this cutover exists to remove.
+        """
+        target = self._quarantine_file(legacy, quarantine_ref, "original")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        os.chmod(path, 0o600)
+        os.replace(path, target)
+
+    def _quarantine_file(
+        self,
+        legacy: LegacyManualMappingDTO,
+        quarantine_ref: str,
+        suffix: str,
+    ) -> Path:
+        token = quarantine_ref.removeprefix("quarantine:")
+        return (
+            self._storage.root
+            / "migration-quarantine"
+            / self._storage.segment(legacy.project_id)
+            / (
+                f"{self._storage.segment(legacy.mapping_id)}."
+                f"{token}.{suffix}.json"
+            )
+        )
 
     @staticmethod
     def _quarantine_ref(input_digest: str) -> str:
