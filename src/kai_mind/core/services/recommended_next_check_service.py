@@ -19,12 +19,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from kai_mind.core.models.recommended_next_check import RecommendedNextCheck
 from kai_mind.core.models.scan import ProjectScanResult
-from kai_mind.core.models.system_map import (
-    Endpoint,
-    RecommendedNextCheck,
-    RiskHint,
-)
+from kai_mind.core.models.system_map import Endpoint, RiskHint
 from kai_mind.core.services.component_detection_service import (
     ComponentDetectionResult,
 )

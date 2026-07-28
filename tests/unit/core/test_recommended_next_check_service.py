@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from kai_mind.core.models.recommended_next_check import RecommendedNextCheck
 from kai_mind.core.models.scan import ProjectScanResult
-from kai_mind.core.models.system_map import Endpoint, RiskHint
+from kai_mind.core.models.system_map import Endpoint, RagSystemMap, RiskHint
 from kai_mind.core.services.component_detection_service import (
     ComponentDetectionResult,
 )
@@ -51,6 +52,36 @@ def test_recommended_next_checks_deduplicate_by_check_and_target() -> None:
     assert len(privacy_checks) == 1
     assert privacy_checks[0].target_type == "component_instance"
     assert privacy_checks[0].target == component_id
+
+
+def test_derive_returns_the_canonical_recommended_next_check_model() -> None:
+    checks = RecommendedNextCheckService().derive(
+        raw_scan=ProjectScanResult(),
+        components=ComponentDetectionResult(
+            components_by_slot={},
+            unmapped_components=[],
+        ),
+        endpoints=[],
+        risk_hints=[
+            RiskHint(
+                id="risk:external-provider",
+                type="external_provider",
+                target="component:llm:openai",
+                target_type="component_instance",
+                evidence_id="evidence:openai",
+                rule_id="external_provider_detected",
+                rationale="External provider detected.",
+            )
+        ],
+    )
+
+    assert checks
+    assert all(isinstance(check, RecommendedNextCheck) for check in checks)
+    # The v1 map contract must bind the same class, not a forked copy.
+    assert (
+        RagSystemMap.model_fields["recommended_next_checks"].annotation
+        == list[RecommendedNextCheck]
+    )
 
 
 def test_privacy_endpoint_without_component_falls_back_to_endpoint() -> None:
