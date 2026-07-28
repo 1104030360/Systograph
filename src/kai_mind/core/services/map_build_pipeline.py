@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -33,10 +34,6 @@ from kai_mind.core.models.scan import OutputRun, ProjectScanResult
 from kai_mind.core.services.build_artifact_publisher import (
     BuildArtifactPublisher,
 )
-from kai_mind.core.services.legacy_v1_rollback_service import (
-    LegacyV1RollbackError,
-    LegacyV1RollbackService,
-)
 from kai_mind.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
@@ -49,6 +46,11 @@ from kai_mind.core.services.static_execution_artifact_service import (
 from kai_mind.core.services.system_map_v2_materialization_service import (
     SystemMapV2MaterializationService,
 )
+
+if TYPE_CHECKING:
+    from kai_mind.core.services.legacy_v1_rollback_service import (
+        LegacyV1RollbackService,
+    )
 
 
 # 做什麼：編排一次完整 build（從 scan/map 到 artifacts + MapBuildResult）。
@@ -111,6 +113,12 @@ class MapBuildPipeline:
         )
         artifact_map: BaseModel | None = None
         if self._canonical_output_version == "ai-system-map/v1":
+            # Operator rollback only: keep the v1 writer contract out of
+            # the active v2 import graph.
+            from kai_mind.core.services.legacy_v1_rollback_service import (
+                LegacyV1RollbackError,
+            )
+
             if self._legacy_rollback is None:
                 raise LegacyV1RollbackError(
                     "legacy_rollback_writer_unavailable"
@@ -172,6 +180,12 @@ class MapBuildPipeline:
         manual_mappings: tuple[ManualMapping, ...] = (),
     ) -> MapBuildResult:
         if self._canonical_output_version == "ai-system-map/v1":
+            # Operator rollback only: keep the v1 writer contract out of
+            # the active v2 import graph.
+            from kai_mind.core.services.legacy_v1_rollback_service import (
+                LegacyV1RollbackError,
+            )
+
             if self._legacy_rollback is None:
                 raise LegacyV1RollbackError(
                     "legacy_rollback_writer_unavailable"

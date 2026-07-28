@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
@@ -35,6 +36,7 @@ from kai_mind.core.services.build_artifact_publisher import (
     BuildArtifactPublisher,
 )
 from kai_mind.core.services.canonical_output_configuration import (
+    LEGACY_CANONICAL_OUTPUT_VERSION,
     canonical_output_version_from_env,
     require_public_v2_selection,
 )
@@ -52,9 +54,6 @@ from kai_mind.core.services.graph_markdown_renderer import (
 )
 from kai_mind.core.services.graph_mermaid_renderer import (
     GraphMermaidRenderer,
-)
-from kai_mind.core.services.legacy_v1_rollback_service import (
-    LegacyV1RollbackService,
 )
 from kai_mind.core.services.manual_mapping_service import ManualMappingService
 from kai_mind.core.services.map_build_orchestration import (
@@ -76,9 +75,6 @@ from kai_mind.core.services.risk_hint_service import RiskHintService
 from kai_mind.core.services.static_execution_artifact_service import (
     StaticExecutionArtifactService,
 )
-from kai_mind.core.services.system_map_materialization_service import (
-    SystemMapMaterializationService,
-)
 from kai_mind.core.services.system_map_v2_materialization_service import (
     SystemMapV2MaterializationService,
 )
@@ -90,6 +86,42 @@ from kai_mind.core.services.system_map_v2_validation_service import (
 )
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
 
+if TYPE_CHECKING:
+    from kai_mind.core.services.legacy_v1_rollback_service import (
+        LegacyV1RollbackService,
+    )
+
+
+# 做什麼：只在 operator rollback 模式下 import 並建 v1 rollback 物件圖。
+# 被誰呼叫：MapBuildService.__init__。
+# 自己呼叫：LegacyV1RollbackService、SystemMapMaterializationService。
+# 用 function-local import：active v2 path 不得依賴 v1 rollback 模組，
+# 這樣 Plan 15 刪掉那些模組時不會弄壞正常 build。
+def _build_legacy_v1_rollback_service(
+    *,
+    component_detection_service: ComponentDetectionService | None,
+    endpoint_detection_service: EndpointDetectionService | None,
+    risk_hint_service: RiskHintService | None,
+    flow_derivation_service: FlowDerivationService | None,
+    manual_mapping_service: ManualMappingService | None,
+) -> LegacyV1RollbackService:
+    from kai_mind.core.services.legacy_v1_rollback_service import (
+        LegacyV1RollbackService,
+    )
+    from kai_mind.core.services.system_map_materialization_service import (
+        SystemMapMaterializationService,
+    )
+
+    return LegacyV1RollbackService(
+        materialization_service=SystemMapMaterializationService(
+            component_detection_service=component_detection_service,
+            endpoint_detection_service=endpoint_detection_service,
+            risk_hint_service=risk_hint_service,
+            flow_derivation_service=flow_derivation_service,
+            manual_mapping_service=manual_mapping_service,
+        )
+    )
+
 
 # 做什麼：對外 build facade；組 pipeline，提供三種建圖入口。
 # 被誰用：CLI、Web、ApplyConfirmations、DetailScanBuild。
@@ -97,7 +129,7 @@ from kai_mind.core.services.viewer_session_service import ViewerSessionService
 class MapBuildService:
     # 做什麼：組裝 materializer / publisher / pipeline 依賴圖。
     # 被誰呼叫：app 啟動或測試注入。
-    # 自己呼叫：SystemMapMaterializationService、BuildArtifactPublisher、
+    # 自己呼叫：SystemMapV2MaterializationService、BuildArtifactPublisher、
     # MapBuildPipeline。
     def __init__(
         self,
@@ -148,18 +180,19 @@ class MapBuildService:
         self._canonical_output_version = (
             canonical_output_version or canonical_output_version_from_env()
         )
-        rollback_service = (
-            legacy_v1_rollback_service
-            or LegacyV1RollbackService(
-                materialization_service=SystemMapMaterializationService(
-                    component_detection_service=component_detection_service,
-                    endpoint_detection_service=endpoint_detection_service,
-                    risk_hint_service=risk_hint_service,
-                    flow_derivation_service=flow_derivation_service,
-                    manual_mapping_service=manual_mapping_service,
-                )
+        rollback_service = legacy_v1_rollback_service
+        if (
+            rollback_service is None
+            and self._canonical_output_version
+            == LEGACY_CANONICAL_OUTPUT_VERSION
+        ):
+            rollback_service = _build_legacy_v1_rollback_service(
+                component_detection_service=component_detection_service,
+                endpoint_detection_service=endpoint_detection_service,
+                risk_hint_service=risk_hint_service,
+                flow_derivation_service=flow_derivation_service,
+                manual_mapping_service=manual_mapping_service,
             )
-        )
         self._scanner = project_scan_service or ProjectScanService()
         self._output_provider = publisher.output_provider
         self._pipeline = MapBuildPipeline(

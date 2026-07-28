@@ -448,7 +448,15 @@ canonical schema。
 - [x] 未確認 component 保留為 generic unmapped/candidate fact；使用者確認 non-baseline 後只寫入
   capability candidate，不建立 extension 類別或 legacy edge。
 - [x] v1 schema/fixture、Legacy DTO、adapter 與 operator rollback serializer 明確標示
-  legacy/read-only；normal build path 不得 import。
+  legacy/read-only；normal build path 不得 import v1 **map contract**。lazy 化由 Plan 13.5
+  Task B3（RA-1）完成：`MapBuildService` / `MapBuildPipeline` 只在 operator rollback
+  （`canonical_output_version == ai-system-map/v1`）或呼叫端顯式注入時才 function-local import
+  並建 rollback 物件圖；v2 模式下 `MapBuildService()`、`create_app()` 與 CLI 都不 import
+  `legacy_v1_rollback_service`、`system_map_materialization_service`、
+  `system_map_normalize_service`（`tests/unit/core/test_map_build_service.py` 以子行程
+  `sys.modules` 探針把關）。scan-phase 共用 DTO（`models/system_map.py` 內的
+  `Evidence`/`Endpoint`/`Flow` 等）仍被 active path import，其拆分不屬本條，歸 Plan 15
+  （見 13.5 RA-8 / RB-10）。
 - [x] Task 1 allowlist 是 executable gate；backend hit只能命中`operator_rollback`、
   `migration_only`或測試明列的legacy evidence；frontend-owned active hit分類為`migrate`：
 

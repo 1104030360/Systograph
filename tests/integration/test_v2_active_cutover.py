@@ -267,6 +267,36 @@ def test_operator_v1_rollback_writes_one_v1_artifact_but_returns_v2(
     assert json_names.count("ai_system_map.json") == 1
 
 
+def test_operator_env_rollback_writes_the_v1_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The env-driven rollback keeps its lazily built writer graph.
+
+    Given KAI_MIND_CANONICAL_OUTPUT_VERSION selecting the legacy version,
+    When a default MapBuildService builds a snapshot,
+    Then the rollback writer is still constructed and emits one v1
+    artifact while the returned map stays v2.
+    """
+    # Given
+    monkeypatch.setenv(
+        "KAI_MIND_CANONICAL_OUTPUT_VERSION",
+        "ai-system-map/v1",
+    )
+
+    # When
+    result = _build(tmp_path)
+
+    # Then
+    assert result.operator_rollback_active is True
+    assert result.active_schema_version == "ai-system-map/v1"
+    assert result.map_json_path is not None
+    artifact = json.loads(result.map_json_path.read_text(encoding="utf-8"))
+    assert artifact["schema_version"] == "ai-system-map/v1"
+    assert result.ai_system_map is not None
+    assert result.ai_system_map.schema_version == "ai-system-map/v2"
+
+
 def test_public_v1_selection_fails_before_writing_artifacts(
     tmp_path: Path,
 ) -> None:
