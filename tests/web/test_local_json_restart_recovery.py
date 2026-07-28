@@ -220,9 +220,10 @@ def test_committed_detail_scan_survives_restart(tmp_path: Path) -> None:
 def test_latest_viewer_payload_survives_restart(tmp_path: Path) -> None:
     """新 app 物件 + 舊 state_dir 時，/api/map 仍要還原最新 build。
 
-    這條走的是 PersistentSessionStore.latest_build_result() 的
-    `_latest_build_result is None` fallback —— 同一個 process 內
-    永遠走不到，只有 restart 情境會觸發。
+    這條驗的是 `create_app()` 開機時那一次
+    `PersistentSessionStore.hydrate_from_latest()` —— 同一個 process 內
+    永遠走不到，只有 restart 情境會觸發。`/api/map` 本身只讀快取，
+    所以 hydrate 沒被呼叫到的話這條一定紅。
     """
     state_dir = tmp_path / "state"
     first = TestClient(create_app(state_dir=state_dir))

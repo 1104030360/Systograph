@@ -235,6 +235,10 @@ def create_app(
         manifest_service=manifest_service,
         projection_service=app.state.viewer_session_service,
     )
+    # 開機預熱一次：之後 GET /api/map 只讀快取，不會每個 request 重走
+    # repository + 重載 artifact，而 POST /api/viewer/load 寫進去的
+    # payload 也不再被磁碟上既有的 build 蓋掉。
+    app.state.session_store.hydrate_from_latest()
     origins = tuple(allowed_origins or DEFAULT_ALLOWED_ORIGINS)
     app.add_middleware(SafeUnhandledExceptionMiddleware)
     app.add_middleware(

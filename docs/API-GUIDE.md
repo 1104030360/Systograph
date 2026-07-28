@@ -606,6 +606,10 @@ build-scoped workflow 改用 safe `artifact_refs`，不接受 frontend 傳入任
 artifacts，Phase2 target viewer 可讀取它們作為 enrichment；缺失時應回 warnings，不阻塞
 base graph 載入。
 
+> 啟動時 server 會用最新的持久化 build 預熱 viewer payload（該 build 的 artifact 已失效時，
+> 往下找次新且仍載得起來的那一份）；之後任何一次 `POST /api/viewer/load` 都會覆蓋它，
+> 直到下一次 build 或 apply 完成。
+
 ```http
 POST /api/viewer/load
 ```

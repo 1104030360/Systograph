@@ -12,19 +12,25 @@ import pytest
 from kai_mind.core.models.analysis_history import ScanSnapshot
 from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
 from kai_mind.core.models.scan import OutputRun, ProjectScanResult
+from kai_mind.core.models.viewer import ViewerPayload
 from kai_mind.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
+    StateCorruptionError,
 )
 from kai_mind.core.services.build_manifest_service import BuildManifestService
 from kai_mind.core.services.map_build_service import MapBuildService
 from kai_mind.core.services.viewer_session_service import ViewerSessionService
-from kai_mind.web.session_store import PersistentSessionStore
+from kai_mind.web.session_store import (
+    InMemorySessionStore,
+    PersistentSessionStore,
+)
 
 
 class StoreFixture(NamedTuple):
     """One session store plus two published builds on disk."""
 
     store: PersistentSessionStore
+    repository: LocalJsonStateProvider
     manifest_service: BuildManifestService
     older_project_id: str
     newer_project_id: str
@@ -99,6 +105,7 @@ def _store_with_two_builds(tmp_path: Path) -> StoreFixture:
     )
     return StoreFixture(
         store=store,
+        repository=repository,
         manifest_service=manifest_service,
         older_project_id=older_id,
         newer_project_id=newer_id,
@@ -171,6 +178,119 @@ def test_build_result_lookup_does_not_change_latest_build_result(
     assert newest_after.lineage is not None
     assert newest_after.lineage.build_id == "build:second"
     assert newest_after == newest_before
+
+
+def test_hydrate_seeds_the_viewer_payload_from_the_newest_build(
+    tmp_path: Path,
+) -> None:
+    """開機預熱：沒 hydrate 前是空的，hydrate 後是磁碟上最新那一份。"""
+    fixture = _store_with_two_builds(tmp_path)
+
+    before = fixture.store.latest_viewer_payload()
+    assert before.viewer_load_result.loaded is False
+
+    fixture.store.hydrate_from_latest()
+
+    hydrated = fixture.store.latest_viewer_payload().viewer_load_result
+    assert hydrated.loaded is True
+    assert hydrated.ai_system_map["build_id"] == "build:second"
+
+
+def test_hydrate_falls_back_to_the_next_newest_loadable_build(
+    tmp_path: Path,
+) -> None:
+    """最新的 project 壞掉時，往下找 —— 不可以讓 viewer 整個空白。
+
+    這是刻意跟 `latest_build_result()` 分道揚鑣的地方：那支只看最新
+    那一個（呼叫端要的就是「最新」），hydrate 是開機預熱，一個壞掉的
+    project 不該連累其他 project 已經有的好 build。
+    """
+    fixture = _store_with_two_builds(tmp_path)
+    fixture.newer_map_json.write_text("{}", encoding="utf-8")
+
+    fixture.store.hydrate_from_latest()
+
+    hydrated = fixture.store.latest_viewer_payload().viewer_load_result
+    assert hydrated.loaded is True
+    assert hydrated.ai_system_map["build_id"] == "build:first"
+    # 對照組：latest_build_result() 維持原語意，最新的壞掉就是 None。
+    assert fixture.store.latest_build_result() is None
+
+
+def test_hydrate_keeps_the_empty_payload_when_every_build_is_invalid(
+    tmp_path: Path,
+) -> None:
+    """全部壞掉時安靜留在空 payload，不丟例外。"""
+    fixture = _store_with_two_builds(tmp_path)
+    fixture.newer_map_json.write_text("{}", encoding="utf-8")
+    fixture.older_map_json.write_text("{}", encoding="utf-8")
+
+    fixture.store.hydrate_from_latest()
+
+    payload = fixture.store.latest_viewer_payload().viewer_load_result
+    assert payload.loaded is False
+    assert payload.error_reason == "no_map_loaded"
+
+
+def test_hydrate_survives_a_corrupt_state_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """state dir 損壞不可以讓 create_app() 開不起來。
+
+    `list_projects()` 讀到壞掉的 project.json 會丟 `StateCorruptionError`
+    （`local_json_state_storage.py:88`）。hydrate 是預熱不是啟動前提，
+    所以要吞掉並留在空 payload。
+    """
+    fixture = _store_with_two_builds(tmp_path)
+
+    def corrupt() -> tuple[object, ...]:
+        raise StateCorruptionError("invalid local state: project.json")
+
+    monkeypatch.setattr(fixture.repository, "list_projects", corrupt)
+
+    fixture.store.hydrate_from_latest()
+
+    payload = fixture.store.latest_viewer_payload()
+    assert payload.viewer_load_result.loaded is False
+
+
+def test_latest_viewer_payload_is_a_plain_cache_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """viewer/load 寫進來的 payload 不可以被既有 build 蓋掉，也不可以再讀檔。
+
+    讓 repository 一被碰就爆炸：`latest_viewer_payload()` 仍要回快取，
+    證明它既沒有從 build 反推（`POST /api/viewer/load` 的契約），
+    也沒有每個 request 重走一次磁碟（前端是輪詢這支的）。
+    """
+    fixture = _store_with_two_builds(tmp_path)
+    fixture.store.hydrate_from_latest()
+    loaded = ViewerPayload(
+        viewer_load_result=ViewerSessionService().empty(
+            error_reason="viewer_load_sentinel"
+        )
+    )
+    fixture.store.save_viewer_payload(loaded)
+
+    def explode() -> tuple[object, ...]:
+        raise AssertionError("latest_viewer_payload must not touch the disk")
+
+    monkeypatch.setattr(fixture.repository, "list_projects", explode)
+
+    assert fixture.store.latest_viewer_payload() == loaded
+
+
+def test_in_memory_hydrate_is_a_no_op() -> None:
+    """記憶體實作沒有持久化來源，hydrate 不改任何東西。"""
+    store = InMemorySessionStore()
+    before = store.latest_viewer_payload()
+
+    store.hydrate_from_latest()
+
+    assert store.latest_viewer_payload() == before
+    assert store.latest_build_result() is None
 
 
 def test_concurrent_save_and_read_keeps_state_consistent(

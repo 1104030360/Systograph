@@ -11,11 +11,15 @@ from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
 
-from kai_mind.core.models.analysis_history import ProjectState
+from kai_mind.core.models.analysis_history import (
+    LatestBuildPointer,
+    ProjectState,
+)
 from kai_mind.core.models.map_build import MapBuildResult
 from kai_mind.core.models.viewer import ViewerPayload
 from kai_mind.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
+    LocalStateError,
 )
 from kai_mind.core.services.build_manifest_service import (
     BuildArtifactLoadError,
@@ -50,6 +54,8 @@ class SessionStore(Protocol):
     def save_viewer_payload(self, payload: ViewerPayload) -> None: ...
 
     def latest_viewer_payload(self) -> ViewerPayload: ...
+
+    def hydrate_from_latest(self) -> None: ...
 
     def latest_build_result(self) -> MapBuildResult | None: ...
 
@@ -129,6 +135,13 @@ class InMemorySessionStore:
     def latest_viewer_payload(self) -> ViewerPayload:
         return self._latest_viewer_payload
 
+    def hydrate_from_latest(self) -> None:
+        """No-op：記憶體實作沒有可還原的持久化來源。
+
+        存在的理由是讓 `SessionStore` 兩個實作有同一組方法，
+        `create_app()` 不必先問「這個 store 撐不撐得住 hydrate」。
+        """
+
     def latest_build_result(self) -> MapBuildResult | None:
         return self._latest_build_result
 
@@ -144,8 +157,14 @@ class PersistentSessionStore:
 
     快取語意：`_latest_build_result` / `_latest_viewer_payload` 只代表
     「**本 process 剛寫入**的那一份」，不是「磁碟上最新的那一份」。
-    只有 save_* 會寫這兩個欄位；getter 一律不寫（查某個 project 的舊
-    build 不可以把「最新」換掉）。快取沒命中時才回頭問 repository。
+    只有 save_* 與開機時的 `hydrate_from_latest()` 會寫這兩個欄位；
+    getter 一律不寫（查某個 project 的舊 build 不可以把「最新」換掉）。
+
+    兩個欄位的沒命中行為刻意不同：`latest_build_result()` 沒命中時回頭
+    問 repository（呼叫端要的是磁碟上最新的 build）；
+    `latest_viewer_payload()` 一律只回快取，因為 `POST /api/viewer/load`
+    載入的 map 不可以被既有 build 蓋掉（`docs/API-GUIDE.md`
+    的 `POST /api/viewer/load` 段），開機那一份改由 hydrate 預熱。
 
     `create_app()` 只建一個 store 給所有 request 共用，而 route handler
     多半是 sync `def` → FastAPI 丟進 anyio threadpool，所以這兩個可變欄位
@@ -219,31 +238,91 @@ class PersistentSessionStore:
             self._latest_viewer_payload = payload
 
     def latest_viewer_payload(self) -> ViewerPayload:
-        result = self.latest_build_result()
-        if result is not None and result.viewer_load_result is not None:
-            return ViewerPayload(viewer_load_result=result.viewer_load_result)
+        """純快取讀取，不做任何 I/O，也不從 build 反推。
+
+        `POST /api/viewer/load` 寫進來的 payload 就是最新的，不可以被
+        磁碟上既有的 build 蓋掉（`docs/API-GUIDE.md` 的
+        `POST /api/viewer/load` 段）。process 剛開機、還沒有人 load 也
+        還沒 build 時的那一份，由 `hydrate_from_latest()` 預先填好。
+        """
         with self._lock:
             return self._latest_viewer_payload
+
+    def hydrate_from_latest(self) -> None:
+        """開機時用磁碟上最新一份 build 預熱 viewer payload（只呼叫一次）。
+
+        由 `create_app()` 在組裝完成後呼叫。這一次 I/O 換掉的是「每個
+        `GET /api/map` 都重新走一次 repository + 重新載入 artifact」——
+        前端是輪詢 `/api/map` 的，那個代價會一直付。
+
+        取不到 build（沒有任何 project、artifact 全失效、state dir 損壞）
+        時什麼都不做，快取維持建構子給的空 payload：hydrate 是預熱，
+        不是啟動前提，絕對不可以讓 server 起不來。
+        """
+        try:
+            result = self._newest_loadable_build_result()
+        except (LocalStateError, OSError) as exc:
+            # list_projects()/get_latest_pointer() 讀到損壞的 state JSON 會
+            # 丟 StateCorruptionError（local_json_state_storage.py:88）。
+            # 這裡若不接，create_app() 會直接炸掉 → server 開不起來。
+            safe_log_event(
+                logger,
+                logging.WARNING,
+                "session_store_hydrate_failed",
+                stage="web_session_store",
+                exception_type=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return
+        if result is not None and result.viewer_load_result is not None:
+            self.save_viewer_payload(
+                ViewerPayload(viewer_load_result=result.viewer_load_result)
+            )
 
     def latest_build_result(self) -> MapBuildResult | None:
         with self._lock:
             cached = self._latest_build_result
         if cached is not None:
             return cached
-        # 這裡的 repository / artifact I/O 刻意放在鎖外面：讀檔可能很慢，
+        pointers = self._latest_pointers_newest_first()
+        if not pointers:
+            return None
+        # 只看最新那一個：它失效就回 None，不往下找次新的。呼叫端
+        # （`GET /api/map/report`）問的是「最新那一個 build」，回一份更舊
+        # 的 report 比回 404 更難察覺。往下找的策略只用在 hydrate。
+        return self.build_result(pointers[0].project_id)
+
+    def _newest_loadable_build_result(self) -> MapBuildResult | None:
+        """由新到舊找第一個載得起來的 build（迴圈上界＝pointer 數量）。
+
+        跟 `latest_build_result()` 的差別是刻意的：開機預熱時，一個壞掉
+        的 project 不應該讓 viewer 整個空白 —— 其他 project 還有好的
+        build 可以顯示。`build_result()` 已經把失效 artifact 轉成 None
+        並記一筆 `build_artifact_invalid`，所以這裡只要往下走。
+        """
+        for pointer in self._latest_pointers_newest_first():
+            result = self.build_result(pointer.project_id)
+            if result is not None:
+                return result
+        return None
+
+    def _latest_pointers_newest_first(
+        self,
+    ) -> tuple[LatestBuildPointer, ...]:
+        # repository / artifact I/O 刻意不放在鎖裡：讀檔可能很慢，
         # 在鎖內做會讓所有 request 排隊等一次磁碟往返。
-        candidates = []
+        pointers = []
         for project in self._repository.list_projects():
             pointer = self._repository.get_latest_pointer(project.project_id)
             if pointer is not None:
-                candidates.append(pointer)
-        if not candidates:
-            return None
-        pointer = max(
-            candidates,
-            key=lambda item: (item.updated_at, item.latest_build_id),
+                pointers.append(pointer)
+        return tuple(
+            sorted(
+                pointers,
+                key=lambda item: (item.updated_at, item.latest_build_id),
+                reverse=True,
+            )
         )
-        return self.build_result(pointer.project_id)
 
     def build_result(self, project_id: str) -> MapBuildResult | None:
         pointer = self._repository.get_latest_pointer(project_id)
