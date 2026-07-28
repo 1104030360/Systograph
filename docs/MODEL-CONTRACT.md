@@ -470,6 +470,12 @@ State store（${KAI_MIND_STATE_DIR}/projects/{project_id}/）
   builds/{build_id}/manifest.json
   latest.json
 
+Legacy mapping migration 側車目錄（${KAI_MIND_STATE_DIR}/，與 projects/ 同層）
+  migration-backups/{project_id}/{mapping_id}.{token}.legacy.json
+  migration-backups/{project_id}/index.json
+  migration-quarantine/{project_id}/{mapping_id}.{token}.legacy.json
+  migration-quarantine/{project_id}/{mapping_id}.{token}.original.json
+
 Build output（output/{build_id}/ 或等價 run directory）
   10 public sibling artifacts（上表 7 JSON + 3 render）
   + GraphViewModel（Step 7 投影，僅 API；不寫入 sibling 路徑）
@@ -477,6 +483,49 @@ Build output（output/{build_id}/ 或等價 run directory）
 
 Frontend **不得**把 state-store JSON 當 build `artifact_refs` 或 merge 進
 `ViewerLoadResult` 主載入路徑。
+
+#### 7.0.1 Legacy mapping migration 目錄（`migrate-legacy-mappings --apply` 產物）
+
+Owner：`LegacyManualMappingMigrationService`（Plan 13 Task 4 建立，Plan 15 決定去留）。
+只有 `--apply` 會寫；`--dry-run` 零寫入。三種 artifact：
+
+| Artifact | 內容 | 何時產生 |
+|---|---|---|
+| `migration-backups/…/{mapping}.{token}.legacy.json`（+ 同目錄 `index.json`） | 原 payload 的 **re-serialization**（sorted keys、normalized indent） | 每一筆實際轉換或隔離的 row |
+| `migration-quarantine/…/{mapping}.{token}.legacy.json` | 同為 re-serialization，外層包 `migration_version` 與 `input_digest` | 缺欄位的 row，**以及**乾淨轉換但被丟棄 `extension_edges` 的 row |
+| `migration-quarantine/…/{mapping}.{token}.original.json` | **byte-exact** 原檔（由 `mappings/` move 進來，非複製） | 只有無法轉換（`requires_manual_review`）的 row |
+
+- 權限：檔案為 owner-only `0600`；**目錄維持預設 `0755`**——保護做在檔案層，不在目錄層。
+  Windows 上 `os.chmod` 只影響 read-only bit，與 backup／quarantine 既有行為一致。
+- 內容可能含 legacy free-text（原始 mapping 的 reason／evidence 欄位），因此不得複製到
+  log、report 或 target repo；migration report 只帶 opaque `quarantine_ref` 與 digest。
+- 為什麼要 move 而不是原地保留：`projects/{project_id}/mappings/*.json` 是
+  `LocalJsonProjectRepository.list_for_project` 逐檔 parse 成 active `ManualMapping` 的 glob，
+  留一筆 legacy row 會讓整個 project 的 mapping 列舉拋 `StateCorruptionError`。
+- **保留策略（load-bearing，兩件事同時成立）：**
+  1. quarantine 袋是 cutover gate 的 durable 記錄——只要
+     `migration-quarantine/*/*.original.json` 還存在，`cutover_blocked` 就維持 `True`
+     （per-run 計數之外的第二個判準；row 被 move 走後，後續 run 已掃不到它）。
+     因此**清空袋子＝放行 cutover gate 的操作行為**，不是清暫存檔。
+  2. 同一個動作也會銷毀唯一的 byte-exact 遷移前證據——兩份 `*.legacy.json` 都是
+     re-serialization，只有 `*.original.json` 是原檔。
+  操作者必須在「已人工處理完該 row」之後才刪除；自動化流程不得代為清理。
+  `*.legacy.json` **不可**當 gate 判準：乾淨轉換的 row 也會留一份，拿它當 gate 會永久誤擋。
+- migration report（`LegacyMappingMigrationReport`，CLI 回傳值，**不落地成檔案**）帶
+  additive 欄位 `unresolved_quarantined`＝袋內 `*.original.json` 數量。`cutover_blocked`
+  才是 gate；`status`（`dry_run` / `complete` / `requires_manual_review` /
+  `partial_requires_retry`）只描述該次 run。
+- **無法解析的 row 不入袋**：JSON 讀不出或 DTO 驗證失敗者記為 `failed`，仍留在 `mappings/`，
+  仍會炸掉 `list_for_project`。其處置由 Plan 15 裁定。
+
+`ManualMapping.audit_metadata` 的三個 key 是**永久 audit provenance**，不是暫時 migration
+殘留，遷移完成後仍保留（裁定：RB-5／RB-6）：
+
+| key | 語意 |
+|---|---|
+| `legacy_mapping_migration_version` | 轉換這筆 row 的 migration 版本；idempotence 判準（同版本＝`already_migrated`，不重轉） |
+| `legacy_payload_digest` | 遷移前 payload 的 SHA-256 digest；對應 backup/quarantine 檔名的 `token`（digest 前 16 字元） |
+| `quarantine_ref` | opaque `quarantine:<token>` ref，指向被隔離的原 payload。在 `audit_metadata` 內**只**出現於「成功轉換但 `extension_edges` 被丟棄」的 row（欄位不完整的 row 根本不會產生 `ManualMapping`，它的 ref 只存在於 migration report item）。不得存 absolute path |
 
 ### 7.1 ArtifactRef
 
@@ -588,6 +637,7 @@ Sidecar 缺失或 invalid 時，`viewer_load_result` 仍可 loaded，warning 位
 | Current evidence | `evidence_ids`, `risk_hint_ids` |
 | Plan 06 assessment | `status`, `activation`, `semantic_kind`, `plane_id`, `reference_node_id` |
 | Plan 06 profile | `profile_id`, `primary_anchor_node_id`, `anchor_node_ids`, related candidate/unmapped ids |
+| Profile next checks | `recommended_next_checks: string[]` — **System 2** 的 capability review checks，由 `ProfileAttachmentOverlayBuilder` 從 `ProfileFinding.recommended_next_checks` 帶進 profile attachment node；純字串，與 graph-level 的 typed list（§14）**不同型別、不同來源** |
 | Risk | `risk_hint_ids` |
 
 Plan 06 `semantic_kind` 將包含：`reference_capability`, `repo_component`,
@@ -790,8 +840,21 @@ type GraphViewModel = {
   mapping_completeness: MappingCompleteness;
   nodes: GraphNodeModel[];
   edges: GraphEdgeModel[];
+  endpoints: GraphEndpointModel[];                       // additive
+  recommended_next_checks: GraphRecommendedNextCheckModel[]; // additive；System 1
   details: { evidence_by_id; risk_hints_by_id; profile_findings_by_id?; ... };
   filters: { lenses?: GraphLensModel[]; available: GraphFilterModel[]; behavior?: string };
+};
+
+// Graph-level 的 System 1 scan-fact checks（typed；來源是 map 的
+// recommended_next_checks[]，見 §5.3）。與 GraphNodeModel.recommended_next_checks
+// （string[]，System 2 profile checks，見 §9.2）是兩個不同欄位，不得互相取代。
+type GraphRecommendedNextCheckModel = {
+  id: string;
+  target_type: string;
+  target: string;
+  reason: string;
+  action: string;
 };
 ```
 

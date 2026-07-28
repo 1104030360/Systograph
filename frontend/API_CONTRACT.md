@@ -263,6 +263,25 @@ and does not carry decisions forward.
 
 After a completed scan, the frontend reloads `GET /api/map` and renders the latest `viewer_load_result.graph_view_model`.
 
+## Retired Legacy Write Surfaces
+
+Two stable `422` codes exist purely to fail closed on contract surfaces the v2 cutover retired.
+Both return the plain-string form `{"detail": "<code>"}` — not the
+`{detail:{code,message,retryable,context}}` envelope used by stale-selection errors. Neither is
+recoverable by retrying the same payload; the frontend must stop sending the retired shape.
+
+| `detail` | Endpoints | Meaning |
+| --- | --- | --- |
+| `legacy_mapping_type_read_only` | `POST /api/mappings`, `PATCH /api/mappings/{mapping_id}`, `POST /api/mapping-proposals/{proposal_id}/decision` | The request carries `mapping_type: "new_extension_component"` (checked at top level and inside `edited_mapping`). The legacy extension mapping type is read-only: migration tooling may still read it, but no API accepts it as a write. Active values are `existing_slot_mapping` and `non_baseline_capability_candidate`. |
+| `legacy_output_not_selectable` | `POST /api/scans`, `POST /api/map/build` | The request asked for `system_map_schema_version: "ai-system-map/v1"`. Canonical output is `ai-system-map/v2`; `system_map_schema_version` is a deprecated input kept until Plan 15. Operator rollback exists but is a process-level setting, never a request-selectable option, so there is no payload the frontend can send to obtain v1. |
+
+`POST /api/scans` rejects before any preflight or scan work runs, so an invalid selection costs no
+scan time and leaves no persisted snapshot or output directory behind.
+
+The frontend still has type definitions and form paths able to assemble
+`new_extension_component`; those must be removed rather than error-handled — the proposal UI is
+currently an unwired stub, so the payload never reaches the backend today.
+
 ## Scan Progress SSE
 
 Preferred endpoint:

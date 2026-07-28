@@ -691,6 +691,12 @@ Response `200`：
 | `base_build_not_latest` | 409 | 指定 build 已不是 latest，避免 lineage fork |
 | `scan_snapshot_stale` | 409 | 目標檔案 fingerprint 已變更，需 explicit rescan |
 | `profile_sidecar_unavailable` | 409 | parent profile sidecar 缺失或 invalid；base graph 仍可讀，但不得發布語意不完整的 child build |
+| `legacy_rollback_not_representable` | 422 | 僅 operator rollback 模式；preflight 判定該 map 無法以 v1 表示。詳見〈Operator rollback 專用 error code〉 |
+| `legacy_rollback_detail_scan_unsupported` | 422 | 僅 operator rollback 模式；rollback writer 不支援 enriched map。詳見〈Operator rollback 專用 error code〉 |
+
+> **兩者的優先順序（rollback 模式下）：** preflight 先跑，因此 map 若不可表示，回的是較具體的
+> `legacy_rollback_not_representable`；只有通過 preflight 的 map 才會走到
+> `legacy_rollback_detail_scan_unsupported`。normal v2 模式下兩者都不會出現。
 
 ### GET /api/detail-scans/{detail_scan_id}
 
@@ -1005,10 +1011,22 @@ Response `200`：
 
 下列 code 只在 process 啟動前設定
 `KAI_MIND_CANONICAL_OUTPUT_VERSION=ai-system-map/v1` 的 operator rollback 模式出現；
-normal `ai-system-map/v2` 模式不會產生。兩者都由 `POST /api/detail-scans` 以 `422`
-回傳，且失敗時不寫任何 artifact。
+normal `ai-system-map/v2` 模式不會產生。失敗時都不寫任何 artifact。
 
 | `detail` | 意義 |
 | --- | --- |
 | `legacy_rollback_not_representable` | map 無法以 v1 無損表示：不是 v1-sourced map，或含 legacy contract 表達不了的 component（`semantic_kind` 超出 `repo_component` / `slot_placeholder` / `legacy_extension`）。preflight fail closed，不靜默丟資料 |
 | `legacy_rollback_detail_scan_unsupported` | map 本身可以 v1 表示，但 rollback writer 只能從 raw scan 重建；enriched map（detail scan 子 build）這條路徑在 rollback 模式沒有 writer |
+| `legacy_rollback_writer_unavailable` | process 設成 rollback 模式，但該 build pipeline 沒有被注入 rollback writer（`MapBuildPipeline` 的 `legacy_rollback` 為 `None`）。屬 wiring/組態錯誤，不是使用者輸入問題 |
+
+- 前兩者由 `POST /api/detail-scans`（enriched map 路徑）以 `422` 回傳。
+  同一 endpoint 上 preflight 先跑，因此 `legacy_rollback_not_representable` 優先於
+  `legacy_rollback_detail_scan_unsupported`。
+- `legacy_rollback_writer_unavailable` **不限** detail-scan：normal build 路徑
+  （`MapBuildPipeline.build`）在 rollback 模式下同樣會拋，因此 `POST /api/scans`、
+  `POST /api/map/build` 與 CLI `map` 都可能遇到。它代表 wiring／組態問題（pipeline 沒被注入
+  rollback writer），不是使用者輸入問題，重送相同請求不會改變結果。
+  HTTP 呈現依 endpoint 而異：`POST /api/detail-scans` 與 `POST /api/scans` 走各自的 broad
+  `ValueError` handler，以 `422` + 同名 code 回傳；`POST /api/map/build` 目前只攔
+  `CanonicalOutputConfigurationError`，因此會落到 middleware 的
+  `500 internal_server_error`。

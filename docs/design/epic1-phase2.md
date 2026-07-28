@@ -1080,7 +1080,8 @@ S1  01 -> 01B -> 01A -> 02 -> 03 -> 03A -> 04
       Track-B: 10 -> 11
       Track-C: dynamic/00 after 03/05, before 14
       Track-D: 19 before 16
-    13 -> Gate-1（TOML-primary Step 1～9 + Apply；sidecar=null）
+    13 -> Gate-1（TOML-primary：initial scan Step 1～7 + Step 8 viewer；
+                  Step 9 decision + Apply 另驗；sidecar=null）
 S2  16 -> Gate-2（UA structural + internal sidecar + parity）
 S3  14 -> Gate-3 -> 18 -> Gate-4 -> 15
 
@@ -1130,7 +1131,9 @@ Cutover gates：
 3. v2 producer, sidecars, APIs, frontend samples and schemas validate together.
 4. Apply/restart/local JSON E2E passes.
 5. static execution P0 artifacts validate.
-6. Gate-1 proves TOML-primary Step 1～9 and `sidecar=null` Apply before Plan 16 starts.
+6. Gate-1 proves the TOML-primary initial scan through Step 1～7 publish plus Step 8 viewer
+   (an initial scan does not need Step 9), and separately proves the Step 9 decision with the
+   `sidecar=null` Apply path (B1→B2), before Plan 16 starts.
 7. Phase B UA-primary parity gate passes on real-world import and fixtures, including fail-closed sidecar errors.
 8. real-world import, fixtures, secret/path safety and cross-platform validation pass.
 9. active v2 cutover completes before legacy retirement and TOML scan-provider retirement.

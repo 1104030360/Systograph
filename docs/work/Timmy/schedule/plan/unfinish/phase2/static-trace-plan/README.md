@@ -317,7 +317,7 @@ static-trace-plan/
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 13 | [13-retire-legacy-extension-contract.md](./s1-v2-cutover/13-retire-legacy-extension-contract.md) | 00A gate 後 active v2 cutover + extension 退役 | 需 Gate-0；納入 Gate-1 E2E |
+| 13 | [13-retire-legacy-extension-contract.md](./s1-v2-cutover/13-retire-legacy-extension-contract.md) | 00A gate 後 active v2 cutover + extension 退役（backend-complete / frontend-handoff-required） | 需 Gate-0；納入 Gate-1 E2E |
 
 ### S2 — `s2-ua-integration/`
 
