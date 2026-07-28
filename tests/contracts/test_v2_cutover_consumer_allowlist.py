@@ -267,6 +267,15 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         removal_plan="Plan 15 removes legacy Viewer validation injection.",
     ),
     ConsumerRecord(
+        path="src/kai_mind/web/legacy_mapping_guards.py",
+        symbol="new_extension_component",
+        classification="migration_only",
+        removal_plan=(
+            "Plan 15 Task 3b bullet 5 owns this guard; the mapping owner "
+            "decides its fate after the error code converges."
+        ),
+    ),
+    ConsumerRecord(
         path="src/kai_mind/web/schemas.py",
         symbol="ai-system-map/v1",
         classification="migration_only",
