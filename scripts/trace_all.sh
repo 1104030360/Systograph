@@ -72,6 +72,7 @@ SCRIPTS=(
   "POST /api/map-builds/{id}/apply + lineage|trace_apply_confirmations_build_lineage.sh"
   "Scan boundary same-run gate|trace_scan_boundary_policy_overlay.sh"
   "Scan boundary multi-decision gate|trace_scan_boundary_multi_decision_gate.sh"
+  "POST /api/projects/{id}/scan-preflights|trace_inventory_selection_preflight.sh"
 )
 
 RESULTS=()

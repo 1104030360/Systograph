@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/api_trace_common.sh
 source "$SCRIPT_DIR/lib/api_trace_common.sh"
 
-TARGET_TYPE="component_slot"
+TARGET_TYPE="unmapped_component"
 TARGET=""
 SCAN_DEPTH="component"
 
@@ -26,8 +26,9 @@ Usage:
     [--target-type TYPE] [--target ID] [--scan-depth component|code_path]
 
 Options:
-  --target-type TYPE      Detail scan target type. Default: component_slot
-  --target ID             Target id. Default: first component slot from the scan.
+  --target-type TYPE      component_slot | component_instance | unmapped_component
+                          | edge | evidence. Default: unmapped_component
+  --target ID             Target id. Default: first unmapped_id from the scan.
   --scan-depth DEPTH      component (L2) or code_path (L3). Default: component
   --start-server          Start a local FastAPI server for this run, stop on exit.
   --api-base-url URL      Backend base URL. Default: http://127.0.0.1:8000
@@ -63,9 +64,13 @@ BUILD_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.lineage.build_id')"
   || kai_die "Scan response missing build_result.lineage.build_id"
 
 if [[ -z "$TARGET" ]]; then
-  TARGET="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
-  [[ -n "$TARGET" && "$TARGET" != "null" ]] \
-    || kai_die "Could not derive a default target slot from the scan"
+  # unmapped_component is the one target type every fixture can supply:
+  # ai-system-map/v2 dropped components_by_slot, and component_slot targets
+  # resolve through components[].metadata.legacy_slot, which the default
+  # custom_router_rag fixture deliberately leaves empty.
+  TARGET="$(kai_first_unmapped_id "$SCAN_JSON")"
+  [[ -n "$TARGET" ]] \
+    || kai_die "Scan produced no unmapped component; pass --target explicitly"
   kai_progress "預設目標 ($TARGET_TYPE) = $TARGET"
 fi
 

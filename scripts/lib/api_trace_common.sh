@@ -218,7 +218,39 @@ kai_run_scan() {
   echo "$scan"
 }
 
-# Create one confirmed existing_slot manual mapping using a real slot key and a
+# Echo one legal `target_slot` for a confirmed existing_slot_mapping.
+# ManualMappingService still validates target_slot against the legacy
+# rag-core-v1 template slots, while ai-system-map/v2 dropped the
+# components_by_slot index — so prefer a slot the scan actually detected
+# (components[].metadata.legacy_slot) and fall back to the template catalog
+# for fixtures that map nothing (e.g. custom_router_rag).
+kai_target_slot() {
+  local scan_json="${1:-}"
+  local template="$KAI_ROOT_DIR/src/kai_mind/core/templates/rag-core-v1.json"
+  local slot=""
+
+  if [[ -n "$scan_json" ]]; then
+    slot="$(echo "$scan_json" | jq -r '
+      [.build_result.ai_system_map.components[]?.metadata.legacy_slot
+       | select(. != null)][0] // empty')"
+  fi
+  if [[ -z "$slot" ]]; then
+    [[ -f "$template" ]] \
+      || kai_die "Missing rag-core-v1 template: $template"
+    slot="$(jq -r '.slots[0].id // empty' "$template")"
+  fi
+  [[ -n "$slot" ]] || kai_die "Could not derive a manual mapping target slot"
+  echo "$slot"
+}
+
+# Echo the first evidence id from a scan response JSON (v2 field name).
+kai_first_evidence_id() {
+  local scan_json="$1"
+  echo "$scan_json" \
+    | jq -r '.build_result.ai_system_map.evidence[0].evidence_id // empty'
+}
+
+# Create one confirmed existing_slot manual mapping using a legal slot key and a
 # real evidence id derived from a scan response. Echoes the created mapping JSON.
 # Usage: kai_create_demo_mapping PROJECT_ID SCAN_JSON [COMPONENT_NAME]
 kai_create_demo_mapping() {
@@ -227,12 +259,8 @@ kai_create_demo_mapping() {
   local component_name="${3:-TraceDemoComponent}"
   local slot evidence_id body
 
-  slot="$(echo "$scan_json" \
-    | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
-  evidence_id="$(echo "$scan_json" \
-    | jq -r '.build_result.ai_system_map.evidence[0].id // empty')"
-  [[ -n "$slot" && "$slot" != "null" ]] \
-    || kai_die "Could not derive a target slot from the scan"
+  slot="$(kai_target_slot "$scan_json")"
+  evidence_id="$(kai_first_evidence_id "$scan_json")"
   [[ -n "$evidence_id" ]] \
     || kai_die "Could not derive an evidence id from the scan"
 
@@ -248,10 +276,12 @@ kai_create_demo_mapping() {
 }
 
 # Echo the first unmapped component id from a scan response JSON.
+# ai-system-map/v2 names the field `unmapped_id` (v1 used `id`).
 kai_first_unmapped_id() {
   local scan_json="$1"
   echo "$scan_json" \
-    | jq -r '.build_result.ai_system_map.unmapped_components[0].id // empty'
+    | jq -r '.build_result.ai_system_map.unmapped_components[0].unmapped_id
+             // empty'
 }
 
 # Create a pending mapping proposal for an unmapped component and echo the
@@ -312,9 +342,14 @@ kai_summarize_viewer_payload() {
 }
 
 # Soft asserts for a loaded ViewerPayload. Fail only when map is expected loaded.
-# Usage: kai_assert_graph_projection_loaded "$LAST_BODY"
+# Usage: kai_assert_graph_projection_loaded "$LAST_BODY" [EXPECTED_REFERENCE_COUNT]
+#
+# EXPECTED_REFERENCE_COUNT defaults to the 52-node capability reference catalog,
+# which every build-backed projection carries. Pass 0 for endpoints that project
+# a map file without its profile sidecar (see API-GUIDE POST /api/viewer/load).
 kai_assert_graph_projection_loaded() {
   local json="$1"
+  local expected_refs="${2:-52}"
   local loaded schema lenses refs behavior
   loaded="$(echo "$json" | jq -r '.viewer_load_result.loaded')"
   [[ "$loaded" == "true" ]] || kai_die "Expected viewer_load_result.loaded=true, got: $loaded"
@@ -327,8 +362,8 @@ kai_assert_graph_projection_loaded() {
   [[ "$behavior" == "highlight_and_dim" ]] \
     || kai_die "Expected filters.behavior=highlight_and_dim, got: $behavior"
   refs="$(echo "$json" | jq -r '(.viewer_load_result.graph_view_model.details.reference_assessments_by_id // {}) | length')"
-  [[ "$refs" == "52" ]] \
-    || kai_die "Expected 52 reference assessments, got: $refs"
+  [[ "$refs" == "$expected_refs" ]] \
+    || kai_die "Expected $expected_refs reference assessments, got: $refs"
 }
 
 # Summarize MapBuildResult-shaped JSON (root or .build_result) for projection sidecar QA.
@@ -344,7 +379,7 @@ kai_summarize_map_build_result() {
     readiness_available: (.readiness_report != null),
     warnings,
     migration_warnings,
-    slot_count: ((.ai_system_map.components_by_slot // {}) | length),
+    component_count: ((.ai_system_map.components // []) | length),
     unmapped_count: ((.ai_system_map.unmapped_components // []) | length),
     graph: (
       if .viewer_load_result == null then null

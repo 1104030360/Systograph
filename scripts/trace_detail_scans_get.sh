@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/api_trace_common.sh"
 
 DETAIL_SCAN_ID=""
-TARGET_TYPE="component_slot"
+TARGET_TYPE="unmapped_component"
 
 usage() {
   cat <<'USAGE'
@@ -51,11 +51,13 @@ if [[ -z "$DETAIL_SCAN_ID" ]]; then
   PROJECT_ID="$(kai_import_project)"
   SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
   BUILD_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.lineage.build_id')"
-  TARGET="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
+  # Same target choice as trace_detail_scans_create.sh: unmapped_component is
+  # the target type every fixture can supply under ai-system-map/v2.
+  TARGET="$(kai_first_unmapped_id "$SCAN_JSON")"
   [[ -n "$BUILD_ID" && "$BUILD_ID" != "null" ]] \
     || kai_die "Scan response missing build_result.lineage.build_id"
-  [[ -n "$TARGET" && "$TARGET" != "null" ]] \
-    || kai_die "Could not derive a default target slot from the scan"
+  [[ -n "$TARGET" ]] \
+    || kai_die "Scan produced no unmapped component to detail scan"
   kai_progress "現在要建立 detail scan（之後再依 id 讀回）..."
   DETAIL_BODY="$(setup_post "/api/detail-scans" \
     "$(jq -n --arg id "$PROJECT_ID" --arg build "$BUILD_ID" \

@@ -4,8 +4,9 @@
 # Input  : {map_json_path:"outputs/.../ai_system_map.json"}
 # Output : ViewerPayload built by re-validating an existing ai_system_map.json.
 #          Includes Track A graph_view_model projection (schema_version, lenses,
-#          relationships, reference_assessments). Invalid maps still return
-#          HTTP 200 with loaded:false + error_reason.
+#          relationships), but no reference assessments: the profile sidecar is
+#          not read on this path. Invalid maps still return HTTP 200 with
+#          loaded:false + error_reason.
 #
 # This endpoint does NOT scan a project. It loads a map file from disk, so the
 # script first builds one to obtain a real map_json_path (unless --map-json-path
@@ -73,4 +74,10 @@ api_call POST "/api/viewer/load" "$REQUEST_BODY"
 kai_section "Graph projection 摘要（Track A）"
 kai_summarize_viewer_payload "$LAST_BODY"
 # map_json_path was resolved above; expect a loaded projection.
-kai_assert_graph_projection_loaded "$LAST_BODY"
+#
+# 0 reference assessments is the current contract for this endpoint: it projects
+# one ai_system_map.json straight off disk without its profile_signals.json
+# sibling, so the 52-node capability overlay stays empty. Reading run-directory
+# sidecars as enrichment is a Phase2 target (API-GUIDE POST /api/viewer/load);
+# build-backed endpoints (/api/map, /api/map-builds/{id}) carry all 52.
+kai_assert_graph_projection_loaded "$LAST_BODY" 0

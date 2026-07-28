@@ -7,8 +7,9 @@
 # Output : ManualMapping {mapping_id, mapping_digest, created_at, updated_at, ...}
 #          422 on validation errors (e.g. missing evidence / unknown slot).
 #
-# This script imports + scans to obtain a real slot + evidence id, then creates
-# a confirmed existing_slot mapping.
+# This script imports + scans to obtain a real evidence id and a legal slot key
+# (scan-detected legacy_slot when present, otherwise the rag-core-v1 template),
+# then creates a confirmed existing_slot mapping.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,9 +40,8 @@ kai_bootstrap_server
 kai_section "準備：匯入 + 掃描，取得 slot 與 evidence"
 PROJECT_ID="$(kai_import_project)"
 SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
-SLOT="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
-EVIDENCE_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.evidence[0].id // empty')"
-[[ -n "$SLOT" && "$SLOT" != "null" ]] || kai_die "Could not derive a target slot"
+SLOT="$(kai_target_slot "$SCAN_JSON")"
+EVIDENCE_ID="$(kai_first_evidence_id "$SCAN_JSON")"
 [[ -n "$EVIDENCE_ID" ]] || kai_die "Could not derive an evidence id"
 
 kai_section "建立 mapping：POST /api/mappings"

@@ -151,27 +151,32 @@ api_call POST "/api/scans" "$SECOND_BODY"
 SECOND_SCAN="$LAST_BODY"
 SECOND_STATUS="$(jq_get "$SECOND_SCAN" '.status')"
 SECOND_PROPOSALS="$(jq_get "$SECOND_SCAN" '.boundary_proposals | length')"
+# ai-system-map/v2 dropped scan_summary; per-run file counts now live on the
+# scan response as inventory_selection_summary.
 SECOND_SCANNED="$(jq_get \
   "$SECOND_SCAN" \
-  '.build_result.ai_system_map.scan_summary.files_scanned')"
+  '.inventory_selection_summary.included_file_count')"
 SECOND_SKIPPED="$(jq_get \
   "$SECOND_SCAN" \
-  '.build_result.ai_system_map.scan_summary.files_skipped')"
+  '.inventory_selection_summary.skipped_file_count')"
 SECOND_MAP_JSON_PATH="$(jq_get "$SECOND_SCAN" '.build_result.map_json_path // empty')"
 [[ "$SECOND_STATUS" == "completed" ]] \
   || kai_die "Expected completed second scan, got $SECOND_STATUS"
 [[ "$SECOND_PROPOSALS" == "0" ]] \
   || kai_die "Expected no boundary proposals after all decisions"
 [[ "$SECOND_SCANNED" == "2" ]] \
-  || kai_die "Expected files_scanned=2 after scanning .env and app.py, got $SECOND_SCANNED"
+  || kai_die "Expected included_file_count=2 after scanning .env and app.py, got $SECOND_SCANNED"
 [[ "$SECOND_SKIPPED" -ge 1 ]] \
   || kai_die "Expected at least one skipped file after skip_this_run"
 [[ -f "$SECOND_MAP_JSON_PATH" ]] \
   || kai_die "Expected map_json_path to exist: $SECOND_MAP_JSON_PATH"
-[[ "$(jq_get "$(cat "$SECOND_MAP_JSON_PATH")" '.scan_summary.files_scanned')" == "$SECOND_SCANNED" ]] \
-  || kai_die "Stored ai_system_map.json files_scanned did not match response"
-[[ "$(jq_get "$(cat "$SECOND_MAP_JSON_PATH")" '.scan_summary.files_skipped')" == "$SECOND_SKIPPED" ]] \
-  || kai_die "Stored ai_system_map.json files_skipped did not match response"
+# The stored artifact carries the identity pair instead of a count summary.
+STORED_MAP="$(cat "$SECOND_MAP_JSON_PATH")"
+[[ "$(jq_get "$STORED_MAP" '.scan_id')" == "$(jq_get "$SECOND_SCAN" '.scan_id')" ]] \
+  || kai_die "Stored ai_system_map.json scan_id did not match response"
+[[ "$(jq_get "$STORED_MAP" '.build_id')" \
+   == "$(jq_get "$SECOND_SCAN" '.build_result.lineage.build_id')" ]] \
+  || kai_die "Stored ai_system_map.json build_id did not match response"
 if grep -Fq 'sk-live-secret-value' <<<"$SECOND_SCAN"; then
   kai_die "Raw secret leaked in second scan response"
 fi
