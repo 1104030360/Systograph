@@ -7,13 +7,15 @@ import json
 from fastapi import HTTPException, Request
 
 # The retired mapping type is deliberately inlined as a literal instead of
-# imported from ``LegacyManualMappingType`` in the legacy migration module,
+# imported from LegacyManualMappingType in the legacy migration module,
 # for two reasons:
-# 1. the literal keeps this guard visible to the v2 cutover consumer census
-#    (``tests/contracts/test_v2_cutover_consumer_allowlist.py``), which an
-#    ``Enum.MEMBER.value`` indirection escapes;
+# 1. the literal keeps this guard independent of that module's lifetime, so
+#    Plan 15 can delete the module without breaking the web layer;
 # 2. this guard's lifecycle is owned by Plan 15 Task 3b bullet 5 — it must
 #    NOT be deleted together with the legacy migration module.
+# Restoring the import would silently re-create that deletion coupling. The
+# census now tracks the enum names too, so census visibility alone is not a
+# reason to keep the literal; reason 1 is.
 _LEGACY_MAPPING_TYPE = "new_extension_component"
 
 
