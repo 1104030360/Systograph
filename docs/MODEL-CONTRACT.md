@@ -408,7 +408,14 @@ Legacy alias（`advanced-rag` 等）僅 fixture / 討論用；active output 前�
 Catalog / rule ownership：
 
 - `capability_reference_map.toml` — 52 node 座標、labels、activation_applicable
+- `capability_type_node_map.toml` — canonical_type → 52 node ids 對照；由
+  `CapabilityTypeNodeMapLoader` strict/fail-closed 載入（每個 node id 必須存在於 catalog）。
+  這是 Step 6 assessment **唯一**的對照路徑，程式碼不得再持有等價的對照字面量
 - `profile_rule_definitions.py` — 15 stable profile ids、executable required nodes 與 wiring
+- `profile_relationship_alias.toml` — **過渡機制**：relationship gate 的關係名 alias 表；由
+  `ProfileRelationshipAliasLoader` strict/fail-closed 載入（key 必須是某張卡的
+  `required_relationship`，value 必須是 `FlowDerivationService.RELATIONSHIPS` 的關係名）。
+  UA 產出帶 call-site 證據的真實關係名後逐條刪除；刪除是改資料不是改程式碼
 - `profile_registry.toml` — labels、description、axes、display order、default uncertainty 與
   recommended next checks；由 `ProfileRegistryLoader` strict/fail-closed 載入
 - `ProfileRegistryProjectionService` — validated TOML 的 deterministic
@@ -441,6 +448,10 @@ Read-only sidecar。Build validation / CI strict mode可 fail-closed；**viewer 
 - Deterministic、local-only；**不**呼叫 mapping proposal / LLM
 - Current absence convention：`explicit_negative` evidence 的 `rule_id` 使用 `coverage.reference.<reference_node_id>`；沒有這種 capability-specific coverage evidence 時只能是 `undetermined`
 - 高特異性 profile 除 required nodes 外還要通過 registry 的 relationship gate；只有節點、沒有 wiring 時最高為 `partial`
+- Relationship gate 的邊要算數必須同時成立：**關係名相符**（比對該卡的
+  `required_relationship`，並展開 `profile_relationship_alias.toml` 的過渡 alias）**且**
+  至少一個端點落在該卡 required nodes 的 backing components 上；只有名字相符不是 wiring
+  evidence，alias 展開的邊同樣受端點約束
 
 ### 6.4 readiness-report/v1
 
