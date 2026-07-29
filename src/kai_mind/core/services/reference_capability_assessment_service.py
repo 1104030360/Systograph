@@ -26,21 +26,30 @@ from kai_mind.core.services.capability_reference_map_loader import (
 _TYPE_TO_NODES: dict[str, tuple[str, ...]] = {
     "agent_loop": ("agent_loop", "agent_runtime"),
     "api_input": ("user_input", "api_server"),
+    "api_orchestrator": ("api_server",),
+    "api_route": ("api_server",),
     "chunker": ("chunker",),
     "conflict_checker": ("conflict_checker",),
     "context_composer": ("context_composer",),
     "document_loader": ("document_loader",),
     "embedder": ("embedder",),
     "embedding_model": ("embedder",),
+    "embedding_provider": ("embedder",),
+    "external_llm": ("llm_answerer",),
+    "external_llm_provider": ("llm_answerer",),
     "graph_retriever": ("graph_retriever",),
+    "http_vector_store": ("index_builder",),
     "hybrid_retriever": ("hybrid_retriever",),
     "index_builder": ("index_builder",),
     "llm": ("llm_answerer",),
+    "local_llm_runtime": ("llm_answerer",),
+    "local_persistent_vector_store": ("index_builder",),
     "long_term_memory": ("long_term_memory",),
     "memory": ("long_term_memory",),
     "metadata_extractor": ("metadata_extractor",),
     "orchestrator": ("orchestrator",),
     "parser": ("parser",),
+    "prompt_template": ("prompt_builder",),
     "query_classifier": ("query_classifier",),
     "rag_anything_system": ("rag_anything_system",),
     "reranker": ("reranker",),
@@ -48,17 +57,12 @@ _TYPE_TO_NODES: dict[str, tuple[str, ...]] = {
     "router": ("router",),
     "sparse_retriever": ("sparse_retriever",),
     "tool": ("tool_using_generator", "tool_network"),
+    "vector_db": ("index_builder",),
+    "vector_db_config": ("index_builder",),
+    "vector_retriever": ("dense_retriever",),
     "vector_store": ("index_builder",),
     "worker_queue": ("worker_queue",),
     "workflow_node": ("orchestrator",),
-}
-
-_LEGACY_SLOT_TO_NODES: dict[str, tuple[str, ...]] = {
-    "app_api_or_orchestrator": ("api_server",),
-    "embedding_model": ("embedder",),
-    "llm": ("llm_answerer",),
-    "retriever": ("dense_retriever",),
-    "vector_store": ("index_builder",),
 }
 
 
@@ -133,11 +137,7 @@ class ReferenceCapabilityAssessmentService:
 
     @staticmethod
     def _component_nodes(component: CanonicalComponent) -> tuple[str, ...]:
-        nodes = list(_TYPE_TO_NODES.get(component.canonical_type, ()))
-        legacy_slot = component.metadata.get("legacy_slot")
-        if isinstance(legacy_slot, str):
-            nodes.extend(_LEGACY_SLOT_TO_NODES.get(legacy_slot, ()))
-        return tuple(dict.fromkeys(nodes))
+        return _TYPE_TO_NODES.get(component.canonical_type, ())
 
     @staticmethod
     def _assessment(
