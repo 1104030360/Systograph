@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from importlib import resources
-from typing import Never
+from typing import Final, Never
 
 import pytest
 
@@ -16,53 +16,56 @@ from kai_mind.core.services.capability_type_node_map_loader import (
     CapabilityTypeNodeMapLoader,
 )
 
-# Snapshot of every canonical component type the assessment lookup
-# knows about. Dropping one entry from the packaged TOML must turn
-# this test red; the bridge-rule guard test cannot see the manual
-# mapping and v1-adapter only keys.
-EXPECTED_CANONICAL_TYPES = frozenset(
-    {
-        "agent_loop",
-        "api_input",
-        "api_orchestrator",
-        "api_route",
-        "chunker",
-        "conflict_checker",
-        "context_composer",
-        "document_loader",
-        "embedder",
-        "embedding_model",
-        "embedding_provider",
-        "external_llm",
-        "external_llm_provider",
-        "graph_retriever",
-        "http_vector_store",
-        "hybrid_retriever",
-        "index_builder",
-        "llm",
-        "local_llm_runtime",
-        "local_persistent_vector_store",
-        "long_term_memory",
-        "memory",
-        "metadata_extractor",
-        "orchestrator",
-        "parser",
-        "prompt_template",
-        "query_classifier",
-        "rag_anything_system",
-        "reranker",
-        "retriever",
-        "router",
-        "sparse_retriever",
-        "tool",
-        "vector_db",
-        "vector_db_config",
-        "vector_retriever",
-        "vector_store",
-        "worker_queue",
-        "workflow_node",
-    }
-)
+# Full snapshot of the packaged canonical type -> reference node
+# lookup: keys AND values. Pinning only the key set leaves silent
+# re-targeting invisible -- `prompt_template = ["parser"]` names a
+# real catalog node, so the fail-closed loader accepts it and the
+# bridge-rule guard in test_bridge_reference_alignment.py cannot see
+# it either (it only checks that each bridge kind reaches >= 1 node,
+# and 30 of these 39 keys are not bridge kinds at all: they come
+# from manual mappings and the v1 adapter). Changing the packaged
+# TOML must therefore be a deliberate edit here too.
+EXPECTED_CANONICAL_TYPE_NODES: Final[dict[str, tuple[str, ...]]] = {
+    "agent_loop": ("agent_loop", "agent_runtime"),
+    "api_input": ("user_input", "api_server"),
+    "api_orchestrator": ("api_server",),
+    "api_route": ("api_server",),
+    "chunker": ("chunker",),
+    "conflict_checker": ("conflict_checker",),
+    "context_composer": ("context_composer",),
+    "document_loader": ("document_loader",),
+    "embedder": ("embedder",),
+    "embedding_model": ("embedder",),
+    "embedding_provider": ("embedder",),
+    "external_llm": ("llm_answerer",),
+    "external_llm_provider": ("llm_answerer",),
+    "graph_retriever": ("graph_retriever",),
+    "http_vector_store": ("index_builder",),
+    "hybrid_retriever": ("hybrid_retriever",),
+    "index_builder": ("index_builder",),
+    "llm": ("llm_answerer",),
+    "local_llm_runtime": ("llm_answerer",),
+    "local_persistent_vector_store": ("index_builder",),
+    "long_term_memory": ("long_term_memory",),
+    "memory": ("long_term_memory",),
+    "metadata_extractor": ("metadata_extractor",),
+    "orchestrator": ("orchestrator",),
+    "parser": ("parser",),
+    "prompt_template": ("prompt_builder",),
+    "query_classifier": ("query_classifier",),
+    "rag_anything_system": ("rag_anything_system",),
+    "reranker": ("reranker",),
+    "retriever": ("dense_retriever",),
+    "router": ("router",),
+    "sparse_retriever": ("sparse_retriever",),
+    "tool": ("tool_using_generator", "tool_network"),
+    "vector_db": ("index_builder",),
+    "vector_db_config": ("index_builder",),
+    "vector_retriever": ("dense_retriever",),
+    "vector_store": ("index_builder",),
+    "worker_queue": ("worker_queue",),
+    "workflow_node": ("orchestrator",),
+}
 EXPECTED_CANONICAL_TYPE_COUNT = 39
 
 MINIMAL_MAP = '[canonical_type_nodes]\nretriever = ["dense_retriever"]\n'
@@ -73,20 +76,27 @@ def fixture_catalog() -> CapabilityReferenceCatalog:
     return CapabilityReferenceMapLoader().load()
 
 
-def test_packaged_map_pins_the_exact_canonical_type_key_set(
+def test_packaged_map_pins_every_canonical_type_and_node_tuple(
     catalog: CapabilityReferenceCatalog,
 ) -> None:
     # Given / When
     mapping = CapabilityTypeNodeMapLoader().load(catalog)
 
     # Then
-    assert set(mapping) == EXPECTED_CANONICAL_TYPES
+    assert dict(mapping) == EXPECTED_CANONICAL_TYPE_NODES
     assert len(mapping) == EXPECTED_CANONICAL_TYPE_COUNT
 
 
 def test_packaged_map_keeps_the_known_multi_node_entries(
     catalog: CapabilityReferenceCatalog,
 ) -> None:
+    """Named record of the three deliberate one-type -> two-node rows.
+
+    The snapshot above already compares these tuples; this test exists
+    so the fan-outs stay an explicit, reviewable decision instead of
+    three lines buried in a 39-row literal. Both members of each pair
+    are real catalog nodes, so a reader cannot mistake them for a typo.
+    """
     # Given / When
     mapping = CapabilityTypeNodeMapLoader().load(catalog)
 

@@ -14,6 +14,9 @@ from kai_mind.core.services.capability_type_node_map_loader import (
 from kai_mind.core.services.component_bridge_rules import (
     COMPONENT_BRIDGE_RULES,
 )
+from kai_mind.core.services.reference_capability_assessment_service import (
+    ReferenceCapabilityAssessmentService,
+)
 
 
 def _catalog() -> CapabilityReferenceCatalog:
@@ -50,18 +53,28 @@ def test_every_bridge_component_kind_reaches_a_reference_node() -> None:
     assert unreachable == ()
 
 
-def test_reference_node_vocabulary_stays_inside_catalog() -> None:
+def test_packaged_map_survives_fail_closed_load_against_catalog() -> None:
+    """Loading is the subset check -- there is no assertion to make.
+
+    CapabilityTypeNodeMapLoader validates every node id against the
+    52-node catalog and raises CapabilityTypeNodeMapError on the first
+    unknown one, so a "values are inside the catalog" assertion here
+    could never fail: load() would raise before the assert ran. The
+    live invariant is that the packaged mapping still passes that
+    fail-closed validation against the real catalog, which is exactly
+    what ReferenceCapabilityAssessmentService does when it is
+    constructed -- a broken map is a startup crash, not a wrong score.
+    Key/value drift is pinned separately in
+    tests/unit/core/test_capability_type_node_map_loader.py.
+    """
     # Given
     catalog = _catalog()
-    catalog_node_ids = {node.id for node in catalog.nodes}
 
-    # When
-    unknown = {
-        node_id
-        for node_ids in _type_to_nodes(catalog).values()
-        for node_id in node_ids
-        if node_id not in catalog_node_ids
-    }
+    # When: constructing the consumer re-runs the same fail-closed load,
+    # so this line raises if the packaged map ever drifts out of the
+    # catalog.
+    ReferenceCapabilityAssessmentService(catalog=catalog)
+    mapping = CapabilityTypeNodeMapLoader().load(catalog)
 
     # Then
-    assert unknown == set()
+    assert mapping
