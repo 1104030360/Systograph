@@ -43,10 +43,18 @@ def build_profile_finding(
     required = tuple(
         context.by_node[node] for node in definition.required_node_ids
     )
+    related_component_ids = tuple(
+        dict.fromkeys(
+            component_id
+            for item in required
+            for component_id in item.related_component_ids
+        )
+    )
     relationship_evidence, relationship_direct = _relationship_evidence(
         definition.required_relationship,
         context.relationships,
         context.direct_evidence_ids,
+        frozenset(related_component_ids),
     )
     relationship_met = definition.required_relationship is None or bool(
         relationship_direct
@@ -102,13 +110,6 @@ def build_profile_finding(
         conflict
         for assessment in required
         for conflict in assessment.conflict_fields
-    )
-    related_component_ids = tuple(
-        dict.fromkeys(
-            component_id
-            for item in required
-            for component_id in item.related_component_ids
-        )
     )
     related_unmapped_component_ids = tuple(
         dict.fromkeys(
@@ -186,10 +187,14 @@ def build_profile_finding(
     )
 
 
+# An edge only counts for a card when its relationship name matches AND
+# at least one endpoint sits on a component backing one of the card's
+# required reference nodes. A matching name alone is not wiring evidence.
 def _relationship_evidence(
     relationship: str | None,
     relationships: Mapping[str, Sequence[CanonicalEdge]],
     direct_evidence_ids: frozenset[str],
+    required_component_ids: frozenset[str],
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     if relationship is None:
         return (), ()
@@ -198,6 +203,9 @@ def _relationship_evidence(
             evidence_id
             for edge in relationships.get(relationship, ())
             if edge.status in {"observed", "detected"}
+            and not required_component_ids.isdisjoint(
+                (edge.source, edge.target)
+            )
             for evidence_id in edge.evidence_ids
         )
     )
