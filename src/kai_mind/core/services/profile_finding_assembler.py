@@ -28,6 +28,7 @@ from kai_mind.core.services.profile_rule_definitions import (
 class ProfileFindingContext:
     by_node: Mapping[str, ReferenceCapabilityAssessment]
     relationships: Mapping[str, tuple[CanonicalEdge, ...]]
+    relationship_aliases: Mapping[str, tuple[str, ...]]
     direct_evidence_ids: frozenset[str]
     risk_hints: tuple[CanonicalRiskHint, ...]
     build_id: str
@@ -53,8 +54,9 @@ def build_profile_finding(
     relationship_evidence, relationship_direct = _relationship_evidence(
         definition.required_relationship,
         context.relationships,
-        context.direct_evidence_ids,
-        frozenset(related_component_ids),
+        context.relationship_aliases,
+        direct_evidence_ids=context.direct_evidence_ids,
+        required_component_ids=frozenset(related_component_ids),
     )
     relationship_met = definition.required_relationship is None or bool(
         relationship_direct
@@ -190,18 +192,25 @@ def build_profile_finding(
 # An edge only counts for a card when its relationship name matches AND
 # at least one endpoint sits on a component backing one of the card's
 # required reference nodes. A matching name alone is not wiring evidence.
+# The name lookup covers the card's own relationship plus the
+# transitional aliases; alias-expanded edges face the same endpoint
+# constraint, which is what keeps the alias semantically defensible.
 def _relationship_evidence(
     relationship: str | None,
     relationships: Mapping[str, Sequence[CanonicalEdge]],
+    relationship_aliases: Mapping[str, Sequence[str]],
+    *,
     direct_evidence_ids: frozenset[str],
     required_component_ids: frozenset[str],
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     if relationship is None:
         return (), ()
+    names = (relationship, *relationship_aliases.get(relationship, ()))
     evidence = tuple(
         dict.fromkeys(
             evidence_id
-            for edge in relationships.get(relationship, ())
+            for name in names
+            for edge in relationships.get(name, ())
             if edge.status in {"observed", "detected"}
             and not required_component_ids.isdisjoint(
                 (edge.source, edge.target)

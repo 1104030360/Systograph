@@ -16,6 +16,9 @@ from kai_mind.core.services.profile_registry_loader import (
     ProfileMetadataRegistry,
     ProfileRegistryLoader,
 )
+from kai_mind.core.services.profile_relationship_alias_loader import (
+    ProfileRelationshipAliasLoader,
+)
 from kai_mind.core.services.profile_rule_definitions import (
     MVP_CAPABILITY_PROFILE_IDS,
     PROFILE_RULE_DEFINITIONS,
@@ -36,6 +39,8 @@ class ProfileFindingService:
         self._metadata_registry = registry.require_profile_ids(
             MVP_CAPABILITY_PROFILE_IDS
         )
+        # Single source of truth: profile_relationship_alias.toml.
+        self._relationship_aliases = ProfileRelationshipAliasLoader().load()
 
     def infer(
         self,
@@ -56,6 +61,7 @@ class ProfileFindingService:
                 relationship: tuple(edges)
                 for relationship, edges in relationship_lists.items()
             },
+            relationship_aliases=self._relationship_aliases,
             direct_evidence_ids=frozenset(
                 item.evidence_id
                 for item in system_map.evidence
