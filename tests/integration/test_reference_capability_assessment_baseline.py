@@ -9,10 +9,17 @@ from kai_mind.core.services.map_build_service import MapBuildService
 
 # End-to-end baseline for the canonical_type -> reference node lookup
 # packaged as capability_type_node_map.toml. Scanning the Qdrant +
-# Ollama fixture must keep lighting up exactly these four reference
-# nodes at exactly these states, so that a vocabulary edit which still
-# loads (every node id valid, loader happy) but no longer routes real
+# Ollama fixture must keep lighting up these four reference nodes at
+# exactly these states, so that a vocabulary edit which still loads
+# (every node id valid, loader happy) but no longer routes real
 # components to their node cannot pass unnoticed.
+#
+# These four rows are all this test pins -- not exclusivity. A fifth
+# node lighting up stays green here; the packaged lookup's full key AND
+# value set is snapshotted by
+# `test_packaged_map_pins_every_canonical_type_and_node_tuple` in
+# tests/unit/core/test_capability_type_node_map_loader.py, so an edit
+# that re-targets or widens the vocabulary has to be deliberate there.
 #
 # llm_answerer stays `partial` on purpose: the Ollama runtime is only
 # reachable through indirect evidence, and MODEL-CONTRACT caps

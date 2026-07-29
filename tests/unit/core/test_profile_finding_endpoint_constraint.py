@@ -72,6 +72,7 @@ def _map_with_rerank_edge(*, source: str, target: str) -> AiSystemMapV2:
             "components": components,
             "edges": edges,
             "evidence": evidence,
+            "endpoints": [],
             "risk_hints": [],
             "unmapped_components": [],
         }

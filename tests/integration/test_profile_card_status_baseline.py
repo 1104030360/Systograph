@@ -61,11 +61,22 @@ def test_basic_rag_fixture_pins_all_fifteen_profile_card_statuses(
 
     This snapshot exists to stop a future relationship alias, bridge
     rule, or vocabulary edit from "fixing" a card via a false positive
-    without anyone noticing. Any such change flips a card here and turns
-    this test red, naming the drifted card in the dict diff. A card
-    moving to `detected` on this fixture is a claim that the scanner
-    proved wiring it cannot see today -- re-derive the card's gates
-    before touching this expectation.
+    without anyone noticing, and it catches those edits only where this
+    fixture's own components and edges reach the card's gates. A widened
+    alias for a gate this fixture cannot exercise leaves the snapshot
+    green -- aliasing `rerank` to `queries_vector_store` changes nothing
+    because no reranker component exists here, so the endpoint filter
+    drops the edge, and aliasing `hierarchical_flow` to
+    `stores_vectors` changes nothing because this fixture emits no
+    `stores_vectors` edge at all. Those unreachable cards are guarded
+    instead by `test_packaged_table_leaves_every_other_card_unaliased`
+    in tests/unit/core/test_profile_relationship_alias.py, which
+    forbids an alias key for any card but `rag-grounding`.
+
+    When a change does reach a gate here, the card flips and the dict
+    diff names it. A card moving to `detected` on this fixture is a
+    claim that the scanner proved wiring it cannot see today --
+    re-derive the card's gates before touching this expectation.
 
     Durable local state is redirected by the autouse
     `isolate_default_state_root` fixture in tests/conftest.py, so this
