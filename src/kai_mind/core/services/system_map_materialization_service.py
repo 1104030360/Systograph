@@ -1,3 +1,12 @@
+"""Operator-rollback-only v1 materializer. Plan 15 removes it.
+
+The class name carries no version suffix for historical reasons; the
+active writer is SystemMapV2MaterializationService. MapBuildService only
+constructs this one when the operator selects the legacy v1 canonical
+output version (see _build_legacy_v1_rollback_service), so nothing on the
+normal v2 build path imports this module.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

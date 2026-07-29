@@ -1,13 +1,18 @@
+# 這個檔案負責：只放「非得吃 v1 RagSystemMap 不可」的 viewer 相容 helper
+# （legacy edge 順序、v1 evidence / risk hint 明細）。
+# 版本中立的投影（例如 recommended_next_checks）一律放
+# viewer_session_service.py，改吃 normalized AiSystemMapV2。
+#
+# 呼叫鏈：
+#   ViewerSessionService.build_loaded（僅 v1 來源時才呼叫）
+#     → _preserve_legacy_edge_order / _with_legacy_details
 from __future__ import annotations
 
 from typing import Any
 
 from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
 from kai_mind.core.models.system_map import RagSystemMap, RiskHint
-from kai_mind.core.models.viewer import (
-    GraphRecommendedNextCheckModel,
-    GraphViewModel,
-)
+from kai_mind.core.models.viewer import GraphViewModel
 
 
 def _preserve_legacy_edge_order(
@@ -26,21 +31,6 @@ def _preserve_legacy_edge_order(
         edge for edge in normalized.edges if edge.edge_id not in ordered_id_set
     )
     return normalized.model_copy(update={"edges": ordered_edges})
-
-
-def _graph_recommended_next_checks(
-    system_map: RagSystemMap,
-) -> list[GraphRecommendedNextCheckModel]:
-    return [
-        GraphRecommendedNextCheckModel(
-            id=check.id,
-            target_type=check.target_type,
-            target=check.target,
-            reason=check.reason,
-            action=check.action,
-        )
-        for check in system_map.recommended_next_checks
-    ]
 
 
 def _with_legacy_details(

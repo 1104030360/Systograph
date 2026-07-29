@@ -27,6 +27,7 @@ from kai_mind.core.models.artifact_scope import (
     PHASE2_P0_ARTIFACT_SET_VERSION,
     ArtifactSetVersion,
 )
+from kai_mind.core.models.recommended_next_check import RecommendedNextCheck
 from kai_mind.core.models.system_map import Evidence
 
 # ---------------------------------------------------------------------------
@@ -73,10 +74,11 @@ SemanticKind = Literal[
     "reference_capability",
     "workflow_node",
 ]
-
-CompatibilityActivation = ActivationState
-CompatibilityComponentStatus = DetectionStatus
-CompatibilityLayer = Literal[
+# CanonicalLayer / CanonicalCandidateKind 是 canonical model 的欄位型別
+# （CanonicalComponent.layer、CanonicalCandidateFact.candidate_kind），
+# 不是 migration-only 型別；Plan 15 清掉下方 Compatibility/Generic 群時
+# 不可一併刪除，所以名字不掛 Compatibility。
+CanonicalLayer = Literal[
     "input_intent",
     "control",
     "ingestion_indexing",
@@ -89,6 +91,10 @@ CompatibilityLayer = Literal[
     "deployment_topology",
     "undetermined",
 ]
+CanonicalCandidateKind = Literal["legacy_extension"]
+
+CompatibilityActivation = ActivationState
+CompatibilityComponentStatus = DetectionStatus
 CompatibilityComponentSemanticKind = Literal[
     "repo_component",
     "slot_placeholder",
@@ -97,7 +103,6 @@ CompatibilityComponentSemanticKind = Literal[
 CompatibilityEdgeStatus = Literal["observed"]
 CompatibilityEndpointType = EndpointTypeV2
 CompatibilityRiskTargetType = RiskTargetTypeV2
-CompatibilityCandidateKind = Literal["legacy_extension"]
 
 V2_SCHEMA_VERSION: Final[V2SchemaVersion] = "ai-system-map/v2"
 V2_SYSTEM_TYPE: Final[V2SystemType] = "ai_system"
@@ -153,14 +158,16 @@ class GenericComponentMetadata(CompatibilityContractModel):
     source_kind: str | None = None
 
 
-# 做什麼：adapter 過渡用的通用元件（還沒完全 canonical 化前的形狀）。
-# 被誰用：AiSystemMapV2CompatibilityView.components。
+# 做什麼：v1 → v2 搬運用的通用元件形狀。
+# 被誰用：migration-only——僅 SystemMapV1ToV2Adapter 使用（包進
+# AiSystemMapV2CompatibilityView.components）；Plan 15 隨 v1 read support
+# 一併移除。
 # 內含：metadata → GenericComponentMetadata；evidence_ids → Evidence。
 class GenericComponent(CompatibilityContractModel):
     component_id: str
     display_name: str
     canonical_type: str
-    layer: CompatibilityLayer
+    layer: CanonicalLayer
     status: CompatibilityComponentStatus
     activation: CompatibilityActivation
     evidence_ids: list[str] = Field(default_factory=list)
@@ -259,19 +266,21 @@ class GenericCandidateFactMetadata(CompatibilityContractModel):
 # 內含：metadata → GenericCandidateFactMetadata。
 class GenericCandidateFact(CompatibilityContractModel):
     candidate_fact_id: str
-    candidate_kind: CompatibilityCandidateKind
+    candidate_kind: CanonicalCandidateKind
     display_name: str
     source_component_id: str
     evidence_ids: list[str] = Field(default_factory=list)
     metadata: GenericCandidateFactMetadata
 
 
-# 做什麼：Plan 00 adapter 的過渡根物件（v1 → v2 中間 compatibility view）。
-# 被誰用：SystemMapV1ToV2Adapter 產出；再轉成正式 AiSystemMapV2。
+# 做什麼：v1 → v2 中間 compatibility view 的根物件。
+# 被誰用：migration-only——僅 SystemMapV1ToV2Adapter 使用（產出後再轉成正式
+# AiSystemMapV2）；Plan 15 隨 v1 read support 一併移除。
 # 內含：components / edges / evidence(v1 Evidence) / endpoints / risks /
 # unmapped
-# / candidates。
-# 注意：這裡的 evidence 仍用 v1 的 Evidence model（來自 system_map.py）。
+# / candidates / recommended_next_checks。
+# 注意：這裡的 evidence 仍用 v1 的 Evidence model（來自 system_map.py）；
+# recommended_next_checks 用版本中立的 RecommendedNextCheck DTO 原樣搬運。
 class AiSystemMapV2CompatibilityView(CompatibilityContractModel):
     schema_version: CompatibilitySchemaVersion = V2_SCHEMA_VERSION
     system_type: CompatibilitySystemType = V2_SYSTEM_TYPE
@@ -284,6 +293,9 @@ class AiSystemMapV2CompatibilityView(CompatibilityContractModel):
     risk_hints: list[GenericRiskHint] = Field(default_factory=list)
     unmapped_facts: list[GenericUnmappedFact] = Field(default_factory=list)
     candidate_facts: list[GenericCandidateFact] = Field(default_factory=list)
+    recommended_next_checks: list[RecommendedNextCheck] = Field(
+        default_factory=list
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +345,7 @@ class CanonicalComponent(V2ContractModel):
     component_id: str
     display_name: str
     canonical_type: str
-    layer: CompatibilityLayer
+    layer: CanonicalLayer
     status: DetectionStatus
     activation: ActivationState
     evidence_ids: list[str] = Field(default_factory=list)
@@ -406,11 +418,27 @@ class CanonicalCandidateFactMetadata(V2ContractModel):
 # 內含：metadata → CanonicalCandidateFactMetadata。
 class CanonicalCandidateFact(V2ContractModel):
     candidate_fact_id: str
-    candidate_kind: CompatibilityCandidateKind
+    candidate_kind: CanonicalCandidateKind
     display_name: str
     source_component_id: str
     evidence_ids: list[str] = Field(default_factory=list)
     metadata: CanonicalCandidateFactMetadata
+
+
+# 做什麼：canonical 建議下一步檢查（target + reason + action）。
+# 被誰用：AiSystemMapV2.recommended_next_checks（正常 v2 build 直接產出）。
+# 內含：無巢狀 model。
+# 注意：欄位與 models/recommended_next_check.py 的版本中立 DTO 同形；
+# SystemMapV2MaterializationService.materialize 呼叫
+# RecommendedNextCheckService.derive，再由 SystemMapV2NormalizeService
+# .assemble 轉成這個型別；v1 map 則由 SystemMapV1ToV2Adapter 原樣搬過來。
+# Viewer / markdown 投影一律只讀這裡（v1、v2 同一條路）。
+class CanonicalRecommendedNextCheck(V2ContractModel):
+    id: str
+    target_type: str
+    target: str
+    reason: str
+    action: str
 
 
 # 做什麼：正式的 canonical AI System Map 根物件（v2 真相來源）。
@@ -419,7 +447,7 @@ class CanonicalCandidateFact(V2ContractModel):
 # /
 #         DetailScan / Overlay / Validation 等下游一律吃這個。
 # 內含：project + components/edges/evidence/endpoints/risks/unmapped/
-# candidates。
+# candidates/recommended_next_checks。
 # 注意：schema_version / system_type 必須顯式出現在 JSON（不能靠 default 省略）
 # 。
 class AiSystemMapV2(V2ContractModel):
@@ -447,6 +475,12 @@ class AiSystemMapV2(V2ContractModel):
         default_factory=list
     )
     candidate_facts: list[CanonicalCandidateFact] = Field(default_factory=list)
+    # Additive optional field: it must stay out of the generated JSON Schema
+    # `required` list so v2 artifacts published before this field existed keep
+    # loading (missing → empty list).
+    recommended_next_checks: list[CanonicalRecommendedNextCheck] = Field(
+        default_factory=list
+    )
 
 
 # ---------------------------------------------------------------------------

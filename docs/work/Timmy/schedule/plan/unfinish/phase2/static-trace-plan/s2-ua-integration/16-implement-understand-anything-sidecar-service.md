@@ -44,9 +44,13 @@ kai-mind-ua-result/v1
 
 ## 依賴
 
-- **Do not start until Gate-1 passes：** TOML-primary Step 1～9 E2E、Apply B1→B2 共用
-  snapshot，以及 `ua_analysis_result=None` 的 initial build / Apply regression 必須全部通過。
+- **Do not start until Gate-1 passes：** TOML-primary 的 **initial scan 驗 Step 1～7 publish +
+  Step 8 viewer（initial scan 不必跑 Step 9）**；**Step 9 decision 與 Apply B1→B2
+  （跳 Step 3/UA；4-1 bridge replay → 4-2 overlay → Step 4～7）共用 snapshot 由 Apply path
+  另行驗證**；以及 `ua_analysis_result=None` 的 initial build / Apply regression 必須全部通過。
   Gate-1 未通過時，本計畫維持 blocked，不得提前把 UA 切成 primary。
+  （拆法以 `static-trace-plan/README.md` 的執行順序與 Gate 表為準；原本寫「Step 1～9 E2E」會
+  讓 Gate-1 驗收時對「initial scan 要不要跑 Step 9」各說各話。）
 - 依賴 `00A`：generic v2 map 與 evidence contract。
 - 依賴 `01B`：UA `rule_id` 必須能進 Step 4 bridge registry。
 - 依賴 `03A`：`ScanSnapshot` 預留 nullable `ua-analysis-result` internal sidecar slot，但

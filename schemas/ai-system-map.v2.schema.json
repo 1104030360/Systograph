@@ -468,6 +468,40 @@
       "title": "CanonicalProject",
       "type": "object"
     },
+    "CanonicalRecommendedNextCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "target_type": {
+          "title": "Target Type",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "target_type",
+        "target",
+        "reason",
+        "action"
+      ],
+      "title": "CanonicalRecommendedNextCheck",
+      "type": "object"
+    },
     "CanonicalRiskHint": {
       "additionalProperties": false,
       "properties": {
@@ -730,6 +764,13 @@
         "$ref": "#/$defs/CanonicalCandidateFact"
       },
       "title": "Candidate Facts",
+      "type": "array"
+    },
+    "recommended_next_checks": {
+      "items": {
+        "$ref": "#/$defs/CanonicalRecommendedNextCheck"
+      },
+      "title": "Recommended Next Checks",
       "type": "array"
     }
   },

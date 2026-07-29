@@ -18,12 +18,13 @@ from kai_mind.core.models.ai_system_map_v2 import (
     CanonicalEndpoint,
     CanonicalEvidence,
     CanonicalEvidenceLocation,
+    CanonicalLayer,
     CanonicalProject,
+    CanonicalRecommendedNextCheck,
     CanonicalRiskHint,
     CanonicalUnmappedComponent,
     CompatibilityActivation,
     CompatibilityComponentStatus,
-    CompatibilityLayer,
     CompatibilityProject,
     CompatibilityRiskTargetType,
     GenericCandidateFact,
@@ -46,27 +47,13 @@ from kai_mind.core.models.system_map import (
     RagSystemMap,
     RiskHint,
 )
+from kai_mind.core.services.legacy_slot_layer_map import SLOT_LAYER_BY_ID
 from kai_mind.core.services.path_safety_service import (
     WINDOWS_DRIVE_RE,
     WINDOWS_UNC_RE,
 )
 
 SLOT_PLACEHOLDER_PREFIX: Final[str] = "component:slot_placeholder:"
-SLOT_LAYER_BY_ID: Final[dict[str, CompatibilityLayer]] = {
-    "app_api_or_orchestrator": "control",
-    "data_sources": "ingestion_indexing",
-    "document_loader": "ingestion_indexing",
-    "chunking": "ingestion_indexing",
-    "embedding_model": "ingestion_indexing",
-    "vector_store": "retrieval",
-    "query_processing": "retrieval",
-    "retriever": "retrieval",
-    "prompt_builder": "generation",
-    "llm": "generation",
-    "citation_or_response_composer": "generation",
-    "guardrails": "governance_observability",
-    "observability": "governance_observability",
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +95,11 @@ class SystemMapV1ToV2Adapter:
             risk_hints=self._build_risk_hints(system_map, component_index),
             unmapped_facts=self._build_unmapped_facts(system_map),
             candidate_facts=self._build_candidate_facts(system_map),
+            # Keep the v1 order: the list was service-sorted at build time.
+            recommended_next_checks=[
+                item.model_copy(deep=True)
+                for item in system_map.recommended_next_checks
+            ],
         )
 
     def adapt_to_canonical(
@@ -231,6 +223,16 @@ class SystemMapV1ToV2Adapter:
                     ),
                 )
                 for item in compatibility_view.candidate_facts
+            ],
+            recommended_next_checks=[
+                CanonicalRecommendedNextCheck(
+                    id=item.id,
+                    target_type=item.target_type,
+                    target=item.target,
+                    reason=item.reason,
+                    action=item.action,
+                )
+                for item in compatibility_view.recommended_next_checks
             ],
         )
 
@@ -658,7 +660,7 @@ def _slot_placeholder_id(slot: str) -> str:
     return f"{SLOT_PLACEHOLDER_PREFIX}{slot}"
 
 
-def _layer_for_slot(slot: str) -> CompatibilityLayer:
+def _layer_for_slot(slot: str) -> CanonicalLayer:
     return SLOT_LAYER_BY_ID.get(slot, "undetermined")
 
 

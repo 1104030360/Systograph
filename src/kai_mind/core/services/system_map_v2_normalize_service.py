@@ -13,12 +13,13 @@ from kai_mind.core.models.ai_system_map_v2 import (
     CanonicalEdge,
     CanonicalEndpoint,
     CanonicalProject,
+    CanonicalRecommendedNextCheck,
     CanonicalRiskHint,
     CanonicalUnmappedComponent,
-    CompatibilityLayer,
     DetectionStatus,
     RiskTargetTypeV2,
 )
+from kai_mind.core.models.recommended_next_check import RecommendedNextCheck
 from kai_mind.core.models.scan import ProjectScanResult
 from kai_mind.core.models.system_map import Endpoint, Flow, RiskHint
 from kai_mind.core.services.canonical_evidence_service import (
@@ -27,22 +28,7 @@ from kai_mind.core.services.canonical_evidence_service import (
 from kai_mind.core.services.component_detection_service import (
     ComponentDetectionResult,
 )
-
-SLOT_LAYER_BY_ID: dict[str, CompatibilityLayer] = {
-    "app_api_or_orchestrator": "control",
-    "data_sources": "ingestion_indexing",
-    "document_loader": "ingestion_indexing",
-    "chunking": "ingestion_indexing",
-    "embedding_model": "ingestion_indexing",
-    "vector_store": "retrieval",
-    "query_processing": "retrieval",
-    "retriever": "retrieval",
-    "prompt_builder": "generation",
-    "llm": "generation",
-    "citation_or_response_composer": "generation",
-    "guardrails": "governance_observability",
-    "observability": "governance_observability",
-}
+from kai_mind.core.services.legacy_slot_layer_map import SLOT_LAYER_BY_ID
 
 
 class SystemMapV2NormalizeService:
@@ -57,6 +43,7 @@ class SystemMapV2NormalizeService:
         endpoints: Sequence[Endpoint],
         flows: Sequence[Flow],
         risk_hints: Sequence[RiskHint],
+        recommended_next_checks: Sequence[RecommendedNextCheck],
         no_snippets: bool,
     ) -> AiSystemMapV2:
         canonical_components = self._components(components)
@@ -103,6 +90,18 @@ class SystemMapV2NormalizeService:
                     components.unmapped_components,
                     key=lambda item: item.id,
                 )
+            ],
+            # Order is the RecommendedNextCheckService output order
+            # (sorted by id); assembling must not reorder it.
+            recommended_next_checks=[
+                CanonicalRecommendedNextCheck(
+                    id=check.id,
+                    target_type=check.target_type,
+                    target=check.target,
+                    reason=check.reason,
+                    action=check.action,
+                )
+                for check in recommended_next_checks
             ],
         )
 

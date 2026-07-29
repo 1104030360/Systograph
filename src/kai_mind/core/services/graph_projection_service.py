@@ -2,7 +2,8 @@
 # 只做「語意圖投影」，不改 map、不算 layout（座標由前端 ELK 處理）。
 #
 # 呼叫鏈：
-#   ViewerSessionService.build / load_map / project_to_graph
+#   ViewerSessionService.load_map / build_canonical、BuildManifestService.load
+#     → ViewerSessionService.build_loaded（唯一投影出口）
 #     → GraphProjectionService.project(AiSystemMapV2, profile_result?)
 #         → SystemMapIndex.from_map
 #         → _nodes / _edges（repo_component + unmapped + topology edges）
@@ -65,7 +66,7 @@ class GraphProjectionService:
 
     # 做什麼：入口；組出完整 GraphViewModel
     #         （nodes/edges/relationships/details/filters）。
-    # 被誰呼叫：ViewerSessionService.build / load_map / project_to_graph。
+    # 被誰呼叫：ViewerSessionService.build_loaded（唯一投影出口）。
     # 自己呼叫：
     #   1. 檢查 artifact_ref 必須是專案相對路徑
     #   2. SystemMapIndex.from_map

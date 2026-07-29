@@ -6,11 +6,17 @@ import json
 
 from fastapi import HTTPException, Request
 
-from kai_mind.core.services.legacy_manual_mapping_migration_service import (
-    LegacyManualMappingType,
-)
-
-_LEGACY_MAPPING_TYPE = LegacyManualMappingType.NEW_EXTENSION.value
+# The retired mapping type is deliberately inlined as a literal instead of
+# imported from LegacyManualMappingType in the legacy migration module,
+# for two reasons:
+# 1. the literal keeps this guard independent of that module's lifetime, so
+#    Plan 15 can delete the module without breaking the web layer;
+# 2. this guard's lifecycle is owned by Plan 15 Task 3b bullet 5 — it must
+#    NOT be deleted together with the legacy migration module.
+# Restoring the import would silently re-create that deletion coupling. The
+# census now tracks the enum names too, so census visibility alone is not a
+# reason to keep the literal; reason 1 is.
+_LEGACY_MAPPING_TYPE = "new_extension_component"
 
 
 def _payload_contains_legacy_mapping_type(payload: object) -> bool:

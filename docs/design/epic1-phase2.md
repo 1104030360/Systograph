@@ -47,7 +47,7 @@ target，不得把 planned modules、mock samples 或文件 claim 寫成已實�
 
 | 決策面 | 2026-07-07 定案（白話） |
 |---|---|
-| Step 3 scanner | **分三階段上線（理由見上）：** ① **Phase A** 先用現有 KAI TOML 規則掃描，把 Step 1～9 + Apply 跑通（**Gate-1**）；② **Phase B** 改由 `UnderstandAnythingAnalysisService` 呼叫 **UA 外部分析**當主掃描，舊 KAI 規則只跑 **parity 對照**；③ **Phase C**（**Plan 14** 通過後 **Plan 18**）舊主掃描規則退役，**只留 UA**。 |
+| Step 3 scanner | **分三階段上線（理由見上）：** ① **Phase A** 先用現有 KAI TOML 規則掃描，把 initial scan 的 Step 1～7 publish + Step 8 viewer 跑通，Step 9 decision 與 Apply B1→B2 另由 Apply path 驗證，兩段合起來才是 **Gate-1**（2026-07-28 依 §20 cutover gates 第 6 條與 `static-trace-plan/README.md` Gate 表統一拆法；原定案文字為「把 Step 1～9 + Apply 跑通」，決策本身未變，只拆清 initial scan 不必跑 Step 9）；② **Phase B** 改由 `UnderstandAnythingAnalysisService` 呼叫 **UA 外部分析**當主掃描，舊 KAI 規則只跑 **parity 對照**；③ **Phase C**（**Plan 14** 通過後 **Plan 18**）舊主掃描規則退役，**只留 UA**。 |
 | UA 採用範圍 | Phase2 **只用 UA 的結構分析**（`extract-import-map` → `compute-batches` → `extract-structure`），**不用 LLM 猜語意**。不跑 `scan-project.mjs`；語言 / `fileCategory` / 行數改在 **Step 2 inventory** 補。不跑 `file-analyzer`；`ua-analysis-result.json` 的 semantic 欄位 **可留空（nullable deferred）**。 |
 | Step 6 assessment | 能力 **五態只用 Python 規則**（`ProfileInferenceService`），不用 AI 編排。Plan 17 / `AssessmentOrchestrator` **先不做**，不擋 Plan 14。**五態只能 Python 定案**；`detected` **必須有 direct evidence**。 |
 | Apply / Rescan | **Apply：** 不重掃 repo、不重跑 UA；**同一個 `scan_id`**，重放 `ScanSnapshot.scan_result` 的 facts/evidence，從 Step 4 重算 → **新 `build_id`**。UA 原始 JSON（`ua-analysis-result`）**不變、Phase2 不讀**。**Rescan：** 新 `scan_id`；Phase B/C 會再跑 UA。 |
@@ -599,6 +599,9 @@ Step 3 依序採三階段切換：
 
 1. **Phase A — TOML primary：** 現有 KAI scan TOML providers 先打通 Step 1～9、
    deterministic assessment 與 Apply。此階段 `ua_analysis_result=null` 必須可完成 build / Apply。
+   （此處的「Step 1～9」是 Phase A 的**交付範圍**，不是 Gate-1 的驗收拆法——Gate-1 只要求
+   initial scan 驗 Step 1～7 + Step 8 viewer，Step 9 decision 由 Apply path 另驗；
+   見 §20 cutover gates 第 6 條與 `static-trace-plan/README.md` 的 Gate 表。）
 2. **Phase B — UA primary + TOML parity：** Gate-1 通過後才執行 Plan 16；UA structural facts
    成為 primary，TOML providers 只產 parity report。
 3. **Phase C — UA only：** Plan 14 保存 parity / fail-closed / Apply replay report 後，Plan 18
@@ -1080,7 +1083,8 @@ S1  01 -> 01B -> 01A -> 02 -> 03 -> 03A -> 04
       Track-B: 10 -> 11
       Track-C: dynamic/00 after 03/05, before 14
       Track-D: 19 before 16
-    13 -> Gate-1（TOML-primary Step 1～9 + Apply；sidecar=null）
+    13 -> Gate-1（TOML-primary：initial scan Step 1～7 + Step 8 viewer；
+                  Step 9 decision + Apply 另驗；sidecar=null）
 S2  16 -> Gate-2（UA structural + internal sidecar + parity）
 S3  14 -> Gate-3 -> 18 -> Gate-4 -> 15
 
@@ -1130,7 +1134,9 @@ Cutover gates：
 3. v2 producer, sidecars, APIs, frontend samples and schemas validate together.
 4. Apply/restart/local JSON E2E passes.
 5. static execution P0 artifacts validate.
-6. Gate-1 proves TOML-primary Step 1～9 and `sidecar=null` Apply before Plan 16 starts.
+6. Gate-1 proves the TOML-primary initial scan through Step 1～7 publish plus Step 8 viewer
+   (an initial scan does not need Step 9), and separately proves the Step 9 decision with the
+   `sidecar=null` Apply path (B1→B2), before Plan 16 starts.
 7. Phase B UA-primary parity gate passes on real-world import and fixtures, including fail-closed sidecar errors.
 8. real-world import, fixtures, secret/path safety and cross-platform validation pass.
 9. active v2 cutover completes before legacy retirement and TOML scan-provider retirement.

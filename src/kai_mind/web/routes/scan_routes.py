@@ -26,6 +26,10 @@ from kai_mind.core.services.build_commit_service import (
     BuildCommitError,
     BuildCommitService,
 )
+from kai_mind.core.services.canonical_output_configuration import (
+    CanonicalOutputConfigurationError,
+    require_public_v2_selection,
+)
 from kai_mind.core.services.inventory_preflight_service import (
     InventoryPreflightService,
 )
@@ -164,6 +168,14 @@ def create_scan(
             status_code=404,
             detail=project_not_found_detail(),
         )
+    # Reject a retired public selection at the API boundary, before any
+    # preflight/scan work runs, so an invalid request never pays the scan
+    # cost nor leaves a persisted snapshot behind. MapBuildService keeps its
+    # own check as the authoritative guard for non-web callers.
+    try:
+        require_public_v2_selection(payload.system_map_schema_version)
+    except CanonicalOutputConfigurationError as exc:
+        raise HTTPException(status_code=422, detail=exc.code) from exc
 
     selection_summary = None
     try:

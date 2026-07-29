@@ -50,6 +50,34 @@ def test_mapping_api_rejects_legacy_type_with_stable_code(
     assert response.json()["detail"] == "legacy_mapping_type_read_only"
 
 
+def test_mapping_patch_rejects_legacy_type_with_stable_code(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(create_app(state_dir=tmp_path / "state"))
+    created = client.post(
+        "/api/mappings",
+        json={
+            "project_id": "project:demo",
+            "mapping_type": "existing_slot_mapping",
+            "decision": "skip_for_now",
+            "source_file": "src/router.py",
+            "evidence_ids": ["evidence:router"],
+            "reason": "Need more context.",
+        },
+    ).json()
+
+    response = client.patch(
+        f"/api/mappings/{created['mapping_id']}",
+        json={
+            "mapping_type": "new_extension_component",
+            "decision": "confirmed",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "legacy_mapping_type_read_only"
+
+
 def test_proposal_decision_rejects_legacy_type_with_stable_code(
     tmp_path: Path,
 ) -> None:

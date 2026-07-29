@@ -216,40 +216,52 @@ class GraphMarkdownRenderer:
         lines.append("")
         return lines
 
+    # Scan-fact checks (graph-level, derived from runtime/privacy scan
+    # facts) and capability review checks (per-node, owned by profile
+    # assessment) answer different questions, so neither shadows the
+    # other: both sections are always rendered. Both go through _safe:
+    # capability text is registry-static today, but this section now
+    # renders on every report, so masking is not left to provenance.
     def _render_recommended_next_checks(
         self,
         graph: GraphViewModel,
     ) -> list[str]:
-        lines = ["## Recommended Next Checks", ""]
-        if graph.recommended_next_checks:
-            for check in graph.recommended_next_checks:
-                lines.append(
+        return [
+            "## Recommended Next Checks",
+            "",
+            *_check_section(
+                "Scan-fact checks",
+                [
                     "- [ ] "
                     f"{self._safe(check.action)}: "
                     f"{self._safe(check.reason)} "
                     f"(target: {self._safe(check.target)})"
-                )
-            lines.append("")
-            return lines
-
-        profile_checks = [
-            (node.id, check)
-            for node in graph.nodes
-            for check in node.recommended_next_checks
+                    for check in graph.recommended_next_checks
+                ],
+                "- No scan-fact checks.",
+            ),
+            *_check_section(
+                "Capability review checks",
+                [
+                    f"- [ ] `{_cell(node.id)}`: {_cell(self._safe(check))}"
+                    for node in graph.nodes
+                    for check in node.recommended_next_checks
+                ],
+                "- No capability review checks.",
+            ),
         ]
-        if profile_checks:
-            lines.extend(
-                f"- [ ] `{_cell(node_id)}`: {_cell(check)}"
-                for node_id, check in profile_checks
-            )
-            lines.append("")
-            return lines
-
-        lines.extend(["- No backend-provided next checks.", ""])
-        return lines
 
     def _safe(self, value: str) -> str:
         return self._masking_service.mask_text(value).replace("\n", " ")
+
+
+def _check_section(
+    title: str,
+    checks: list[str],
+    empty_note: str,
+) -> list[str]:
+    deduplicated = list(dict.fromkeys(checks))
+    return [f"### {title}", "", *(deduplicated or [empty_note]), ""]
 
 
 def _cell(value: object | None) -> str:

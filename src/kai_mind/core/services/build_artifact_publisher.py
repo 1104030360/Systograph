@@ -7,7 +7,7 @@
 #   MapBuildPipeline._complete()
 #     → BuildArtifactPublisher.publish(...)
 #         → OutputArtifactProvider.write_*
-#         → ViewerSessionService.build（→ GraphProjection）
+#         → ViewerSessionService.build_canonical（→ GraphProjection）
 #         → GraphMarkdownRenderer / GraphMermaidRenderer
 #     → 路徑回填 MapBuildResult
 from __future__ import annotations
@@ -105,11 +105,12 @@ class BuildArtifactPublisher:
             self._discard_partial(output_run)
             raise
 
-    # 做什麼：實際寫出所有 artifacts，並用 ViewerSessionService.build 投影
-    # viewer。
+    # 做什麼：實際寫出所有 artifacts，並用 ViewerSessionService
+    # .build_canonical 投影 viewer。
     # 被誰呼叫：publish()。
     # 自己呼叫：
-    #   write_json(map) → ViewerSessionService.build（含 GraphProjection）
+    #   write_json(map) → ViewerSessionService.build_canonical
+    #   （含 GraphProjection）
     #   write_markdown / profile / readiness / call_graph / dataflow /
     #   execution_paths / evidence_table / mermaid
     def _publish(
