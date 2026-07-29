@@ -22,48 +22,9 @@ from kai_mind.core.models.profile_signal import (
 from kai_mind.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapLoader,
 )
-
-_TYPE_TO_NODES: dict[str, tuple[str, ...]] = {
-    "agent_loop": ("agent_loop", "agent_runtime"),
-    "api_input": ("user_input", "api_server"),
-    "api_orchestrator": ("api_server",),
-    "api_route": ("api_server",),
-    "chunker": ("chunker",),
-    "conflict_checker": ("conflict_checker",),
-    "context_composer": ("context_composer",),
-    "document_loader": ("document_loader",),
-    "embedder": ("embedder",),
-    "embedding_model": ("embedder",),
-    "embedding_provider": ("embedder",),
-    "external_llm": ("llm_answerer",),
-    "external_llm_provider": ("llm_answerer",),
-    "graph_retriever": ("graph_retriever",),
-    "http_vector_store": ("index_builder",),
-    "hybrid_retriever": ("hybrid_retriever",),
-    "index_builder": ("index_builder",),
-    "llm": ("llm_answerer",),
-    "local_llm_runtime": ("llm_answerer",),
-    "local_persistent_vector_store": ("index_builder",),
-    "long_term_memory": ("long_term_memory",),
-    "memory": ("long_term_memory",),
-    "metadata_extractor": ("metadata_extractor",),
-    "orchestrator": ("orchestrator",),
-    "parser": ("parser",),
-    "prompt_template": ("prompt_builder",),
-    "query_classifier": ("query_classifier",),
-    "rag_anything_system": ("rag_anything_system",),
-    "reranker": ("reranker",),
-    "retriever": ("dense_retriever",),
-    "router": ("router",),
-    "sparse_retriever": ("sparse_retriever",),
-    "tool": ("tool_using_generator", "tool_network"),
-    "vector_db": ("index_builder",),
-    "vector_db_config": ("index_builder",),
-    "vector_retriever": ("dense_retriever",),
-    "vector_store": ("index_builder",),
-    "worker_queue": ("worker_queue",),
-    "workflow_node": ("orchestrator",),
-}
+from kai_mind.core.services.capability_type_node_map_loader import (
+    CapabilityTypeNodeMapLoader,
+)
 
 
 class ReferenceCapabilityAssessmentService:
@@ -73,6 +34,8 @@ class ReferenceCapabilityAssessmentService:
         catalog: CapabilityReferenceCatalog | None = None,
     ) -> None:
         self._catalog = catalog or CapabilityReferenceMapLoader().load()
+        # Single source of truth: capability_type_node_map.toml.
+        self._type_to_nodes = CapabilityTypeNodeMapLoader().load(self._catalog)
 
     def assess(
         self,
@@ -111,11 +74,13 @@ class ReferenceCapabilityAssessmentService:
             defaultdict(list)
         )
         for candidate in capability_candidate_components:
-            for node_id in _TYPE_TO_NODES.get(candidate.observed_kind, ()):
+            for node_id in self._type_to_nodes.get(
+                candidate.observed_kind, ()
+            ):
                 candidates_by_node[node_id].append(candidate)
         unmapped_by_node: dict[str, list[str]] = defaultdict(list)
         for unmapped in system_map.unmapped_components:
-            for node_id in _TYPE_TO_NODES.get(unmapped.observed_kind, ()):
+            for node_id in self._type_to_nodes.get(unmapped.observed_kind, ()):
                 unmapped_by_node[node_id].append(unmapped.unmapped_id)
 
         return tuple(
@@ -135,9 +100,11 @@ class ReferenceCapabilityAssessmentService:
             for node in self._catalog.nodes
         )
 
-    @staticmethod
-    def _component_nodes(component: CanonicalComponent) -> tuple[str, ...]:
-        return _TYPE_TO_NODES.get(component.canonical_type, ())
+    def _component_nodes(
+        self,
+        component: CanonicalComponent,
+    ) -> tuple[str, ...]:
+        return self._type_to_nodes.get(component.canonical_type, ())
 
     @staticmethod
     def _assessment(

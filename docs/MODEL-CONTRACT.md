@@ -408,6 +408,9 @@ Legacy alias（`advanced-rag` 等）僅 fixture / 討論用；active output 前�
 Catalog / rule ownership：
 
 - `capability_reference_map.toml` — 52 node 座標、labels、activation_applicable
+- `capability_type_node_map.toml` — canonical_type → 52 node ids 對照；由
+  `CapabilityTypeNodeMapLoader` strict/fail-closed 載入（每個 node id 必須存在於 catalog）。
+  這是 Step 6 assessment **唯一**的對照路徑，程式碼不得再持有等價的對照字面量
 - `profile_rule_definitions.py` — 15 stable profile ids、executable required nodes 與 wiring
 - `profile_registry.toml` — labels、description、axes、display order、default uncertainty 與
   recommended next checks；由 `ProfileRegistryLoader` strict/fail-closed 載入
