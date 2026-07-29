@@ -324,6 +324,8 @@ static-trace-plan/
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
 | 16 | [16-implement-understand-anything-sidecar-service.md](./s2-ua-integration/16-implement-understand-anything-sidecar-service.md) | UA sidecar service、request/result schema、Step 2 enrichment、parity harness | 依 `00A`, `01B`, `03A` 且需 Gate-1 |
+| 16A | [16A-q3-lv2-call-graph-flow-visualization.md](./s2-ua-integration/16A-q3-lv2-call-graph-flow-visualization.md) | Q3 決策：選 Lv2（UA call graph → flow 可視化）；一份 call 資料餵 ①context_flow ②FlowDerivation ③static execution ④frontend ⑤flow 敘事 | 決策紀錄；實作仍依 16／後續 consumer 升級 |
+| 16B | [16B-ua-sidecar-io-adapter-reference.md](./s2-ua-integration/16B-ua-sidecar-io-adapter-reference.md) | 技術參考（2026-07-29 查核）：三支 UA script 實測 I/O 與 runtime 需求、KAI 側接縫錨點、adapter 三條硬規則（四元組對齊／direct 門檻／evidence id 穩定）、open questions | 參考附件；Plan 16 Task 1/3/4/6 實作前先讀 |
 
 ### S3 驗證 — `s3-validation/`
 

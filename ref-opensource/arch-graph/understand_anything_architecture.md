@@ -1,88 +1,122 @@
-# Understand-Anything 完整架構與資料流圖 (Architecture & Data Flow)
+# Understand-Anything 架構總覽 (High-Level Architecture & Data Flow)
 
-基於您所釐清的 `Understand-Anything` 專案底層流程，我為您繪製了這份完整的系統架構圖。本圖明確劃分了 **「AI 編排層」**、**「確定性腳本層」**、**「JSON 資料流管線」** 與 **「唯讀前端渲染層」** 的職責邊界與互動關係。
+> Scope：`/understand` 主管線與唯讀 dashboard。
+> 驗證基準：submodule pin `73559a1`（2026-07-06），plugin 版本 `2.8.2`。
+> 來源：`understand-anything-plugin/skills/understand/SKILL.md`、`agents/*.md`、`packages/dashboard/`。
+> 逐 Phase 細節見：`understand_anything_architecture_detailed.md`
+> **Canonical 可視化總圖見：`understand_anything_pipeline_visual.md`**
+> 使用者視角流程見：`understand_anything_flow.md`
 
-```mermaid
-flowchart TD
-    %% 角色與層級定義
-    subgraph AI_Layer ["AI Agent Layer (Orchestration & Semantics)"]
-        L0["L0: Host Orchestrator Agent<br>(Reads SKILL.md)"]
-        L1_File["L1: Subagents (e.g., file-analyzer)<br>(Semantic Inferencing)"]
-        L1_Arch["L1: Architecture Analyzer / Tour Builder<br>(Layering & Post-processing)"]
-    end
+本圖劃分五個職責邊界：**L0 編排層**、**L1 Agent 層（唯一有 LLM 的地方）**、
+**L2 確定性腳本層**、**L3 解析核心**，以及 **JSON 產物管線 → 唯讀前端**。
 
-    subgraph Script_Layer ["Deterministic Script Layer (Node / Python)"]
-        L2_Scan["scan-project.mjs<br>extract-import-map.mjs"]
-        L2_Extract["extract-structure.mjs<br>(AST / Fact Extraction)"]
-        L2_Batch["compute-batches.mjs"]
-        L2_Merge["merge-batch-graphs.py"]
+```text
+┌─ L0  Host Orchestrator - the main session itself, reading skills/understand/SKILL.md ────────┐
+│  Owns directly (no subagent): Ph0 pre-flight, Ph0.5 ignore, Ph1.5 batch, Ph2 merge, Ph7      │
+│  Dispatches agents for: Ph1 scan, Ph2 analyze, Ph3 assemble, Ph4 arch, Ph5 tour, Ph6         │
+│  Ten phase sections; every progress string still reads "N/7" (incl. "[Phase 1.5/7]")         │
+└────────────┬─────────────────────────────────────────────────┬───────────────────────────────┘
+             │ Task dispatch (LLM)                             │ Bash: run bundled script
+             ▼                                                 │
+┌─ L1  Agent Layer - 5 pipeline agents + 1 optional ───────────┴───────────────────────────────┐
+│  project-scanner        x1   Ph1  runs scan-project.mjs + extract-import-map.mjs itself;     │
+│                                   LLM only names/describes the project                       │
+│  file-analyzer          xN   Ph2  <=5 concurrent; runs extract-structure.mjs, then adds      │
+│                                   semantic nodes/edges                                       │
+│  assemble-reviewer      x1   Ph3  pure LLM, no script                                        │
+│  architecture-analyzer  x1   Ph4  authors + runs tmp/ua-arch-analyze.js                      │
+│  tour-builder           x1   Ph5  authors + runs tmp/ua-tour-analyze.js                      │
+│  graph-reviewer         x1   Ph6  ┄┄▶ only with --review; default path is deterministic      │
+│  Full run = 5 + N dispatches (N = batch count), +1 with --review                             │
+└────────────┬─────────────────────────────────────────────────────────────────────────────────┘
+             │ agents shell out to the same bundled scripts
+             ▼
+┌─ L2  Deterministic Script Layer - the 9 scripts bundled in skills/understand/ ───────────────┐
+│  Ph0   merge-subdomain-graphs.py      Ph0.5 generate-ignore.mjs                              │
+│  Ph1   scan-project.mjs               Ph1   extract-import-map.mjs                           │
+│  Ph1.5 compute-batches.mjs            Ph2   extract-structure.mjs                            │
+│  Ph2   merge-batch-graphs.py          Ph7   build-fingerprints.mjs                           │
+│  9th file = extract-structure-result.mjs: pure imported module, NO CLI - not a step          │
+│  NOT bundled: ua-inline-validate.cjs (Ph6 default), ua-arch-analyze.js, ua-tour-analyze.js,  │
+│               ua-graph-validate.js - authored into tmp/ by the agent at runtime              │
+└────────────┬─────────────────────────────────────────────────────────────────────────────────┘
+             │ AST / parsing
+             ▼
+┌─ L3  @understand-anything/core ──────────────────────────────────────────────────────────────┐
+│  web-tree-sitter WASM (native fails on darwin/arm64 + Node 24)                               │
+│  14 language configs / 15 grammars + non-code parsers (Markdown, YAML, JSON, TOML, SQL, ...) │
+│  Missing grammar = silent degradation (console.debug, empty result), never a throw           │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 
-        L3_Core["L3: @understand-anything/core<br>(Tree-sitter, Parsers)"]
-    end
-
-    subgraph Data_Artifacts ["JSON Artifacts Pipeline (Data Flow)"]
-        JSON_Scan["scan-result.json<br>(File List & importMap)"]
-        JSON_Struct["ua-file-extract-results-*.json<br>(Pure Structure Facts)"]
-        JSON_Batch["batch-*.json<br>(Semantic Graph Fragments)"]
-        JSON_Assembled["assembled-graph.json<br>(Merged Graph)"]
-        JSON_Final["knowledge-graph.json<br>(Final Knowledge Graph)"]
-    end
-
-    subgraph Frontend ["Frontend Dashboard (Read-Only)"]
-        Vite["Vite Dev Server<br>(HTTP Middleware)"]
-        ReactFlow["Zustand + ReactFlow<br>(Visualizer)"]
-        FileViewer["File Content Viewer<br>(Bounded Bounded Access)"]
-    end
-
-    %% 控制流與執行順序 (Phase 0 - Phase 7)
-    L0 -- "1. Dispatch Phase 0-1 (掃描)" --> L2_Scan
-    L2_Scan -- "Uses AST" --> L3_Core
-    L2_Scan -- "Writes" --> JSON_Scan
-
-    L0 -- "2. Trigger Phase 1.5 (分批)" --> L2_Batch
-    JSON_Scan --> L2_Batch
-
-    L0 -- "3. Trigger Phase 2 Script (擷取結構)" --> L2_Extract
-    L2_Extract -- "Uses AST" --> L3_Core
-    L2_Extract -- "Writes" --> JSON_Struct
-
-    L0 -- "4. Dispatch Parallel Subagents (語意分析)" --> L1_File
-    JSON_Struct --> L1_File
-    L1_File -- "Writes Summary/Tags/Edges" --> JSON_Batch
-
-    L0 -- "5. Trigger Merge Script (圖譜合併)" --> L2_Merge
-    JSON_Batch --> L2_Merge
-    L2_Merge -- "Outputs" --> JSON_Assembled
-
-    L0 -- "6. Dispatch Phase 3-5 (架構分層/導覽)" --> L1_Arch
-    JSON_Assembled --> L1_Arch
-    L1_Arch -- "Refines & Outputs" --> JSON_Final
-
-    %% 前端存取
-    JSON_Final -. "GET /knowledge-graph.json" .-> Vite
-    Vite --> ReactFlow
-    ReactFlow -- "GET /file-content.json (Check Allowlist)" --> FileViewer
-
-    %% 樣式設定（高亮區塊使用深色文字）
-    classDef ai fill:#f9e0fb,stroke:#c442c4,stroke-width:2px,color:#1f2937;
-    classDef script fill:#d4e6f1,stroke:#2980b9,stroke-width:2px,color:#1f2937;
-    classDef json fill:#fdf2e9,stroke:#e67e22,stroke-width:2px,color:#1f2937;
-    classDef ui fill:#e8f8f5,stroke:#1abc9c,stroke-width:2px,color:#1f2937;
-
-    class L0,L1_File,L1_Arch ai;
-    class L2_Scan,L2_Extract,L2_Batch,L2_Merge,L3_Core script;
-    class JSON_Scan,JSON_Struct,JSON_Batch,JSON_Assembled,JSON_Final json;
-    class Vite,ReactFlow,FileViewer ui;
-
-    style AI_Layer fill:#fdf5ff,stroke:#c442c4,color:#1f2937,stroke-width:2px;
-    style Script_Layer fill:#eef6fb,stroke:#2980b9,color:#1f2937,stroke-width:2px;
-    style Data_Artifacts fill:#fef6ef,stroke:#e67e22,color:#1f2937,stroke-width:2px;
-    style Frontend fill:#eefaf7,stroke:#1abc9c,color:#1f2937,stroke-width:2px;
+┌─ JSON Artifact Pipeline - everything under <project-root>/.understand-anything/ ─────────────┐
+│  intermediate/scan-result.json        files[] + importMap (deliberately survives cleanup)    │
+│        │  compute-batches.mjs                                                                │
+│        ▼                                                                                     │
+│  intermediate/batches.json            Louvain communities, file-count based                  │
+│        │  extract-structure.mjs  (deterministic structure facts, no LLM)                     │
+│        ▼                                                                                     │
+│  tmp/ua-file-extract-results-<i>.json                                                        │
+│        │  file-analyzer LLM  (semantic nodes/edges)                                          │
+│        ▼                                                                                     │
+│  intermediate/batch-<i>.json                                                                 │
+│        │  merge-batch-graphs.py  (normalize ids, dedupe, import recovery)                    │
+│        ▼                                                                                     │
+│  intermediate/assembled-graph.json ──▶ assemble-review.json / layers.json / tour.json /      │
+│        │                               review.json   (Ph3-6 also edit it in place)           │
+│        ▼  Phase 7 SAVE - order is load-bearing                                               │
+│  knowledge-graph.json ──▶ fingerprints.json ──▶ meta.json                                    │
+└────────────┬─────────────────────────────────────────────────────────────────────────────────┘
+             │ read-only HTTP, every route gated by ?token=<16-byte hex> (403 otherwise)
+             ▼
+┌─ Dashboard - a LIVE Vite dev server, not a static bundle ────────────────────────────────────┐
+│  npx vite --host 127.0.0.1, port 5173 (next free port if taken), GRAPH_DIR=<project-dir>     │
+│  GET /knowledge-graph.json, /meta.json, /config.json, /file-content.json                     │
+│  /file-content.json: graph-derived path allowlist + 1 MB cap                                 │
+│  React 19 + @xyflow/react + Zustand - renders only; never re-runs an agent or a script       │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 架構圖亮點解說
+### 架構解說
 
-1. **粉色區域 (AI Layer)**：代表擁有語意推論與流程控制權的 Agent。最上層的 `L0: Host Orchestrator` 是整個系統的大腦，負責讀取劇本並依序調度腳本或子 Agent。
-2. **藍色區域 (Script Layer)**：這是純粹 Deterministic（確定性）的苦力層。它們完全沒有 AI，只負責讀檔、切分 AST、建立 Import Map 與圖譜合併。
-3. **橘色區域 (JSON Pipeline)**：完美展示了您提到的產物演進過程：從純結構 (`ua-file-extract-results-*.json`) ➡️ 透過 LLM 加上語意的圖譜碎片 (`batch-*.json`) ➡️ 最終整合成完整的 Knowledge Graph。
-4. **綠色區域 (Frontend)**：明確標示了 Dashboard 只是透過 Vite 讀取 JSON 並畫圖的 UI，證明了**前端絕對不會觸發或重跑 Agent**。
+1. **L0 Host Orchestrator = 主 session 本身**，不是一個 subagent。它讀 `SKILL.md` 當劇本，
+   Phase 0 / 0.5 / 1.5 / Phase 2 尾端的 merge / Phase 7 全部由它直接跑腳本，不派 agent；
+   只有 Phase 1～5（以及 `--review` 下的 Phase 6）才會派出 Task subagent。
+2. **L1 Agent Layer 是全系統唯一有 LLM 的地方**。`project-scanner` 屬於 agent 層而非腳本層——
+   它自己依序執行 `scan-project.mjs` 與 `extract-import-map.mjs`，LLM 只從 README / manifest
+   歸納出專案名稱、描述與 frameworks。`file-analyzer` 同理：先跑 `extract-structure.mjs` 拿確定性
+   結構事實，再由 LLM 疊上語意節點與邊。
+3. **L2 只有 9 個腳本真的躺在 disk 上**。Phase 4 / 5 / 6 用到的 `ua-arch-analyze.js`、
+   `ua-tour-analyze.js`、`ua-inline-validate.cjs`、`ua-graph-validate.js` 都是 agent 在 runtime
+   當場寫進 `tmp/` 的一次性腳本，不隨 plugin 發佈；`extract-structure-result.mjs` 是被 import 的
+   純模組、沒有 CLI 介面，畫成管線節點是錯的。
+4. **產物演進是本圖的重點**：純結構（`ua-file-extract-results-*.json`）→ LLM 加語意的圖譜碎片
+   （`batch-*.json`）→ 合併圖（`assembled-graph.json`）→ Phase 7 才落地成
+   `knowledge-graph.json`。Phase 7 的順序是有意義的：`build-fingerprints.mjs` 必須成功
+   （stdout 出現 `Fingerprints baseline:`）才准寫 `meta.json`。
+5. **前端是唯讀且受 token 保護的**。Dashboard 是 `/understand-dashboard` 背景啟動的 Vite dev
+   server，用自訂 Vite plugin 從 `GRAPH_DIR/.understand-anything/` 供檔；每個 route 都要
+   `?token=`（per-process 16-byte 隨機 hex，可用 `UNDERSTAND_ACCESS_TOKEN` 覆寫），否則 403。
+   `/file-content.json` 另有「只允許圖上出現過的路徑」白名單與 1 MB 上限。前端只畫圖，
+   **絕對不會觸發或重跑任何 agent／腳本**。
+
+### 容易讀錯的幾個點
+
+- Plugin **沒有 `commands/` 目錄**：組成是 8 個 skills + 9 個 agents + hooks（git 事件與
+  SessionStart 觸發的自動增量更新）。`/understand` 這個 slash command 來自
+  `skills/understand/SKILL.md` 的 frontmatter `name`。
+- **Phase 編號有十段，但進度字串一律寫 `N/7`**，包含字面上的 `[Phase 1.5/7]`。
+- **節點／邊型別數量看 scope**：`/understand` 用 **13 node types / 26 edge types**；
+  reviewer agents 的 prompt 是 16 / 29；`packages/core/src/schema.ts` 的 zod（權威超集）是 21 / 35。
+- Phase 0 的 `merge-subdomain-graphs.py` 會在任何分析開始前就可能改寫既有的
+  `knowledge-graph.json`（自動探索 `*knowledge-graph*.json`），別把它當成無副作用的前置動作。
+- 語言／框架 prompt 只在 **Phase 4 architecture-analyzer** 注入，**沒有**注入 Phase 2 的
+  file-analyzer（上游 `frameworks/*.md` 文件的敘述有誤）。
+- 上游 `CLAUDE.md` 已過期（寫 5 agents / 4 skills）；disk 上實際是 9 agents / 8 skills，
+  且 `SKILL.md` 確實有 dispatch `assemble-reviewer`。
+
+### 與 KAI-Mind 的邊界（一句話）
+
+KAI-Mind 只採用 L2 的三支腳本——`extract-import-map.mjs` → `compute-batches.mjs` →
+`extract-structure.mjs`——在 UA Phase 1 之前進入、在 `file-analyzer` 之前就返回；
+`scan-project.mjs` 與 Phase 3～7（含 dashboard）一律不採用。完整契約見
+`ref-opensource/kai-mind-understand-anything-integration-boundary.md`。
