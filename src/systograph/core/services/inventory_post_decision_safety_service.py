@@ -24,6 +24,12 @@ class InventoryPostDecisionSafetyResult:
     content_fingerprint: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class _SafeOpenFlags:
+    file_flags: int
+    directory_flags: int
+
+
 class InventoryPostDecisionSafetyService:
     def __init__(
         self,
@@ -136,42 +142,51 @@ class InventoryPostDecisionSafetyService:
             content_fingerprint="sha256:" + digest.hexdigest(),
         )
 
-    def _open_flags(self) -> int | None:
+    def _open_flags(self) -> _SafeOpenFlags | None:
         nofollow = getattr(os, "O_NOFOLLOW", None)
         directory = getattr(os, "O_DIRECTORY", None)
         if (
             not isinstance(nofollow, int)
             or nofollow == 0
             or not isinstance(directory, int)
+            or directory == 0
             or os.open not in os.supports_dir_fd
         ):
             return None
-        flags = os.O_RDONLY
-        flags |= nofollow
-        flags |= getattr(os, "O_BINARY", 0)
-        return flags
+        return _SafeOpenFlags(
+            file_flags=os.O_RDONLY | nofollow | getattr(os, "O_BINARY", 0),
+            directory_flags=(
+                os.O_RDONLY
+                | nofollow
+                | directory
+                | getattr(os, "O_CLOEXEC", 0)
+            ),
+        )
 
-    def _open_relative(self, root: Path, path: str, flags: int) -> int:
+    def _open_relative(
+        self,
+        root: Path,
+        path: str,
+        flags: _SafeOpenFlags,
+    ) -> int:
         parts = PurePosixPath(path).parts
         if not parts or PurePosixPath(path).is_absolute() or ".." in parts:
             raise OSError("invalid project-relative path")
-        directory_flags = (
-            os.O_RDONLY
-            | os.O_NOFOLLOW
-            | os.O_DIRECTORY
-            | getattr(os, "O_CLOEXEC", 0)
-        )
-        directory_handle = os.open(root, directory_flags)
+        directory_handle = os.open(root, flags.directory_flags)
         try:
             for part in parts[:-1]:
                 next_handle = os.open(
                     part,
-                    directory_flags,
+                    flags.directory_flags,
                     dir_fd=directory_handle,
                 )
                 os.close(directory_handle)
                 directory_handle = next_handle
-            return os.open(parts[-1], flags, dir_fd=directory_handle)
+            return os.open(
+                parts[-1],
+                flags.file_flags,
+                dir_fd=directory_handle,
+            )
         finally:
             os.close(directory_handle)
 

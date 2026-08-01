@@ -700,9 +700,14 @@ def test_skipped_candidate_is_never_opened_by_post_decision_safety(
     assert result.inventory.files == []
 
 
-def test_safe_open_fails_closed_without_nofollow_primitive(
+@pytest.mark.parametrize(
+    "primitive",
+    ("O_NOFOLLOW", "O_DIRECTORY"),
+)
+def test_safe_open_fails_closed_without_required_primitive(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    primitive: str,
 ) -> None:
     root = tmp_path / "project"
     root.mkdir()
@@ -714,7 +719,7 @@ def test_safe_open_fails_closed_without_nofollow_primitive(
     )
     candidate = state.requested_target_results[0].file_candidate
     assert candidate is not None
-    monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+    monkeypatch.delattr(os, primitive, raising=False)
 
     result = InventoryPostDecisionSafetyService().check(root, candidate)
 

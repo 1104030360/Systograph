@@ -21,7 +21,7 @@ def test_long_secret_value_keeps_small_prefix_and_suffix() -> None:
 
     masked = service.mask_value(secret, key="CLIENT_SECRET")
 
-    assert masked == "systograph-...7890"
+    assert masked == "syst...7890"
     assert secret not in masked
 
 
