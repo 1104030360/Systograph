@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from errno import EACCES, EPERM
 from pathlib import Path
 from typing import IO, Any, cast
 
@@ -26,8 +27,30 @@ def run_git(project_root: Path, *args: str) -> None:
         cwd=project_root,
         check=True,
         text=True,
+        encoding="utf-8",
+        errors="surrogateescape",
         capture_output=True,
     )
+
+
+def symlink_or_skip(
+    link_path: Path,
+    target_path: Path,
+    *,
+    target_is_directory: bool = False,
+) -> None:
+    try:
+        link_path.symlink_to(
+            target_path,
+            target_is_directory=target_is_directory,
+        )
+    except OSError as exc:
+        if (
+            exc.errno in {EACCES, EPERM}
+            or getattr(exc, "winerror", None) == 1314
+        ):
+            pytest.skip("symlink privilege is unavailable on this platform")
+        raise
 
 
 def test_recursive_candidates_keep_file_exclusions_and_collapse_directories(
@@ -152,7 +175,11 @@ def test_exact_path_through_symlinked_parent_is_hard_blocked(
     project_root.mkdir()
     outside.mkdir()
     (outside / "secret.py").write_text("outside\n", encoding="utf-8")
-    (project_root / "linked").symlink_to(outside, target_is_directory=True)
+    symlink_or_skip(
+        project_root / "linked",
+        outside,
+        target_is_directory=True,
+    )
     service = InventoryCandidateService()
     candidate_set = service.build_candidate_set(project_root)
 
@@ -341,7 +368,7 @@ def test_directory_with_only_hard_blocked_children_is_empty(
         "ignored/\n",
         encoding="utf-8",
     )
-    (target / "linked.py").symlink_to(tmp_path / "outside.py")
+    symlink_or_skip(target / "linked.py", tmp_path / "outside.py")
     service = InventoryCandidateService()
     candidate_set = service.build_candidate_set(project_root)
 
