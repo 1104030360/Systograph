@@ -5,19 +5,19 @@ from typing import TypedDict
 import pytest
 from pydantic import ValidationError
 
-from kai_mind.core.models.inventory_selection import (
+from systograph.core.models.inventory_selection import (
     DirectorySelectionManifest,
     InventoryCandidate,
     InventoryCandidateOutcome,
     InventorySelectionScope,
     InventorySelectionSource,
 )
-from kai_mind.core.models.scan_boundary import (
+from systograph.core.models.scan_boundary import (
     ScanBoundaryDecisionAction,
     ScanBoundaryDecisionRequest,
     ScanBoundaryProposal,
 )
-from kai_mind.core.services.inventory_metadata_service import (
+from systograph.core.services.inventory_metadata_service import (
     InventoryMetadataService,
 )
 
@@ -258,11 +258,11 @@ def test_candidate_exclusion_sources_are_typed() -> None:
         update={
             "base_outcome": InventoryCandidateOutcome.SOFT_EXCLUDED,
             "exclusion_sources": (
-                InventorySelectionSource.KAI_INVENTORY_CATALOG,
+                InventorySelectionSource.SYSTOGRAPH_INVENTORY_CATALOG,
             ),
         }
     )
 
     assert excluded.exclusion_sources == (
-        InventorySelectionSource.KAI_INVENTORY_CATALOG,
+        InventorySelectionSource.SYSTOGRAPH_INVENTORY_CATALOG,
     )

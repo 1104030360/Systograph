@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/167
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/167
 
 **Goal:** 讓 CLI `trace --timeout-seconds` 與 web trace timeout 契約一致，避免 CLI 接受無界或過長 timeout。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #167, assignee Timmy.
 - Origin: Backend findings L-10.
-- Primary file: `src/kai_mind/cli/trace_command.py`.
+- Primary file: `src/systograph/cli/trace_command.py`.
 - Related plans: #139 SSRF egress policy, #163 query trace timeout exposure.
 
 ### Task 1: Add CLI timeout tests
@@ -32,9 +32,9 @@
 ### Task 2: Share validation policy
 
 **Files:**
-- Modify: `src/kai_mind/cli/trace_command.py`
-- Modify: `src/kai_mind/web/schemas.py`
-- Create/Modify: `src/kai_mind/core/services/query_trace_policy.py`
+- Modify: `src/systograph/cli/trace_command.py`
+- Modify: `src/systograph/web/schemas.py`
+- Create/Modify: `src/systograph/core/services/query_trace_policy.py`
 
 - [ ] **Step 1: Move min/max/default constants to shared module**
 - [ ] **Step 2: Use Typer callback or explicit pre-service validation**

@@ -23,7 +23,7 @@
 
 - 目前有哪些現有工具或開源做法可以 deterministic 使用。
 - 哪些判斷需要 AI 輔助。
-- 外部專案可以借鑑什麼，以及對 KAI-Mind 的設計關聯。
+- 外部專案可以借鑑什麼，以及對 Systograph 的設計關聯。
 
 核心結論：
 
@@ -119,7 +119,7 @@ PreconditionError {
 }
 ```
 
-這樣 `kai-mind map ./missing-project` 可以穩定輸出 `outputs/map-error.md`。
+這樣 `systograph map ./missing-project` 可以穩定輸出 `outputs/map-error.md`。
 
 ## 4. Stage 2: File Inventory
 
@@ -174,9 +174,9 @@ git ls-files
 - token / size budget 思維。
 - 把 repository inventory 和後續 AI context 分開。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
-- KAI-Mind 不應把整個 repo dump 給 AI。
+- Systograph 不應把整個 repo dump 給 AI。
 - 但可以借鑑 Gitingest 的「先控制掃描範圍」與「prompt-friendly subset」概念。
 - Stage 2 應輸出 `FileInventory`，而不是直接輸出 AI prompt。
 
@@ -198,9 +198,9 @@ git ls-files
 - incremental update。
 - 不讓 file analyzer 重新發明 import map。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
-- KAI-Mind 的 Stage 2 應是 deterministic source of truth。
+- Systograph 的 Stage 2 應是 deterministic source of truth。
 - 後續 provider 不應重新決定掃描範圍。
 - 未來可以加入 fingerprint / changed files incremental scan。
 
@@ -249,7 +249,7 @@ FileInventory
 - AI 不可直接修改 canonical `FileInventory`。
 - AI 不可讀取或輸出完整 secret value。
 - GUI 可以彈窗或顯示 review queue；CLI / CI 不可彈窗，應輸出 pending decision。
-- 使用者確認後，決策寫入 KAI-Mind-managed scan policy store，不直接污染被掃描 repo。
+- 使用者確認後，決策寫入 Systograph-managed scan policy store，不直接污染被掃描 repo。
 - 所有略過決策都必須記錄 reason、source、scope 與 timestamp，讓 report 可追溯。
 
 這個功能排在 Epic 1 最後才做，因為它依賴 baseline inventory、skip reason、masked evidence、GUI confirmation flow 與 user policy store 都已穩定。
@@ -307,7 +307,7 @@ AI 角色：
 - `services.*.image` 可推導 Qdrant、Ollama、Redis、Postgres 等 runtime components。
 - `services.*.ports` 可推導 local endpoint 與初步 network exposure hint。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - Docker Compose parsing 應是 deterministic。
 - `qdrant/qdrant`、`ollama/ollama`、`ports: ["6333:6333"]` 是直接 evidence。
@@ -343,7 +343,7 @@ AI 角色：
 - dependency discovery 不應混在 RAG component detection 裡。
 - 可以考慮未來用 SBOM 格式作為 dependency facts 的來源。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - Epic 1 不一定要直接整合 Syft。
 - 但 DependencyManifestProvider 的輸出可以設計得像 lightweight SBOM facts。
@@ -373,7 +373,7 @@ AI 角色：
 - 例如偵測 `OpenAIEmbeddings(...)`、`QdrantClient(...)`、`as_retriever()`、`PromptTemplate(...)`。
 - rules 可以 versioned、可測、可 review。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - CodePatternProvider 可以自寫 pattern engine，也可以未來整合 Semgrep。
 - 關鍵是每個 match 都要輸出 `rule_id`、file、path、value。
@@ -394,7 +394,7 @@ AI 角色：
 - 可用來找 function/class/route/call-like pattern。
 - 比純 regex 更可靠，但成本比 manifest parsing 高。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - Epic 1 L1 不需要完整 AST。
 - L2 component detail scan 或 L3 code path scan 可以引入 Tree-sitter。
@@ -415,9 +415,9 @@ AI 角色：
 - import/call/class/function 等 facts 可由 parser 先提取。
 - LLM 不應重新解決 deterministic facts。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
-- KAI-Mind 的 CodePatternProvider 可採同樣原則。
+- Systograph 的 CodePatternProvider 可採同樣原則。
 - RAG facts 由 deterministic rules 產生。
 - AI 只協助 unknown/custom mapping proposal。
 
@@ -469,7 +469,7 @@ ParseIssue
 - 掃描結果應該是 rule-based findings。
 - skip dirs/files 是必要性能策略。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - Epic 1 不做完整 secret scanner，但必須 secret-safe。
 - `SecretMaskingService` 應在 Stage 4 前或 Stage 4 內統一處理。
@@ -527,7 +527,7 @@ FastAPI POST /query -> app_api_or_orchestrator
 - `rag-core-v1` 的 slot 命名可以對齊主流 RAG building blocks。
 - `document_loader`、`chunking`、`embedding_model`、`vector_store`、`retriever` 都是合理 legacy v1 linear baseline slots。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - Stage 5 的 mapping rules 可以從 LangChain 常見 API / package names 開始。
 - 但 LangChain 不是唯一 RAG 形狀，所以無法對上的 facts 要進 `extensions` 或 `unmapped_components`。
@@ -548,7 +548,7 @@ FastAPI POST /query -> app_api_or_orchestrator
 - LlamaIndex 的 concepts 可對應到 ingestion、indexing、retriever、query engine。
 - 需要 framework-specific mapping rules。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - `llama_index.core.ingestion.IngestionPipeline` 可對應 indexing pipeline。
 - `VectorStoreIndex` 可對應 vector store / indexing component。
@@ -625,7 +625,7 @@ user confirms + validation passes
 - `environment` / `env_file` 可以產生 provider config evidence。
 - `depends_on` 可產生 service relationship hints。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - `6333:6333` 可產生 Qdrant endpoint 與 network exposure hint。
 - `11434:11434` 可產生 Ollama local LLM endpoint。
@@ -645,7 +645,7 @@ user confirms + validation passes
 - Query replay step 可以對齊 Retriever、Reranker、LLM、Embedding、Guardrail。
 - extension component 例如 reranker 不必硬塞 retriever，可獨立作為 extension step。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - Stage 6 的 flow derivation 可輸出 `relationship` 與 `step_type`。
 - QueryTraceEvent 可以映射到 slot 或 extension component。
@@ -666,7 +666,7 @@ user confirms + validation passes
 - Replay events 應該有 span-like categories。
 - Sensitive content 要 opt-in 或 masked。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - `QueryTraceEvent.input/output/retrieved_chunks` 必須 masked。
 - Stage 6 risk hints 可以保留 uncertainty，不做完整 security verdict。
@@ -726,7 +726,7 @@ AI 不可以：
 - schema validation 是 Stage 7 的必要 gate。
 - field removal、enum changes、breaking contract 都應由 tests 擋住。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - `schema_version` 是後續 Epic 的契約。
 - JSON Schema 可以擋 invalid enum、missing required fields、wrong shapes。
@@ -748,9 +748,9 @@ AI 不可以：
 - graph references 必須對得上實際 file tree。
 - graph generation 後必須 validate/retry。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
-- KAI-Mind 不應複製 GitDiagram 的 AI-first diagram 方式。
+- Systograph 不應複製 GitDiagram 的 AI-first diagram 方式。
 - 但 Stage 7 可以借鑑它的 validation discipline：bad path / dangling edge 不可進 final output。
 
 #### Understand-Anything
@@ -770,7 +770,7 @@ AI 不可以：
 - dashboard 載入時再次 validate。
 - incremental update。
 
-和 KAI-Mind 的關聯：
+和 Systograph 的關聯：
 
 - Stage 7 應是 explicit service：`SystemMapNormalizeService` + `SystemMapValidationService`。
 - Viewer 也要再次 validate map JSON。
@@ -793,7 +793,7 @@ AI 不可以：
 
 ## 10. 逐段外部參考總表
 
-| Reference | Source | Summary | KAI-Mind 可以借鑑什麼 |
+| Reference | Source | Summary | Systograph 可以借鑑什麼 |
 |---|---|---|---|
 | Gitingest | https://github.com/coderamp-labs/gitingest | 把 Git repo 轉成 prompt-friendly text digest。 | Stage 2 file selection、ignore、size/token budget。 |
 | GitDiagram | https://github.com/ahmedkhaleel2004/gitdiagram | 把 GitHub repo 轉成 interactive architecture diagram，並驗證 paths / graph。 | Stage 7 graph/path validation discipline；不要照搬 AI-first truth。 |
@@ -824,14 +824,14 @@ Epic 1 建議流程：
 
 ```text
 local .zip / .tar / mock template folder
-  -> locate kai-mind-template.yaml
+  -> locate systograph-template.yaml
   -> validate template schema
   -> scan template as data, never execute code
   -> record provenance: local source path + digest + license
   -> publish into TemplateStore
 ```
 
-Template repo 只應提供 declarative data，例如 slots、required slots、slot inputs、mapping rules、example fixtures、license 與 provenance。它不應提供會被 KAI-Mind 自動執行的 code。
+Template repo 只應提供 declarative data，例如 slots、required slots、slot inputs、mapping rules、example fixtures、license 與 provenance。它不應提供會被 Systograph 自動執行的 code。
 
 硬性規則：
 

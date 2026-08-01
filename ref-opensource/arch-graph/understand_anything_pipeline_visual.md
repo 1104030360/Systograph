@@ -463,7 +463,7 @@
 - `understand_anything_flow.md` — 循序圖版
 - `understand_anything_architecture_detailed.md` — 元件級架構圖
 - `understand_anything_architecture.md` — 架構總覽
-- `kai_mind_flow.md` — KAI-Mind 對照
-- `../kai-mind-understand-anything-integration-boundary.md` — KAI-Mind 只採用其中
+- `systograph_flow.md` — Systograph 對照
+- `../systograph-understand-anything-integration-boundary.md` — Systograph 只採用其中
   `extract-import-map.mjs` → `compute-batches.mjs` → `extract-structure.mjs` 三支腳本，
   在 file-analyzer 之前就返回；本圖的 Phase 2 語意分析與 Phase 3～7 皆不採用。

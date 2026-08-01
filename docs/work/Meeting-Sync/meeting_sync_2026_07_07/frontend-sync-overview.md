@@ -28,7 +28,7 @@ Phase2 的前端同步不再以「RAG 類型分類」為中心。新的產品語
 ```text
 Input AI system repo / workflow artifacts
   -> Step 3 staged rollout
-     Phase A：KAI scan TOML providers primary，UA sidecar 可為 null
+     Phase A：Systograph scan TOML providers primary，UA sidecar 可為 null
      Phase B：UA structural primary + TOML parity
      Phase C：UA only
      + reserved nullable semantic sidecar slot（Phase2 active path 不產生、不消費）
@@ -190,7 +190,7 @@ API 聚合**，不是把多份 JSON merge 成單一 bundle 檔。詳細 sample �
 
 | Step | Backend 意義 | Frontend 可做 | Frontend 不可做 |
 |---|---|---|---|
-| Step 3 staged scan | Phase A 以 KAI scan TOML providers 為 primary；Phase B 改為 UA structural primary + TOML parity；Phase C 為 UA only。Semantic sidecar 是 reserved nullable slot，Phase2 active path 不產生、不消費 | 不直接消費；只理解 Phase B/C build error 可能來自 fail-closed structural scan | 依賴 `ua-analysis-result.json`、新增 schema 欄位或讀 internal sidecar |
+| Step 3 staged scan | Phase A 以 Systograph scan TOML providers 為 primary；Phase B 改為 UA structural primary + TOML parity；Phase C 為 UA only。Semantic sidecar 是 reserved nullable slot，Phase2 active path 不產生、不消費 | 不直接消費；只理解 Phase B/C build error 可能來自 fail-closed structural scan | 依賴 `ua-analysis-result.json`、新增 schema 欄位或讀 internal sidecar |
 | Step 4 Bridge 1 | `rule_id + evidence` → repo component / unmapped / candidate input | 顯示 backend 已投影的 component、unmapped、review queue | 從 rule id、dependency、檔名自行建立 component |
 | Step 5 Index | read-only lookup；不寫檔、不 infer | （無直接 UI） | 依賴 index 或自行 rebuild topology |
 | Step 6 Bridge 2 | `ProfileInferenceService` 以純 Python 對 validated map ↔ 10 planes / 52 reference nodes 定五態 / profiles / completeness；Plan 17 AI flow deferred | 顯示 backend status、reason、related refs（經 `profile_inference_result`） | 自己把 repo node 對到 reference node、推五態或信任 internal semantic sidecar |
@@ -218,7 +218,7 @@ API 聚合**，不是把多份 JSON merge 成單一 bundle 檔。詳細 sample �
 | `15` | 僅在 `00A`、`13`、`14` 通過後完成 legacy v1 退役。 |
 | `16` | Gate-1 後導入 UA structural primary、snapshot internal sidecar 與 TOML parity harness。 |
 | `17` | `AssessmentOrchestrator` / AI semantic candidate flow deferred；不是 Plan 14 前置，frontend 不得依賴。 |
-| `18` | Plan 14 parity gate 通過後才退役 KAI scan TOML providers 主掃描路徑。 |
+| `18` | Plan 14 parity gate 通過後才退役 Systograph scan TOML providers 主掃描路徑。 |
 | `19` | Step 2 inventory include / ignore metadata；不改變 Step 6 ownership。 |
 | dynamic `00` | 新增 static call graph、dataflow hints、execution paths、evidence table 認知。 |
 

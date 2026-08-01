@@ -1,7 +1,7 @@
 knowledge_graph:
   provider: neo4j
   uri: bolt://localhost:7687
-  database: kai_mind_graph
+  database: systograph_graph
   entity_label: HealthEntity
   relationship_type: RELATED_TO
 graph_retriever:

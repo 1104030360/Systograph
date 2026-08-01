@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/169
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/169
 
 **Goal:** 決定兩支被 `.gitignore` 排除的 provider smoke scripts 是否納管，並避免 API key 出現在 curl command line 或 process list。
 

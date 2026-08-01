@@ -46,7 +46,7 @@ export function BoundaryDecisionModal({
         </header>
 
         <p className="boundary-copy">
-          Kai-Mind found files that may contain local-only or sensitive data. Choose whether each item should be scanned
+          Systograph found files that may contain local-only or sensitive data. Choose whether each item should be scanned
           for this run only.
         </p>
 

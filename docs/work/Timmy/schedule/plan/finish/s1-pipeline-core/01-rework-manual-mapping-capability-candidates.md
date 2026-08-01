@@ -108,11 +108,11 @@ map materialization ≠ capability assessment。
 
 ### 相關檔案
 
-- `src/kai_mind/core/models/mapping.py`
-- `src/kai_mind/core/services/mapping_proposal_service.py`
-- `src/kai_mind/core/services/manual_mapping_service.py`
-- `src/kai_mind/core/services/component_detection_service.py`
-- `src/kai_mind/web/routes/mapping_proposal_routes.py`
+- `src/systograph/core/models/mapping.py`
+- `src/systograph/core/services/mapping_proposal_service.py`
+- `src/systograph/core/services/manual_mapping_service.py`
+- `src/systograph/core/services/component_detection_service.py`
+- `src/systograph/web/routes/mapping_proposal_routes.py`
 - `frontend/src/types.ts`
 - `frontend/src/components/proposal/ProposalModal.tsx`
 
@@ -296,7 +296,7 @@ assessment。確認 ≠ `detected`；也不等於寫入 canonical map。
 - **前置：** Plan `00` 完成後，`rag-core-v1.json` 被視為 legacy-only template；
   Plan `00A` 提供 generic v2 normalized view。本計畫在 v1/v2 過渡期仍可運作，
   但 legacy slot 不再是長期 product contract。
-- **目前 code（2026-07-03）：** `src/kai_mind/core/templates/rag-core-v1.json` 仍為
+- **目前 code（2026-07-03）：** `src/systograph/core/templates/rag-core-v1.json` 仍為
   `1.0.0`、13 slots；implementation 完成 Plan 00 前，tests 可能仍引用含
   `query_processing` / `guardrails` / `observability` 的 legacy flow order。
 
@@ -304,7 +304,7 @@ assessment。確認 ≠ `detected`；也不等於寫入 canonical map。
 
 目前程式碼對 non-baseline decisions 採 extension-first 做法：
 
-- `ManualMappingType.NEW_EXTENSION = "new_extension_component"` 定義於 `src/kai_mind/core/models/mapping.py`。
+- `ManualMappingType.NEW_EXTENSION = "new_extension_component"` 定義於 `src/systograph/core/models/mapping.py`。
 - `ManualMappingCreate` 持有 `extension_id`、`extension_name`、`extension_kind`、`extension_edges`。
 - `MappingCandidateType.NEW_EXTENSION` 與 `MappingCandidate` 持有 `proposed_extension_id`、`proposed_extension_name`、`proposed_extension_kind`。
 - `MappingProposalService._deterministic_candidates()` 將 router / reranker candidates 輸出為 `NEW_EXTENSION`。
@@ -427,25 +427,25 @@ Legacy 行為：
 
 ## 需修改的檔案
 
-- `src/kai_mind/core/models/capability_candidate.py`
+- `src/systograph/core/models/capability_candidate.py`
   - 新增 non-canonical Pydantic model，用於 materialized confirmed non-baseline candidates。
-- `src/kai_mind/core/models/mapping.py`
+- `src/systograph/core/models/mapping.py`
   - 新增 mapping/candidate type 與 capability candidate fields。
-- `src/kai_mind/core/services/component_detection_service.py`
+- `src/systograph/core/services/component_detection_service.py`
   - 在 `ComponentDetectionResult` 新增 `capability_candidate_components`。
   - 停止將新的 reranker evidence 輸出為 `ExtensionComponent(candidate)`；改輸出 unmapped / non-baseline candidate 待確認。
-- `src/kai_mind/core/services/manual_mapping_service.py`
+- `src/systograph/core/services/manual_mapping_service.py`
   - 驗證並持久化 `NON_BASELINE_CAPABILITY_CANDIDATE`。
   - 將 confirmed non-baseline decisions apply 到 `ComponentDetectionResult.capability_candidate_components`。
   - 保留 legacy `NEW_EXTENSION`。
-- `src/kai_mind/core/services/mapping_proposal_service.py`
+- `src/systograph/core/services/mapping_proposal_service.py`
   - 對 router/reranker evidence 輸出 non-baseline capability candidates，而非 new extension candidates。
   - 將被接受的 non-baseline candidates 轉換為新的 manual mapping type。
-- `src/kai_mind/core/services/mapping_evidence_packet_builder.py`
+- `src/systograph/core/services/mapping_evidence_packet_builder.py`
   - 僅將 legacy `available_extensions` 保留為 compatibility metadata。
-- `src/kai_mind/web/routes/mapping_proposal_routes.py`
+- `src/systograph/web/routes/mapping_proposal_routes.py`
   - 停止將現有 `system_map.extensions` 視為 preferred proposal target set。
-- `src/kai_mind/web/schemas.py`
+- `src/systograph/web/schemas.py`
   - 若 web schemas 需要，re-export 新 model types。
 - `tests/unit/core/test_component_detection_service.py`
   - 將 reranker expectation 從 extension candidate 改為 unmapped confirmation candidate。
@@ -468,8 +468,8 @@ Legacy 行為：
 
 **檔案：**
 
-- Create: `src/kai_mind/core/models/capability_candidate.py`
-- Modify: `src/kai_mind/core/models/mapping.py`
+- Create: `src/systograph/core/models/capability_candidate.py`
+- Modify: `src/systograph/core/models/mapping.py`
 - Test: `tests/unit/core/test_manual_mapping_service.py`
 - Create: `tests/unit/core/test_mapping_models.py`
 
@@ -483,7 +483,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from kai_mind.core.models.mapping import (
+from systograph.core.models.mapping import (
     MappingCandidate,
     MappingCandidateType,
     ManualMappingCreate,
@@ -573,7 +573,7 @@ def test_non_baseline_mapping_candidate_requires_variant_fields() -> None:
 
 - [ ] **Step 3：新增 `CapabilityCandidateComponent`**
 
-建立 `src/kai_mind/core/models/capability_candidate.py`：
+建立 `src/systograph/core/models/capability_candidate.py`：
 
 ```python
 """Non-canonical capability candidate models for Phase2 profile inference."""
@@ -603,7 +603,7 @@ class CapabilityCandidateComponent(CapabilityCandidateModel):
 
 - [ ] **Step 4：擴充 mapping models**
 
-修改 `src/kai_mind/core/models/mapping.py`：
+修改 `src/systograph/core/models/mapping.py`：
 
 ```python
 class ManualMappingType(StrEnum):
@@ -710,8 +710,8 @@ proposed_capability_candidate_kind: str | None = Field(
 
 **檔案：**
 
-- Modify: `src/kai_mind/core/services/component_detection_service.py`
-- Modify: `src/kai_mind/core/services/manual_mapping_service.py`
+- Modify: `src/systograph/core/services/component_detection_service.py`
+- Modify: `src/systograph/core/services/manual_mapping_service.py`
 - Test: `tests/integration/test_manual_mapping_component_detection.py`
 - Test: `tests/unit/core/test_manual_mapping_service.py`
 
@@ -776,12 +776,12 @@ def test_confirmed_non_baseline_mapping_replays_as_capability_candidate() -> Non
 
 - [ ] **Step 3：擴充 `ComponentDetectionResult`**
 
-修改 `src/kai_mind/core/services/component_detection_service.py`。使用 `field(default_factory=list)`，讓既有的 tests 與 services 在建立 `ComponentDetectionResult` 時仍可運作，同時新 path 能攜帶 capability candidates：
+修改 `src/systograph/core/services/component_detection_service.py`。使用 `field(default_factory=list)`，讓既有的 tests 與 services 在建立 `ComponentDetectionResult` 時仍可運作，同時新 path 能攜帶 capability candidates：
 
 ```python
 from dataclasses import dataclass, field
 
-from kai_mind.core.models.capability_candidate import CapabilityCandidateComponent
+from systograph.core.models.capability_candidate import CapabilityCandidateComponent
 
 
 @dataclass(frozen=True)
@@ -809,10 +809,10 @@ result = ComponentDetectionResult(
 
 - [ ] **Step 4：新增 manual mapping apply path**
 
-修改 `src/kai_mind/core/services/manual_mapping_service.py`：
+修改 `src/systograph/core/services/manual_mapping_service.py`：
 
 ```python
-from kai_mind.core.models.capability_candidate import CapabilityCandidateComponent
+from systograph.core.models.capability_candidate import CapabilityCandidateComponent
 ```
 
 在 `apply()` 內：
@@ -949,7 +949,7 @@ def test_legacy_confirmed_extension_mapping_replays_unmapped_candidate() -> None
 
 **檔案：**
 
-- Modify: `src/kai_mind/core/services/component_detection_service.py`
+- Modify: `src/systograph/core/services/component_detection_service.py`
 - Test: `tests/integration/test_phase13_component_detection_behaviors.py`
 - Test: `tests/unit/core/test_component_detection_service.py`
 
@@ -1034,8 +1034,8 @@ def _looks_like_reranker(self, fact: ScanFact) -> bool:
 
 **檔案：**
 
-- Modify: `src/kai_mind/core/services/mapping_proposal_service.py`
-- Modify: `src/kai_mind/core/models/mapping.py`
+- Modify: `src/systograph/core/services/mapping_proposal_service.py`
+- Modify: `src/systograph/core/models/mapping.py`
 - Test: `tests/unit/core/test_mapping_proposal_service.py`
 - Test: `tests/web/test_mapping_proposal_routes.py`
 
@@ -1194,8 +1194,8 @@ if (
 
 **檔案：**
 
-- Modify: `src/kai_mind/core/services/mapping_evidence_packet_builder.py`
-- Modify: `src/kai_mind/web/routes/mapping_proposal_routes.py`
+- Modify: `src/systograph/core/services/mapping_evidence_packet_builder.py`
+- Modify: `src/systograph/web/routes/mapping_proposal_routes.py`
 - Test: `tests/web/test_mapping_proposal_routes.py`
 
 - [ ] **Step 1：新增 route test，證明不需要 extension target**
@@ -1246,7 +1246,7 @@ available_extensions=[
 將任何在 `profile_signal.py` 內建立 `CapabilityCandidateComponent` 的指示，替換為：
 
 ```text
-Import and reuse `kai_mind.core.models.capability_candidate.CapabilityCandidateComponent`.
+Import and reuse `systograph.core.models.capability_candidate.CapabilityCandidateComponent`.
 `profile-signals/v1` owns serialization of `capability_candidate_components`, but
 the durable decision source is manual mapping / confirmation lifecycle.
 ```
@@ -1287,8 +1287,8 @@ durable manual mapping。
 
 **檔案：**
 
-- Modify: `src/kai_mind/core/services/mapping_proposal_service.py`
-- Modify: `src/kai_mind/core/services/manual_mapping_service.py`
+- Modify: `src/systograph/core/services/mapping_proposal_service.py`
+- Modify: `src/systograph/core/services/manual_mapping_service.py`
 - Test: `tests/unit/core/test_mapping_proposal_service.py`
 - Test: `tests/unit/core/test_manual_mapping_service.py`
 - Test: `tests/integration/test_manual_mapping_component_detection.py`
@@ -1315,7 +1315,7 @@ durable manual mapping。
 - [ ] `.venv/bin/pytest tests/integration/test_phase13_component_detection_behaviors.py -q`
 - [ ] `.venv/bin/pytest tests/web/test_mapping_proposal_routes.py -q`
 - [ ] `.venv/bin/pytest tests/web/test_mapping_routes.py -q`
-- [ ] `.venv/bin/ruff check src/kai_mind/core/models/mapping.py src/kai_mind/core/services/manual_mapping_service.py src/kai_mind/core/services/mapping_proposal_service.py src/kai_mind/core/services/component_detection_service.py`
+- [ ] `.venv/bin/ruff check src/systograph/core/models/mapping.py src/systograph/core/services/manual_mapping_service.py src/systograph/core/services/mapping_proposal_service.py src/systograph/core/services/component_detection_service.py`
 - [ ] `.venv/bin/mypy`
 - [ ] `git diff --check`
 

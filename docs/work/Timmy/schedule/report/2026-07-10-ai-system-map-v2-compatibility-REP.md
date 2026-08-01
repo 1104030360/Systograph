@@ -38,25 +38,25 @@ legacy metadata / compatibility view tests，而是接到完整 canonical contra
 
 ### Backend models / schema
 
-- `src/kai_mind/core/models/ai_system_map_v2.py`
-- `src/kai_mind/core/models/map_build.py`
+- `src/systograph/core/models/ai_system_map_v2.py`
+- `src/systograph/core/models/map_build.py`
 - `schemas/ai-system-map.v2.schema.json`
 
 ### Services / providers
 
-- `src/kai_mind/core/services/system_map_v1_to_v2_adapter.py`
-- `src/kai_mind/core/services/system_map_v2_validation_service.py`
-- `src/kai_mind/core/services/canonical_map_loader.py`
-- `src/kai_mind/core/services/map_build_service.py`
-- `src/kai_mind/core/providers/workflow_json_provider.py`
-- `src/kai_mind/core/services/system_map_normalize_service.py`（文件註記）
-- `src/kai_mind/core/services/system_map_validation_service.py`（文件註記）
+- `src/systograph/core/services/system_map_v1_to_v2_adapter.py`
+- `src/systograph/core/services/system_map_v2_validation_service.py`
+- `src/systograph/core/services/canonical_map_loader.py`
+- `src/systograph/core/services/map_build_service.py`
+- `src/systograph/core/providers/workflow_json_provider.py`
+- `src/systograph/core/services/system_map_normalize_service.py`（文件註記）
+- `src/systograph/core/services/system_map_validation_service.py`（文件註記）
 
 ### CLI / Web
 
-- `src/kai_mind/cli/map_command.py`
-- `src/kai_mind/web/schemas.py`
-- `src/kai_mind/web/routes/scan_routes.py`
+- `src/systograph/cli/map_command.py`
+- `src/systograph/web/schemas.py`
+- `src/systograph/web/routes/scan_routes.py`
 
 ### Tests / fixtures / docs
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
     CanonicalComponent,
     CanonicalEdge,
@@ -13,14 +13,14 @@ from kai_mind.core.models.ai_system_map_v2 import (
     CanonicalProject,
     CanonicalUnmappedComponent,
 )
-from kai_mind.core.services.detail_scan_service import DetailScanService
-from kai_mind.core.services.detail_scan_target_resolver import (
+from systograph.core.services.detail_scan_service import DetailScanService
+from systograph.core.services.detail_scan_target_resolver import (
     DetailScanTargetError,
 )
-from kai_mind.core.services.mapping_evidence_packet_builder import (
+from systograph.core.services.mapping_evidence_packet_builder import (
     MappingEvidencePacketBuilder,
 )
-from kai_mind.core.services.system_map_index import SystemMapIndex
+from systograph.core.services.system_map_index import SystemMapIndex
 
 
 def test_component_detail_scan_appends_masked_target_scoped_evidence(

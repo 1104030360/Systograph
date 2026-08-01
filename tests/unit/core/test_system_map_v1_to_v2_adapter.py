@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.system_map import Evidence, RagSystemMap
-from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+from systograph.core.models.system_map import Evidence, RagSystemMap
+from systograph.core.services.system_map_v1_to_v2_adapter import (
     LegacySystemMapAdaptError,
     SystemMapV1ToV2Adapter,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 

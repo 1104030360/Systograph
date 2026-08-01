@@ -25,14 +25,14 @@
 - 不處理 remote template schema。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/models/system_map.py`。
+1. 建立 `src/systograph/core/models/system_map.py`。
 2. 用 Pydantic v2 model 定義 top-level 與 nested types。
 3. 將 status、endpoint type、scan depth 等欄位改成 enum 或 Literal。
 4. 設定 models 禁止未知欄位，避免 contract 偷偷擴張。
-5. 建立 `src/kai_mind/core/services/system_map_validation_service.py` 的最小 validator。
+5. 建立 `src/systograph/core/services/system_map_validation_service.py` 的最小 validator。
 6. 建立 `schemas/ai-system-map.v1.schema.json`。
 7. 建立 `tests/fixtures/ai_system_map/valid_minimal.v1.json`，必須手寫，不可從 rich sample 自動裁切；內容只放剛好能通過 schema 與 runtime invariant 的最小 `ai_system_map.json`。
-8. 從 `docs/work/Timmy/design/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/design/frontend-json-sample.json` 抽出 `viewer_load_result.ai_system_map`，建立 `tests/fixtures/ai_system_map/valid_rich_frontend_sample.v1.json`。
+8. 從 `docs/work/Timmy/design/Users/linjunting/Systograph/docs/work/Timmy/design/frontend-json-sample.json` 抽出 `viewer_load_result.ai_system_map`，建立 `tests/fixtures/ai_system_map/valid_rich_frontend_sample.v1.json`。
 9. 建立 minimal invalid fixtures：`invalid_confidence.v1.json`、`invalid_detected_without_evidence.v1.json`、`invalid_invalid_status.v1.json`、`invalid_absolute_evidence_path.v1.json`。每份 invalid fixture 必須從 `valid_minimal.v1.json` 複製後只改一個錯誤點。
 10. 加上 contract tests：直接讀取 fixtures，驗證 valid fixtures 通過 Pydantic、JSON Schema、runtime invariant validation，並驗證 invalid fixtures 以預期原因失敗。
 
@@ -62,8 +62,8 @@
 
 ## 預期輸出
 - `schemas/ai-system-map.v1.schema.json`
-- `src/kai_mind/core/models/system_map.py`
-- `src/kai_mind/core/services/system_map_validation_service.py`
+- `src/systograph/core/models/system_map.py`
+- `src/systograph/core/services/system_map_validation_service.py`
 - `tests/fixtures/ai_system_map/valid_minimal.v1.json`
 - `tests/fixtures/ai_system_map/valid_rich_frontend_sample.v1.json`
 - `tests/fixtures/ai_system_map/invalid_confidence.v1.json`

@@ -6,20 +6,24 @@ from typing import cast
 
 from fastapi.testclient import TestClient
 
-from kai_mind.core.models.filesystem import FileInventory
-from kai_mind.core.models.scan import ProjectScanResult
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.filesystem import FileInventory
+from systograph.core.models.scan import ProjectScanResult
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.services.build_manifest_service import BuildManifestService
-from kai_mind.core.services.manual_mapping_service import ManualMappingService
-from kai_mind.core.services.map_build_service import MapBuildService
-from kai_mind.core.services.project_scan_service import (
+from systograph.core.services.build_manifest_service import (
+    BuildManifestService,
+)
+from systograph.core.services.manual_mapping_service import (
+    ManualMappingService,
+)
+from systograph.core.services.map_build_service import MapBuildService
+from systograph.core.services.project_scan_service import (
     InventoryPolicyOverlay,
     ProjectScanService,
 )
-from kai_mind.core.services.scan_snapshot_service import ScanSnapshotService
-from kai_mind.web.app import LocalApiApp, create_app
+from systograph.core.services.scan_snapshot_service import ScanSnapshotService
+from systograph.web.app import LocalApiApp, create_app
 
 SCOPED_JSON_ARTIFACTS = (
     "profile_signals.json",

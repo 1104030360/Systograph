@@ -6,11 +6,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/173
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/173
 
 **Goal:** 官方啟動入口預設綁定 `127.0.0.1`，並對非 loopback bind 提示或要求明確 opt-in。
 
-**Architecture:** KAI-Mind local API 預設是本機 release-readiness tool，不應意外暴露到 LAN。Non-loopback binding 可存在，但必須由使用者明確選擇並理解 network exposure 風險。
+**Architecture:** Systograph local API 預設是本機 release-readiness tool，不應意外暴露到 LAN。Non-loopback binding 可存在，但必須由使用者明確選擇並理解 network exposure 風險。
 
 **Tech Stack:** uvicorn startup docs/scripts, FastAPI docs, pytest where startup wrapper exists.
 
@@ -20,7 +20,7 @@
 
 - GitHub issue #173, assignee Timmy.
 - Origin: Backend findings L-5.
-- Primary areas: `src/kai_mind/web/app.py`, uvicorn startup path, README/API docs.
+- Primary areas: `src/systograph/web/app.py`, uvicorn startup path, README/API docs.
 - Related plans: #139 SSRF egress policy, #144 cross-platform CI, #170 README drift.
 
 ### Task 1: Trace official startup paths

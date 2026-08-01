@@ -25,7 +25,7 @@
 | 未知欄位 | 寫入類 endpoint `extra="forbid"` |
 | 錯誤格式 | `{ "detail": string }`；422 時 `detail` 為陣列 |
 | 安全錯誤 | 413/500 不回 raw secret、exception string、absolute path |
-| State | Project workflow 使用 `${KAI_MIND_STATE_DIR:-~/.kai-mind}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復。Demo `/api/map` 仍保留 process-latest compatibility |
+| State | Project workflow 使用 `${SYSTOGRAPH_STATE_DIR:-~/.systograph}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復。Demo `/api/map` 仍保留 process-latest compatibility |
 
 ### 兩種流程
 
@@ -73,7 +73,7 @@
 
 ```bash
 # 1. 啟動後端
-.venv/bin/uvicorn kai_mind.web.app:create_app --factory --host 127.0.0.1 --port 8000
+.venv/bin/uvicorn systograph.web.app:create_app --factory --host 127.0.0.1 --port 8000
 
 # 2. 一次性掃描並取得 viewer payload（最簡單的 demo 路徑）
 curl -s -X POST http://127.0.0.1:8000/api/map/build \
@@ -137,7 +137,7 @@ Response `200`：
 ### POST /api/projects/{project_id}/scan-preflights
 
 建立可重試、無持久化副作用的 metadata-only inventory preflight。它會先套用
-`scan_inventory_rules.toml`、Git／`.gitignore` 與不可覆寫的 filesystem safety，再回傳 KAI
+`scan_inventory_rules.toml`、Git／`.gitignore` 與不可覆寫的 filesystem safety，再回傳 Systograph
 建議預設、必要敏感檔確認、可單次覆寫的 soft exclusions，以及 exact path 查詢結果。
 Preflight 不讀候選檔內容、不產 snippet，也不建立 `scan_id`、snapshot、build 或 output。
 
@@ -226,7 +226,7 @@ identity，並在同一file handle建立content SHA-256；snapshot保存前會�
 
 `scan_this_run`／`skip_this_run` 只作用於這次 scan，不改 `.gitignore`、TOML 或 Manual Mapping。
 Directory decision涵蓋所有 selectable descendants；hard-blocked child仍保持 blocked，exact child
-decision優先。沒有 optional decision 時維持 KAI default；缺 required sensitive decision 時回
+decision優先。沒有 optional decision 時維持 Systograph default；缺 required sensitive decision 時回
 `requires_boundary_decision`。
 
 Pending response 不含 `scan_id`，也沒有 snapshot/build/latest pointer：
@@ -318,7 +318,7 @@ data: {"event":"scan_progress","status":"completed","stage":"validate","message"
 All-in-one viewer / demo build：送入 path 觸發 L1 build，寫出 artifact，更新 current
 runtime 的 process-wide latest `/api/map`。
 
-Current runtime 的 Step 3 仍由現有 KAI scan providers 執行。Phase B/C target 才改由
+Current runtime 的 Step 3 仍由現有 Systograph scan providers 執行。Phase B/C target 才改由
 UA structural sidecar 主導，並在 UA 失敗時 fail closed。
 
 > **不建立 project session**——沒有 `project_id`，build result 也不會存到 project-scoped store。若要接 `detail-scans` 或 `mapping-proposals`，請改走 `import` → `scans`。
@@ -787,7 +787,7 @@ Response `200`：
 - `build_id` 指定 trace source；省略時使用 latest 並回 `latest_build_fallback` warning
 - 預設阻擋 non-global / private / metadata 位址；egress 被擋 → `partial` + `egress_policy_blocked`
 - 不跟隨 redirect；預設不讀 proxy env
-- `[tool.systograph.trace]` 只控制 chunk keys；舊 `[tool.kai-mind.trace]` 仍為相容 alias；
+- `[tool.systograph.trace]` 只控制 chunk keys；舊 `[tool.systograph.trace]` 仍為相容 alias；
   local-dev allowlist 由 operator 注入
 - timeout / transport error → `status:"partial"`，保留 events 供 replay
 - 完整 egress 政策見 [`docs/security/query-trace-egress-policy.md`](security/query-trace-egress-policy.md)
@@ -796,7 +796,7 @@ Response `200`：
 | --- | --- | --- |
 | `project_not_found` | 404 | `project_id` 不存在 |
 | `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
-| `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.systograph.trace]`（或 legacy `[tool.kai-mind.trace]`）格式錯誤 |
+| `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.systograph.trace]`（或 legacy `[tool.systograph.trace]`）格式錯誤 |
 | `egress_policy_blocked` | 200 / `partial` | endpoint 在送出 request 前被 SSRF egress policy 阻擋 |
 
 ---
@@ -894,7 +894,7 @@ PATCH /api/mappings/{mapping_id}
 **Provider 啟用條件**（兩者缺一不可，否則走 deterministic fallback，仍可離線使用）：
 
 ```bash
-KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true
+SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS=true
 NVIDIA_API_KEY=<your-key>
 ```
 
@@ -1006,12 +1006,12 @@ Response `200`：
 | 503 | project state lock timeout | `project_state_busy` |
 
 > Project workflow 會跨重啟恢復。若重啟後出現 404，先確認啟動前後使用相同
-> `KAI_MIND_STATE_DIR`；只有 state record 不存在時才需要重新 import / scan。
+> `SYSTOGRAPH_STATE_DIR`；只有 state record 不存在時才需要重新 import / scan。
 
 ### Operator rollback 專用 error code
 
 下列 code 只在 process 啟動前設定
-`KAI_MIND_CANONICAL_OUTPUT_VERSION=ai-system-map/v1` 的 operator rollback 模式出現；
+`SYSTOGRAPH_CANONICAL_OUTPUT_VERSION=ai-system-map/v1` 的 operator rollback 模式出現；
 normal `ai-system-map/v2` 模式不會產生。失敗時都不寫任何 artifact。
 
 | `detail` | 意義 |

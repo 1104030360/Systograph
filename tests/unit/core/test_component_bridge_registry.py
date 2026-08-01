@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from kai_mind.core.models.scan import ScanFact
-from kai_mind.core.services.component_bridge_registry import (
+from systograph.core.models.scan import ScanFact
+from systograph.core.services.component_bridge_registry import (
     ComponentBridgeDecisionKind,
     ComponentBridgeRegistry,
 )

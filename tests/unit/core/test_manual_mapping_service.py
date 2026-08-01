@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from kai_mind.core.models.mapping import (
+from systograph.core.models.mapping import (
     ManualMappingCreate,
     ManualMappingDecision,
     ManualMappingType,
 )
-from kai_mind.core.services.manual_mapping_service import (
+from systograph.core.services.manual_mapping_service import (
     InMemoryManualMappingRepository,
     ManualMappingService,
 )

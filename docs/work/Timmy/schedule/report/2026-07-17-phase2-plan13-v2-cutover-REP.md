@@ -24,7 +24,7 @@ same-parent staging，通過 required-set／scope／reference／schema validatio
 
 - Stage A gate：native v1/v2 reload、non-object root、雙向 manifest badge mismatch、paired
   canonical/readiness equivalence皆已通過。
-- Executable scope：`src/kai_mind/**/*.py` AST、
+- Executable scope：`src/systograph/**/*.py` AST、
   `frontend/src/**/*.{ts,tsx,json}` text、`scripts/**/*.sh` operational text。
 - Records / actual hits：`37 / 37`，無 unknown、無 stale。
 - Classification：`migrate=5`、`migration_only=24`、`operator_rollback=8`。
@@ -80,7 +80,7 @@ same-parent staging，通過 required-set／scope／reference／schema validatio
   `GraphMarkdownRenderer`。
 - Public CLI/API v1 selection：CLI exit `1`，API `422`，stable detail
   `legacy_output_not_selectable`。
-- Invalid `KAI_MIND_CANONICAL_OUTPUT_VERSION` 阻止 startup，stable error
+- Invalid `SYSTOGRAPH_CANONICAL_OUTPUT_VERSION` 阻止 startup，stable error
   `invalid_canonical_output_version`。
 - Operator v1 rollback：同一 build只寫一個 v1 canonical artifact；manifest/warning 標示
   `active_schema_version=ai-system-map/v1`、`operator_rollback_active=true`，process內立即
@@ -123,7 +123,7 @@ Render (3)
 
 ### CLI
 
-- `kai-mind --help`、`map --help`、`validate-map`、migration與trace help可用。
+- `systograph --help`、`map --help`、`validate-map`、migration與trace help可用。
 - Normal v2 canary產生正好10檔；7 JSON scope一致，v2 validate為
   `loaded=true / nodes=58 / edges=1`。
 - Missing project回 `project_path_not_found`；raw query marker未出現在 trace output。

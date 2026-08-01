@@ -4,7 +4,7 @@ Status: design reference（Phase2 target · 2026-07-07 UA 整合決策已套用 
 
 Audience: backend、scanner expansion、reviewer
 
-Last aligned: 2026-07-16 · `docs/work/Timmy/schedule/plan/unfinish/phase2/`、`ref-opensource/kai-mind-understand-anything-integration-boundary.md`
+Last aligned: 2026-07-16 · `docs/work/Timmy/schedule/plan/unfinish/phase2/`、`ref-opensource/systograph-understand-anything-integration-boundary.md`
 
 ## 文件目的
 
@@ -16,7 +16,7 @@ Phase2 static pipeline 的 **簡圖 + 資料邊界**。供 UA sidecar 整合、�
 
 | # | 決策 | 定案 |
 |---|------|------|
-| 1 | Step 3 掃描器 | **UA-primary + parity gate**：Understand-Anything sidecar 為主掃描來源；KAI scan TOML providers 過渡期並跑對比，Plan 14 通過後退役 |
+| 1 | Step 3 掃描器 | **UA-primary + parity gate**：Understand-Anything sidecar 為主掃描來源；Systograph scan TOML providers 過渡期並跑對比，Plan 14 通過後退役 |
 | 2 | Step 6 評估 | **純 Python**：`ProfileInferenceService` 直接讀系統地圖 + TOML metadata 定五態；不引入 AI candidate（AI 評估路徑 **deferred**） |
 | 3 | Orchestrator | **不建立** `AssessmentOrchestrator`；Step 1～9 全程無 AI orchestration（決策 deferred，重啟時另案評估） |
 | 4 | Apply | 不重跑 UA；只重放 snapshot 的 `scan_result`，重跑 Step 4～7；semantic sidecar slot 保持 nullable 且不消費 |
@@ -53,7 +53,7 @@ Phase2 static pipeline 的 **簡圖 + 資料邊界**。供 UA sidecar 整合、�
               ↑ 橋接 1（Step 4 Python）
 ┌─────────────────────────────────────────┐
 │ 掃描事實 + 證據                          │  Step 3 · UA sidecar（primary）
-└─────────────────────────────────────────┘                + 過渡期 KAI TOML parity
+└─────────────────────────────────────────┘                + 過渡期 Systograph TOML parity
 ```
 
 **兩段橋接（核心邏輯）：**
@@ -79,7 +79,7 @@ Step 2  Boundary        metadata-only candidate enumeration
                         → openat/no-follow + fstat + same-handle content hash
                         → final FileInventory + audit / digests
         ▼
-Step 3  Scan            current KAI providers → facts / evidence → ProjectScanResult
+Step 3  Scan            current Systograph providers → facts / evidence → ProjectScanResult
                         UA request / sidecar / parity runtime deferred（Plan 16）
         │
         ▼
@@ -297,7 +297,7 @@ flowchart TB
 | **1** | ❌ | — | — | scan 匹配規則 |
 | **2** | ✅ executable catalog（Plan 19） | `scan_inventory_rules.toml` | ordered include / exclude、policy digest | component 對位、filesystem safety |
 | **2** | 🐍 Plan 20 | `InventoryCandidateService` / `InventoryPreflightService` / `InventorySelectionService` | metadata-only preflight、directory manifest、one-run overlay、final allowlist | UA request、Manual Mapping、永久偏好 |
-| **3** | 🔵 **主力** | UA sidecar（`kai-mind-analyze.mjs` + `UnderstandAnythingAnalysisService`） | import map、structure、call hints、semantic nodes/edges | `plane_id`、五態、`confidence` |
+| **3** | 🔵 **主力** | UA sidecar（`systograph-analyze.mjs` + `UnderstandAnythingAnalysisService`） | import map、structure、call hints、semantic nodes/edges | `plane_id`、五態、`confidence` |
 | **3** | 🐍 | `UaStructuralAdapter` | UA 輸出 → facts / evidence / issues | 語意升格為 canonical |
 | **3** | ⚠️ 過渡期 | `code_pattern` / `dependency_manifest` / `docker_image` / config TOML | parity 對比 only；Plan 14 通過後退役 | 新增主掃描規則（改擴充 UA adapter） |
 | **4** | 🏷️ 文案 | `risk_hint_rules.toml` | type、severity、rationale | 何時 emit risk（在 Python） |
@@ -312,7 +312,7 @@ flowchart TB
 | **9** | ⚙️ runtime config | `llm_proposal.toml` | provider / model / endpoint / timeout / generation / prompt template | deterministic proposal 邏輯、secret value |
 | **9** | 🐍 | `MappingProposalService` | 由 unmapped 產 pending proposal | 寫入 canonical map |
 
-**repo 現況（`src/kai_mind/core/rules/`）：** `scan_inventory_rules.toml` 已是 Step 2 executable inventory selection policy catalog；Plan 20已接上`POST /api/projects/{project_id}/scan-preflights`、exact file／bounded directory selection、post-decision safety與final inventory audit。Snapshot保存policy、candidate、safety、decision、final與run digests。`capability_reference_map.toml`、`profile_registry.toml`只承載Step 6 metadata。UA enrichment/request/parity仍由Plan 16後續負責，Plan 19/20沒有UA runtime。
+**repo 現況（`src/systograph/core/rules/`）：** `scan_inventory_rules.toml` 已是 Step 2 executable inventory selection policy catalog；Plan 20已接上`POST /api/projects/{project_id}/scan-preflights`、exact file／bounded directory selection、post-decision safety與final inventory audit。Snapshot保存policy、candidate、safety、decision、final與run digests。`capability_reference_map.toml`、`profile_registry.toml`只承載Step 6 metadata。UA enrichment/request/parity仍由Plan 16後續負責，Plan 19/20沒有UA runtime。
 
 **Phase4 原 scanner 擴充計畫（31～36）定位變更：** 原「Step 3 TOML 擴充」路線由 UA sidecar 取代；Plan 31 fixtures 轉為 UA parity 驗證 corpus，Plan 34 AST 與 UA `extract-structure` 職責需擇一（避免兩套 AST visitor），`contextual_security_rules.toml`（Plan 35）依賴的 AST observations 改接 UA structural 輸出。
 
@@ -521,7 +521,7 @@ Step 3 掃描層（UA adapter / 過渡 TOML）→  只產 facts；禁止寫 plan
        → file-analyzer / ua-analysis-result deferred（不執行）
   → UaStructuralAdapter：structural → facts / evidence / issues
   → semantic → reserved nullable internal sidecar（Phase2 不產生、不消費，非 canonical）
-  →（過渡期）KAI TOML providers 並跑 parity 對比
+  →（過渡期）Systograph TOML providers 並跑 parity 對比
   → 合併、去重、遮罩敏感資訊
   → 掃描結果
        facts[]      掃描事實（rule_id, kind, file, path）
@@ -647,7 +647,7 @@ Step 9：`MappingProposal` → 人工確認 → `Apply` 重跑 Step 4～7（跳 
 | 層 | 掃描 / 邏輯來源 | 綁底圖？ |
 |----|-------------|----------|
 | Step 2 | `scan_inventory_rules.toml` + metadata-only preflight + Python enumeration/safety + one-run selection；UA deferred 至 Plan 16 | ❌ |
-| Step 3 | **目前：** KAI providers；**target：** UA sidecar + `UaStructuralAdapter`（Plan 16後續，Plan 20未建立runtime） | ❌ 只產掃描事實 |
+| Step 3 | **目前：** Systograph providers；**target：** UA sidecar + `UaStructuralAdapter`（Plan 16後續，Plan 20未建立runtime） | ❌ 只產掃描事實 |
 | Step 4 | Python 橋接 1（專門 registry module，可用 list + deterministic loop）+ `risk_hint` / `recommended_next_check` 文案 | ❌ |
 | Step 6 | `capability_reference_map.toml`（52 格 **metadata only**） | ✅ 座標，非比對規則 |
 | Step 6 | Python 橋接 2（`ProfileInferenceService` 能力評估規則） | ✅ 對位與五態定案 |
@@ -680,7 +680,7 @@ Step 9：`MappingProposal` → 人工確認 → `Apply` 重跑 Step 4～7（跳 
 ## 相關文件
 
 - Pipeline 本文件：`00-phase2-pipeline-ascii-map.md`（Step 1～9 總覽；proposal / 橋接 2 文字契約）
-- **UA 整合邊界（2026-07-07 決策）**：`ref-opensource/kai-mind-understand-anything-integration-boundary.md`（其 Step 6 `AssessmentOrchestrator` / semantic candidate 段落已被本文件同日修訂取代——Step 6 AI 編排 deferred）
+- **UA 整合邊界（2026-07-07 決策）**：`ref-opensource/systograph-understand-anything-integration-boundary.md`（其 Step 6 `AssessmentOrchestrator` / semantic candidate 段落已被本文件同日修訂取代——Step 6 AI 編排 deferred）
 - Static trace 主線索引：`../phase2/static-trace-plan/README.md`（執行順序 / stage gate 以該 README 為準）
 - Step 6 static execution artifacts（`call_graph` / `dataflow_hints` / `execution_paths`）owner：`../phase2/dynamic-trace-plan/00-implement-static-call-graph-and-execution-path-mvp.md`
 - Step 2 `scan_inventory_rules.toml` owner：`../phase2/static-trace-plan/19-add-scan-inventory-rules-toml.md`

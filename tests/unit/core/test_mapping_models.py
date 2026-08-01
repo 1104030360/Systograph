@@ -3,10 +3,10 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from kai_mind.core.models.capability_candidate import (
+from systograph.core.models.capability_candidate import (
     CapabilityCandidateComponent,
 )
-from kai_mind.core.models.mapping import (
+from systograph.core.models.mapping import (
     ManualMappingCreate,
     ManualMappingDecision,
     ManualMappingType,

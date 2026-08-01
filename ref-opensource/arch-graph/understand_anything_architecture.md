@@ -114,9 +114,9 @@
 - 上游 `CLAUDE.md` 已過期（寫 5 agents / 4 skills）；disk 上實際是 9 agents / 8 skills，
   且 `SKILL.md` 確實有 dispatch `assemble-reviewer`。
 
-### 與 KAI-Mind 的邊界（一句話）
+### 與 Systograph 的邊界（一句話）
 
-KAI-Mind 只採用 L2 的三支腳本——`extract-import-map.mjs` → `compute-batches.mjs` →
+Systograph 只採用 L2 的三支腳本——`extract-import-map.mjs` → `compute-batches.mjs` →
 `extract-structure.mjs`——在 UA Phase 1 之前進入、在 `file-analyzer` 之前就返回；
 `scan-project.mjs` 與 Phase 3～7（含 dashboard）一律不採用。完整契約見
-`ref-opensource/kai-mind-understand-anything-integration-boundary.md`。
+`ref-opensource/systograph-understand-anything-integration-boundary.md`。

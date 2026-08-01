@@ -34,7 +34,7 @@
 - Symlink path regression：一開始用 resolved path 計算 relative path，會把 project 內的 symlink 檔名解析到 project 外，導致既有 skip flow 中斷。解法是對 host absolute path 先嘗試 lexical `relative_to(project_root)`，必要時才 fallback resolve。
 - CORS middleware introspection regression：外層 CORS wrapper 後，測試不能再只看 FastAPI inner middleware stack。解法是改測 wrapper 的 `allowed_origins` 與實際 response header。
 - Schema contract 字串大小寫太死：Pydantic description 寫成 `Project-relative POSIX path`，測試原本硬比 `project-relative POSIX`。解法是改成 case-insensitive 檢查核心語意。
-- 最終格式驗收第一次發現 `src/kai_mind/core/services/path_safety_service.py` 與 `tests/contracts/test_secret_snapshot_safety.py` 需要 ruff format。解法是只對這兩個檔案跑 formatter，並重跑 focused tests、ruff、mypy、full pytest。
+- 最終格式驗收第一次發現 `src/systograph/core/services/path_safety_service.py` 與 `tests/contracts/test_secret_snapshot_safety.py` 需要 ruff format。解法是只對這兩個檔案跑 formatter，並重跑 focused tests、ruff、mypy、full pytest。
 
 ## 測試結果
 

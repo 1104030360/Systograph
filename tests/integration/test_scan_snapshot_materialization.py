@@ -6,42 +6,44 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.errors import (
+from systograph.core.models.errors import (
     InventorySelectionError,
     InventorySelectionErrorCode,
 )
-from kai_mind.core.models.filesystem import FileInventory
-from kai_mind.core.models.inventory_selection import InventoryPreflightRequest
-from kai_mind.core.models.map_build import MapBuildRequest
-from kai_mind.core.models.scan import OutputRun, ProjectScanResult, ScanFact
-from kai_mind.core.models.scan_boundary import (
+from systograph.core.models.filesystem import FileInventory
+from systograph.core.models.inventory_selection import (
+    InventoryPreflightRequest,
+)
+from systograph.core.models.map_build import MapBuildRequest
+from systograph.core.models.scan import OutputRun, ProjectScanResult, ScanFact
+from systograph.core.models.scan_boundary import (
     ScanBoundaryDecisionAction,
     ScanBoundaryDecisionRequest,
 )
-from kai_mind.core.models.system_map import Evidence
-from kai_mind.core.models.template import RagTemplate
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.system_map import Evidence
+from systograph.core.models.template import RagTemplate
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
     ComponentDetectionService,
 )
-from kai_mind.core.services.inventory_preflight_service import (
+from systograph.core.services.inventory_preflight_service import (
     InventoryPreflightService,
 )
-from kai_mind.core.services.inventory_selection_service import (
+from systograph.core.services.inventory_selection_service import (
     InventorySelectionService,
 )
-from kai_mind.core.services.map_build_service import MapBuildService
-from kai_mind.core.services.project_scan_service import (
+from systograph.core.services.map_build_service import MapBuildService
+from systograph.core.services.project_scan_service import (
     InventoryPolicyOverlay,
     ProjectScanService,
 )
-from kai_mind.core.services.scan_boundary_review_service import (
+from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
-from kai_mind.core.services.scan_snapshot_service import ScanSnapshotService
+from systograph.core.services.scan_snapshot_service import ScanSnapshotService
 
 
 def selected_inventory(project_root: Path) -> FileInventory:

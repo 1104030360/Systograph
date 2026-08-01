@@ -7,9 +7,9 @@ from pathlib import Path
 from tests.unit.core.test_detail_scan_service import base_map
 from typer.testing import CliRunner
 
-from kai_mind.cli import main as cli_main
-from kai_mind.cli import trace_command
-from kai_mind.core.models.ai_system_map_v2 import CanonicalEndpoint
+from systograph.cli import main as cli_main
+from systograph.cli import trace_command
+from systograph.core.models.ai_system_map_v2 import CanonicalEndpoint
 
 
 def test_trace_command_returns_endpoint_not_found_without_network(

@@ -7,11 +7,11 @@ Last updated: 2026-07-16（Plan 19／20 backend gate、Pydantic samples 與 live
 ## 目的
 
 這不是從空白建立scan inventory。Backend會先以已驗收的Plan 19
-`scan_inventory_rules.toml`產生KAI推薦baseline；延伸目前`BoundaryDecisionModal`與project scan
+`scan_inventory_rules.toml`產生Systograph推薦baseline；延伸目前`BoundaryDecisionModal`與project scan
 flow，讓使用者在每次scan前依自己的需求調配：
 
 - 決定 default-included sensitive file 要掃或略過；
-- 從 `.gitignore`／Git exclude／KAI catalog soft-excluded files 中選擇本次要掃的 exact file；
+- 從 `.gitignore`／Git exclude／Systograph catalog soft-excluded files 中選擇本次要掃的 exact file；
 - 輸入 exact project-relative file 或 directory path，要求 backend解析；directory path 會建立
   bounded recursive selection，代表其下所有通過 hard safety 的 regular files；
 - 對default-included exact path選擇本次略過；
@@ -88,7 +88,7 @@ Frontend可以先獨立完成現有bug修正：把
 ## Baseline contract（Frontend視角）
 
 Frontend不負責判斷TOML規則「夠不夠完整」，也不讀取或解析TOML。Backend只有在Plan 19 gate
-通過後才能回成功preflight；成功payload內的下列欄位共同識別這次KAI-prepared baseline：
+通過後才能回成功preflight；成功payload內的下列欄位共同識別這次Systograph-prepared baseline：
 
 ```text
 source_mode
@@ -215,14 +215,14 @@ Frontend不得從`reason`文字反推 enum，也不得依file extension自行判
 延伸 `frontend/src/components/BoundaryDecisionModal.tsx`，使用者可見名稱改為
 `Review scan scope`。保留同一dialog，不建立另一個file picker modal。
 
-Opening copy需先說明：「KAI-Mind已依預設規則準備建議掃描範圍；以下調整只適用這次scan。」
+Opening copy需先說明：「Systograph已依預設規則準備建議掃描範圍；以下調整只適用這次scan。」
 Default rows應標示prepared baseline的`Default: scan/skip`，並呈現backend source/reason。不要把
-project `.gitignore`誤標成KAI catalog rule，也不能讓使用者以為所有檔案都尚未設定。
+project `.gitignore`誤標成Systograph catalog rule，也不能讓使用者以為所有檔案都尚未設定。
 
 ```text
 +------------------------------------------------------------------+
 | Review scan scope                                                |
-| KAI-Mind prepared a recommended baseline for this project.       |
+| Systograph prepared a recommended baseline for this project.       |
 | Adjustments apply once. .gitignore and policy stay unchanged.    |
 +------------------------------------------------------------------+
 | Summary: 143 included | 12 excluded | 3 blocked | 1 missing      |
@@ -436,8 +436,8 @@ Create:
 
 ### UI
 
-- [ ] Opening copy與default labels清楚表達「KAI已設定baseline，user只做one-run調配」。
-- [ ] Default row同時顯示backend outcome/source；project ignore不得誤標為KAI catalog rule。
+- [ ] Opening copy與default labels清楚表達「Systograph已設定baseline，user只做one-run調配」。
+- [ ] Default row同時顯示backend outcome/source；project ignore不得誤標為Systograph catalog rule。
 - [ ] Baseline error畫面不render path input、decision buttons或空白candidate sections。
 - [ ] 顯示summary counts與source mode。
 - [ ] 四種sections有清楚heading/copy。
@@ -470,7 +470,7 @@ Create:
 
 ### `useProjectScanFlow.test.tsx`
 
-- [ ] Valid baseline preflight直接render KAI recommended defaults，不建立blank authoring state。
+- [ ] Valid baseline preflight直接render Systograph recommended defaults，不建立blank authoring state。
 - [ ] Missing/invalid catalog typed error不render可提交的file/directory controls。
 - [ ] Catalog error後不呼叫`startProjectScan()`；safe retry只再呼叫`createScanPreflight()`。
 - [ ] Zero-candidate successful response仍是valid baseline，不誤判成catalog error。
@@ -488,8 +488,8 @@ Create:
 
 ### `BoundaryDecisionModal.test.tsx`
 
-- [ ] Opening copy說明KAI baseline與one-run adjustment，不使用「建立inventory」語意。
-- [ ] Default rows正確區分project ignore與KAI catalog source copy。
+- [ ] Opening copy說明Systograph baseline與one-run adjustment，不使用「建立inventory」語意。
+- [ ] Default rows正確區分project ignore與Systograph catalog source copy。
 - [ ] Render summary與四sections。
 - [ ] Required/optional defaults與button state正確。
 - [ ] Hard block/missing沒有action controls。
@@ -517,7 +517,7 @@ pnpm build
 - [ ] `inventory_rules_unavailable`／`inventory_rules_invalid`顯示typed fail-closed error，不要求使用者
   自行補選，也不呼叫scan。
 - [ ] Zero-candidate successful preflight仍可正常顯示empty-project state，不與catalog error混淆。
-- [ ] Default rows顯示真實backend source；`.gitignore`與KAI catalog不混為同一來源。
+- [ ] Default rows顯示真實backend source；`.gitignore`與Systograph catalog不混為同一來源。
 - [ ] 使用者能在一個review dialog完成required、soft-excluded與exact file/directory decisions。
 - [ ] 輸入exact directory path可選擇遞迴掃描其下所有backend判定為selectable的regular files。
 - [ ] Frontend只對reviewable directory送`recursive_directory` decision；永遠不能對collapsed、

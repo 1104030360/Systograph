@@ -13,9 +13,9 @@ capability candidate input」的比對規則集中到專門 Python module，避�
 `ComponentDetectionService` 的大型 `if`/`elif`，也避免把 executable semantic
 matching 搬進 TOML。
 
-**Architecture:** Phase A 執行本計畫時，Step 3 仍由現有 KAI TOML providers 產生 primary
+**Architecture:** Phase A 執行本計畫時，Step 3 仍由現有 Systograph TOML providers 產生 primary
 typed `ScanFact` / `Evidence`；Gate-1 通過並完成 Plan 16 後，Phase B 才改由 UA structural
-adapter 產生 primary facts，KAI TOML providers 轉為 parity-only。Step 4 在兩個階段都由
+adapter 產生 primary facts，Systograph TOML providers 轉為 parity-only。Step 4 在兩個階段都由
 `component_bridge_registry.py` 內的 typed Python
 registry 負責比對：以 `rule_id`、`kind`、`path`、`value`、evidence strength 與
 legacy/manual context 產生 bridge decision。registry 內部可用 list/table + for loop
@@ -46,19 +46,19 @@ ProjectScanResult.facts[] + evidence[]
 不是二選一：
 
 - **維護位置：** 專門 Python 檔案，例如
-  `src/kai_mind/core/services/component_bridge_registry.py`。
+  `src/systograph/core/services/component_bridge_registry.py`。
 - **實作方式：** typed Python list / table + deterministic for loop。
 - **禁止：** 將 Step 4 component 對位、evidence threshold、manual replay 或
   capability candidate 分流寫進 TOML。
 
 ## 2026-07-07 UA 整合對齊
 
-Bridge registry 在 Phase A 即必須保留現有 KAI TOML rule ids，並預先接受 Plan 16 將產生的
+Bridge registry 在 Phase A 即必須保留現有 Systograph TOML rule ids，並預先接受 Plan 16 將產生的
 UA adapter `rule_id`，例如 `ua_import_*`、
 `ua_symbol_*`、`ua_endpoint_*` 或 `ua_call_hint_*`。這些 rule id 仍只能在 Step 4
 分流為 repo component / unmapped review item / non-baseline signal；registry 不得輸出
 `plane_id`、`reference_node_id`、profile status 或 GraphViewModel layout。只有進入 Phase B
-後，KAI TOML rule ids 才轉為 parity 對比輸入；Phase A 它們仍是 Step 3 主掃描來源。
+後，Systograph TOML rule ids 才轉為 parity 對比輸入；Phase A 它們仍是 Step 3 主掃描來源。
 
 ### 與 Phase2 Pipeline Step 對齊
 
@@ -120,9 +120,9 @@ TOML 仍可存在，但只屬於：
 
 ```text
 Step 3 ProjectScanService
-  Phase A：KAI TOML providers（primary）
+  Phase A：Systograph TOML providers（primary）
   Phase B：UnderstandAnythingAnalysisService + UaStructuralAdapter（primary）
-           + KAI TOML providers parity diff
+           + Systograph TOML providers parity diff
   -> ProjectScanResult(facts, evidence, issues, warnings, skipped_files)
 
 Step 4 ComponentDetectionService
@@ -219,7 +219,7 @@ COMPONENT_BRIDGE_RULES: tuple[ComponentBridgeRule, ...] = (
 
 **檔案：**
 
-- Create: `src/kai_mind/core/services/component_bridge_registry.py`
+- Create: `src/systograph/core/services/component_bridge_registry.py`
 - Test: `tests/unit/core/test_component_bridge_registry.py`
 
 - [ ] 定義 `ComponentBridgeRule`、`ComponentBridgeDecision` 與
@@ -236,7 +236,7 @@ COMPONENT_BRIDGE_RULES: tuple[ComponentBridgeRule, ...] = (
 
 **檔案：**
 
-- Modify: `src/kai_mind/core/services/component_detection_service.py`
+- Modify: `src/systograph/core/services/component_detection_service.py`
 - Test: `tests/unit/core/test_component_detection_service.py`
 
 - [ ] `ComponentDetectionService.detect()` 改為呼叫
@@ -252,9 +252,9 @@ COMPONENT_BRIDGE_RULES: tuple[ComponentBridgeRule, ...] = (
 
 **檔案：**
 
-- Modify: `src/kai_mind/core/services/component_bridge_registry.py`
-- Modify: `src/kai_mind/core/services/component_detection_service.py`
-- Modify: `src/kai_mind/core/services/manual_mapping_service.py`
+- Modify: `src/systograph/core/services/component_bridge_registry.py`
+- Modify: `src/systograph/core/services/component_detection_service.py`
+- Modify: `src/systograph/core/services/manual_mapping_service.py`
 - Test: `tests/unit/core/test_manual_mapping_service.py`
 
 - [ ] Registry 可把 reranker/router/tool-like evidence 標成
@@ -273,7 +273,7 @@ COMPONENT_BRIDGE_RULES: tuple[ComponentBridgeRule, ...] = (
 **檔案：**
 
 - Create or modify: `tests/unit/core/test_component_bridge_boundaries.py`
-- Modify: `src/kai_mind/core/services/rule_catalog_loader.py`（只有必要時）
+- Modify: `src/systograph/core/services/rule_catalog_loader.py`（只有必要時）
 
 - [ ] 測試 `RuleCatalogLoader` 不提供 `load_component_bridge_rules()`。
 - [ ] 測試 `component_bridge_registry.py` 不讀取 `core/rules/*.toml`。
@@ -292,7 +292,7 @@ COMPONENT_BRIDGE_RULES: tuple[ComponentBridgeRule, ...] = (
 - Modify: `docs/work/Timmy/schedule/plan/unfinish/phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md`
 - Optional: `docs/MODEL-CONTRACT.md`
 
-- [ ] 文件明確寫：Phase A 由 KAI TOML providers 負責 primary raw facts；Gate-1 通過並完成
+- [ ] 文件明確寫：Phase A 由 Systograph TOML providers 負責 primary raw facts；Gate-1 通過並完成
   Plan 16 後，Phase B 才由 UA sidecar / adapter 接手 primary，TOML providers 轉為 parity；
   Step 4 Python registry 在兩階段都負責 component bridge。
 - [ ] 文件明確寫：list + for loop 是允許的 implementation pattern，但必須包在專門

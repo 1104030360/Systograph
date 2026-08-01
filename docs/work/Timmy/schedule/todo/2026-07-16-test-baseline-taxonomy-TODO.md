@@ -9,7 +9,7 @@ coverage 與測試分層基線，不在沒有證據前大搬移檔案。
 
 - 現有 `tests/contracts`、`tests/unit/core`、`tests/integration`、`tests/e2e`、
   `tests/web` 已表達不同責任，先驗證分類是否真能獨立執行。
-- 以 KAI-Mind 的 release-readiness 風險決定測試優先序；不把行數 coverage 當完成定義。
+- 以 Systograph 的 release-readiness 風險決定測試優先序；不把行數 coverage 當完成定義。
 - 參考 R2R 的分層與 pytest 官方 fixture 階層，但不複製過度 mock 或舊測試模式。
 
 ## 步驟

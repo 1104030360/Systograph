@@ -2,7 +2,7 @@
 
 READ-ONLY 稽核，未修改任何檔案。所有結論皆附 live 指令輸出。
 
-- Repo: `/Users/linjunting/Local_AI_Health_Doctor`（branch `main`，HEAD `0a68ccd`）
+- Repo: `/Users/linjunting/Systograph`（branch `main`，HEAD `0a68ccd`）
 - 稽核日期：2026-07-28
 - 受稽核 gate：`tests/contracts/test_v2_cutover_consumer_allowlist.py`
 
@@ -10,7 +10,7 @@ READ-ONLY 稽核，未修改任何檔案。所有結論皆附 live 指令輸出�
 
 ### RD-1. Allowlist gate live 驗證通過，census 數字與 digest 完全可重現【C類 正常】
 
-- **位置**：`/Users/linjunting/Local_AI_Health_Doctor/tests/contracts/test_v2_cutover_consumer_allowlist.py:278`
+- **位置**：`/Users/linjunting/Systograph/tests/contracts/test_v2_cutover_consumer_allowlist.py:278`
 - **現況**
 
 ```
@@ -29,7 +29,7 @@ stale  : []
 classification counts: Counter({'migration_only': 22, 'operator_rollback': 8, 'migrate': 5})
 
 --- scanned python hits by root ---
-python(src/kai_mind): 30  frontend/src: 5  scripts/*.sh: 0
+python(src/systograph): 30  frontend/src: 5  scripts/*.sh: 0
 scripts hits: []
 ```
 
@@ -73,10 +73,10 @@ in-memory 模擬（未動任何檔案）：
 
 ```
 --- STALE SIMULATION: pretend one allowlisted path disappears ---
-stale detected: [('src/kai_mind/core/services/legacy_v1_rollback_service.py', 'RagSystemMap')]
+stale detected: [('src/systograph/core/services/legacy_v1_rollback_service.py', 'RagSystemMap')]
 
 --- NEW-HIT SIMULATION: pretend a new file gains RagSystemMap ---
-unknown detected: [('src/kai_mind/web/routes/scan_routes.py', 'RagSystemMap')]
+unknown detected: [('src/systograph/web/routes/scan_routes.py', 'RagSystemMap')]
 ```
 
 - **判定理由**：兩個方向都會觸發 assertion。另外 `_python_legacy_hits()` 對 syntax error 會 raise、`read_text(encoding="utf-8")` 對非 UTF-8 會 raise，也都是 fail closed；若 CWD 不是 repo root，`rglob` 回空集合會讓全部 35 筆變 stale 而失敗，同樣不會靜默通過。
@@ -87,11 +87,11 @@ unknown detected: [('src/kai_mind/web/routes/scan_routes.py', 'RagSystemMap')]
 
 ### RD-3. `web/legacy_mapping_guards.py` 用 enum 間接引用，整檔逃過掃描【B類 盲點·無人追蹤】
 
-- **位置**：`/Users/linjunting/Local_AI_Health_Doctor/src/kai_mind/web/legacy_mapping_guards.py:13`
+- **位置**：`/Users/linjunting/Systograph/src/systograph/web/legacy_mapping_guards.py:13`
 - **現況**
 
 ```python
-from kai_mind.core.services.legacy_manual_mapping_migration_service import (
+from systograph.core.services.legacy_manual_mapping_migration_service import (
     LegacyManualMappingType,
 )
 
@@ -112,14 +112,14 @@ NOT PRESENT
 | `web/legacy_mapping_guards.py:13` (`NEW_EXTENSION.value`) | **無** |
 
 - **判定理由**：`_legacy_symbol()` 只比對 `ast.Name.id` / `ast.Attribute.attr` / class·function 名 / `ast.alias` 是否落在 `LEGACY_NAMES = {RagSystemMap, ExtensionComponent, SystemMapValidationService, new_extension_component}`。這裡的 attribute 是 `NEW_EXTENSION` 與 `value`、alias 是 `LegacyManualMappingType`，全都不在集合中；而檔內沒有任何 `"new_extension_component"` 字面值。**這是 legacy write surface 的唯一 runtime 實作點**（`mapping_routes.py:42` 與 `mapping_proposal_routes.py:100` 都 `Depends(reject_legacy_mapping_type)`），卻完全不在 census 內，Plan 15 做 removal sweep 時查不到它。
-- **建議處置**：把 `LegacyManualMappingType`、`NEW_EXTENSION` 加入 `LEGACY_NAMES`，並為 `src/kai_mind/web/legacy_mapping_guards.py` 補一筆 `migration_only` record（removal_plan：Plan 15 隨 Legacy DTO 一起移除 guard）。
+- **建議處置**：把 `LegacyManualMappingType`、`NEW_EXTENSION` 加入 `LEGACY_NAMES`，並為 `src/systograph/web/legacy_mapping_guards.py` 補一筆 `migration_only` record（removal_plan：Plan 15 隨 Legacy DTO 一起移除 guard）。
 - **風險**：中
 
 ---
 
 ### RD-4. 裸字串常數只比對兩個字面值，`"ExtensionComponent"` 這類寫法逃逸【B類 盲點·無人追蹤】
 
-- **位置**：`/Users/linjunting/Local_AI_Health_Doctor/src/kai_mind/core/services/system_map_validation_service.py:109`（另見 `:309`、`:315`）
+- **位置**：`/Users/linjunting/Systograph/src/systograph/core/services/system_map_validation_service.py:109`（另見 `:309`、`:315`）
 - **現況**
 
 ```python
@@ -163,11 +163,11 @@ allowlist 對此檔只有 `RagSystemMap` 與 `SystemMapValidationService` 兩筆
 Repo 裡已有 4 個檔案是「rg 有 hit、AST 掃不到、也不在 allowlist」的實例：
 
 ```
-src/kai_mind/cli/viewer_command.py:17        "Validate and project one ai-system-map/v1 or "
-src/kai_mind/core/models/scan.py:1           """Scanner workflow models that are not part of ai-system-map/v1."""
-src/kai_mind/core/models/viewer.py:4         # RagSystemMap。
-src/kai_mind/core/models/viewer.py:14        """Viewer projection models derived from ai-system-map/v1."""
-src/kai_mind/core/services/rag_template_service.py:117  "Allowed statuses must match ai-system-map/v1 SlotStatus"
+src/systograph/cli/viewer_command.py:17        "Validate and project one ai-system-map/v1 or "
+src/systograph/core/models/scan.py:1           """Scanner workflow models that are not part of ai-system-map/v1."""
+src/systograph/core/models/viewer.py:4         # RagSystemMap。
+src/systograph/core/models/viewer.py:14        """Viewer projection models derived from ai-system-map/v1."""
+src/systograph/core/services/rag_template_service.py:117  "Allowed statuses must match ai-system-map/v1 SlotStatus"
 ```
 
 - **判定理由**：正面消息是 `system_map.RagSystemMap`（module attribute 間接引用）與 `import ... as Legacy`（re-export/alias）**都會被抓到**，因為 `ast.Attribute.attr` 與 `ast.alias` 都有比對。但字串層一律是「整串完全相等」比對，所以任何把 legacy 值放進更長字串、f-string、拼接或動態 `getattr` 的寫法都能無聲通過 CI。上述 5 處目前只是註解／help text，屬低風險殘留；但同樣的機制無法阻擋一個真的用 `f"ai-system-map/v{n}"` 或 `getattr()` 拿到 v1 型別的新 consumer。
@@ -186,7 +186,7 @@ src/kai_mind/core/services/rag_template_service.py:117  "Allowed statuses must m
 
 | | Plan Task 5 census 指令 | 測試實際掃描 |
 | --- | --- | --- |
-| 範圍 | `rg ... src tests frontend docs` | `src/kai_mind/**/*.py`(AST) + `frontend/src/**/*.{json,ts,tsx}` + `scripts/**/*.sh` |
+| 範圍 | `rg ... src tests frontend docs` | `src/systograph/**/*.py`(AST) + `frontend/src/**/*.{json,ts,tsx}` + `scripts/**/*.sh` |
 | `schemas/` | 未列（但 Plan line 278 明列 v1 schema 為 migration-only allowlist 成員） | **未掃** |
 | `tests/` | 有 | **未掃** |
 | `docs/` | 有 | **未掃** |
@@ -253,7 +253,7 @@ scripts hits: 0
 
 ### RD-9. `unsupported_system_map_schema_version` 不是結構化 stable code，只是 message prefix【D類 文件不一致 / 契約弱化】
 
-- **位置**：`/Users/linjunting/Local_AI_Health_Doctor/src/kai_mind/core/services/canonical_map_loader.py:124`
+- **位置**：`/Users/linjunting/Systograph/src/systograph/core/services/canonical_map_loader.py:124`
 - **現況**
 
 ```python
@@ -280,7 +280,7 @@ class CanonicalOutputConfigurationError(ValueError):
 
 ### RD-10. `docs/API-GUIDE.md` 仍把 `new_extension_component` 列成可送出的 `mapping_type`【D類 文件不一致】
 
-- **位置**：`/Users/linjunting/Local_AI_Health_Doctor/docs/API-GUIDE.md:812` 與 `:838`
+- **位置**：`/Users/linjunting/Systograph/docs/API-GUIDE.md:812` 與 `:838`
 - **現況**
 
 ```
@@ -295,7 +295,7 @@ class CanonicalOutputConfigurationError(ValueError):
 但 backend 現況：
 
 ```python
-# src/kai_mind/core/models/mapping_base.py:13-15
+# src/systograph/core/models/mapping_base.py:13-15
 class ManualMappingType(StrEnum):
     EXISTING_SLOT = "existing_slot_mapping"
     NON_BASELINE_CAPABILITY_CANDIDATE = "non_baseline_capability_candidate"
@@ -326,7 +326,7 @@ class ManualMappingType(StrEnum):
 
 ### RD-11. `schemas/ai-system-map.v1.schema.json` 沒有任何 legacy/read-only 標示，但 Task 5 checkbox 已打 `[x]`【D類 文件不一致】
 
-- **位置**：`/Users/linjunting/Local_AI_Health_Doctor/schemas/ai-system-map.v1.schema.json`（全檔）
+- **位置**：`/Users/linjunting/Systograph/schemas/ai-system-map.v1.schema.json`（全檔）
 - **現況**
 
 ```
@@ -355,7 +355,7 @@ Python 端實測：
 
 ### RD-12. `static-trace-plan/README.md` 對 Plan 13 沒有任何狀態標註【D類 文件不一致】
 
-- **位置**：`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/README.md:320`
+- **位置**：`/Users/linjunting/Systograph/docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/README.md:320`
 - **現況**
 
 ```
@@ -376,7 +376,7 @@ Python 端實測：
 
 ### RD-13. `MapBuildManifest` 的 `active_schema_version` / `requested_schema_version` 預設值仍是 v1【C類 正常，經查為刻意設計】
 
-- **位置**：`/Users/linjunting/Local_AI_Health_Doctor/src/kai_mind/core/models/analysis_history.py:148-153`
+- **位置**：`/Users/linjunting/Systograph/src/systograph/core/models/analysis_history.py:148-153`
 - **現況**
 
 ```python
@@ -391,8 +391,8 @@ requested_schema_version: Literal[
 唯一 production 建構點永遠顯式傳值：
 
 ```
-src/kai_mind/core/services/build_manifest_service.py:98  MapBuildManifest(
-src/kai_mind/core/services/build_manifest_service.py:107      active_schema_version=result.active_schema_version,
+src/systograph/core/services/build_manifest_service.py:98  MapBuildManifest(
+src/systograph/core/services/build_manifest_service.py:107      active_schema_version=result.active_schema_version,
 ```
 （對比 `core/models/map_build.py:91-93`，`MapBuildResult` 三個欄位預設已是 v2。）
 
@@ -430,6 +430,6 @@ $ uv run pytest tests/integration/test_v2_active_cutover.py \
 
 ## 守門結論
 
-**allowlist gate 現在有 4 個已證實的盲點**（RD-3 enum 間接引用整檔逃逸、RD-4 裸字串名稱不比對、RD-5 substring/f-string/註解/docstring/getattr/quoted-annotation 逃逸、RD-6 `schemas/` 等目錄不在掃描範圍），其中 RD-3 的 `src/kai_mind/web/legacy_mapping_guards.py` 是唯一持有 legacy `new_extension_component` 值的 active web 檔案卻完全不在 census，屬實質漏網；
+**allowlist gate 現在有 4 個已證實的盲點**（RD-3 enum 間接引用整檔逃逸、RD-4 裸字串名稱不比對、RD-5 substring/f-string/註解/docstring/getattr/quoted-annotation 逃逸、RD-6 `schemas/` 等目錄不在掃描範圍），其中 RD-3 的 `src/systograph/web/legacy_mapping_guards.py` 是唯一持有 legacy `new_extension_component` 值的 active web 檔案卻完全不在 census，屬實質漏網；
 
 **新增 legacy 引用今天「大部分會、但不保證」被 CI 擋下**——只要新 consumer 是用直接 import、`Name`、module attribute（`system_map.RagSystemMap`）或完整字面值 `"ai-system-map/v1"`，就會立刻 fail closed（已用模擬驗證）；但若透過 enum 屬性、`getattr` 字串、f-string 拼接、substring 訊息、quoted annotation，或把檔案放在 `schemas/`、`scripts/*.py`、`frontend/` root，就會靜默通過。核心 stale/unknown 雙向 fail-closed 機制與 census 數字（35/35）、SHA-256 digest 皆真實可重現，gate 本身沒有造假，只是掃描面不足以宣稱「所有 legacy 引用都被守住」。

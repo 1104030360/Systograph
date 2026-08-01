@@ -26,16 +26,16 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
-[[ ${#KAI_EXTRA_ARGS[@]} -eq 0 ]] || kai_die "Unknown option: ${KAI_EXTRA_ARGS[*]}"
-[[ -d "$PROJECT_PATH" ]] || kai_die "Project path does not exist: $PROJECT_PATH"
-kai_bootstrap_server
+systograph_parse_common_args "$@"
+[[ ${#SYSTOGRAPH_EXTRA_ARGS[@]} -eq 0 ]] || systograph_die "Unknown option: ${SYSTOGRAPH_EXTRA_ARGS[*]}"
+[[ -d "$PROJECT_PATH" ]] || systograph_die "Project path does not exist: $PROJECT_PATH"
+systograph_bootstrap_server
 
-kai_section "匯入專案：POST /api/projects/import"
+systograph_section "匯入專案：POST /api/projects/import"
 REQUEST_BODY="$(jq -n --arg p "$PROJECT_PATH" \
   '{source_type:"local_path", project_path:$p}')"
-kai_progress "現在要匯入專案：$PROJECT_PATH"
+systograph_progress "現在要匯入專案：$PROJECT_PATH"
 api_call POST "/api/projects/import" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
 echo "project_id => $(echo "$LAST_BODY" | jq -r '.project_id')"

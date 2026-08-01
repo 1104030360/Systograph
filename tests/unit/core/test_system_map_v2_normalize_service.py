@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kai_mind.core.models.recommended_next_check import RecommendedNextCheck
-from kai_mind.core.models.scan import ProjectScanResult
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.models.recommended_next_check import RecommendedNextCheck
+from systograph.core.models.scan import ProjectScanResult
+from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
 )
-from kai_mind.core.services.system_map_v2_normalize_service import (
+from systograph.core.services.system_map_v2_normalize_service import (
     SystemMapV2NormalizeService,
 )
 

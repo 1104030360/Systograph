@@ -24,7 +24,7 @@
    - unknown emitted `rule_id` fail loudly。
    - loopback published port 仍可由 Python trigger override severity/rationale。
    - target / evidence 行為維持 Task 14 不變。
-3. 新增 `src/kai_mind/core/rules/risk_hint_rules.toml`。
+3. 新增 `src/systograph/core/rules/risk_hint_rules.toml`。
 4. 擴充 `RuleCatalogLoader`：
    - `RiskHintRuleMetadata` dataclass。
    - `load_default_risk_hint_rules()`。

@@ -19,8 +19,8 @@ project/scan/build/mapping repositories與 atomic latest-build semantics，不�
 
 - `pyproject.toml` 無 SQLAlchemy/Alembic/psycopg runtime dependencies。
 - 無 database config、ORM、migration 或 PostgreSQL tests。
-- `src/kai_mind/storage/repositories.py` 目前只有 manual mapping 的 in-memory boundary。
-- GitHub issue：[#127](https://github.com/1104030360/Local-AI-Health-Doctor/issues/127)。
+- `src/systograph/storage/repositories.py` 目前只有 manual mapping 的 in-memory boundary。
+- GitHub issue：[#127](https://github.com/1104030360/Systograph/issues/127)。
 - 官方文件查證（2026-06-18）：SQLAlchemy 2.x transaction 應優先使用 `Session.begin()` / context manager；Alembic 應使用正式 migration environment；PostgreSQL `jsonb` 只在需要查詢 metadata 時使用，不能拿來保存 raw source 或 full secret。
 
 ## Important correction
@@ -47,7 +47,7 @@ project/scan/build/mapping repositories與 atomic latest-build semantics，不�
 **Files:**
 - Modify: `pyproject.toml`
 - Modify: `uv.lock`
-- Create: `src/kai_mind/config/storage.py`
+- Create: `src/systograph/config/storage.py`
 - Test: `tests/unit/storage/test_storage_config.py`
 
 - [ ] **Step 1: Write red tests for missing/invalid database URL**
@@ -57,8 +57,8 @@ project/scan/build/mapping repositories與 atomic latest-build semantics，不�
 ### Task 2: Create ORM schema and initial migration
 
 **Files:**
-- Create: `src/kai_mind/storage/database.py`
-- Create: `src/kai_mind/storage/orm.py`
+- Create: `src/systograph/storage/database.py`
+- Create: `src/systograph/storage/orm.py`
 - Create: `alembic.ini`
 - Create: `migrations/env.py`
 - Create: `migrations/versions/0001_session_history.py`
@@ -73,8 +73,8 @@ project/scan/build/mapping repositories與 atomic latest-build semantics，不�
 ### Task 3: Implement repository adapters
 
 **Files:**
-- Create: `src/kai_mind/storage/postgres_repositories.py`
-- Modify: `src/kai_mind/storage/repositories.py`
+- Create: `src/systograph/storage/postgres_repositories.py`
+- Modify: `src/systograph/storage/repositories.py`
 - Test: `tests/integration/storage/test_postgres_repositories.py`
 
 - [ ] **Step 1: Write repository contract tests shared by in-memory and PostgreSQL adapters**
@@ -85,9 +85,9 @@ project/scan/build/mapping repositories與 atomic latest-build semantics，不�
 ### Task 4: Wire app dependency injection
 
 **Files:**
-- Modify: `src/kai_mind/web/app.py`
-- Modify: `src/kai_mind/web/dependencies.py`
-- Modify: `src/kai_mind/core/services/manual_mapping_service.py`
+- Modify: `src/systograph/web/app.py`
+- Modify: `src/systograph/web/dependencies.py`
+- Modify: `src/systograph/core/services/manual_mapping_service.py`
 - Test: `tests/web/test_storage_app_wiring.py`
 
 - [ ] **Step 1: Write tests for in-memory default and explicit PostgreSQL mode**

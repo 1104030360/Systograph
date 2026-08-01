@@ -268,7 +268,7 @@ Response:
 ```text
 Content-Type: text/markdown; charset=utf-8
 
-# KAI-Mind System Map
+# Systograph System Map
 ...
 ```
 
@@ -466,7 +466,7 @@ Response:
 ```text
 project_id + endpoint_id + query
   -> latest scanned ai_system_map
-  -> project_path/pyproject.toml [tool.kai-mind.trace] config
+  -> project_path/pyproject.toml [tool.systograph.trace] config
   -> QueryTraceService
   -> EndpointCallProvider
   -> transient TraceRunResult
@@ -523,7 +523,7 @@ Response:
 - `endpoint_id` 找不到時仍回 HTTP 200，但 body 為 `status="endpoint_not_found"`、`query_sent=false`，且不得送任何 HTTP request。
 - timeout、transport error 或 HTTP error 回 `status="partial"`，保留 `request_sent` 與 `error` event，讓 replay 可以停在失敗點。
 - `query`、response output、`retrieved_chunks` 進入 event 前必須遮蔽/摘要化；API response、CLI output、report 不保存 raw query 或 raw answer。
-- retrieved chunks 欄位預設依序讀 `retrieved_chunks`、`chunks`、`documents`。若被掃描專案的 `pyproject.toml` 提供 `[tool.kai-mind.trace] retrieved_chunks_keys`，web route 會從 project session 的 `project_path` 讀取並注入 `QueryTraceService`。
+- retrieved chunks 欄位預設依序讀 `retrieved_chunks`、`chunks`、`documents`。若被掃描專案的 `pyproject.toml` 提供 `[tool.systograph.trace] retrieved_chunks_keys`，web route 會從 project session 的 `project_path` 讀取並注入 `QueryTraceService`。
 - CLI 不從 map artifact 猜測專案位置；需要使用專案設定時必須顯式傳入 `--project-root /abs/path/to/scanned-project`。
 - `retrieved_chunks_keys` 必須是非空字串陣列；設定存在但格式錯時 fail fast，避免 trace 看似成功但漏掉 retrieved chunks。
 - Trace result 是 transient `TraceRunResult`；不得寫回 canonical `ai_system_map.query_trace_events[]`，也不得修改 `flows`、`extensions`、manual mappings 或 proposal state。
@@ -533,7 +533,7 @@ Response:
 Project config example:
 
 ```toml
-[tool.kai-mind.trace]
+[tool.systograph.trace]
 retrieved_chunks_keys = [
   "retrieved_chunks",
   "chunks",
@@ -546,7 +546,7 @@ retrieved_chunks_keys = [
 
 ## Manual Mapping Routes
 
-用途：保存使用者對 `unmapped / needs_confirmation` 元件做出的 project-level decision。這些 endpoints 只寫入 KAI-Mind-managed mapping store / repository，不直接 mutate 既有 map artifact。
+用途：保存使用者對 `unmapped / needs_confirmation` 元件做出的 project-level decision。這些 endpoints 只寫入 Systograph-managed mapping store / repository，不直接 mutate 既有 map artifact。
 
 ### GET /api/mappings
 
@@ -898,12 +898,12 @@ Response excerpt when a decision is required:
 
 ### Optional NVIDIA NIM Provider
 
-Phase 20 可注入 `NvidiaNimProposalProvider` 作為 hosted NIM adapter。它只接收 masked packet 與 schema summary，非敏感預設值由 bundled TOML `src/kai_mind/core/configs/llm_proposal.toml` 提供，例如模型 ID `google/gemma-4-31b-it` 與 endpoint `https://integrate.api.nvidia.com/v1/chat/completions`。此 adapter 是 explicit opt-in，不是 production default；必須同時設定 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` 與 `NVIDIA_API_KEY` 才會啟用。沒有 enable flag、沒有 key 或 provider 失敗時，proposal flow 必須 deterministic fallback。
+Phase 20 可注入 `NvidiaNimProposalProvider` 作為 hosted NIM adapter。它只接收 masked packet 與 schema summary，非敏感預設值由 bundled TOML `src/systograph/core/configs/llm_proposal.toml` 提供，例如模型 ID `google/gemma-4-31b-it` 與 endpoint `https://integrate.api.nvidia.com/v1/chat/completions`。此 adapter 是 explicit opt-in，不是 production default；必須同時設定 `SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS=true` 與 `NVIDIA_API_KEY` 才會啟用。沒有 enable flag、沒有 key 或 provider 失敗時，proposal flow 必須 deterministic fallback。
 
 Local development can opt in through `.env`; API key must stay in `.env` / environment variables and must not be committed:
 
 ```env
-KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true
+SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS=true
 NVIDIA_API_KEY=nvapi-...
 ```
 
@@ -923,7 +923,7 @@ NVIDIA_NIM_ENABLE_THINKING=true
 Only runtime/provider defaults belong in TOML or `.env`. Mapping proposal
 output limits, such as maximum candidate count, candidate label/rationale
 length, evidence id count, suggested edge count, and `provider_error_reason`
-length, are Pydantic schema limits in `src/kai_mind/core/models/mapping.py`;
+length, are Pydantic schema limits in `src/systograph/core/models/mapping.py`;
 they are intentionally not configurable through TOML because they are part of
 the API and safety contract.
 

@@ -71,7 +71,7 @@ candidate dependency facts 與 evidence。
 
 ### 2. GREEN：實作最小 provider
 
-- 新增 `src/kai_mind/core/providers/dependency_manifest_provider.py`。
+- 新增 `src/systograph/core/providers/dependency_manifest_provider.py`。
 - 擴充 `ParseIssue.scan_stage`，增加 `dependency_manifest_parse`。
 - 實作 manifest path 判斷。
 - 實作 safe JSON / TOML parse。
@@ -93,8 +93,8 @@ Targeted verification：
 
 ```bash
 .venv/bin/python -m pytest tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
-.venv/bin/ruff check src/kai_mind/core/models/scan.py src/kai_mind/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
-.venv/bin/mypy src/kai_mind/core/models/scan.py src/kai_mind/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
+.venv/bin/ruff check src/systograph/core/models/scan.py src/systograph/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
+.venv/bin/mypy src/systograph/core/models/scan.py src/systograph/core/providers/dependency_manifest_provider.py tests/unit/core/test_dependency_manifest_provider.py tests/integration/test_phase10_dependency_manifest_provider_behaviors.py
 ```
 
 Full verification：

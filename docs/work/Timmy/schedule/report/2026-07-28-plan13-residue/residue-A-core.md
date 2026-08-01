@@ -8,17 +8,17 @@ READ-ONLY 稽核。無任何檔案被修改。
 
 ### RA-1. 正常 build path 不只 import v1 producer，還在每次建構時**急切實例化**整個 v1 物件圖並讀 v1-only 規則檔【A類】
 
-- **位置**：`src/kai_mind/core/services/map_build_service.py:56-58`、`:79-81`、`:151-162`
+- **位置**：`src/systograph/core/services/map_build_service.py:56-58`、`:79-81`、`:151-162`
 
 - **現況**（真實 code）
 
 ```python
 # map_build_service.py:56-58 / 79-81（module-level import）
-from kai_mind.core.services.legacy_v1_rollback_service import (
+from systograph.core.services.legacy_v1_rollback_service import (
     LegacyV1RollbackService,
 )
 ...
-from kai_mind.core.services.system_map_materialization_service import (
+from systograph.core.services.system_map_materialization_service import (
     SystemMapMaterializationService,
 )
 
@@ -39,15 +39,15 @@ rollback_service = (
 runtime import 探測（正常 v2 模式，未設任何 env）：
 
 ```
-$ .venv/bin/python -c "import kai_mind.core.services.map_build_service"
+$ .venv/bin/python -c "import systograph.core.services.map_build_service"
 modules pulled in by importing map_build_service:
-   kai_mind.core.models.system_map              <- v1 model 本體
-   kai_mind.core.services.legacy_v1_rollback_service
-   kai_mind.core.services.system_map_materialization_service
-   kai_mind.core.services.system_map_normalize_service
-   kai_mind.core.services.system_map_validation_service
-   kai_mind.core.services.system_map_v1_to_v2_adapter
-   kai_mind.core.services.viewer_legacy_compatibility
+   systograph.core.models.system_map              <- v1 model 本體
+   systograph.core.services.legacy_v1_rollback_service
+   systograph.core.services.system_map_materialization_service
+   systograph.core.services.system_map_normalize_service
+   systograph.core.services.system_map_validation_service
+   systograph.core.services.system_map_v1_to_v2_adapter
+   systograph.core.services.viewer_legacy_compatibility
 RagSystemMap reachable from map_build_service namespace? True
 ```
 
@@ -97,7 +97,7 @@ DetailScan 都經它），它 module-level import 了 operator rollback serializ
 
 ### RA-2. `MapBuildManifest` 的 `active_schema_version` / `requested_schema_version` 預設值切換後仍是 `ai-system-map/v1`【A類】
 
-- **位置**：`src/kai_mind/core/models/analysis_history.py:148-153`
+- **位置**：`src/systograph/core/models/analysis_history.py:148-153`
 
 - **現況**
 
@@ -158,7 +158,7 @@ BuildArtifactLoadError`——任何漏傳欄位的 manifest writer 會產生「b
 
 ### RA-3. `SystemMapNormalizeService` module docstring 仍自稱 "the active v1 writer"，並要求「Plan 13 前不要切」【D類】
 
-- **位置**：`src/kai_mind/core/services/system_map_normalize_service.py:1-6`
+- **位置**：`src/systograph/core/services/system_map_normalize_service.py:1-6`
 
 - **現況**
 
@@ -177,7 +177,7 @@ allowlist 已把同一檔案的兩筆 hit 分類為 `operator_rollback`：
 
 ```python
 # tests/contracts/test_v2_cutover_consumer_allowlist.py:201-212
-path="src/kai_mind/core/services/system_map_normalize_service.py",
+path="src/systograph/core/services/system_map_normalize_service.py",
 symbol="RagSystemMap",  classification="operator_rollback",
 removal_plan="Plan 15 removes the isolated rollback normalizer.",
 ```
@@ -199,9 +199,9 @@ removal_plan="Plan 15 removes the isolated rollback normalizer.",
 
 ### RA-4. `RecommendedNextCheckService` 與 `recommended_next_check_rules.toml` 事實上已降級為 rollback-only，正常 v2 build 的 `recommended_next_checks` 恆為空，但無人標示、無人追蹤【B類】
 
-- **位置**：`src/kai_mind/core/services/system_map_normalize_service.py:91-264`（`RecommendedNextCheckService`）、
-  `src/kai_mind/core/services/viewer_session_service.py:111-124`、
-  `src/kai_mind/core/services/viewer_legacy_compatibility.py:31-43`
+- **位置**：`src/systograph/core/services/system_map_normalize_service.py:91-264`（`RecommendedNextCheckService`）、
+  `src/systograph/core/services/viewer_session_service.py:111-124`、
+  `src/systograph/core/services/viewer_legacy_compatibility.py:31-43`
 
 - **現況**
 
@@ -269,7 +269,7 @@ Plan 13 census baseline 對 `Extension detection/materialization` 那列只講 e
 
 ### RA-5. `ViewerSessionService.build()` / `project_to_graph()` 是 v1-typed public API、production 零 caller、責任註解全部過時【B類 + D類】
 
-- **位置**：`src/kai_mind/core/services/viewer_session_service.py:149-196`
+- **位置**：`src/systograph/core/services/viewer_session_service.py:149-196`
 
 - **現況**
 
@@ -295,9 +295,9 @@ Plan 13 census baseline 對 `Extension detection/materialization` 那列只講 e
 
 ```
 $ grep -rn "\.build_loaded(\|\.build_canonical(\|\.project_to_graph(" src tests
-src/kai_mind/core/services/build_manifest_service.py:166:  self._viewer.build_loaded(...)
-src/kai_mind/core/services/build_artifact_publisher.py:129: self._projection.build_canonical(...)
-src/kai_mind/web/routes/detail_scan_routes.py:187:          viewer_service.build_canonical(...)
+src/systograph/core/services/build_manifest_service.py:166:  self._viewer.build_loaded(...)
+src/systograph/core/services/build_artifact_publisher.py:129: self._projection.build_canonical(...)
+src/systograph/web/routes/detail_scan_routes.py:187:          viewer_service.build_canonical(...)
 tests/unit/core/test_viewer_session_service.py:268/299:    ViewerSessionService().project_to_graph(...)
 tests/unit/core/test_viewer_session_service.py:334/411:    ViewerSessionService().build(...)
 ```
@@ -326,7 +326,7 @@ removal_plan「Plan 15 removes the legacy Viewer reload input」）把它當成�
 
 ### RA-6. `materialize_existing_map` 的 rollback 分支：`require_representable` 的結果被丟棄，之後無條件 raise 同一個 error code【B類】
 
-- **位置**：`src/kai_mind/core/services/map_build_pipeline.py:174-180`
+- **位置**：`src/systograph/core/services/map_build_pipeline.py:174-180`
 
 - **現況**
 
@@ -381,7 +381,7 @@ Plan 13 Rollback contract：「Rollback preflight 只允許可由 legacy contrac
 
 ### RA-7. rollback-only 的 v1 materializer / validator 檔案**完全沒有** legacy 標示，且非限定命名是誤用陷阱【D類 + B類】
 
-- **位置**：`src/kai_mind/core/services/system_map_materialization_service.py:1-38`
+- **位置**：`src/systograph/core/services/system_map_materialization_service.py:1-38`
 
 - **現況**
 
@@ -430,16 +430,16 @@ operator rollback serializer 的組裝點，沒有任何標示，checkbox 與 co
 
 ### RA-8. v1 module `system_map.py` 同時是 active v2 path 的共用 DTO 來源；census 只看得到 3 個 symbol，Plan 15 依字面無法刪除【B類】
 
-- **位置**：`src/kai_mind/core/models/system_map.py`（整檔）、`src/kai_mind/core/models/ai_system_map_v2.py:30`
+- **位置**：`src/systograph/core/models/system_map.py`（整檔）、`src/systograph/core/models/ai_system_map_v2.py:30`
 
 - **現況**
 
 ```python
 # ai_system_map_v2.py:30 —— v2 canonical model 直接 import v1 module 的型別
-from kai_mind.core.models.system_map import Evidence
+from systograph.core.models.system_map import Evidence
 ```
 
-正常 v2 path 對 `system_map.py` 的實際依賴（`grep "from kai_mind.core.models.system_map import"`）：
+正常 v2 path 對 `system_map.py` 的實際依賴（`grep "from systograph.core.models.system_map import"`）：
 
 | 匯入者 | 匯入的 v1 型別 |
 | --- | --- |
@@ -505,7 +505,7 @@ Plan 15 的 ownership 是「移除…不再需要的 fixtures；將 dual-read �
 
 ### RA-9. `ai_system_map_v2.py` 的 Compatibility/Generic 過渡型別群只被 adapter 使用，但 allowlist 的 removal_plan 只提「provenance literal」【B類】
 
-- **位置**：`src/kai_mind/core/models/ai_system_map_v2.py:121-286`（含題目點名的 `:156`、`:269`）
+- **位置**：`src/systograph/core/models/ai_system_map_v2.py:121-286`（含題目點名的 `:156`、`:269`）
 
 - **現況**（題目指定的兩段註解）
 
@@ -562,8 +562,8 @@ removal_plan「Remove provenance literal after v1 read support ends.」）。
 
 ### RA-10. `SLOT_LAYER_BY_ID` 在 active v2 normalizer 與 migration-only adapter 各有一份逐字相同的複本【B類】
 
-- **位置**：`src/kai_mind/core/services/system_map_v2_normalize_service.py:31-45`
-  ／ `src/kai_mind/core/services/system_map_v1_to_v2_adapter.py:55-69`
+- **位置**：`src/systograph/core/services/system_map_v2_normalize_service.py:31-45`
+  ／ `src/systograph/core/services/system_map_v1_to_v2_adapter.py:55-69`
 
 - **現況**：兩份 13 個 legacy slot → `CompatibilityLayer` 的對照表完全相同
   （`app_api_or_orchestrator: control` … `observability: governance_observability`），
@@ -590,8 +590,8 @@ removal_plan「Remove provenance literal after v1 read support ends.」）。
 
 ### RA-11. 正常 v2 producer 仍以 `rag-core-v1` 的 13 個 slot 為 assembly blueprint，並把 `required_for_rag` 寫進 canonical component metadata【D類】
 
-- **位置**：`src/kai_mind/core/services/system_map_v2_materialization_service.py:78`、
-  `src/kai_mind/core/services/system_map_v2_normalize_service.py:31-45`、`:127-131`
+- **位置**：`src/systograph/core/services/system_map_v2_materialization_service.py:78`、
+  `src/systograph/core/services/system_map_v2_normalize_service.py:31-45`、`:127-131`
 
 - **現況**
 
@@ -652,7 +652,7 @@ Task 3 的措辭「`rag-core-v1` 只保留為 legacy input grounding 或 operato
 
 ### RA-12. `models/viewer.py` docstring 仍寫「derived from ai-system-map/v1」【D類】
 
-- **位置**：`src/kai_mind/core/models/viewer.py:1-4`、`:14`
+- **位置**：`src/systograph/core/models/viewer.py:1-4`、`:14`
 
 - **現況**
 
@@ -681,7 +681,7 @@ Task 3 的措辭「`rag-core-v1` 只保留為 legacy input grounding 或 operato
 
 ### RA-13. `POST /api/scans` 的 public v1 拒絕發生在**完整 scan + 已持久化 snapshot 之後**，且僅靠 broad `except ValueError` 轉 422【B類】
 
-- **位置**：`src/kai_mind/web/routes/scan_routes.py:276-313`、`:336-337`
+- **位置**：`src/systograph/web/routes/scan_routes.py:276-313`、`:336-337`
 
 - **現況**
 
@@ -765,22 +765,22 @@ tests/integration/test_v2_active_cutover.py       <- 唯一
 
 ## C類：合法保留，逐條一句話
 
-- `src/kai_mind/core/services/canonical_map_loader.py` — **「唯一 schema dispatch owner」宣稱驗證通過**：
+- `src/systograph/core/services/canonical_map_loader.py` — **「唯一 schema dispatch owner」宣稱驗證通過**：
   `grep 'schema_version ==|in |!=|\.get("schema_version")|\["schema_version"\]'` 在 `src/` 只命中
   loader 本身（`:118-125`）、`legacy_v1_rollback_service.py:84`（rollback preflight，operator boundary 內）、
   以及 `build_manifest_service.py:134` / `build_manifest_artifacts.py:66,151,180`
   （比對 manifest badge vs artifact，是 fail-closed 一致性檢查而非 shape 猜測）——**沒有** route/renderer/viewer 自行 dispatch。
-- `src/kai_mind/core/services/canonical_output_configuration.py` — **rollback 預設關閉驗證通過**：
+- `src/systograph/core/services/canonical_output_configuration.py` — **rollback 預設關閉驗證通過**：
   `:21` 缺省 `"ai-system-map/v2"`，`:22-25` 非法值 raise `invalid_canonical_output_version`；
   composition root `web/app.py:138` 是 `create_app()` 的**第一行**（測試
   `test_v2_active_cutover.py:153 test_invalid_operator_version_prevents_app_startup` 覆蓋），
   CLI 由 `map_command.py:72-79` catch 並 exit 1；`tests/unit/core/test_canonical_output_configuration.py`
   釘住 default=v2 / v1 可設 / bogus fail / public v1 拒絕四種情形。
-- `src/kai_mind/core/services/system_map_v1_to_v2_adapter.py` — allowlist `migration_only` 三筆分類正確；
+- `src/systograph/core/services/system_map_v1_to_v2_adapter.py` — allowlist `migration_only` 三筆分類正確；
   只被 `CanonicalMapLoader._load_v1` 呼叫，normal path 不可達。
-- `src/kai_mind/core/services/system_map_validation_service.py` — 維持純 v1 validator，未擴張成第二個 dispatcher
+- `src/systograph/core/services/system_map_validation_service.py` — 維持純 v1 validator，未擴張成第二個 dispatcher
   （`validate()` 只接受 v1 shape），符合 Plan 13 Task 2 最後一條。
-- `src/kai_mind/core/services/viewer_legacy_compatibility.py` — 確實是 no-I/O module
+- `src/systograph/core/services/viewer_legacy_compatibility.py` — 確實是 no-I/O module
   （只有 `RagSystemMap` → `GraphViewModel` 的純函式，無檔案/網路存取），Stage A 宣稱屬實。
 - `models/profile_signal.py:201`、`models/readiness_report.py:56` 的
   `source_schema_version: Literal["ai-system-map/v1","ai-system-map/v2"]` — 純 provenance；
@@ -823,7 +823,7 @@ tests/integration/test_v2_active_cutover.py       <- 唯一
 
 ```
 CLI map_command / Web map_routes / scan_routes / ApplyConfirmations / DetailScanBuild
-  └─> MapBuildService.__init__            [src/kai_mind/core/services/map_build_service.py]
+  └─> MapBuildService.__init__            [src/systograph/core/services/map_build_service.py]
         ├─ (module import, 無條件)
         │    ├─ legacy_v1_rollback_service        :56   ← operator_rollback
         │    └─ system_map_materialization_service :79   ← operator_rollback

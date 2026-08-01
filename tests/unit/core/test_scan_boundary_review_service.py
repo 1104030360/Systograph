@@ -2,21 +2,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kai_mind.core.models.filesystem import (
+from systograph.core.models.filesystem import (
     FileInventory,
     FileInventorySource,
     FileRecord,
     SkippedFile,
     SkipReason,
 )
-from kai_mind.core.models.scan_boundary import (
+from systograph.core.models.scan_boundary import (
     ScanBoundaryDecisionAction,
     ScanBoundaryDecisionRequest,
     ScanBoundaryProposalStatus,
 )
-from kai_mind.core.models.system_map import Evidence
-from kai_mind.core.providers.filesystem_provider import FilesystemProvider
-from kai_mind.core.services.scan_boundary_review_service import (
+from systograph.core.models.system_map import Evidence
+from systograph.core.providers.filesystem_provider import FilesystemProvider
+from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.viewer import (
+from systograph.core.models.viewer import (
     GraphDetailsModel,
     GraphEndpointModel,
     GraphFiltersModel,
@@ -14,19 +14,19 @@ from kai_mind.core.models.viewer import (
     GraphRecommendedNextCheckModel,
     GraphViewModel,
 )
-from kai_mind.core.services.graph_markdown_renderer import (
+from systograph.core.services.graph_markdown_renderer import (
     GraphMarkdownRenderer,
 )
-from kai_mind.core.services.graph_mermaid_renderer import (
+from systograph.core.services.graph_mermaid_renderer import (
     GraphMermaidRenderer,
 )
-from kai_mind.core.services.graph_projection_service import (
+from systograph.core.services.graph_projection_service import (
     GraphProjectionService,
 )
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.system_map_v2_validation_service import (
+from systograph.core.services.system_map_v2_validation_service import (
     SystemMapV2ValidationService,
 )
 
@@ -38,11 +38,11 @@ V2_FIXTURE_DIR = V2_FIXTURE.parent
     ("module_name", "type_name"),
     [
         (
-            "kai_mind.core.services.graph_mermaid_renderer",
+            "systograph.core.services.graph_mermaid_renderer",
             "GraphMermaidRenderer",
         ),
         (
-            "kai_mind.core.services.graph_markdown_renderer",
+            "systograph.core.services.graph_markdown_renderer",
             "GraphMarkdownRenderer",
         ),
     ],

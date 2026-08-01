@@ -8,11 +8,11 @@ from typing import Any
 import httpx
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import CanonicalEndpoint
-from kai_mind.core.providers.endpoint_call_provider import (
+from systograph.core.models.ai_system_map_v2 import CanonicalEndpoint
+from systograph.core.providers.endpoint_call_provider import (
     EndpointCallProvider,
 )
-from kai_mind.core.security.egress_policy import (
+from systograph.core.security.egress_policy import (
     EgressDecision,
     EgressPolicy,
     IPAddress,

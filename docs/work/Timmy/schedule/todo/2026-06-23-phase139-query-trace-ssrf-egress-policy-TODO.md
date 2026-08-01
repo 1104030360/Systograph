@@ -34,7 +34,7 @@
 
 ### 步驟
 
-1. 建立 `src/kai_mind/core/security/__init__.py`。
+1. 建立 `src/systograph/core/security/__init__.py`。
 2. 建立 `egress_policy.py` 的 config、decision、reason 與 resolver abstraction。
 3. 實作 URL normalization、port normalization、DNS resolve 與 IP classification。
 4. 逐步執行單元測試完成 RED → GREEN → REFACTOR。

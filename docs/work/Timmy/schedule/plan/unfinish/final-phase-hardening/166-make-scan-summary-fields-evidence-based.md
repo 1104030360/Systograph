@@ -6,7 +6,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/166
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/166
 
 **Goal:** 修正 `not_configured_slots` 恆為 0 與 `secret_masking_applied` 以字串啟發式推論造成的 scan summary 語意失真。
 
@@ -20,7 +20,7 @@
 
 - GitHub issue #166, assignee Timmy.
 - Origin: Backend findings L-9.
-- Primary file: `src/kai_mind/core/services/system_map_normalize_service.py`.
+- Primary file: `src/systograph/core/services/system_map_normalize_service.py`.
 - Related plans: #138 secret masking, #154 independent secret validation, #158 API error shape docs.
 
 ### Task 1: Add summary contract tests
@@ -36,8 +36,8 @@
 ### Task 2: Define evidence-based semantics
 
 **Files:**
-- Modify: `src/kai_mind/core/models/system_map.py` if field semantics need doc updates
-- Modify: `src/kai_mind/core/services/system_map_normalize_service.py`
+- Modify: `src/systograph/core/models/system_map.py` if field semantics need doc updates
+- Modify: `src/systograph/core/services/system_map_normalize_service.py`
 - Modify: `schemas/ai-system-map.v1.schema.json` only if schema contract changes
 
 - [ ] **Step 1: Decide whether `not_configured_slots` is computed or removed/deprecated**

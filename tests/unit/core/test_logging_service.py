@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Protocol, cast
 
-from kai_mind.core.services.logging_service import safe_log_event
+from systograph.core.services.logging_service import safe_log_event
 
 
 class StructuredLogRecord(Protocol):

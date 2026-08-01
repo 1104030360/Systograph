@@ -40,14 +40,14 @@ target，不得把 planned modules、mock samples 或文件 claim 寫成已實�
 >
 > **為什麼 Step 3 要 Phase A / B / C（分三階段上線）？** 若一次把主掃描器換成 UA，Step 1～9、
 > `ScanSnapshot`、Apply、持久化與 Gate 驗收會同時賭在 Node runtime、adapter 正確性與 facts
-> 差異上，回歸面太大。**Phase A** 先用已存在的 KAI TOML 掃描跑通整條 pipeline 與 Apply（Gate-1），
+> 差異上，回歸面太大。**Phase A** 先用已存在的 Systograph TOML 掃描跑通整條 pipeline 與 Apply（Gate-1），
 > 證明 `ua_analysis_result=null` 也能完成 build。**Phase B** 才把 UA 結構分析升為主掃描，
 > 舊 TOML 只跑 parity 對照，用真實 repo / fixture 驗 diff（Plan 14 前）。**Phase C** 對照通過後
 > （Plan 18）退役主掃描 TOML，只留 UA，避免長期維護兩套 primary facts。
 
 | 決策面 | 2026-07-07 定案（白話） |
 |---|---|
-| Step 3 scanner | **分三階段上線（理由見上）：** ① **Phase A** 先用現有 KAI TOML 規則掃描，把 initial scan 的 Step 1～7 publish + Step 8 viewer 跑通，Step 9 decision 與 Apply B1→B2 另由 Apply path 驗證，兩段合起來才是 **Gate-1**（2026-07-28 依 §20 cutover gates 第 6 條與 `static-trace-plan/README.md` Gate 表統一拆法；原定案文字為「把 Step 1～9 + Apply 跑通」，決策本身未變，只拆清 initial scan 不必跑 Step 9）；② **Phase B** 改由 `UnderstandAnythingAnalysisService` 呼叫 **UA 外部分析**當主掃描，舊 KAI 規則只跑 **parity 對照**；③ **Phase C**（**Plan 14** 通過後 **Plan 18**）舊主掃描規則退役，**只留 UA**。 |
+| Step 3 scanner | **分三階段上線（理由見上）：** ① **Phase A** 先用現有 Systograph TOML 規則掃描，把 initial scan 的 Step 1～7 publish + Step 8 viewer 跑通，Step 9 decision 與 Apply B1→B2 另由 Apply path 驗證，兩段合起來才是 **Gate-1**（2026-07-28 依 §20 cutover gates 第 6 條與 `static-trace-plan/README.md` Gate 表統一拆法；原定案文字為「把 Step 1～9 + Apply 跑通」，決策本身未變，只拆清 initial scan 不必跑 Step 9）；② **Phase B** 改由 `UnderstandAnythingAnalysisService` 呼叫 **UA 外部分析**當主掃描，舊 Systograph 規則只跑 **parity 對照**；③ **Phase C**（**Plan 14** 通過後 **Plan 18**）舊主掃描規則退役，**只留 UA**。 |
 | UA 採用範圍 | Phase2 **只用 UA 的結構分析**（`extract-import-map` → `compute-batches` → `extract-structure`），**不用 LLM 猜語意**。不跑 `scan-project.mjs`；語言 / `fileCategory` / 行數改在 **Step 2 inventory** 補。不跑 `file-analyzer`；`ua-analysis-result.json` 的 semantic 欄位 **可留空（nullable deferred）**。 |
 | Step 6 assessment | 能力 **五態只用 Python 規則**（`ProfileInferenceService`），不用 AI 編排。Plan 17 / `AssessmentOrchestrator` **先不做**，不擋 Plan 14。**五態只能 Python 定案**；`detected` **必須有 direct evidence**。 |
 | Apply / Rescan | **Apply：** 不重掃 repo、不重跑 UA；**同一個 `scan_id`**，重放 `ScanSnapshot.scan_result` 的 facts/evidence，從 Step 4 重算 → **新 `build_id`**。UA 原始 JSON（`ua-analysis-result`）**不變、Phase2 不讀**。**Rescan：** 新 `scan_id`；Phase B/C 會再跑 UA。 |
@@ -62,7 +62,7 @@ target，不得把 planned modules、mock samples 或文件 claim 寫成已實�
 3. `docs/MODEL-CONTRACT.md` / `docs/API-GUIDE.md` 的 superseding sections；
 4. `docs/work/Timmy/schedule/plan/unfinish/phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md`
    的 Step 1～9 pipeline 邊界與 2026-07-07 同日修訂決策（視覺 source of truth）；
-5. `ref-opensource/kai-mind-understand-anything-integration-boundary.md` 的 2026-07-07 Accepted UA
+5. `ref-opensource/systograph-understand-anything-integration-boundary.md` 的 2026-07-07 Accepted UA
    整合決策（其 Step 6 `AssessmentOrchestrator` / semantic candidate 段落已被第 4 項同日修訂取代）；
 6. `phase2/capability-map-assessment-decision-summary.md` 與 Phase2 indexes；
 7. Phase2 個別 plan 中日期較新且明確標示 confirmed / superseding 的內容；
@@ -178,7 +178,7 @@ Non-Goals：
 Current backend 可確認狀態：
 
 - Canonical model/schema 仍是 `ai-system-map/v1`：
-  - `src/kai_mind/core/models/system_map.py` 定義 `RagSystemMap`、`SCHEMA_VERSION =
+  - `src/systograph/core/models/system_map.py` 定義 `RagSystemMap`、`SCHEMA_VERSION =
     "ai-system-map/v1"`、`SystemType = "rag"`。
   - `schemas/ai-system-map.v1.schema.json` 是目前 checked-in schema。
   - `tests/integration/test_map_build_service.py` 驗證 current output schema version 是 v1。
@@ -277,7 +277,7 @@ Step ownership：
 |---|---|---|---|---|
 | Import | project registry service | local path | `project_id` | 不修改 target repo |
 | Boundary gate | scan boundary service + Plan `19` inventory rules（metadata） | inventory + same-run decisions | continue / proposals | unresolved gate 不跑 providers |
-| Step 3 Scan | Phase A existing KAI providers；Phase B `UnderstandAnythingAnalysisService` + UA structural adapter；Phase C UA-only | Step 2 allowlisted inventory | bounded facts + evidence + issues；reserved nullable semantic sidecar slot | 不寫 plane/profile/canonical verdict；Phase2 active path 不產生、不消費 semantic sidecar |
+| Step 3 Scan | Phase A existing Systograph providers；Phase B `UnderstandAnythingAnalysisService` + UA structural adapter；Phase C UA-only | Step 2 allowlisted inventory | bounded facts + evidence + issues；reserved nullable semantic sidecar slot | 不寫 plane/profile/canonical verdict；Phase2 active path 不產生、不消費 semantic sidecar |
 | Step 4 Bridge 1 | Python component bridge + `SystemMapNormalizeService` / `SystemMapValidationService` | rule id + evidence + replayed mappings | validated `ai_system_map.json` + repo component / unmapped / candidate input | 不做 reference node assessment |
 | Step 5 Index | `SystemMapIndex` | validated v2 map | read-only lookup | 不 validate、不 infer、不 project |
 | Step 6 Assessment | Python `ProfileInferenceService` + readiness services + static execution（`dynamic/00`） | map + index + catalogs + confirmed non-baseline candidates | `profile_signals.json`（含 52 格 `reference_capability_assessments`）+ readiness + static execution artifacts | 純 deterministic；Phase2 active path 不產生、不讀取 UA semantic sidecar；不 mutate canonical map |
@@ -297,7 +297,7 @@ Step ownership：
 > 兩邊不一致時以該文件為準並回填本節。
 >
 > 圖示為 Phase2 target 狀態（Phase B/C UA-primary）。Phase A 的 TOML-primary 過渡期
-> Step 3 改由現有 KAI scan TOML providers 提供 primary facts（見 §7.3），圖中 UA 節點
+> Step 3 改由現有 Systograph scan TOML providers 提供 primary facts（見 §7.3），圖中 UA 節點
 > 在 Phase A 不存在、`sidecar=null`。
 >
 > 名詞對照：圖中「系統地圖」= `ai_system_map.json`（canonical）、「能力底圖」=
@@ -597,7 +597,7 @@ Understand-Anything 另行決定掃描邊界。
 
 Step 3 依序採三階段切換：
 
-1. **Phase A — TOML primary：** 現有 KAI scan TOML providers 先打通 Step 1～9、
+1. **Phase A — TOML primary：** 現有 Systograph scan TOML providers 先打通 Step 1～9、
    deterministic assessment 與 Apply。此階段 `ua_analysis_result=null` 必須可完成 build / Apply。
    （此處的「Step 1～9」是 Phase A 的**交付範圍**，不是 Gate-1 的驗收拆法——Gate-1 只要求
    initial scan 驗 Step 1～7 + Step 8 viewer，Step 9 decision 由 Apply path 另驗；
@@ -621,14 +621,14 @@ FileInventory（Step 2 已核准 + enrichment）
        -> ua-analysis-result.json nullable deferred sidecar
   -> UA structural adapter：facts / evidence / issues
   -> semantic sidecar：reserved nullable internal sidecar（Phase2 不產生、不消費）
-  -> 過渡期 KAI matching providers 並跑 parity（Plan 14 通過後由 Plan 18 退主掃描）
+  -> 過渡期 Systograph matching providers 並跑 parity（Plan 14 通過後由 Plan 18 退主掃描）
 ```
 
 Scanner 只產生 bounded facts、evidence、issues、skipped summaries：
 
 - location 使用 project-relative POSIX path、symbol、line range、config key 或 JSON pointer；
 - raw source、raw secret、unmanaged absolute path 不進 artifact；
-- Phase A 由 KAI TOML providers 提供 primary facts；Phase B/C 才由 UA structural result 提供 primary facts；
+- Phase A 由 Systograph TOML providers 提供 primary facts；Phase B/C 才由 UA structural result 提供 primary facts；
 - Phase B/C 的 UA schema 不合法、Node runtime 缺失或必要 batch 失敗時 fail-closed，不建立可進 Step 4 的 immutable scan；Phase A 的 nullable sidecar 不屬於 failure。
 
 Two-Phase Analysis：**Phase2 active path 只執行第一階段** deterministic structural facts。
@@ -811,7 +811,7 @@ Python / TOML ownership：
 
 - Python owns executable semantics: matching, bridge, five-state inference, activation inference,
   coverage gates, conflicts, weights, validation and lifecycle actions.
-- Phase A KAI providers own primary scan facts；Phase B/C UA structural adapter owns primary scan
+- Phase A Systograph providers own primary scan facts；Phase B/C UA structural adapter owns primary scan
   `rule_id` mapping，且 TOML providers 只在 Phase B 暫時並跑 parity。
 - Step 6/7 metadata TOML may define ids, labels, order, legend wording, activation applicability,
   uncertainty text and recommended next checks only.
@@ -947,7 +947,7 @@ Phase2 **先把儲存怎麼讀寫定成介面**（`ProjectRepository`、`ScanSna
 `MapBuildRepository`、`ManualMappingRepository` 等），**現在**用本機 JSON 實作；**以後**若要
 PostgreSQL / SQLite，只換 adapter，業務層與 API 不改。
 
-**會存什麼（預設 `~/.kai-mind/projects/{project_id}/`）：**
+**會存什麼（預設 `~/.systograph/projects/{project_id}/`）：**
 
 - 專案登記與路徑指紋（`project.json`、`canonical_path_digest`）；
 - 不可變的 scan 快照（`scans/{scan_id}/snapshot.json`）；
@@ -1174,7 +1174,7 @@ Current vs target matrix：
 | Project import | process-local `project_id`, raw path response | stable digest-backed project registry, no raw path in artifacts | Partially implemented |
 | Scan identity | durable `scan_id` + immutable local snapshot | `scan_id` is the immutable scan snapshot identity | Implemented |
 | Build identity | immutable `build_id` + lineage + latest revision pointer | immutable `Build` + latest pointer | Implemented |
-| Persistence | repository protocols + atomic local JSON（`${KAI_MIND_STATE_DIR:-~/.kai-mind}`） | 本機 JSON；將來可換 DB adapter | Implemented |
+| Persistence | repository protocols + atomic local JSON（`${SYSTOGRAPH_STATE_DIR:-~/.systograph}`） | 本機 JSON；將來可換 DB adapter | Implemented |
 | Mapping repository | durable confirmed/rejected/skipped/not-applicable decisions | durable decisions with review audit | Implemented |
 | Proposal | bounded packet and candidate lifecycle exists | source-build scoped proposal + stable Apply integration | Partially implemented |
 | Detail scan | optional body `build_id`，產生 immutable child build | path-scoped alias 可後續補上 | Implemented core |
@@ -1227,7 +1227,7 @@ Repository policy and prompt rules：
 - `/Users/linjunting/.codex/prompts/65-database-api-schema-changes.md`
 - `/Users/linjunting/.codex/agents/rules/agent-shared-research-verification.md`
 - `docs/spec/prompts/4.design_prompt.md`
-- `ref-opensource/kai-mind-understand-anything-integration-boundary.md`
+- `ref-opensource/systograph-understand-anything-integration-boundary.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md`
 
 Spec inputs：
@@ -1291,7 +1291,7 @@ Phase2 plan folder：
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/15-complete-legacy-v1-retirement-after-compatibility.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/16-implement-understand-anything-sidecar-service.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/17-implement-assessment-orchestrator-candidate-flow.md`（deferred）
-- `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/18-retire-kai-scan-toml-providers-after-parity.md`
+- `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/18-retire-systograph-scan-toml-providers-after-parity.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/19-add-scan-inventory-rules-toml.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/dynamic-trace-plan/README.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/dynamic-trace-plan/00-implement-static-call-graph-and-execution-path-mvp.md`
@@ -1299,18 +1299,18 @@ Phase2 plan folder：
 
 Current repo truth：
 
-- `src/kai_mind/core/models/system_map.py`
-- `src/kai_mind/core/models/map_build.py`
-- `src/kai_mind/core/models/mapping.py`
-- `src/kai_mind/core/models/scan.py`
-- `src/kai_mind/core/models/trace.py`
-- `src/kai_mind/core/models/viewer.py`
-- `src/kai_mind/core/providers/`
-- `src/kai_mind/core/services/`
-- `src/kai_mind/storage/repositories.py`
-- `src/kai_mind/web/schemas.py`
-- `src/kai_mind/web/session_store.py`
-- `src/kai_mind/web/routes/`
+- `src/systograph/core/models/system_map.py`
+- `src/systograph/core/models/map_build.py`
+- `src/systograph/core/models/mapping.py`
+- `src/systograph/core/models/scan.py`
+- `src/systograph/core/models/trace.py`
+- `src/systograph/core/models/viewer.py`
+- `src/systograph/core/providers/`
+- `src/systograph/core/services/`
+- `src/systograph/storage/repositories.py`
+- `src/systograph/web/schemas.py`
+- `src/systograph/web/session_store.py`
+- `src/systograph/web/routes/`
 - `schemas/ai-system-map.v1.schema.json`
 - `tests/contracts/`
 - `tests/unit/core/`

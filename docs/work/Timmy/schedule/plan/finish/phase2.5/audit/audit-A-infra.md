@@ -1,6 +1,6 @@
 # Audit A — web 基礎設施層現況稽核（READ-ONLY）
 
-**分區**：`src/kai_mind/web/app.py`、`middleware.py`、`session_store.py`、`web/__init__.py`、`web/routes/__init__.py`
+**分區**：`src/systograph/web/app.py`、`middleware.py`、`session_store.py`、`web/__init__.py`、`web/routes/__init__.py`
 **日期**：2026-07-27　**Repo 未被修改**（`git status` 與稽核前一致）
 
 ## 與 Plan 1 的關係
@@ -41,7 +41,7 @@ CORSMiddleware          <- create_app() 手動包的最外層
 
 ### A-1. `RequestSizeLimitMiddleware` 遇到 `http.disconnect` 會無窮迴圈，並且完全餓死 event loop
 
-- **位置**：`src/kai_mind/web/middleware.py:47-68`
+- **位置**：`src/systograph/web/middleware.py:47-68`
 
 - **現況**
 
@@ -78,7 +78,7 @@ buffered list would hold 200001 messages -> unbounded growth
 
 - **建議改法**
 
-  `src/kai_mind/web/middleware.py`，`RequestSizeLimitMiddleware.__call__`：
+  `src/systograph/web/middleware.py`，`RequestSizeLimitMiddleware.__call__`：
 
   1. 迴圈內加終止條件：
      ```python
@@ -91,8 +91,8 @@ buffered list would hold 200001 messages -> unbounded growth
   3. 更根本的做法是不要自己實作：改用 `starlette.middleware.base.BaseHTTPMiddleware` 或直接在 `_ReplayReceive` 裡做 lazy 計數（邊轉發邊累加，超過就送 413），不需要先全部讀進 `buffered`。
 
 - **影響面**
-  - `src/kai_mind/web/app.py:240-243`（唯一掛載點）
-  - 所有 POST/PATCH 路由：`src/kai_mind/web/routes/map_routes.py:23`、`map_build_routes.py`、`detail_scan_routes.py`、`scan_routes.py`、`mapping_routes.py`、`mapping_proposal_routes.py`、`trace_routes.py`、`viewer_routes.py:20`
+  - `src/systograph/web/app.py:240-243`（唯一掛載點）
+  - 所有 POST/PATCH 路由：`src/systograph/web/routes/map_routes.py:23`、`map_build_routes.py`、`detail_scan_routes.py`、`scan_routes.py`、`mapping_routes.py`、`mapping_proposal_routes.py`、`trace_routes.py`、`viewer_routes.py:20`
   - 不動任何 route 簽名，純 middleware 內部修正
 
 - **相關測試**
@@ -107,7 +107,7 @@ buffered list would hold 200001 messages -> unbounded growth
 
 ### A-2. `SafeUnhandledExceptionMiddleware` 沒有 `response_started` 保護，也不 re-raise —— 對 SSE 端點會把「route bug」變成「ASGI 協定違規」
 
-- **位置**：`src/kai_mind/web/middleware.py:83-121`（尤其 105-121）
+- **位置**：`src/systograph/web/middleware.py:83-121`（尤其 105-121）
 
 - **現況**
 
@@ -160,7 +160,7 @@ buffered list would hold 200001 messages -> unbounded growth
 
   1. **繞過 Starlette 標準做法**：Starlette 對「例外 → 統一回應」的官方機制是 `app.add_exception_handler(ExcType, handler)`（走 `ExceptionMiddleware`），或 `ServerErrorMiddleware(handler=...)`。這裡自己手寫了一個第三種機制，因此拿不到上述兩個保護。
 
-  2. **response 已開始時會炸掉**：repo 有真實的 streaming 端點 —— `src/kai_mind/web/routes/scan_routes.py:354-359` 的 `GET /api/scan/events`（`EventSourceResponse`）。如果 generator 在第一個 chunk 之後拋例外，這段 code 會嘗試送出第二個 `http.response.start`。實測（`scratchpad/exp/probe_started.py`）：
+  2. **response 已開始時會炸掉**：repo 有真實的 streaming 端點 —— `src/systograph/web/routes/scan_routes.py:354-359` 的 `GET /api/scan/events`（`EventSourceResponse`）。如果 generator 在第一個 chunk 之後拋例外，這段 code 會嘗試送出第二個 `http.response.start`。實測（`scratchpad/exp/probe_started.py`）：
 
 ```
 $ uv run python .../probe_started.py
@@ -175,7 +175,7 @@ messages sent: ['http.response.start', 'http.response.body']
 
 - **建議改法**
 
-  `src/kai_mind/web/middleware.py`：
+  `src/systograph/web/middleware.py`：
 
   ```python
   class SafeUnhandledExceptionMiddleware:
@@ -197,8 +197,8 @@ messages sent: ['http.response.start', 'http.response.body']
   更符合框架慣例的替代方案：把 `InvalidStateIdError` → 404、`ProjectStateBusyError` → 503 這兩條改成 `app.add_exception_handler(...)`（在 `create_app()` 內註冊），只留「最後一道遮蔽網」給 middleware。這也順便把 A-7 的順序問題解掉。
 
 - **影響面**
-  - `src/kai_mind/web/app.py:239`（唯一掛載點）
-  - `src/kai_mind/web/routes/scan_routes.py:354-359`（唯一的 streaming 端點，是這條 bug 的實際觸發面）
+  - `src/systograph/web/app.py:239`（唯一掛載點）
+  - `src/systograph/web/routes/scan_routes.py:354-359`（唯一的 streaming 端點，是這條 bug 的實際觸發面）
   - 若改成 re-raise：**所有** `TestClient(create_app())` 且沒帶 `raise_server_exceptions=False` 的測試在遇到 500 時行為會變（現在吞、改後拋）。實際上目前會 500 的測試都已經帶了 `raise_server_exceptions=False`（`tests/web/test_local_api_hardening.py:15,47,72,105`）。
 
 - **相關測試**
@@ -215,7 +215,7 @@ messages sent: ['http.response.start', 'http.response.body']
 
 ### A-3. 遮蔽後的 500 在預設 logging 設定下留不下任何可查的線索（實機重現）
 
-- **位置**：`src/kai_mind/web/middleware.py:106-112`
+- **位置**：`src/systograph/web/middleware.py:106-112`
 
 - **現況**
 
@@ -229,7 +229,7 @@ messages sent: ['http.response.start', 'http.response.body']
             )
 ```
 
-  `safe_log_event` 的實作（`src/kai_mind/core/services/logging_service.py:36`）是：
+  `safe_log_event` 的實作（`src/systograph/core/services/logging_service.py:36`）是：
 
 ```python
     logger.log(level, event, extra={"event_data": event_data})
@@ -239,10 +239,10 @@ messages sent: ['http.response.start', 'http.response.body']
 
 - **為什麼是問題**
 
-  這台機器上實測（`scratchpad/exp/probe_stack2.py`，`logging.basicConfig(level=DEBUG)`，用真實的 `~/.kai-mind`）：
+  這台機器上實測（`scratchpad/exp/probe_stack2.py`，`logging.basicConfig(level=DEBUG)`，用真實的 `~/.systograph`）：
 
 ```
-ERROR:kai_mind.web.middleware:local_api_unhandled_exception
+ERROR:systograph.web.middleware:local_api_unhandled_exception
 INFO:httpx:HTTP Request: GET http://testserver/api/map "HTTP/1.1 500 Internal Server Error"
 GET /api/map -> 500 {"detail":"internal_server_error"}
 ```
@@ -251,7 +251,7 @@ GET /api/map -> 500 {"detail":"internal_server_error"}
 
   這條與「不得 leak stack trace 給 client」不衝突：**回應**遮蔽是對的，**本機 log** 應該有 traceback。`redact_local_paths` + `SecretMaskingService` 已經存在，正是為了讓 log 可以既詳細又安全。
 
-  （對比：`src/kai_mind/web/middleware.py` 目前把 `exc` 完全丟棄，連 `exc_info=` 都沒傳。）
+  （對比：`src/systograph/web/middleware.py` 目前把 `exc` 完全丟棄，連 `exc_info=` 都沒傳。）
 
 - **建議改法**
 
@@ -260,7 +260,7 @@ GET /api/map -> 500 {"detail":"internal_server_error"}
   3. 搭配 A-2 的 re-raise，uvicorn 自身的 `ServerErrorMiddleware` 就會補上完整 traceback，這是成本最低的一條。
 
 - **影響面**
-  - `src/kai_mind/core/services/logging_service.py:15-37`（若改簽名，需確認其他呼叫端）
+  - `src/systograph/core/services/logging_service.py:15-37`（若改簽名，需確認其他呼叫端）
   - `grep -rn "safe_log_event" src/` 的所有呼叫端（新增參數用預設值可保持相容）
 
 - **相關測試**
@@ -275,7 +275,7 @@ GET /api/map -> 500 {"detail":"internal_server_error"}
 
 ### A-4. `PersistentSessionStore.latest_viewer_payload()` 會丟掉 `POST /api/viewer/load` 的結果 —— 破壞 API-GUIDE 契約（e2e 已重現）
 
-- **位置**：`src/kai_mind/web/session_store.py:191-198`（對照 `70-131` 的 `InMemorySessionStore:118-122`）
+- **位置**：`src/systograph/web/session_store.py:191-198`（對照 `70-131` 的 `InMemorySessionStore:118-122`）
 
 - **現況**
 
@@ -329,13 +329,13 @@ InMemorySessionStore     after POST /api/viewer/load, GET /api/map -> FROM_VIEWE
   決定契約後二選一（要先跟 `docs/MODEL-CONTRACT.md` / `frontend/API_CONTRACT.md` 對齊）：
 
   - **(A) 依照 API-GUIDE**：`PersistentSessionStore.latest_viewer_payload()` 改成單純 `return self._latest_viewer_payload`，並在 `__init__` 之外新增一個「開機時從 latest pointer 還原一次」的明確步驟（例如 `def hydrate_from_latest(self) -> None`），由 `create_app()` / `build_app_services()` 呼叫一次，而不是每次讀取都重算。
-  - **(B) 改契約**：若「build 永遠壓過 viewer/load」才是想要的行為，則 `docs/API-GUIDE.md:596-614` 必須改寫，且 `viewer_routes.load_viewer_map`（`src/kai_mind/web/routes/viewer_routes.py:33`）不該再呼叫 `store.save_viewer_payload()`（現在那行是純無效呼叫）。
+  - **(B) 改契約**：若「build 永遠壓過 viewer/load」才是想要的行為，則 `docs/API-GUIDE.md:596-614` 必須改寫，且 `viewer_routes.load_viewer_map`（`src/systograph/web/routes/viewer_routes.py:33`）不該再呼叫 `store.save_viewer_payload()`（現在那行是純無效呼叫）。
 
 - **影響面**
-  - `src/kai_mind/web/routes/viewer_routes.py:33`（`store.save_viewer_payload(viewer_payload)`）
-  - `src/kai_mind/web/routes/map_routes.py:42` `GET /api/map`、`:80` `GET /map`
+  - `src/systograph/web/routes/viewer_routes.py:33`（`store.save_viewer_payload(viewer_payload)`）
+  - `src/systograph/web/routes/map_routes.py:42` `GET /api/map`、`:80` `GET /map`
   - `docs/API-GUIDE.md:596-614`
-  - `src/kai_mind/web/session_store.py:42`（Protocol 宣告）
+  - `src/systograph/web/session_store.py:42`（Protocol 宣告）
 
 - **相關測試**
   - **修改**：`tests/web/test_viewer_routes.py:19` `test_viewer_load_route_updates_latest_payload` —— 現況只覆蓋空 state。要加 build-then-load 的變體。
@@ -350,7 +350,7 @@ InMemorySessionStore     after POST /api/viewer/load, GET /api/map -> FROM_VIEWE
 
 ### A-5. `PersistentSessionStore.build_result()` 是有副作用的 getter，會污染 `latest_build_result()`
 
-- **位置**：`src/kai_mind/web/session_store.py:200-228`
+- **位置**：`src/systograph/web/session_store.py:200-228`
 
 - **現況**
 
@@ -393,7 +393,7 @@ InMemorySessionStore     after POST /api/viewer/load, GET /api/map -> FROM_VIEWE
 
   第 2 行就是 bug。實際觸發序列（同一個 backend process）：
 
-  - `POST /api/detail-scans`（`src/kai_mind/web/routes/detail_scan_routes.py:58` → `store.build_result(payload.project_id)`）
+  - `POST /api/detail-scans`（`src/systograph/web/routes/detail_scan_routes.py:58` → `store.build_result(payload.project_id)`）
   - 或 `POST /api/trace`（`trace_routes.py:46`）
   - 或 `POST /api/mapping-proposals/...`（`mapping_proposal_routes.py:126`）
 
@@ -403,18 +403,18 @@ InMemorySessionStore     after POST /api/viewer/load, GET /api/map -> FROM_VIEWE
 
 - **建議改法**
 
-  `src/kai_mind/web/session_store.py`：
+  `src/systograph/web/session_store.py`：
 
   1. 從 `build_result()` 移除第 227 行的快取寫入（getter 不該有副作用）。
   2. `_latest_build_result` 改名為 `_pending_build_result`，語意收斂成「本 process 內剛剛 `save_build_result()` 寫入、尚未落盤的結果」，只由 `save_build_result()` 寫。
   3. 或更乾脆：完全移除這個欄位，`latest_build_result()` 每次都走 pointer 比較（`max(updated_at, latest_build_id)`），由 `LocalJsonStateProvider` 那層負責快取。
 
 - **影響面**
-  - `src/kai_mind/web/routes/map_routes.py:42`、`:51`、`:80`
-  - `src/kai_mind/web/routes/detail_scan_routes.py:58`、`:153`
-  - `src/kai_mind/web/routes/trace_routes.py:46`
-  - `src/kai_mind/web/routes/mapping_proposal_routes.py:126`
-  - `src/kai_mind/web/session_store.py:185`（`save_build_result` 寫同一欄位）
+  - `src/systograph/web/routes/map_routes.py:42`、`:51`、`:80`
+  - `src/systograph/web/routes/detail_scan_routes.py:58`、`:153`
+  - `src/systograph/web/routes/trace_routes.py:46`
+  - `src/systograph/web/routes/mapping_proposal_routes.py:126`
+  - `src/systograph/web/session_store.py:185`（`save_build_result` 寫同一欄位）
 
 - **相關測試**
   - **新增**：`tests/unit/web/test_session_store.py`（不存在）→ `test_build_result_lookup_does_not_change_latest_build_result`
@@ -429,7 +429,7 @@ InMemorySessionStore     after POST /api/viewer/load, GET /api/map -> FROM_VIEWE
 
 ### A-6. `BuildArtifactLoadError` 在 session store 讀取路徑完全沒被處理 —— 一個過期 build 就讓整個 viewer 500（本機直接重現）
 
-- **位置**：`src/kai_mind/web/session_store.py:216-228`（`build_result`）與 `230-236`（`build_results`）
+- **位置**：`src/systograph/web/session_store.py:216-228`（`build_result`）與 `230-236`（`build_results`）
 
 - **現況**
 
@@ -455,16 +455,16 @@ InMemorySessionStore     after POST /api/viewer/load, GET /api/map -> FROM_VIEWE
 
 - **為什麼是問題**
 
-  `BuildManifestService.load()` 會在 artifact digest 不符時丟 `BuildArtifactLoadError`（`src/kai_mind/core/services/build_manifest_service.py:290`）。`grep -rn "BuildArtifactLoadError" src/` 顯示 **`web/` 底下沒有任何一處捕捉它**（只有 `core/` 定義 + `tests/integration/test_build_manifest_service.py` 用到）。
+  `BuildManifestService.load()` 會在 artifact digest 不符時丟 `BuildArtifactLoadError`（`src/systograph/core/services/build_manifest_service.py:290`）。`grep -rn "BuildArtifactLoadError" src/` 顯示 **`web/` 底下沒有任何一處捕捉它**（只有 `core/` 定義 + `tests/integration/test_build_manifest_service.py` 用到）。
 
-  這台機器現在就是這個狀態。實測（`scratchpad/exp/probe_root.py`，直接對真實 `~/.kai-mind` 呼叫 `latest_viewer_payload()`）：
+  這台機器現在就是這個狀態。實測（`scratchpad/exp/probe_root.py`，直接對真實 `~/.systograph` 呼叫 `latest_viewer_payload()`）：
 
 ```
   File ".../core/services/build_manifest_service.py", line 128, in load
     self._require_valid_digest(manifest, "ai_system_map.json", map_path)
   File ".../core/services/build_manifest_service.py", line 290, in _require_valid_digest
     raise BuildArtifactLoadError(
-kai_mind.core.services.build_manifest_service.BuildArtifactLoadError: required artifact is invalid: ai_system_map.json
+systograph.core.services.build_manifest_service.BuildArtifactLoadError: required artifact is invalid: ai_system_map.json
 ```
 
   走 HTTP 的結果（`probe_stack2.py`）：
@@ -481,16 +481,16 @@ GET /api/map -> 500 {"detail":"internal_server_error"}
 
 - **建議改法**
 
-  1. `src/kai_mind/web/session_store.py`：`build_result()` 捕捉 `BuildArtifactLoadError`，回 `None`（語意 = 「這個 build 的 artifact 已失效，等同沒有」），並用 `safe_log_event` 記一筆 `build_artifact_invalid`。
+  1. `src/systograph/web/session_store.py`：`build_result()` 捕捉 `BuildArtifactLoadError`，回 `None`（語意 = 「這個 build 的 artifact 已失效，等同沒有」），並用 `safe_log_event` 記一筆 `build_artifact_invalid`。
   2. `build_results()` 改成 per-project try/except，跳過壞掉的 project 而不是整批失敗。
-  3. `src/kai_mind/web/routes/map_routes.py` 的 `GET /api/map/report` 已經對 `result is None` 回 404（53-61 行），改完自動正確。
+  3. `src/systograph/web/routes/map_routes.py` 的 `GET /api/map/report` 已經對 `result is None` 回 404（53-61 行），改完自動正確。
   4. 若希望前端能顯示「artifact 已失效」而不是靜靜當作沒有，則改成在 `map_routes` 加 `except BuildArtifactLoadError -> HTTPException(409, "build_artifacts_invalid")`，並同步 `docs/API-GUIDE.md`。
 
 - **影響面**
-  - `src/kai_mind/web/routes/map_routes.py:42`、`:51`、`:80`
-  - `src/kai_mind/web/routes/detail_scan_routes.py:58`、`:153`
-  - `src/kai_mind/web/routes/trace_routes.py:46`
-  - `src/kai_mind/web/routes/mapping_proposal_routes.py:126`
+  - `src/systograph/web/routes/map_routes.py:42`、`:51`、`:80`
+  - `src/systograph/web/routes/detail_scan_routes.py:58`、`:153`
+  - `src/systograph/web/routes/trace_routes.py:46`
+  - `src/systograph/web/routes/mapping_proposal_routes.py:126`
   - 若走 4.，需動 `docs/API-GUIDE.md` 的錯誤碼表
 
 - **相關測試**
@@ -507,7 +507,7 @@ GET /api/map -> 500 {"detail":"internal_server_error"}
 
 ### A-7. `RequestSizeLimitMiddleware` 掛在 `SafeUnhandledExceptionMiddleware` **外面** —— 它自己的錯誤不會被遮蔽，錯誤格式不一致
 
-- **位置**：`src/kai_mind/web/app.py:239-243`
+- **位置**：`src/systograph/web/app.py:239-243`
 
 - **現況**
 
@@ -541,7 +541,7 @@ manual wrap (current)    -> 500 'Internal Server Error' acao='http://127.0.0.1:5
 
 - **建議改法**
 
-  `src/kai_mind/web/app.py`：對調兩行，讓 `SafeUnhandledExceptionMiddleware` 在最外層：
+  `src/systograph/web/app.py`：對調兩行，讓 `SafeUnhandledExceptionMiddleware` 在最外層：
 
   ```python
   app.add_middleware(
@@ -555,7 +555,7 @@ manual wrap (current)    -> 500 'Internal Server Error' acao='http://127.0.0.1:5
   更根本的做法見 A-2 建議：把 Safe 換成 `ServerErrorMiddleware(handler=...)`，那它天生就在最外層，順序問題自然消失。
 
 - **影響面**
-  - 只有 `src/kai_mind/web/app.py:239-243`。route 層完全不受影響。
+  - 只有 `src/systograph/web/app.py:239-243`。route 層完全不受影響。
   - 對調後 413 回應仍會經過 Safe（Safe 不攔 `_json_response` 已送出的回應），行為不變。
 
 - **相關測試**
@@ -570,7 +570,7 @@ manual wrap (current)    -> 500 'Internal Server Error' acao='http://127.0.0.1:5
 
 ### A-8. `LocalApiApp.__getattr__ -> Any` 是完整的型別黑洞；而「CORS 必須手動包在最外層」的既有理由只在一種窄情境成立
 
-- **位置**：`src/kai_mind/web/app.py:90-113`（wrapper）、`253-264`（手動包 CORS）
+- **位置**：`src/systograph/web/app.py:90-113`（wrapper）、`253-264`（手動包 CORS）
 
 - **現況**
 
@@ -606,7 +606,7 @@ $ uv run mypy --strict .../probe_types.py
 probe_types.py:5: note: Revealed type is "Any"       # app.state
 probe_types.py:6: note: Revealed type is "Any"       # app.totally_made_up_attribute
 probe_types.py:7: note: Revealed type is "Any"       # app.router  <- FastAPI 上其實有型別
-probe_types.py:9: note: Revealed type is "kai_mind.web.app.LocalApiApp"
+probe_types.py:9: note: Revealed type is "systograph.web.app.LocalApiApp"
 Success: no issues found in 1 source file
 ```
 
@@ -649,12 +649,12 @@ add_middleware           -> 500 'Internal Server Error' acao=None
   無論哪一種，都建議在 `create_app()` 或 `LocalApiApp` docstring 裡把「為什麼要包」的**實測理由**寫清楚，並修正 `docs/work/Timmy/learn/snapshot_safety_and_path_contract_learning.md:159-161` 的錯誤說明。
 
 - **影響面**
-  - `src/kai_mind/web/app.py:137`（回傳型別標註）
-  - `tests/e2e/test_apply_confirmations_build_lineage.py:22`（`from kai_mind.web.app import LocalApiApp`）、`:62`（fixture 回傳型別）
+  - `src/systograph/web/app.py:137`（回傳型別標註）
+  - `tests/e2e/test_apply_confirmations_build_lineage.py:22`（`from systograph.web.app import LocalApiApp`）、`:62`（fixture 回傳型別）
   - `tests/web/test_map_routes.py:155`（`app.allowed_origins` —— 選 (A) 要改成 `app.state.allowed_origins`）
   - `tests/web/test_local_api_hardening.py:45,70`（`app.include_router(router)` 走 `__getattr__`）
   - `tests/web/test_nvidia_provider_app_wiring.py:19,38`（`app.state.mapping_proposal_service`）
-  - `docs/API-GUIDE.md:76`、`scripts/dev.py:53`（`kai_mind.web.app:create_app --factory` —— 兩者都不看回傳型別，不用改）
+  - `docs/API-GUIDE.md:76`、`scripts/dev.py:53`（`systograph.web.app:create_app --factory` —— 兩者都不看回傳型別，不用改）
   - `docs/work/Timmy/learn/architecture.md:55`、`docs/work/Timmy/meeting/web-adapter/01-app-factory-and-session.md:120-122`、`docs/work/Timmy/meeting/arch/02-web-api.md:57-59`（文件描述）
 
 - **相關測試**
@@ -671,7 +671,7 @@ add_middleware           -> 500 'Internal Server Error' acao=None
 
 ### A-9. module-level `app = create_app()` 沒有任何消費者，卻在 import 時建整棵服務樹、讀 `.env`、並產生持有真實 API key 的 provider
 
-- **位置**：`src/kai_mind/web/app.py:267`
+- **位置**：`src/systograph/web/app.py:267`
 
 - **現況**
 
@@ -684,14 +684,14 @@ app = create_app()
   **(1) 沒有任何人用它。** 全 repo 搜尋（含 `pyproject.toml`、`scripts/`、`docs/`、`.github/`）：
 
 ```
-$ grep -rn "web\.app:app\|app:app\|from kai_mind.web.app import app" ... 
+$ grep -rn "web\.app:app\|app:app\|from systograph.web.app import app" ...
 （無輸出）
 ```
 
   真正的啟動方式都是 factory：
-  - `scripts/dev.py:53-54`：`"kai_mind.web.app:create_app", "--factory"`
-  - `docs/API-GUIDE.md:76`：`.venv/bin/uvicorn kai_mind.web.app:create_app --factory ...`
-  - `pyproject.toml:34-35` 的 `[project.scripts]` 只有 `kai-mind = "kai_mind.cli.main:main"`
+  - `scripts/dev.py:53-54`：`"systograph.web.app:create_app", "--factory"`
+  - `docs/API-GUIDE.md:76`：`.venv/bin/uvicorn systograph.web.app:create_app --factory ...`
+  - `pyproject.toml:34-35` 的 `[project.scripts]` 只有 `systograph = "systograph.cli.main:main"`
 
   **(2) import 成本。** 實測（`probe_cost.py`）：
 
@@ -700,12 +700,12 @@ import (incl. module-level create_app): 0.806s
 second create_app() (all caches warm):  0.035s
 ```
 
-  也就是 **`import kai_mind.web.app` 這一行本身就要 0.8 秒**，其中大部分是 module-level `create_app()` 觸發的 TOML rule catalog 載入。有 20 個測試檔 `from kai_mind.web.app import create_app`（`tests/web/` 全部 + `tests/e2e/` 2 個 + `tests/integration/test_v2_active_cutover.py` + `tests/unit/core/test_profile_inference_boundaries.py`），每個 pytest session 都白付這 0.8 秒。
+  也就是 **`import systograph.web.app` 這一行本身就要 0.8 秒**，其中大部分是 module-level `create_app()` 觸發的 TOML rule catalog 載入。有 20 個測試檔 `from systograph.web.app import create_app`（`tests/web/` 全部 + `tests/e2e/` 2 個 + `tests/integration/test_v2_active_cutover.py` + `tests/unit/core/test_profile_inference_boundaries.py`），每個 pytest session 都白付這 0.8 秒。
 
   **(3) import 時的副作用清單**（實測 `probe_import.py`，攔截 `open` / `Path.open` / `Path.home`）：
 
 ```
-import kai_mind.web.app took 2.020s
+import systograph.web.app took 2.020s
 module-level app object: LocalApiApp
 Path.home() called during import: 1 time(s)
 files opened at import time (filtered):
@@ -721,7 +721,7 @@ files opened at import time (filtered):
 routes registered on module-level app: 27
 ```
 
-  **(4) 最嚴重的一點：import 時就構造出持有真實 API key 的 LLM provider。** 這台機器的 repo root `.env` 同時有 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS`（truthy）與非空 `NVIDIA_API_KEY`。實測（`probe_env.py`，只印遮蔽預覽）：
+  **(4) 最嚴重的一點：import 時就構造出持有真實 API key 的 LLM provider。** 這台機器的 repo root `.env` 同時有 `SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS`（truthy）與非空 `NVIDIA_API_KEY`。實測（`probe_env.py`，只印遮蔽預覽）：
 
 ```
 module-level app provider type: NvidiaNimProposalProvider
@@ -730,13 +730,13 @@ masked preview: nvapi-...e_
 create_app() (no env_file) provider type: NvidiaNimProposalProvider
 ```
 
-  也就是說：**任何 `import kai_mind.web.app`（包含 `uv run pytest` 的收集階段）都會把真實 NVIDIA key 讀進記憶體，並建立一個可以發網路請求的 client**，即使那個 process 根本不打算起 API。`CLAUDE.md` 的 local-first privacy 原則與「core 是 read-only、deterministic-first」的定位下，這是不必要的攻擊面 / 意外呼叫外部服務的風險。
+  也就是說：**任何 `import systograph.web.app`（包含 `uv run pytest` 的收集階段）都會把真實 NVIDIA key 讀進記憶體，並建立一個可以發網路請求的 client**，即使那個 process 根本不打算起 API。`CLAUDE.md` 的 local-first privacy 原則與「core 是 read-only、deterministic-first」的定位下，這是不必要的攻擊面 / 意外呼叫外部服務的風險。
 
-  （補充：`LocalJsonStateStorage.__init__`（`src/kai_mind/core/providers/local_json_state_storage.py:26-29`）只做 `resolve()`，**不 mkdir**，所以 import 不會寫磁碟；且 `tests/conftest.py:22-23` 在 module level 就設了 `KAI_MIND_STATE_DIR`，測試不會污染真實 `~/.kai-mind`。這兩點是好的，不是問題。）
+  （補充：`LocalJsonStateStorage.__init__`（`src/systograph/core/providers/local_json_state_storage.py:26-29`）只做 `resolve()`，**不 mkdir**，所以 import 不會寫磁碟；且 `tests/conftest.py:22-23` 在 module level 就設了 `SYSTOGRAPH_STATE_DIR`，測試不會污染真實 `~/.systograph`。這兩點是好的，不是問題。）
 
 - **建議改法**
 
-  刪掉 `src/kai_mind/web/app.py:267` 的 `app = create_app()`。若擔心有人用 `uvicorn kai_mind.web.app:app`（目前查無此用法），可在 README / `docs/API-GUIDE.md:76` 旁邊補一句「本專案一律用 `--factory`」。
+  刪掉 `src/systograph/web/app.py:267` 的 `app = create_app()`。若擔心有人用 `uvicorn systograph.web.app:app`（目前查無此用法），可在 README / `docs/API-GUIDE.md:76` 旁邊補一句「本專案一律用 `--factory`」。
 
   若真的想保留一個 module-level entry，改成 lazy：
 
@@ -749,13 +749,13 @@ create_app() (no env_file) provider type: NvidiaNimProposalProvider
   但既然查無消費者，直接刪最乾淨。
 
 - **影響面**
-  - 僅 `src/kai_mind/web/app.py:267`
+  - 僅 `src/systograph/web/app.py:267`
   - grep 確認無任何 import 端（見上）
   - `scripts/dev.py:53`、`docs/API-GUIDE.md:76` 已經用 `--factory`，不需改
 
 - **相關測試**
   - **不需修改**任何現有測試（沒有測試讀 module-level `app`）。
-  - **新增（建議）**：`tests/web/test_local_api_hardening.py` 或新的 `tests/unit/web/test_app_import_purity.py` → `test_importing_web_app_does_not_build_an_application`（用 `subprocess` 跑一個乾淨 interpreter，量測 `import kai_mind.web.app` 不會讀 `.env`）。
+  - **新增（建議）**：`tests/web/test_local_api_hardening.py` 或新的 `tests/unit/web/test_app_import_purity.py` → `test_importing_web_app_does_not_build_an_application`（用 `subprocess` 跑一個乾淨 interpreter，量測 `import systograph.web.app` 不會讀 `.env`）。
 
 - **嚴重度**：P2（不必要的副作用 + 隱私攻擊面；但目前無實際功能錯誤）
 
@@ -765,7 +765,7 @@ create_app() (no env_file) provider type: NvidiaNimProposalProvider
 
 ### A-10. `env_file` 預設是 CWD 相對的 `Path(".env")` —— 行為依賴 process 啟動目錄，且讓約 40 個測試呼叫點的行為取決於開發者本機的 `.env`
 
-- **位置**：`src/kai_mind/web/app.py:155-163`
+- **位置**：`src/systograph/web/app.py:155-163`
 
 - **現況**
 
@@ -781,11 +781,11 @@ create_app() (no env_file) provider type: NvidiaNimProposalProvider
     )
 ```
 
-  `nvidia_nim_provider_from_env`（`src/kai_mind/core/providers/llm_proposal_provider.py:206`）→ `_dotenv_values(env_file or Path(".env"))`，而 `_dotenv_values`（`:262-264`）用 `path.is_file()` 判斷，找不到就回 `{}`（無警告）。
+  `nvidia_nim_provider_from_env`（`src/systograph/core/providers/llm_proposal_provider.py:206`）→ `_dotenv_values(env_file or Path(".env"))`，而 `_dotenv_values`（`:262-264`）用 `path.is_file()` 判斷，找不到就回 `{}`（無警告）。
 
 - **為什麼是問題**
 
-  1. **CWD 依賴**：`Path(".env")` 相對於 process 的工作目錄。`scripts/dev.py:167` 用 `cwd=ROOT` 起 uvicorn，所以 dev 路徑剛好對；但使用者若自己在別的目錄跑 `uvicorn kai_mind.web.app:create_app --factory`，`.env` 會**靜默失效**（`_dotenv_values` 找不到就回空 dict，沒有任何 log/warning）。跨平台上這更難察覺（Windows 上服務化啟動的 CWD 常是 `C:\Windows\System32`）。這與 `CLAUDE.md` 的「Cross-platform (macOS/Windows) 相容性」要求相衝突。
+  1. **CWD 依賴**：`Path(".env")` 相對於 process 的工作目錄。`scripts/dev.py:167` 用 `cwd=ROOT` 起 uvicorn，所以 dev 路徑剛好對；但使用者若自己在別的目錄跑 `uvicorn systograph.web.app:create_app --factory`，`.env` 會**靜默失效**（`_dotenv_values` 找不到就回空 dict，沒有任何 log/warning）。跨平台上這更難察覺（Windows 上服務化啟動的 CWD 常是 `C:\Windows\System32`）。這與 `CLAUDE.md` 的「Cross-platform (macOS/Windows) 相容性」要求相衝突。
 
   2. **測試不確定性**：`grep -rn "create_app()" tests/` 顯示有數十個呼叫點沒帶 `env_file=`，它們全部會讀開發者的真實 `.env`。本機實測（見 A-9 的 `probe_env.py`）證實 `create_app()` 在這台機器上真的會產生一個 `NvidiaNimProposalProvider`；在 CI（無 `.env`）則是 `None`。**同一組測試在本機與 CI 走的是不同分支**。
 
@@ -801,9 +801,9 @@ create_app() (no env_file) provider type: NvidiaNimProposalProvider
   2. 無論哪個方案，`tests/conftest.py` 應加一個 autouse fixture，把 `.env` 探測導向 `tmp_path`（與現有 `isolate_default_state_root`（`tests/conftest.py:35-43`）對稱），讓所有測試預設不受本機 `.env` 影響。
 
 - **影響面**
-  - `src/kai_mind/web/app.py:135`（`env_file` 參數）、`:158-160`
-  - Plan 1 執行後：`src/kai_mind/web/app_services.py` 的 `build_app_services(..., env_file=...)`
-  - `src/kai_mind/core/providers/llm_proposal_provider.py:196-207`、`:262-269`
+  - `src/systograph/web/app.py:135`（`env_file` 參數）、`:158-160`
+  - Plan 1 執行後：`src/systograph/web/app_services.py` 的 `build_app_services(..., env_file=...)`
+  - `src/systograph/core/providers/llm_proposal_provider.py:196-207`、`:262-269`
   - `scripts/dev.py:44-62`（若採方案 A，需在此明確載入 `.env`）
   - `.env.example`、`docs/API-GUIDE.md`（若載入方式改變需同步）
 
@@ -820,7 +820,7 @@ create_app() (no env_file) provider type: NvidiaNimProposalProvider
 
 ### A-11. `save_committed_build_projection` 把三種例外吞掉且完全不 log
 
-- **位置**：`src/kai_mind/web/session_store.py:53-67`
+- **位置**：`src/systograph/web/session_store.py:53-67`
 
 - **現況**
 
@@ -846,11 +846,11 @@ def save_committed_build_projection(
 
   `except` 區塊完全沒有 log —— 連 `safe_log_event` 都沒有（對比 `middleware.py:106` 有記）。使用者只會在回應的 `warnings[]` 看到一個 `session_projection_save_failed` 字串，開發者連例外類別都不知道。
 
-  另外 `ValueError` 這個捕捉範圍值得留意：`BuildArtifactLoadError` 繼承自 `ValueError`（`src/kai_mind/core/services/build_manifest_service.py:54`），所以真正的 artifact digest 失效也會被歸進這個籠統的 warning，與 A-6 的問題互相掩蓋。
+  另外 `ValueError` 這個捕捉範圍值得留意：`BuildArtifactLoadError` 繼承自 `ValueError`（`src/systograph/core/services/build_manifest_service.py:54`），所以真正的 artifact digest 失效也會被歸進這個籠統的 warning，與 A-6 的問題互相掩蓋。
 
 - **建議改法**
 
-  `src/kai_mind/web/session_store.py`：
+  `src/systograph/web/session_store.py`：
 
   ```python
   except (OSError, RuntimeError, ValueError) as exc:
@@ -864,9 +864,9 @@ def save_committed_build_projection(
   並考慮把 `ValueError` 縮小成明確的例外型別，避免與 `BuildArtifactLoadError` 混淆。
 
 - **影響面**
-  - `src/kai_mind/web/routes/scan_routes.py:67`（import）、`:339`（呼叫）
-  - `src/kai_mind/web/routes/detail_scan_routes.py:33`、`:109`
-  - `src/kai_mind/web/routes/map_build_routes.py:32`、`:70`
+  - `src/systograph/web/routes/scan_routes.py:67`（import）、`:339`（呼叫）
+  - `src/systograph/web/routes/detail_scan_routes.py:33`、`:109`
+  - `src/systograph/web/routes/map_build_routes.py:32`、`:70`
   - 回應 payload 不變（`warnings[]` 語意不動）
 
 - **相關測試**
@@ -881,7 +881,7 @@ def save_committed_build_projection(
 
 ### A-12. `SessionStore` Protocol 的兩個實作對同樣的參數行為不一致（參數被靜默丟棄）
 
-- **位置**：`src/kai_mind/web/session_store.py:150-173`（`import_project`）、`179-189`（`save_build_result`）
+- **位置**：`src/systograph/web/session_store.py:150-173`（`import_project`）、`179-189`（`save_build_result`）
 
 - **現況**
 
@@ -929,7 +929,7 @@ def save_committed_build_projection(
 4. save_build_result(project_id='project:A') then build_result('project:A') reads repo, ignoring what was saved: A
 ```
 
-  目前尚未造成使用者可見的錯誤：`src/kai_mind/web/routes/project_routes.py:29,48` 兩處都把 `source_type` 硬寫成 `"local_path"` 回應，`build_result()` 也永遠改讀 repository。但這是「兩層都各自硬寫死」的巧合，不是設計。
+  目前尚未造成使用者可見的錯誤：`src/systograph/web/routes/project_routes.py:29,48` 兩處都把 `source_type` 硬寫成 `"local_path"` 回應，`build_result()` 也永遠改讀 repository。但這是「兩層都各自硬寫死」的巧合，不是設計。
 
 - **建議改法**
 
@@ -940,9 +940,9 @@ def save_committed_build_projection(
   另外建議在 `pyproject.toml` 的 `[tool.ruff.lint] select` 加上 `"ARG"`，讓這類「宣告了但沒用」的參數在 pre-commit 就被擋下。
 
 - **影響面**
-  - `src/kai_mind/web/routes/project_routes.py:37-51`（`POST /api/projects/import` 傳 `source_type=payload.source_type`）
-  - `src/kai_mind/web/schemas.py`（`ProjectImportRequest.source_type` / `ProjectImportResponse.source_type`）
-  - `src/kai_mind/web/routes/scan_routes.py:339`、`detail_scan_routes.py:109`、`map_build_routes.py:70`（都經 `save_committed_build_projection` 傳 `project_id`）
+  - `src/systograph/web/routes/project_routes.py:37-51`（`POST /api/projects/import` 傳 `source_type=payload.source_type`）
+  - `src/systograph/web/schemas.py`（`ProjectImportRequest.source_type` / `ProjectImportResponse.source_type`）
+  - `src/systograph/web/routes/scan_routes.py:339`、`detail_scan_routes.py:109`、`map_build_routes.py:70`（都經 `save_committed_build_projection` 傳 `project_id`）
   - 若加 `ARG` rule：需先全 repo 跑一次 `uv run ruff check src tests --select ARG` 評估既有違規量
 
 - **相關測試**
@@ -958,7 +958,7 @@ def save_committed_build_projection(
 
 ### A-13. `InMemorySessionStore` 在生產路徑已經是死碼，但 module docstring 與兩份未完成計畫仍以它為主體
 
-- **位置**：`src/kai_mind/web/session_store.py:1`、`70-131`
+- **位置**：`src/systograph/web/session_store.py:1`、`70-131`
 
 - **現況**
 
@@ -966,7 +966,7 @@ def save_committed_build_projection(
 """In-memory session state for the local development API."""
 ```
 
-  但 `create_app()`（`src/kai_mind/web/app.py:233-237`）預設組的是 `PersistentSessionStore`：
+  但 `create_app()`（`src/systograph/web/app.py:233-237`）預設組的是 `PersistentSessionStore`：
 
 ```python
     app.state.session_store = session_store or PersistentSessionStore(
@@ -985,14 +985,14 @@ def save_committed_build_projection(
      - `docs/work/Timmy/schedule/plan/unfinish/final-phase-hardening/150-fix-inmemory-session-store-growth-bound.md`（記憶體 DoS）
      - `docs/work/Timmy/schedule/plan/unfinish/final-phase-hardening/174-make-inmemory-session-store-thread-safe.md`（thread safety）
 
-     兩份的 Primary file 都是 `src/kai_mind/web/session_store.py`，但目標都寫 `InMemorySessionStore` —— 而它在生產環境根本不會被實例化。真正需要這兩個保護的是 `PersistentSessionStore`（見 A-14）。
+     兩份的 Primary file 都是 `src/systograph/web/session_store.py`，但目標都寫 `InMemorySessionStore` —— 而它在生產環境根本不會被實例化。真正需要這兩個保護的是 `PersistentSessionStore`（見 A-14）。
 
 - **建議改法**
 
-  1. 更新 `src/kai_mind/web/session_store.py:1` 的 docstring，改成描述整個檔案（Protocol + 兩個實作 + projection helper）。
+  1. 更新 `src/systograph/web/session_store.py:1` 的 docstring，改成描述整個檔案（Protocol + 兩個實作 + projection helper）。
   2. 決定 `InMemorySessionStore` 的去留：
      - 若只服務測試 → 移到 `tests/helpers/`（例如 `tests/helpers/session_store.py`），生產程式碼不再攜帶它。
-     - 若要保留為「無 state dir 的輕量模式」→ 在 `create_app()` 加一個明確的 opt-in（例如 `KAI_MIND_EPHEMERAL_SESSION=1`），並在 docstring 說清楚。
+     - 若要保留為「無 state dir 的輕量模式」→ 在 `create_app()` 加一個明確的 opt-in（例如 `SYSTOGRAPH_EPHEMERAL_SESSION=1`），並在 docstring 說清楚。
   3. 把 #150 / #174 兩份計畫的目標類別更正為 `PersistentSessionStore`（或標記為 obsolete）。
 
 - **影響面**
@@ -1013,7 +1013,7 @@ def save_committed_build_projection(
 
 ### A-14. `PersistentSessionStore` 的可變快取在 FastAPI threadpool 下沒有任何同步保護
 
-- **位置**：`src/kai_mind/web/session_store.py:145-148`、`185`、`192`、`227`
+- **位置**：`src/systograph/web/session_store.py:145-148`、`185`、`192`、`227`
 
 - **現況**
 
@@ -1027,7 +1027,7 @@ def save_committed_build_projection(
 
 - **為什麼是問題**
 
-  `create_app()` 只建一個 `PersistentSessionStore` 實例（`app.py:233`），由所有 request 共用。而 route handler 幾乎都是 **sync `def`**（例如 `src/kai_mind/web/routes/map_routes.py:24` `def build_map(...)`、`:39` `def get_api_map(...)`），FastAPI 會把它們丟進 anyio threadpool → **真正的多執行緒並行存取**。
+  `create_app()` 只建一個 `PersistentSessionStore` 實例（`app.py:233`），由所有 request 共用。而 route handler 幾乎都是 **sync `def`**（例如 `src/systograph/web/routes/map_routes.py:24` `def build_map(...)`、`:39` `def get_api_map(...)`），FastAPI 會把它們丟進 anyio threadpool → **真正的多執行緒並行存取**。
 
   `save_build_result`（185-189 行）是「寫 `_latest_build_result` → 再寫 `_latest_viewer_payload`」的兩步操作，中間可被切換；配合 A-5 的 getter 副作用，`_latest_build_result` 與 `_latest_viewer_payload` 可能對應到不同的 build。
 
@@ -1035,16 +1035,16 @@ def save_committed_build_projection(
 
 - **建議改法**
 
-  `src/kai_mind/web/session_store.py`：`PersistentSessionStore.__init__` 加 `self._lock = threading.RLock()`，把 `save_build_result` / `save_viewer_payload` / `latest_build_result` / `latest_viewer_payload` 的快取讀寫包起來。
+  `src/systograph/web/session_store.py`：`PersistentSessionStore.__init__` 加 `self._lock = threading.RLock()`，把 `save_build_result` / `save_viewer_payload` / `latest_build_result` / `latest_viewer_payload` 的快取讀寫包起來。
   更好的做法是配合 A-5 直接**移除**這兩個可變欄位（無狀態就無 race），只保留 repository 那層的檔案鎖（`LocalJsonStateStorage.project_lock`，已用 `filelock`）。
 
 - **影響面**
-  - `src/kai_mind/web/routes/map_routes.py:23,39,47,77`
-  - `src/kai_mind/web/routes/scan_routes.py:94,158`
-  - `src/kai_mind/web/routes/detail_scan_routes.py:51,133`
-  - `src/kai_mind/web/routes/map_build_routes.py:49,116`
-  - `src/kai_mind/web/routes/viewer_routes.py:26`
-  - `src/kai_mind/web/routes/trace_routes.py:35`、`mapping_proposal_routes.py:65`、`project_routes.py:24,39`
+  - `src/systograph/web/routes/map_routes.py:23,39,47,77`
+  - `src/systograph/web/routes/scan_routes.py:94,158`
+  - `src/systograph/web/routes/detail_scan_routes.py:51,133`
+  - `src/systograph/web/routes/map_build_routes.py:49,116`
+  - `src/systograph/web/routes/viewer_routes.py:26`
+  - `src/systograph/web/routes/trace_routes.py:35`、`mapping_proposal_routes.py:65`、`project_routes.py:24,39`
 
 - **相關測試**
   - **新增**：`tests/unit/web/test_session_store.py` → `test_concurrent_save_and_read_keeps_latest_pointer_consistent`（`ThreadPoolExecutor` 併發打 `save_build_result` / `latest_build_result`）
@@ -1058,7 +1058,7 @@ def save_committed_build_projection(
 
 ### A-15. `RequestSizeLimitMiddleware` 沒看 `Content-Length`，且方法白名單漏掉帶 body 的其他方法
 
-- **位置**：`src/kai_mind/web/middleware.py:18`、`40-45`
+- **位置**：`src/systograph/web/middleware.py:18`、`40-45`
 
 - **現況**
 
@@ -1078,11 +1078,11 @@ HTTP_BODY_METHODS: Final = {"POST", "PUT", "PATCH"}
 - **為什麼是問題**
 
   1. **沒有 `Content-Length` 提早拒絕**：對一個宣告 500MB 的 request，這段 code 仍會實際讀進 1MB + 一個 chunk 才拒絕。`scope["headers"]` 裡的 `content-length` 是現成的，先檢查可以零 buffering 直接回 413。
-  2. **方法白名單**：目前 repo 沒有 `router.delete` / `router.put`（`grep -rn "router.delete\|router.put" src/kai_mind/web/routes/` 無輸出），所以現在不會漏；但白名單是「加新方法就會忘記同步」的寫法。更穩的判斷是「有 `content-length` 或 `transfer-encoding` header 就檢查」，而不是列方法。
+  2. **方法白名單**：目前 repo 沒有 `router.delete` / `router.put`（`grep -rn "router.delete\|router.put" src/systograph/web/routes/` 無輸出），所以現在不會漏；但白名單是「加新方法就會忘記同步」的寫法。更穩的判斷是「有 `content-length` 或 `transfer-encoding` header 就檢查」，而不是列方法。
 
 - **建議改法**
 
-  `src/kai_mind/web/middleware.py`，`RequestSizeLimitMiddleware.__call__` 開頭：
+  `src/systograph/web/middleware.py`，`RequestSizeLimitMiddleware.__call__` 開頭：
 
   ```python
   declared = Headers(scope=scope).get("content-length")
@@ -1094,7 +1094,7 @@ HTTP_BODY_METHODS: Final = {"POST", "PUT", "PATCH"}
   並把方法判斷改成「非 GET/HEAD/OPTIONS 一律走檢查」或直接依 header 判斷。
 
 - **影響面**
-  - 只有 `src/kai_mind/web/middleware.py`；`app.py:240-243` 的掛載不變。
+  - 只有 `src/systograph/web/middleware.py`；`app.py:240-243` 的掛載不變。
   - 所有 POST/PATCH route 的行為在合法 request 下完全不變。
 
 - **相關測試**
@@ -1111,12 +1111,12 @@ HTTP_BODY_METHODS: Final = {"POST", "PUT", "PATCH"}
 
 以下是我逐行看過、認為**寫法正確、不需要改**的地方，避免主 agent 誤判：
 
-1. **`src/kai_mind/web/__init__.py`（1 行 docstring）與 `src/kai_mind/web/routes/__init__.py`（1 行 docstring）**
-   看起來「空」，但這是**這個 repo 的一致慣例**：`src/kai_mind/core/__init__.py`、`cli/__init__.py`、`core/services/__init__.py`、`core/providers/__init__.py` 全部都只有 docstring，只有 `storage/__init__.py` 做 re-export（因為它真的有一組穩定的 public 型別）。`web/` 是 adapter 邊界、沒有對外提供 library API（消費者只有 uvicorn factory 與測試），**不需要 `__all__`**。加 re-export 反而會製造新的 import 循環風險（`app.py` → `routes/*` → `dependencies.py` → `session_store.py`）。
-   `from kai_mind.web.routes import detail_scan_routes, ...`（`app.py:61-71`）雖然 `routes/__init__.py` 沒 import 它們，Python 的 `from package import submodule` 語法本來就會觸發 submodule import，**寫法正確**。
+1. **`src/systograph/web/__init__.py`（1 行 docstring）與 `src/systograph/web/routes/__init__.py`（1 行 docstring）**
+   看起來「空」，但這是**這個 repo 的一致慣例**：`src/systograph/core/__init__.py`、`cli/__init__.py`、`core/services/__init__.py`、`core/providers/__init__.py` 全部都只有 docstring，只有 `storage/__init__.py` 做 re-export（因為它真的有一組穩定的 public 型別）。`web/` 是 adapter 邊界、沒有對外提供 library API（消費者只有 uvicorn factory 與測試），**不需要 `__all__`**。加 re-export 反而會製造新的 import 循環風險（`app.py` → `routes/*` → `dependencies.py` → `session_store.py`）。
+   `from systograph.web.routes import detail_scan_routes, ...`（`app.py:61-71`）雖然 `routes/__init__.py` 沒 import 它們，Python 的 `from package import submodule` 語法本來就會觸發 submodule import，**寫法正確**。
 
 2. **`core/` 沒有依賴 `web/`（分層規則遵守）**
-   `grep -rn "kai_mind.web" src/kai_mind/cli/ src/kai_mind/core/` 無輸出。`web/` 只單向依賴 `core/`，符合 `CLAUDE.md` 的 `Web / CLI adapters -> Core services -> Providers / Models`。
+   `grep -rn "systograph.web" src/systograph/cli/ src/systograph/core/` 無輸出。`web/` 只單向依賴 `core/`，符合 `CLAUDE.md` 的 `Web / CLI adapters -> Core services -> Providers / Models`。
 
 3. **錯誤回應 envelope 與 routes 層一致**
    `middleware.py:134-143` 的 `_json_response` 產出 `{"detail": "<stable_code>"}`；routes 全部用 `HTTPException(detail=...)`，FastAPI 序列化後也是 `{"detail": ...}`。兩者 **shape 一致**（唯一的例外是 A-7 指出的、逃到 `ServerErrorMiddleware` 的 plain-text 路徑）。
@@ -1129,10 +1129,10 @@ HTTP_BODY_METHODS: Final = {"POST", "PUT", "PATCH"}
    把已消耗的 ASGI message 重播給下游、耗盡後回一個 `{"type":"http.request","body":b"","more_body":False}` 終止訊息，這個實作是正確的（下游 `Request.body()` 會正常結束）。問題只在上游的 buffering 迴圈（A-1），不在這個類別。
 
 6. **`default_state_dir()`（`app.py:83-87`）**
-   `Path(configured).expanduser()` + `Path.home() / ".kai-mind"` 是正確的跨平台寫法（Windows 上 `Path.home()` 解析到 `%USERPROFILE%`），也正確支援 `KAI_MIND_STATE_DIR` 覆寫。
+   `Path(configured).expanduser()` + `Path.home() / ".systograph"` 是正確的跨平台寫法（Windows 上 `Path.home()` 解析到 `%USERPROFILE%`），也正確支援 `SYSTOGRAPH_STATE_DIR` 覆寫。
 
-7. **測試不會污染真實 `~/.kai-mind`**
-   `tests/conftest.py:22-23` 在 module level（早於任何 `kai_mind` import）就設 `os.environ["KAI_MIND_STATE_DIR"]`，加上 `:35-43` 的 autouse `isolate_default_state_root` fixture 逐 test 再隔離一次。搭配 `LocalJsonStateStorage.__init__`（`src/kai_mind/core/providers/local_json_state_storage.py:26-29`）不做 mkdir，**module-level `app = create_app()` 不會寫任何檔案**。A-9 講的是 import 成本與 provider 副作用，**不是**狀態污染。
+7. **測試不會污染真實 `~/.systograph`**
+   `tests/conftest.py:22-23` 在 module level（早於任何 `systograph` import）就設 `os.environ["SYSTOGRAPH_STATE_DIR"]`，加上 `:35-43` 的 autouse `isolate_default_state_root` fixture 逐 test 再隔離一次。搭配 `LocalJsonStateStorage.__init__`（`src/systograph/core/providers/local_json_state_storage.py:26-29`）不做 mkdir，**module-level `app = create_app()` 不會寫任何檔案**。A-9 講的是 import 成本與 provider 副作用，**不是**狀態污染。
 
 8. **CORS 設定本身**
    `app.py:77-80` 的 `DEFAULT_ALLOWED_ORIGINS` 只有兩個 loopback origin，`allow_credentials=False`，`allow_methods` / `allow_headers` 都是明確白名單而非 `["*"]`。`tests/web/test_map_routes.py:152` 有回歸測試防止退化成 wildcard。**設定正確**，A-8 質疑的是「掛載方式」而不是「設定值」。
@@ -1143,11 +1143,11 @@ HTTP_BODY_METHODS: Final = {"POST", "PUT", "PATCH"}
 10. **`PersistentSessionStore.import_project` 的 path digest 去重**（`session_store.py:156-163`）
     `expanduser().resolve()` 後才算 `sha256`，並用 `find_project_by_path_digest` 做 idempotent 重用（`reused=True`）。這解掉了舊 `InMemorySessionStore` 每次 import 都給新 UUID 的問題，`tests/web/test_local_json_restart_recovery.py:81` `test_reimport_same_canonical_path_reuses_project_identity` 有覆蓋。**寫法正確**。
 
-11. **`safe_log_event` 的 masking / path redaction 管線**（`src/kai_mind/core/services/logging_service.py`）
+11. **`safe_log_event` 的 masking / path redaction 管線**（`src/systograph/core/services/logging_service.py`）
     對 mapping / sequence 遞迴處理，且正確排除 `bytes | bytearray`。A-3 的問題是 middleware **傳給它的欄位太少**，不是它本身有缺陷。
 
 12. **`create_app()` 的 CORS `allow_methods` 不含 `DELETE`/`PUT`**
-    與實際路由集合吻合（`grep -rn "router.delete\|router.put" src/kai_mind/web/routes/` 無輸出），不是遺漏。
+    與實際路由集合吻合（`grep -rn "router.delete\|router.put" src/systograph/web/routes/` 無輸出），不是遺漏。
 
 ---
 

@@ -21,7 +21,7 @@ detected component。
    回傳 `ProviderScanResult`，包含 `ScanFact[]`、`Evidence[]`、
    `ParseIssue[]`。
 3. 新增 deterministic rule catalog：
-   `src/kai_mind/core/providers/code_patterns.py`
+   `src/systograph/core/providers/code_patterns.py`
    - 使用 frozen dataclass `PatternRule`。
    - 欄位包含 `rule_id`、`languages`、`extensions`、`regex`、
      `fact_kind`。
@@ -62,11 +62,11 @@ detected component。
 4. 執行 targeted pytest，確認 RED：
    provider module 尚未存在，測試 collection 失敗。
 5. 新增：
-   `src/kai_mind/core/providers/code_patterns.py`。
+   `src/systograph/core/providers/code_patterns.py`。
 6. 新增：
-   `src/kai_mind/core/providers/code_pattern_provider.py`。
+   `src/systograph/core/providers/code_pattern_provider.py`。
 7. 擴充：
-   `src/kai_mind/core/models/scan.py` 的 `ParseIssue.scan_stage`，增加
+   `src/systograph/core/models/scan.py` 的 `ParseIssue.scan_stage`，增加
    `code_pattern_scan`。
 8. 修正兩個測試假設：
    - Secret masking 已正確遮罩，但遮罩格式是 partial mask，不一定是
@@ -82,8 +82,8 @@ Targeted verification：
 
 ```bash
 .venv/bin/python -m pytest tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
-.venv/bin/ruff check src/kai_mind/core/models/scan.py src/kai_mind/core/providers/code_patterns.py src/kai_mind/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
-.venv/bin/mypy src/kai_mind/core/models/scan.py src/kai_mind/core/providers/code_patterns.py src/kai_mind/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
+.venv/bin/ruff check src/systograph/core/models/scan.py src/systograph/core/providers/code_patterns.py src/systograph/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
+.venv/bin/mypy src/systograph/core/models/scan.py src/systograph/core/providers/code_patterns.py src/systograph/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py
 ```
 
 Full verification：
@@ -129,9 +129,9 @@ Targeted verification：
 
 - `.venv/bin/python -m pytest tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py`
   - 結果：`10 passed`
-- `.venv/bin/ruff check src/kai_mind/core/models/scan.py src/kai_mind/core/providers/code_patterns.py src/kai_mind/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py`
+- `.venv/bin/ruff check src/systograph/core/models/scan.py src/systograph/core/providers/code_patterns.py src/systograph/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py`
   - 結果：`All checks passed!`
-- `.venv/bin/mypy src/kai_mind/core/models/scan.py src/kai_mind/core/providers/code_patterns.py src/kai_mind/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py`
+- `.venv/bin/mypy src/systograph/core/models/scan.py src/systograph/core/providers/code_patterns.py src/systograph/core/providers/code_pattern_provider.py tests/unit/core/test_code_pattern_provider.py tests/integration/test_phase11_code_pattern_provider_behaviors.py`
   - 結果：`Success: no issues found in 5 source files`
 
 Full verification：

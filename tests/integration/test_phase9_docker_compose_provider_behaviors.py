@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.providers.docker_compose_provider import (
+from systograph.core.providers.docker_compose_provider import (
     DockerComposeProvider,
 )
-from kai_mind.core.providers.filesystem_provider import FilesystemProvider
+from systograph.core.providers.filesystem_provider import FilesystemProvider
 
 
 def test_basic_local_rag_fixture_exposes_docker_compose_signals() -> None:

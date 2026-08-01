@@ -21,8 +21,8 @@ Table ScanSnapshot {
   generated_at string [not null, note: '此 immutable snapshot 完成並建立的時間。']
   inventory_digest string [not null, note: '凍結 filesystem inventory 與 provider collection scope 的 digest；使用 canonical-json/v1 bytes 計算 SHA-256，並保留 canonicalization/hash version。']
   scan_result string [not null, note: '凍結的 ProjectScanResult，包含 bounded facts 與 evidence，供後續 build replay 使用。']
-  ua_analysis_result string [note: 'Nullable snapshot-internal UA sidecar payload/storage reference；Phase A 必須允許 null，Phase B/C completed scan 必須保存通過 kai-mind-ua-result/v1 validation 的結果。']
-  ua_analysis_schema_version string [note: 'Nullable UA sidecar schema version；有 ua_analysis_result 時必須為 kai-mind-ua-result/v1。']
+  ua_analysis_result string [note: 'Nullable snapshot-internal UA sidecar payload/storage reference；Phase A 必須允許 null，Phase B/C completed scan 必須保存通過 systograph-ua-result/v1 validation 的結果。']
+  ua_analysis_schema_version string [note: 'Nullable UA sidecar schema version；有 ua_analysis_result 時必須為 systograph-ua-result/v1。']
   ua_analysis_digest string [note: 'Nullable UA sidecar digest；有 ua_analysis_result 時使用 canonical-json/v1 bytes + SHA-256 驗證內容，且不得列為 public Artifact。']
 
   Note: '''

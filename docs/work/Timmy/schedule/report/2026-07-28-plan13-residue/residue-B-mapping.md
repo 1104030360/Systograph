@@ -1,6 +1,6 @@
 # 殘留稽核 B：mapping-type migration surface + CLI/web adapter
 
-- Repo：`/Users/linjunting/Local_AI_Health_Doctor` @ `0a68ccd`（Plan 13 cutover merge commit）
+- Repo：`/Users/linjunting/Systograph` @ `0a68ccd`（Plan 13 cutover merge commit）
 - 範圍：Plan 13 Task 4/5 的 persisted mapping migration surface、active mapping 家族、
   persisted storage、web/CLI adapter 的 legacy 分支
 - 模式：READ-ONLY，未修改任何檔案
@@ -12,7 +12,7 @@
 ### 實證 1：active 寫入路徑封閉性 — PASS
 
 ```
-$ uv run python -c "from kai_mind.core.models.mapping_base import ManualMappingCreate; \
+$ uv run python -c "from systograph.core.models.mapping_base import ManualMappingCreate; \
     ManualMappingCreate(project_id='p', mapping_type='new_extension_component', decision='confirmed')"
 
 ValidationError
@@ -36,7 +36,7 @@ Plan 13 Task 5「不再建立/接受」在 **backend model 層是徹底的**。
 `LocalJsonStateStorage.read_model(path, ManualMapping)`。
 
 ```python
-# src/kai_mind/core/providers/local_json_state_storage.py:77-90
+# src/systograph/core/providers/local_json_state_storage.py:77-90
 def read_model(self, path, model_type):
     if not path.exists():
         return None
@@ -89,7 +89,7 @@ quarantine dir exists: True
 ### 實證 4：`legacy_mapping_type_read_only` 消費端
 
 ```
-src/kai_mind/web/legacy_mapping_guards.py:37          （唯一 producer）
+src/systograph/web/legacy_mapping_guards.py:37          （唯一 producer）
 tests/web/test_legacy_mapping_write_rejection.py:50,119（POST /api/mappings、POST proposal decision）
 docs/API-GUIDE.md:988                                 （422 錯誤碼表）
 docs/work/Meeting-Sync/.../frontend-*.md              （前端 handoff 說明 ×2）
@@ -106,14 +106,14 @@ frontend/src/**                                       ← 0 hit
 
 ### RB-1. `web/legacy_mapping_guards.py` 對 Plan 13 executable allowlist 是完全隱形的（AST census 與 rg 雙盲）【B類】
 
-- **位置**：`src/kai_mind/web/legacy_mapping_guards.py:9-13`；census 在
+- **位置**：`src/systograph/web/legacy_mapping_guards.py:9-13`；census 在
   `tests/contracts/test_v2_cutover_consumer_allowlist.py:20-28, 334-350`
 
 - **現況**
 
 ```python
-# src/kai_mind/web/legacy_mapping_guards.py:9-13
-from kai_mind.core.services.legacy_manual_mapping_migration_service import (
+# src/systograph/web/legacy_mapping_guards.py:9-13
+from systograph.core.services.legacy_manual_mapping_migration_service import (
     LegacyManualMappingType,
 )
 
@@ -152,7 +152,7 @@ plain-text rg of Plan13 Task5 command would match?
   也就是說 Plan 13 Task 5 明列的 gate 指令
   `rg -n "RagSystemMap|ExtensionComponent|new_extension_component|ai-system-map/v1" src tests frontend docs`
   **同樣掃不到這個檔案**。allowlist 現有 35 筆記錄裡沒有任何一筆 path 是
-  `src/kai_mind/web/legacy_mapping_guards.py`。
+  `src/systograph/web/legacy_mapping_guards.py`。
 
 - **判定理由**：Plan 13 Task 5 最後一條「Task 1 allowlist 是 **executable gate**；backend hit
   只能命中 `operator_rollback`、`migration_only` 或測試明列的 legacy evidence」。這個檔案是
@@ -163,7 +163,7 @@ plain-text rg of Plan13 Task5 command would match?
 
 - **建議處置**：補進 Plan 15 清單 + 修 census。兩個修法擇一：
   (a) `LEGACY_NAMES` 加入 `LegacyManualMappingType` / `NEW_EXTENSION`；
-  (b) 在 allowlist 加一筆 `src/kai_mind/web/legacy_mapping_guards.py` 記錄，
+  (b) 在 allowlist 加一筆 `src/systograph/web/legacy_mapping_guards.py` 記錄，
   classification=`migration_only`，removal_plan 指向 Plan 15 Task 3b bullet 5。
   兩者都做最好——單純加 allowlist 記錄會因為 census 掃不到而變成 `stale` 而 fail。
 
@@ -174,8 +174,8 @@ plain-text rg of Plan13 Task5 command would match?
 
 ### RB-2. Plan 15 Task 3b 要刪的 module 裡有 active（非 migration）消費者：`LegacyManualMappingType`【B類】
 
-- **位置**：`src/kai_mind/core/services/legacy_manual_mapping_migration_service.py:32-33`
-  ← 被 `src/kai_mind/web/legacy_mapping_guards.py:9-13` import
+- **位置**：`src/systograph/core/services/legacy_manual_mapping_migration_service.py:32-33`
+  ← 被 `src/systograph/web/legacy_mapping_guards.py:9-13` import
 
 - **現況**
 
@@ -193,9 +193,9 @@ class LegacyManualMappingType(StrEnum):
 
 ```
 $ rg -n "LegacyManualMapping|migrate-legacy-mappings|legacy_manual_mapping_migration|new_extension_component" src
-src/kai_mind/cli/migrate_legacy_mappings_command.py:8,9,14,33
-src/kai_mind/web/legacy_mapping_guards.py:9,10,13          ← 這三行必須「不是 remove」
-src/kai_mind/core/services/legacy_manual_mapping_migration_service.py:32,33,36,42,99,170,210,294,340,393
+src/systograph/cli/migrate_legacy_mappings_command.py:8,9,14,33
+src/systograph/web/legacy_mapping_guards.py:9,10,13          ← 這三行必須「不是 remove」
+src/systograph/core/services/legacy_manual_mapping_migration_service.py:32,33,36,42,99,170,210,294,340,393
 ```
 
 - **判定理由**：Plan 15 Task 3b 第 1 條要求「刪除 `LegacyManualMappingDTO` 與**任何仍能 parse
@@ -219,7 +219,7 @@ src/kai_mind/core/services/legacy_manual_mapping_migration_service.py:32,33,36,4
 
 ### RB-3. `_legacy_detail_scan` / `legacy_latest_build_fallback` 是 Plan 13 之前的過渡寫法，production 不可達，且 13/15 都沒追蹤【B類】
 
-- **位置**：`src/kai_mind/web/routes/detail_scan_routes.py:59-71`（分歧點）、`:163-208`（實作）
+- **位置**：`src/systograph/web/routes/detail_scan_routes.py:59-71`（分歧點）、`:163-208`（實作）
 
 - **現況**
 
@@ -246,17 +246,17 @@ return DetailScanResponse(
 
 ```
 $ rg -n "InMemorySessionStore|PersistentSessionStore" src
-src/kai_mind/web/app.py:233:    app.state.session_store = session_store or PersistentSessionStore(
-src/kai_mind/web/session_store.py:70:class InMemorySessionStore:      ← src/ 內無任何使用者
-src/kai_mind/web/session_store.py:134:class PersistentSessionStore:
+src/systograph/web/app.py:233:    app.state.session_store = session_store or PersistentSessionStore(
+src/systograph/web/session_store.py:70:class InMemorySessionStore:      ← src/ 內無任何使用者
+src/systograph/web/session_store.py:134:class PersistentSessionStore:
 ```
 
   `PersistentSessionStore.build_result`（`session_store.py:216-228`）唯一產出路徑是
   `self._manifest_service.load(manifest)`，而
 
 ```
-src/kai_mind/core/models/analysis_history.py:142:    lineage: MapBuildLineage   ← 非 Optional，required
-src/kai_mind/core/services/build_manifest_service.py:179:            lineage=manifest.lineage,   ← 無條件賦值
+src/systograph/core/models/analysis_history.py:142:    lineage: MapBuildLineage   ← 非 Optional，required
+src/systograph/core/services/build_manifest_service.py:179:            lineage=manifest.lineage,   ← 無條件賦值
 ```
 
   → `build_result.lineage is None` 在 production 恆為 False。
@@ -264,7 +264,7 @@ src/kai_mind/core/services/build_manifest_service.py:179:            lineage=man
   2. **它不是 Plan 13 的產物**：
 
 ```
-$ git log --oneline -S "_legacy_detail_scan" -- src/kai_mind/web/routes/detail_scan_routes.py
+$ git log --oneline -S "_legacy_detail_scan" -- src/systograph/web/routes/detail_scan_routes.py
 577f15b feat(core): #202 完成 Phase2 S1 pipeline-core 後端 (#248)
 
 $ git log --oneline -S "legacy_latest_build_fallback"
@@ -391,21 +391,21 @@ if apply and report.cutover_blocked:
 
 ```
 $ rg -n "migration-backups|migration-quarantine" src tests docs scripts frontend
-src/kai_mind/core/services/legacy_manual_mapping_migration_service.py:347   / "migration-backups"
-src/kai_mind/core/services/legacy_manual_mapping_migration_service.py:401   / "migration-quarantine"
+src/systograph/core/services/legacy_manual_mapping_migration_service.py:347   / "migration-backups"
+src/systograph/core/services/legacy_manual_mapping_migration_service.py:401   / "migration-quarantine"
 tests/unit/core/test_legacy_manual_mapping_migration_service.py:49,210
                                                     ← docs/ 0 hit，plan 0 hit
 ```
 
 - **判定理由**：D類（文件與 code 不一致）。Task 3b 要刪一個不存在的東西（state-side report writer），
   同時要求「文件記載既有 backup 目錄是否人工保留、何時可刪」——但**該目錄叫什麼名字從未被寫下來**。
-  執行 Plan 15 的人只能靠讀 code 才知道要跟使用者說「請自行處理 `~/.kai-mind/migration-backups/`
-  與 `~/.kai-mind/migration-quarantine/`」。這是可預期會漏掉的 retention 條款。
+  執行 Plan 15 的人只能靠讀 code 才知道要跟使用者說「請自行處理 `~/.systograph/migration-backups/`
+  與 `~/.systograph/migration-quarantine/`」。這是可預期會漏掉的 retention 條款。
 
 - **建議處置**：修文件。把 Task 3b 第 4 條改寫為：
   (a) 刪掉「state-side migration report writers」（不存在）；
-  (b) 明確寫出兩個目錄的絕對相對路徑 `<KAI_MIND_STATE_DIR>/migration-backups/`、
-      `<KAI_MIND_STATE_DIR>/migration-quarantine/`，以及保留/刪除決策與時點。
+  (b) 明確寫出兩個目錄的絕對相對路徑 `<SYSTOGRAPH_STATE_DIR>/migration-backups/`、
+      `<SYSTOGRAPH_STATE_DIR>/migration-quarantine/`，以及保留/刪除決策與時點。
   同時建議把這兩個路徑補進 `docs/MODEL-CONTRACT.md` 或 CLAUDE.md 的 State persistence 段落
   （目前那段只提「project/scan/build lineage, manual mappings, latest pointer」）。
 
@@ -446,7 +446,7 @@ if quarantine_ref is not None:
 
 ```
 $ rg -n "legacy_mapping_migration_version|legacy_payload_digest" src tests docs
-src/kai_mind/core/services/legacy_manual_mapping_migration_service.py:165,198,205,302,305
+src/systograph/core/services/legacy_manual_mapping_migration_service.py:165,198,205,302,305
 tests/unit/core/test_legacy_manual_mapping_migration_service.py:80,83
                                                     ← plan 13 / plan 15 皆 0 hit
 ```
@@ -515,7 +515,7 @@ cutover_blocked=bool(
 
 ### RB-8. `PATCH /api/mappings/{id}` 沒有掛 guard，legacy payload 回的是 pydantic 泛用錯誤而非穩定錯誤碼；`legacy_mapping_type_read_only` 也沒進 `frontend/API_CONTRACT.md`【D類】
 
-- **位置**：`src/kai_mind/web/routes/mapping_routes.py:58-61`（無 `dependencies=`）；
+- **位置**：`src/systograph/web/routes/mapping_routes.py:58-61`（無 `dependencies=`）；
   對照 `:39-43`（POST 有掛）與 `mapping_proposal_routes.py:97-101`（有掛）
 
 - **現況**
@@ -538,7 +538,7 @@ def update_mapping(
 - **證據**
 
 ```
-$ uv run python -c "from kai_mind.core.models.mapping_base import ManualMappingUpdate; \
+$ uv run python -c "from systograph.core.models.mapping_base import ManualMappingUpdate; \
     ManualMappingUpdate(mapping_type='new_extension_component', decision='confirmed')"
 1 validation error for ManualMappingUpdate
 mapping_type
@@ -587,14 +587,14 @@ frontend/API_CONTRACT.md                              0 hit  ← 前端契約文
 
 | 檔案 | 角色 | 在 Plan 13 清單？ |
 | --- | --- | --- |
-| `src/kai_mind/web/legacy_mapping_guards.py` | Create（Task 4/5 的 API fail-closed 核心） | ✗ |
-| `src/kai_mind/web/routes/mapping_routes.py` | Modify（掛 guard） | ✗（只列了 `mapping_proposal_routes.py`） |
+| `src/systograph/web/legacy_mapping_guards.py` | Create（Task 4/5 的 API fail-closed 核心） | ✗ |
+| `src/systograph/web/routes/mapping_routes.py` | Modify（掛 guard） | ✗（只列了 `mapping_proposal_routes.py`） |
 | `tests/web/test_legacy_mapping_write_rejection.py` | Create（Task 4「Normal API 立即拒絕」的唯一測試） | ✗ |
 
 - **證據**
 
 ```
-$ git log --oneline -- src/kai_mind/web/legacy_mapping_guards.py
+$ git log --oneline -- src/systograph/web/legacy_mapping_guards.py
 0a68ccd feat(core): #240 Phase2 Plan 13 ai-system-map/v2 active cutover (#257)
 ```
 
@@ -622,7 +622,7 @@ $ git log --oneline -- src/kai_mind/web/legacy_mapping_guards.py
 
 ### RB-10. active normal path 仍直接 import v1 model module `core/models/system_map.py`，與 Plan 13 Task 5「normal build path 不得 import」矛盾；census 因只掃 4 個符號而看不到【B類】
 
-- **位置**：`src/kai_mind/core/services/manual_mapping_materializer.py:10-13`、
+- **位置**：`src/systograph/core/services/manual_mapping_materializer.py:10-13`、
   `manual_mapping_support.py:11`、`detail_scan_service.py:10`、
   `web/routes/detail_scan_routes.py:11`、`web/schemas.py:39`、
   `component_detection_service.py`、`endpoint_detection_service.py`、
@@ -634,20 +634,20 @@ $ git log --oneline -- src/kai_mind/web/legacy_mapping_guards.py
 - **現況**
 
 ```python
-# src/kai_mind/core/services/manual_mapping_materializer.py:10-13
-from kai_mind.core.models.system_map import (
+# src/systograph/core/services/manual_mapping_materializer.py:10-13
+from systograph.core.models.system_map import (
     ComponentInstance,
     ComponentSlot,
 )
 
-# src/kai_mind/web/schemas.py:39
-from kai_mind.core.models.system_map import DetailScanResult
+# src/systograph/web/schemas.py:39
+from systograph.core.models.system_map import DetailScanResult
 ```
 
   而 `core/models/system_map.py` 自己的檔頭寫得很清楚：
 
 ```python
-# src/kai_mind/core/models/system_map.py:1,16,24
+# src/systograph/core/models/system_map.py:1,16,24
 # 這個檔案負責：定義 ai-system-map/v1 的 Pydantic 資料契約（舊版 / v1 map）。
 """Pydantic models for the ai-system-map/v1 contract."""
 SCHEMA_VERSION = "ai-system-map/v1"
@@ -656,7 +656,7 @@ SCHEMA_VERSION = "ai-system-map/v1"
 - **證據**
 
 ```
-$ rg -ln "from kai_mind.core.models.system_map import" src | wc -l
+$ rg -ln "from systograph.core.models.system_map import" src | wc -l
       37
 ```
 

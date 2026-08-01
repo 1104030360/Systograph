@@ -4,14 +4,16 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from kai_mind.core.models.mapping import MappingEvidencePacket
-from kai_mind.core.services.manual_mapping_service import ManualMappingService
-from kai_mind.core.services.mapping_proposal_service import (
+from systograph.core.models.mapping import MappingEvidencePacket
+from systograph.core.services.manual_mapping_service import (
+    ManualMappingService,
+)
+from systograph.core.services.mapping_proposal_service import (
     InMemoryMappingProposalRepository,
     MappingProposalProviderUnavailableError,
     MappingProposalService,
 )
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 class UnavailableProvider:

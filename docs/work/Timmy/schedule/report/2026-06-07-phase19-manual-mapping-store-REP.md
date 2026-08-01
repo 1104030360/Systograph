@@ -20,7 +20,7 @@ Route 只呼叫 `ManualMappingService`，不直接讀寫 artifact、DB row 或�
 ## 實作步驟
 1. 建立 `ManualMapping` domain model，支援 `confirmed`、`rejected`、`skip_for_now`、`not_applicable`。
 2. 建立 `ManualMappingService`，負責 validation、digest、create/update/list，以及把 confirmed decision 套回 `ComponentDetectionResult`。
-3. 建立 repository protocol 與 in-memory implementation，並在 `src/kai_mind/storage/repositories.py` 暴露 storage boundary。
+3. 建立 repository protocol 與 in-memory implementation，並在 `src/systograph/storage/repositories.py` 暴露 storage boundary。
 4. 建立 `/api/mappings` list/create/patch routes。
 5. 修改 `create_app()`，讓 local API 持有同一個 `ManualMappingService`。
 6. 修改 `/api/scans` 與 `MapBuildService.build()`，使用同一個 `project_id` 重新 scan 時套用 confirmed mappings。

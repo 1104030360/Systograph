@@ -94,13 +94,13 @@ public sibling artifact set，不由 `OutputArtifactProvider` 作為使用者可
 
 ### 相關檔案
 
-- `src/kai_mind/core/providers/output_artifact_provider.py`
-- `src/kai_mind/core/models/map_build.py`
-- `src/kai_mind/core/services/map_build_service.py`
-- `src/kai_mind/core/models/readiness_report.py`（新增）
-- `src/kai_mind/core/services/readiness_report_service.py`（新增）
-- `src/kai_mind/core/services/viewer_session_service.py`
-- `src/kai_mind/web/schemas.py`
+- `src/systograph/core/providers/output_artifact_provider.py`
+- `src/systograph/core/models/map_build.py`
+- `src/systograph/core/services/map_build_service.py`
+- `src/systograph/core/models/readiness_report.py`（新增）
+- `src/systograph/core/services/readiness_report_service.py`（新增）
+- `src/systograph/core/services/viewer_session_service.py`
+- `src/systograph/web/schemas.py`
 
 ### 實作步驟
 
@@ -171,12 +171,12 @@ flowchart TD
 
 ## Files To Inspect First
 
-- `src/kai_mind/core/providers/output_artifact_provider.py`
-- `src/kai_mind/core/models/scan.py`
-- `src/kai_mind/core/models/map_build.py`
-- `src/kai_mind/core/services/map_build_service.py`
-- `src/kai_mind/cli/map_command.py`
-- `src/kai_mind/web/schemas.py`
+- `src/systograph/core/providers/output_artifact_provider.py`
+- `src/systograph/core/models/scan.py`
+- `src/systograph/core/models/map_build.py`
+- `src/systograph/core/services/map_build_service.py`
+- `src/systograph/cli/map_command.py`
+- `src/systograph/web/schemas.py`
 - `tests/unit/core/test_output_artifact_provider.py`
 - `tests/integration/test_map_build_service.py`
 
@@ -255,7 +255,7 @@ flowchart TD
 
 ## Out Of Scope
 
-- Do not redesign `src/kai_mind/core/models/system_map.py` or 00A's
+- Do not redesign `src/systograph/core/models/system_map.py` or 00A's
   `AiSystemMapV2`; consume the approved normalized contract.
 - Do not introduce external profile providers.
 - Do not move manual mapping persistence into `profile_signals.json`.

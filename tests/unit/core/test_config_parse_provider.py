@@ -5,13 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.filesystem import (
+from systograph.core.models.filesystem import (
     FileInventory,
     FileInventorySource,
     FileRecord,
 )
-from kai_mind.core.providers.config_parse_provider import ConfigParseProvider
-from kai_mind.core.services.secret_masking_service import SecretMaskingService
+from systograph.core.providers.config_parse_provider import ConfigParseProvider
+from systograph.core.services.secret_masking_service import (
+    SecretMaskingService,
+)
 
 
 def build_inventory(project_root: Path, *paths: str) -> FileInventory:
@@ -113,12 +115,12 @@ def test_collect_masks_env_values_and_skips_non_config_yaml_names(
             "pyproject.toml",
             "\n".join(
                 [
-                    "[tool.kai_mind]",
+                    "[tool.systograph]",
                     'default_model = "gpt-4o-mini"',
                 ]
             )
             + "\n",
-            "tool.kai_mind.default_model",
+            "tool.systograph.default_model",
             "gpt-4o-mini",
         ),
     ],

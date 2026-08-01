@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def test_map_build_route_updates_api_map_payload(tmp_path: Path) -> None:

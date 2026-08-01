@@ -4,10 +4,10 @@ import pytest
 from fastapi import APIRouter
 from fastapi.testclient import TestClient
 
-from kai_mind.core.providers.local_json_state_errors import (
+from systograph.core.providers.local_json_state_errors import (
     ProjectStateBusyError,
 )
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def test_large_request_returns_413_with_cors_header() -> None:
@@ -38,7 +38,7 @@ def test_unhandled_error_response_is_masked_and_keeps_cors_header() -> None:
     @router.get("/api/debug/boom")
     def boom() -> None:
         raise RuntimeError(
-            "failed at /Users/linjunting/Local_AI_Health_Doctor/.env "
+            "failed at /Users/linjunting/Systograph/.env "
             "with OPENAI_API_KEY=sk-live-secret-value"
         )
 

@@ -55,7 +55,7 @@ Stage 7 是 canonical JSON 的最後閘門。所有後續 CLI、Markdown、viewe
 - 不處理 Task 19 manual mapping confirmation，只保留已由 Task 13 hook 套用後的 result。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/services/system_map_normalize_service.py`。
+1. 建立 `src/systograph/core/services/system_map_normalize_service.py`。
 2. 定義 normalizer input dataclass 或明確 method signature，避免直接傳自由 dict。
 3. 組裝 classification、project metadata、reference architecture。
 4. 將所有可為空的 top-level collections normalize 成明確空陣列；例如尚未偵測到 endpoint 時輸出 `endpoints: []`，尚未跑 trace 時輸出 `query_trace_events: []`。
@@ -72,9 +72,9 @@ Stage 7 是 canonical JSON 的最後閘門。所有後續 CLI、Markdown、viewe
 12. 寫 contract / unit tests：invalid references、detected without evidence、confidence、absolute evidence path、缺少 canonical top-level array 時 validation 失敗、normalizer 輸出空陣列、deterministic ordering、recommended next checks 條件式產生、TOML metadata catalog duplicate / missing field validation。
 
 ## 預期輸出
-- `src/kai_mind/core/services/system_map_normalize_service.py`
-- `src/kai_mind/core/services/system_map_validation_service.py`
-- `src/kai_mind/core/rules/recommended_next_check_rules.toml`
+- `src/systograph/core/services/system_map_normalize_service.py`
+- `src/systograph/core/services/system_map_validation_service.py`
+- `src/systograph/core/rules/recommended_next_check_rules.toml`
 - 擴充 `tests/contracts/test_ai_system_map_schema.py`，必要時再新增 `tests/contracts/test_system_map_contract.py`
 - `tests/unit/core/test_system_map_normalize_service.py`
 - 擴充 `tests/unit/core/test_system_map_validation.py`
@@ -106,8 +106,8 @@ Stage 7 是 canonical JSON 的最後閘門。所有後續 CLI、Markdown、viewe
 
 Task 15 需要接住既有 codebase，而不是照舊版計劃從空白狀態開始。
 
-- `RagSystemMap`、top-level arrays、`RecommendedNextCheck`、`ScanSummary` 已存在於 `src/kai_mind/core/models/system_map.py`。
-- `SystemMapValidationService` 已存在於 `src/kai_mind/core/services/system_map_validation_service.py`，目前已檢查 confidence、evidence path、components、endpoints、flows、extensions、unmapped、risk hints、detail scans、query trace refs。
+- `RagSystemMap`、top-level arrays、`RecommendedNextCheck`、`ScanSummary` 已存在於 `src/systograph/core/models/system_map.py`。
+- `SystemMapValidationService` 已存在於 `src/systograph/core/services/system_map_validation_service.py`，目前已檢查 confidence、evidence path、components、endpoints、flows、extensions、unmapped、risk hints、detail scans、query trace refs。
 - `tests/unit/core/test_system_map_validation.py` 目前 pytest 收集 15 items 且通過；但這不是 15 個 test functions，而是 11 個 test functions 加上 parametrize 展開。
 - 目前尚未建立 `SystemMapNormalizeService`。
 - 目前尚未建立 `tests/unit/core/test_system_map_normalize_service.py`。
@@ -247,7 +247,7 @@ if rag_trust_critical_slots_missing:
 - Pydantic v2 支援 `@model_validator(mode='after')`，可作 cross-field validation 參考；但本 repo 現有設計把 runtime invariants 放在 `SystemMapValidationService`，不需要為了最佳實踐搬進 Pydantic model。
 - GitDiagram README 描述其 pipeline 會用 repo file tree 與 README 產生 structured graph，驗證 bad paths / invalid connections，再編譯 Mermaid 並驗證 Mermaid。可借鏡「產出 graph 前後都有 validation」，但不要過度宣稱其完全 deterministic。
 - Understand-Anything README 描述它會掃描 project、抽 file/function/class/dependency，輸出 `.understand-anything/knowledge-graph.json`，並使用 Tree-sitter deterministic structural extraction 與 importMap。可借鏡 staged pipeline 與 graph artifact discipline；若要引用特定 `merge-batch-graphs.py` 丟棄 dangling edges，需另行打開該原始碼確認，不可只靠 README 推論。
-- Checkov 可借鏡 static scanner 報告輸出、path/source attribution、JSON/SARIF output discipline；但 KAI-Mind 不是 IaC scanner，不應照搬 Checkov output pipeline。
+- Checkov 可借鏡 static scanner 報告輸出、path/source attribution、JSON/SARIF output discipline；但 Systograph 不是 IaC scanner，不應照搬 Checkov output pipeline。
 - OpenTelemetry Service Graph Connector 是 runtime trace -> service graph，不是 static scanner。可借鏡「edge 兩端必須能配對」與 dangling edge 風險，但不能當 Task 15 直接實作範本。
 - Semgrep 的 rules 以明確 pattern / metadata / message / severity 定義 detection，不靠 LLM 即時判斷；Task 15 的 `recommended_next_checks` 應採相同精神：固定規則、穩定 metadata、可測試輸出。
 - SARIF 將 tool rules、results、artifact locations 等資訊結構化，重點是 machine-readable、stable、可被 CI / viewer 消費；Task 15 canonical checks 不應混入非 deterministic AI 文案。

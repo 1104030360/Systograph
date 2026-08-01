@@ -238,7 +238,7 @@ function profileInferenceFixture() {
   return scopeHandoffFixtureToBuild(profileInferenceSample) as typeof profileInferenceSample;
 }
 
-/* Mimics kai_mind.web.schemas.MapBuildScopedResponse: phase2 lineage +
+/* Mimics systograph.web.schemas.MapBuildScopedResponse: phase2 lineage +
    validated sidecars (reused from the handoff sample so identities are real)
    around a v1 base graph projection. */
 function mapBuildResponseFixture() {

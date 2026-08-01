@@ -1,4 +1,4 @@
-# Audit D — `src/kai_mind/web/` 死碼盤點 + `tests/` web 耦合稽核
+# Audit D — `src/systograph/web/` 死碼盤點 + `tests/` web 耦合稽核
 
 READ-ONLY 稽核。未修改任何程式碼或測試。
 稽核時間點：`main` @ `0a68ccd`。
@@ -7,23 +7,23 @@ READ-ONLY 稽核。未修改任何程式碼或測試。
 
 ## web 檔案可刪除性判定表
 
-`git ls-files src/kai_mind/web` = **19 個 tracked `.py`**（與任務描述一致）。
+`git ls-files src/systograph/web` = **19 個 tracked `.py`**（與任務描述一致）。
 
-歷史刪除紀錄（`git log --diff-filter=D --name-only -- 'src/kai_mind/web/*'`）：
+歷史刪除紀錄（`git log --diff-filter=D --name-only -- 'src/systograph/web/*'`）：
 
 ```
 COMMIT 4ea4353 2026-06-12 [Epic 1][Backend Task 24] feat: simplify scan boundary same-run gate (#46) (#120)
 
-src/kai_mind/web/routes/scan_boundary_routes.py
+src/systograph/web/routes/scan_boundary_routes.py
 ```
 
-**web 層歷史上只被刪過這一個檔**，而且刪得乾淨：`git grep scan_boundary_routes` 在 `src/`、`tests/`、`scripts/`、`frontend/` **零命中**，只有 `docs/` 有 4 處歷史敘述。沒有殘留 import。唯一殘留是 `.gitignore` 已忽略的編譯快取 `src/kai_mind/web/routes/__pycache__/scan_boundary_routes.cpython-314.pyc`（`ls -la` 確認存在，日期 6月11日）。
+**web 層歷史上只被刪過這一個檔**，而且刪得乾淨：`git grep scan_boundary_routes` 在 `src/`、`tests/`、`scripts/`、`frontend/` **零命中**，只有 `docs/` 有 4 處歷史敘述。沒有殘留 import。唯一殘留是 `.gitignore` 已忽略的編譯快取 `src/systograph/web/routes/__pycache__/scan_boundary_routes.cpython-314.pyc`（`ls -la` 確認存在，日期 6月11日）。
 
 | 檔案 | 行數 | 被誰 import（檔案:行號） | 內部死函式 | 判定 | 刪前須處理 |
 |---|---|---|---|---|---|
-| `web/__init__.py` | 1 | 隱含（所有 `from kai_mind.web...`） | 無（只有 docstring） | **必要** | — |
-| `web/app.py` | 267 | `scripts/dev.py:55`（uvicorn `--factory`）、`scripts/lib/api_trace_common.sh:109`、`scripts/test_mapping_proposal_llm.sh:140`、20 個測試檔（`tests/web/*` 16 檔 + `tests/e2e/test_apply_confirmations_build_lineage.py:22`、`tests/e2e/test_inventory_selection_scan_flow.py:15`、`tests/integration/test_v2_active_cutover.py:23`、`tests/unit/core/test_profile_inference_boundaries.py:19`） | **`app = create_app()` (line 267) 全 repo 零引用**（`git grep "web.app:app"` / `from kai_mind.web.app import app` 皆 0 命中）；`create_app()` 19 個 kwargs 中 **10 個從未被任何呼叫端使用** | **必要（但內含死碼，見 D-1 / D-3）** | 刪 line 267 前確認沒有外部 `uvicorn kai_mind.web.app:app` 用法（repo 內三個入口都用 `--factory`） |
-| `web/dependencies.py` | 135 | `routes/` 8 個模組（`scan_routes.py:40`、`map_routes.py:15`、`map_build_routes.py:18`、`detail_scan_routes.py:24`、`trace_routes.py:16`、`viewer_routes.py:12`、`mapping_routes.py:17`、`mapping_proposal_routes.py:22`） | **`build_manifest_service` (line 58-59) 死函式** — `grep -rn "\bbuild_manifest_service\b" src/kai_mind/web/routes/` 零命中；coverage 也標 `dependencies.py ... 98% Missing: 59` | **必要（含 1 個死函式）** | 刪 `build_manifest_service` 前確認 `app.state.build_manifest_service`（app.py:149）仍需保留給 `DetailScanBuildService` / `ApplyConfirmationsService` 建構使用（是，直接由 `create_app` 傳入，不經 Depends） |
+| `web/__init__.py` | 1 | 隱含（所有 `from systograph.web...`） | 無（只有 docstring） | **必要** | — |
+| `web/app.py` | 267 | `scripts/dev.py:55`（uvicorn `--factory`）、`scripts/lib/api_trace_common.sh:109`、`scripts/test_mapping_proposal_llm.sh:140`、20 個測試檔（`tests/web/*` 16 檔 + `tests/e2e/test_apply_confirmations_build_lineage.py:22`、`tests/e2e/test_inventory_selection_scan_flow.py:15`、`tests/integration/test_v2_active_cutover.py:23`、`tests/unit/core/test_profile_inference_boundaries.py:19`） | **`app = create_app()` (line 267) 全 repo 零引用**（`git grep "web.app:app"` / `from systograph.web.app import app` 皆 0 命中）；`create_app()` 19 個 kwargs 中 **10 個從未被任何呼叫端使用** | **必要（但內含死碼，見 D-1 / D-3）** | 刪 line 267 前確認沒有外部 `uvicorn systograph.web.app:app` 用法（repo 內三個入口都用 `--factory`） |
+| `web/dependencies.py` | 135 | `routes/` 8 個模組（`scan_routes.py:40`、`map_routes.py:15`、`map_build_routes.py:18`、`detail_scan_routes.py:24`、`trace_routes.py:16`、`viewer_routes.py:12`、`mapping_routes.py:17`、`mapping_proposal_routes.py:22`） | **`build_manifest_service` (line 58-59) 死函式** — `grep -rn "\bbuild_manifest_service\b" src/systograph/web/routes/` 零命中；coverage 也標 `dependencies.py ... 98% Missing: 59` | **必要（含 1 個死函式）** | 刪 `build_manifest_service` 前確認 `app.state.build_manifest_service`（app.py:149）仍需保留給 `DetailScanBuildService` / `ApplyConfirmationsService` 建構使用（是，直接由 `create_app` 傳入，不經 Depends） |
 | `web/inventory_error_response.py` | 85 | `routes/scan_routes.py:50` | 無。3 個 public function 全被 scan_routes 用到（`inventory_error_detail` @ 118/257/329、`project_not_found_detail` @ 100/165、`inventory_system_error_detail` @ 123/262/333）。coverage 100%（列在 "5 files skipped due to complete coverage"） | **必要** | — |
 | `web/inventory_preflight_projection.py` | 115 | `routes/scan_routes.py:55` | 無。唯一 public function `project_inventory_preflight` 被 scan_routes.py:109 呼叫。coverage 100% | **必要** | — |
 | `web/legacy_mapping_guards.py` | 38 | `routes/mapping_proposal_routes.py:26`、`routes/mapping_routes.py:18` | 無。`reject_legacy_mapping_type` 用於 `mapping_routes.py:42`、`mapping_proposal_routes.py:100` 的 `dependencies=[Depends(...)]` | **必要** | — |
@@ -43,7 +43,7 @@ src/kai_mind/web/routes/scan_boundary_routes.py
 
 ### 一句話回答使用者的問題
 
-> 「`src/kai_mind/web/` 裡是不是有舊檔案？直接刪會不會影響下層？」
+> 「`src/systograph/web/` 裡是不是有舊檔案？直接刪會不會影響下層？」
 
 **沒有可整檔刪除的舊檔案。** 19 個檔全部活著（都在 import 鏈上）。唯一被刪過的 `scan_boundary_routes.py` 已在 `4ea4353` 刪乾淨，沒有殘留 import、沒有殘留測試 import（`test_scan_boundary_routes.py` 現在測的是 `/api/scans`，見 D-7）。
 
@@ -56,7 +56,7 @@ src/kai_mind/web/routes/scan_boundary_routes.py
 ### 覆蓋率（實際指令輸出）
 
 ```
-$ cd /Users/linjunting/Local_AI_Health_Doctor && uv run pytest tests/web -q --cov=src/kai_mind/web --cov-report=term-missing -p no:randomly
+$ cd /Users/linjunting/Systograph && uv run pytest tests/web -q --cov=src/systograph/web --cov-report=term-missing -p no:randomly
 
 ........................................................................ [ 80%]
 .................                                                        [100%]
@@ -65,20 +65,20 @@ ______________ coverage: platform darwin, python 3.11.15-final-0 _______________
 
 Name                                                 Stmts   Miss Branch BrPart  Cover   Missing
 ------------------------------------------------------------------------------------------------
-src/kai_mind/web/app.py                                 92      2      8      2    96%   87, 168
-src/kai_mind/web/dependencies.py                        54      1      0      0    98%   59
-src/kai_mind/web/legacy_mapping_guards.py               19      3      6      1    84%   18, 32-33
-src/kai_mind/web/middleware.py                          62      5     16      6    86%   53, 64->49, 87, 97, 114, 131
-src/kai_mind/web/routes/detail_scan_routes.py           73     13     20      9    76%   56, 83, 98-102, 106, 138, 141, 156, 157->153, 158->157, 160, 173
-src/kai_mind/web/routes/map_build_routes.py             44      4      2      1    89%   64, 66, 105, 119
-src/kai_mind/web/routes/map_routes.py                   36      1      6      1    95%   58
-src/kai_mind/web/routes/mapping_proposal_routes.py      46      2      8      0    96%   93-94
-src/kai_mind/web/routes/mapping_routes.py               26      4      0      0    85%   70-76
-src/kai_mind/web/routes/project_routes.py               19      1      2      1    90%   28
-src/kai_mind/web/routes/scan_routes.py                 109     15     22      6    84%   206, 235->241, 243, 250, 264-265, 268, 315-337, 338->344
-src/kai_mind/web/routes/trace_routes.py                 34      3      8      1    90%   56, 62-63
-src/kai_mind/web/schemas.py                            210      1      4      1    99%   151
-src/kai_mind/web/session_store.py                      120      6     28      7    91%   63->67, 111->113, 122, 125, 186->exit, 207, 210-214, 225, 234->232
+src/systograph/web/app.py                                 92      2      8      2    96%   87, 168
+src/systograph/web/dependencies.py                        54      1      0      0    98%   59
+src/systograph/web/legacy_mapping_guards.py               19      3      6      1    84%   18, 32-33
+src/systograph/web/middleware.py                          62      5     16      6    86%   53, 64->49, 87, 97, 114, 131
+src/systograph/web/routes/detail_scan_routes.py           73     13     20      9    76%   56, 83, 98-102, 106, 138, 141, 156, 157->153, 158->157, 160, 173
+src/systograph/web/routes/map_build_routes.py             44      4      2      1    89%   64, 66, 105, 119
+src/systograph/web/routes/map_routes.py                   36      1      6      1    95%   58
+src/systograph/web/routes/mapping_proposal_routes.py      46      2      8      0    96%   93-94
+src/systograph/web/routes/mapping_routes.py               26      4      0      0    85%   70-76
+src/systograph/web/routes/project_routes.py               19      1      2      1    90%   28
+src/systograph/web/routes/scan_routes.py                 109     15     22      6    84%   206, 235->241, 243, 250, 264-265, 268, 315-337, 338->344
+src/systograph/web/routes/trace_routes.py                 34      3      8      1    90%   56, 62-63
+src/systograph/web/schemas.py                            210      1      4      1    99%   151
+src/systograph/web/session_store.py                      120      6     28      7    91%   63->67, 111->113, 122, 125, 186->exit, 207, 210-214, 225, 234->232
 ------------------------------------------------------------------------------------------------
 TOTAL                                                  992     61    134     36    91%
 
@@ -142,22 +142,22 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 
 ### D-1. `app.py:267` 的模組級 `app = create_app()` 是零引用死碼，且有 import-time 副作用
 
-- **位置**：`src/kai_mind/web/app.py:267`
+- **位置**：`src/systograph/web/app.py:267`
 - **現況**
   ```python
-  # src/kai_mind/web/app.py:267
+  # src/systograph/web/app.py:267
   app = create_app()
   ```
   三個 production 入口全部用 factory 形式，沒有一個用這個 singleton：
   ```
-  scripts/dev.py:55                    "kai_mind.web.app:create_app",
+  scripts/dev.py:55                    "systograph.web.app:create_app",
   scripts/dev.py:56                    "--factory",
-  scripts/lib/api_trace_common.sh:109  .venv/bin/uvicorn kai_mind.web.app:create_app --factory \
-  scripts/test_mapping_proposal_llm.sh:140  ... uvicorn kai_mind.web.app:create_app --factory ...
+  scripts/lib/api_trace_common.sh:109  .venv/bin/uvicorn systograph.web.app:create_app --factory \
+  scripts/test_mapping_proposal_llm.sh:140  ... uvicorn systograph.web.app:create_app --factory ...
   ```
-  `git grep "web.app:app"` 與 `git grep "from kai_mind.web.app import app"` 皆 **0 命中**。
+  `git grep "web.app:app"` 與 `git grep "from systograph.web.app import app"` 皆 **0 命中**。
 - **為什麼是問題**
-  1. 每次 `import kai_mind.web.app`（包含 20 個測試檔的 import、以及 `tests/unit/core/test_profile_inference_boundaries.py` 的 AST 掃描間接觸發）都會完整建構整張服務圖。
+  1. 每次 `import systograph.web.app`（包含 20 個測試檔的 import、以及 `tests/unit/core/test_profile_inference_boundaries.py` 的 AST 掃描間接觸發）都會完整建構整張服務圖。
   2. 其中 `create_app` → `nvidia_nim_provider_from_env(env_file=Path(".env"))`（app.py:158-160）→ `llm_proposal_provider.py:206` `_dotenv_values(env_file or Path(".env"))`，**在 import time 讀取相對於 process CWD 的 `.env`**。
   3. `create_app` 開頭是 `canonical_output_version_from_env()`（app.py:138），設錯環境變數會在 **import 時**丟 `CanonicalOutputConfigurationError` 而非呼叫時 —— `tests/integration/test_v2_active_cutover.py:153` 這個測試正是靠「呼叫 `create_app()` 才 raise」的語意。
 - **建議**：**刪除**。這是 production code 的刪除，不是測試變更。刪除後 `create_app` 仍是唯一 public 入口。
@@ -168,15 +168,15 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 
 ### D-2. `dependencies.py:58-59` `build_manifest_service` 是死 FastAPI dependency
 
-- **位置**：`src/kai_mind/web/dependencies.py:58-59`
+- **位置**：`src/systograph/web/dependencies.py:58-59`
 - **現況**
   ```python
-  # src/kai_mind/web/dependencies.py:58
+  # src/systograph/web/dependencies.py:58
   def build_manifest_service(request: Request) -> BuildManifestService:
       return cast(BuildManifestService, request.app.state.build_manifest_service)
   ```
-  `grep -rn "\bbuild_manifest_service\b" src/kai_mind/web/routes/` → **零命中**。
-  coverage 佐證：`src/kai_mind/web/dependencies.py  54  1  0  0  98%  59`。
+  `grep -rn "\bbuild_manifest_service\b" src/systograph/web/routes/` → **零命中**。
+  coverage 佐證：`src/systograph/web/dependencies.py  54  1  0  0  98%  59`。
 - **為什麼是問題**：18 個 dependency helper 裡有 1 個永遠不會被 FastAPI 解析。Plan 1 要「移除 17 個 `cast()`」時，這一個會被無意義地一起搬進 typed container。
 - **建議**：**刪除** `dependencies.py:58-59`（含 `dependencies.py:16` 的 import）。注意 `app.state.build_manifest_service`（app.py:149）**不能刪** —— `DetailScanBuildService`（app.py:224）、`ApplyConfirmationsService`（app.py:206）、`MapBuildQueryService`（app.py:214）、`PersistentSessionStore`（app.py:235）都直接吃這個實例，只是不透過 `Depends`。
 - **觸發條件**：Plan 1 Task 3「`dependencies.py` 從容器讀 typed 欄位」。
@@ -186,7 +186,7 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 
 ### D-3. `create_app()` 19 個 kwargs 中 10 個是無人使用的注入縫
 
-- **位置**：`src/kai_mind/web/app.py:116-137`
+- **位置**：`src/systograph/web/app.py:116-137`
 - **現況**（AST 掃描 82 個測試呼叫點的結果，見上節表格）從未被使用的參數：
   ```
   allowed_origins            (app.py:134)
@@ -209,10 +209,10 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 
 ### D-4. `InMemorySessionStore` 是只被測試使用的 production code
 
-- **位置**：`src/kai_mind/web/session_store.py:70-131`（62 行）
+- **位置**：`src/systograph/web/session_store.py:70-131`（62 行）
 - **現況**：production 路徑只建 `PersistentSessionStore`：
   ```python
-  # src/kai_mind/web/app.py:233
+  # src/systograph/web/app.py:233
   app.state.session_store = session_store or PersistentSessionStore(...)
   ```
   唯二使用者是測試：
@@ -222,10 +222,10 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
   ```
   coverage 也顯示它的 `latest_viewer_payload`（line 122）、`latest_build_result`（line 125）從未被呼叫 —— 那兩個測試只用 `import_project` / `save_build_result` / `build_result`。
 - **為什麼是問題**：`src/` 裡放 test double，違反「core engine platform-independent / production 不含測試腳手架」的直覺。而且它讓 2 個 web 測試走「假 store」路徑，跟其他 14 個走真 `PersistentSessionStore` 的測試行為不一致（例如 `latest_viewer_payload` 的 fallback 語意在兩個實作裡不同）。
-- **建議**：**搬家** — `src/kai_mind/web/session_store.py` 的 `InMemorySessionStore` → `tests/helpers/web.py`。`SessionStore` Protocol（line 31-50）與 `save_committed_build_projection`（line 53-67）留在原處。
+- **建議**：**搬家** — `src/systograph/web/session_store.py` 的 `InMemorySessionStore` → `tests/helpers/web.py`。`SessionStore` Protocol（line 31-50）與 `save_committed_build_projection`（line 53-67）留在原處。
   ```python
   # tests/helpers/web.py（建議新增）
-  from kai_mind.web.session_store import ProjectRecord, SessionStore
+  from systograph.web.session_store import ProjectRecord, SessionStore
 
   class InMemorySessionStore:  # 原封不動搬過來
       ...
@@ -238,7 +238,7 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 
 ### D-5. `routes/__pycache__/scan_boundary_routes.cpython-314.pyc` 是刪檔殘留
 
-- **位置**：`src/kai_mind/web/routes/__pycache__/scan_boundary_routes.cpython-314.pyc`
+- **位置**：`src/systograph/web/routes/__pycache__/scan_boundary_routes.cpython-314.pyc`
 - **現況**：`.py` 已於 `4ea4353`（2026-06-12）刪除；`.pyc` 日期 `6月11日 18:21`，早於刪除 commit，屬舊 interpreter（3.14）留下的快取。`.gitignore:2` `__pycache__/` 已忽略，不會進版控。
 - **為什麼是問題**：只有一個實際風險 —— 若有人以舊 Python 3.14 直譯器、且該目錄在 `sys.path` 上跑，理論上 `.pyc` 不會被 import（Python 3.3+ 起 `__pycache__` 內的 `.pyc` 沒有對應 source 就不會被載入）。所以**實際上無害**，純粹是雜訊。
 - **建議**：`find src tests -name '__pycache__' -type d -exec rm -rf {} +` 清一次即可，不需要任何測試變更。
@@ -286,8 +286,8 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 - **建議**：**修改 + 集中**。不要在 5 個地方各自戳 `app.state`，改成一個 helper：
   ```python
   # tests/helpers/web.py（建議新增）
-  from kai_mind.web.app import LocalApiApp
-  from kai_mind.web.session_store import SessionStore
+  from systograph.web.app import LocalApiApp
+  from systograph.web.session_store import SessionStore
 
   def app_session_store(app: LocalApiApp) -> SessionStore:
       """Single choke point for tests that need the wired session store.
@@ -309,9 +309,9 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 ### D-7. `tests/web/test_scan_boundary_routes.py` 測的 route 檔已於 `4ea4353` 刪除，檔名現在是謊言
 
 - **位置**：`tests/web/test_scan_boundary_routes.py`（242 行，5 個測試）
-- **現況**：檔名對應的 `src/kai_mind/web/routes/scan_boundary_routes.py` 已刪。刪除前它提供的是 `GET/POST /api/scan-boundary-proposals`：
+- **現況**：檔名對應的 `src/systograph/web/routes/scan_boundary_routes.py` 已刪。刪除前它提供的是 `GET/POST /api/scan-boundary-proposals`：
   ```python
-  # git show 4ea4353^:src/kai_mind/web/routes/scan_boundary_routes.py
+  # git show 4ea4353^:src/systograph/web/routes/scan_boundary_routes.py
   router = APIRouter(tags=["scan-boundary-proposals"])
 
   @router.get("/api/scan-boundary-proposals", ...)
@@ -352,15 +352,15 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 ### D-8. `tests/unit/core/*_boundaries.py` 從 unit 層 import web，違反 core 不依賴 web
 
 - **位置**
-  - `tests/unit/core/test_profile_inference_boundaries.py:19` `from kai_mind.web.app import create_app`
-  - `tests/unit/core/test_query_trace_boundaries.py:6` `from kai_mind.web.routes import map_routes`
+  - `tests/unit/core/test_profile_inference_boundaries.py:19` `from systograph.web.app import create_app`
+  - `tests/unit/core/test_query_trace_boundaries.py:6` `from systograph.web.routes import map_routes`
 - **現況**
   ```python
   # tests/unit/core/test_profile_inference_boundaries.py:27-33
   FORBIDDEN_IMPORT_PREFIXES: Final = (
-      "kai_mind.core.services.manual_mapping",
+      "systograph.core.services.manual_mapping",
       ...
-      "kai_mind.web",          # ← 宣告 core 不得 import web
+      "systograph.web",          # ← 宣告 core 不得 import web
   )
   ```
   ```python
@@ -385,7 +385,7 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
   ```
 - **為什麼是問題**
   1. `tests/conftest.py:24-30` 依目錄自動加 marker，所以這兩個檔被標成 `unit`。`uv run pytest -m unit` 因此會**啟動整個 FastAPI app**（含 `LocalJsonStateProvider`、`nvidia_nim_provider_from_env` 讀 `.env`），unit 層不再是 unit。
-  2. `test_profile_inference_boundaries.py` 一邊宣告「`kai_mind.web` 是 core 的 forbidden import」（line 32），一邊自己 import 它（line 19）—— 斷言本身沒錯（它掃的是 `src/` 的 import graph），但檔案位置讓「unit 不碰 web」這條線失守。
+  2. `test_profile_inference_boundaries.py` 一邊宣告「`systograph.web` 是 core 的 forbidden import」（line 32），一邊自己 import 它（line 19）—— 斷言本身沒錯（它掃的是 `src/` 的 import graph），但檔案位置讓「unit 不碰 web」這條線失守。
   3. Plan 1 一旦改 `create_app` 的組裝順序或 `app.routes` 的註冊方式，`tests/unit/` 會紅 —— 沒有人預期 unit 測試會被 web 重構打到。
 - **建議**：**搬家**（斷言內容一字不改）。
   - `test_profile_inference_boundaries.py:234-243` 的 `test_web_contract_has_no_profile_mutation_route` → 搬到 `tests/web/test_route_contract.py`。
@@ -397,8 +397,8 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
     import inspect
     from pathlib import Path
 
-    from kai_mind.web.app import create_app
-    from kai_mind.web.routes import map_routes, viewer_routes
+    from systograph.web.app import create_app
+    from systograph.web.routes import map_routes, viewer_routes
 
 
     def test_web_contract_has_no_profile_mutation_route(tmp_path: Path) -> None:
@@ -417,7 +417,7 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
         assert "EndpointCallProvider" not in source
         assert "QueryTraceService" not in source
     ```
-  - 其餘 4 個純 AST/import-graph 測試（`test_profile_modules_do_not_depend_on_mutation_lifecycles` 等）留在原檔，它們不需要 import web。**但要注意**：留下來就必須把 `test_profile_inference_boundaries.py:19` 的 `from kai_mind.web.app import create_app` 一起刪掉，否則搬了測試沒搬 import，unit 仍然依賴 web。
+  - 其餘 4 個純 AST/import-graph 測試（`test_profile_modules_do_not_depend_on_mutation_lifecycles` 等）留在原檔，它們不需要 import web。**但要注意**：留下來就必須把 `test_profile_inference_boundaries.py:19` 的 `from systograph.web.app import create_app` 一起刪掉，否則搬了測試沒搬 import，unit 仍然依賴 web。
 - **觸發條件**：Plan 1 Task 2 改 `create_app()` 內部組裝；或 Plan 任何一步移動 `map_routes` 的程式碼位置。
 - **嚴重度**：**P2**
 
@@ -442,7 +442,7 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
   ```
 - **為什麼是問題**
   1. 這是對「原始碼字串」而非「行為」的斷言。它會被**註解、docstring、type-only import** 觸發假陽性；也會被「把 `ProjectScanService` 改名」造成假陰性。
-  2. Plan 1 若在 `viewer_routes.py` 加一行 `from kai_mind.web.app_services import AppServices`，這個測試不會壞；但若有人在 docstring 寫「本模組不得使用 ProjectScanService」，測試立刻紅。這種「文件會讓測試失敗」的性質是明確的設計缺陷。
+  2. Plan 1 若在 `viewer_routes.py` 加一行 `from systograph.web.app_services import AppServices`，這個測試不會壞；但若有人在 docstring 寫「本模組不得使用 ProjectScanService」，測試立刻紅。這種「文件會讓測試失敗」的性質是明確的設計缺陷。
   3. 同樣的架構意圖，`tests/unit/core/test_profile_inference_boundaries.py:89-114` 已經有更嚴謹的做法（`ast.parse` + BFS import graph，能抓遞移依賴）。兩套機制並存，弱的那套沒有存在必要。
 - **建議**：**修改** —— 把字串比對換成 AST import 檢查，重用既有工具。
   ```python
@@ -450,7 +450,7 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
   import ast
   from pathlib import Path
 
-  ROUTE_DIR = Path("src/kai_mind/web/routes")
+  ROUTE_DIR = Path("src/systograph/web/routes")
   SCANNER_SYMBOLS = frozenset({
       "ProjectScanService", "FilesystemProvider",
       "ConfigParseProvider", "DockerComposeProvider",
@@ -496,7 +496,7 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
   `tests/helpers/` **已經有** `fixtures.py`（`rag_project_fixture_path`）與 `profile_inference.py`，但 `tests/helpers/` 裡**沒有任何 web/app 相關工具**，所以每個 web 測試都自己刻。`tests/conftest.py` 也只提供 `isolate_default_state_root`（line 35-40）這一個 autouse fixture。
 - **為什麼是問題**
   1. Plan 1 若要調整 `create_app()` 的行為（即使簽名不變），沒有任何單一改動點 —— 82 個呼叫點散在 20 個檔案。
-  2. 寫法 1（不給 `state_dir`）依賴 `tests/conftest.py:40` 的 `KAI_MIND_STATE_DIR` monkeypatch，而寫法 2 顯式給 `state_dir` —— 兩種隔離機制並存，新測試不知道該選哪個。
+  2. 寫法 1（不給 `state_dir`）依賴 `tests/conftest.py:40` 的 `SYSTOGRAPH_STATE_DIR` monkeypatch，而寫法 2 顯式給 `state_dir` —— 兩種隔離機制並存，新測試不知道該選哪個。
   3. 唯一會跑 lifespan 的是 e2e 的 `with TestClient(...)`；tests/web 全部用非 context-manager 形式，等於 **web 層從未測過 startup/shutdown 行為**（目前 `create_app` 沒有 lifespan handler，但 Plan 1 之後若把服務建構移進 lifespan，這個缺口會立刻變成真問題）。
 - **建議**：**新增** `tests/web/conftest.py`，提供一個 `local_api_client` fixture，在重構前先把 41 個 `TestClient(create_app(state_dir=tmp_path / "state"))` 收斂掉。
   ```python
@@ -508,7 +508,7 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
   import pytest
   from fastapi.testclient import TestClient
 
-  from kai_mind.web.app import LocalApiApp, create_app
+  from systograph.web.app import LocalApiApp, create_app
 
 
   @pytest.fixture
@@ -634,10 +634,10 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 
 #### D-13a. `scan_routes.py:315-337` — build commit 失敗的整段 except 從未執行
 
-- **位置**：`src/kai_mind/web/routes/scan_routes.py:315-337`（coverage `84% Missing: ... 315-337`）
+- **位置**：`src/systograph/web/routes/scan_routes.py:315-337`（coverage `84% Missing: ... 315-337`）
 - **現況**
   ```python
-  # src/kai_mind/web/routes/scan_routes.py:315-325
+  # src/systograph/web/routes/scan_routes.py:315-325
   except BuildCommitError as exc:
       status_code = (
           409
@@ -656,10 +656,10 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 
 #### D-13b. `session_store.py:207, 210-214` — `PersistentSessionStore.latest_build_result()` 的跨 project pointer 掃描從未執行
 
-- **位置**：`src/kai_mind/web/session_store.py:200-214`
+- **位置**：`src/systograph/web/session_store.py:200-214`
 - **現況**
   ```python
-  # src/kai_mind/web/session_store.py:200-214
+  # src/systograph/web/session_store.py:200-214
   def latest_build_result(self) -> MapBuildResult | None:
       if self._latest_build_result is not None:
           return self._latest_build_result
@@ -682,7 +682,7 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 
 #### D-13c. `middleware.py` — 非 HTTP scope 的 re-raise 與串流 body 的大小限制
 
-- **位置**：`src/kai_mind/web/middleware.py:53, 64->49, 87, 97, 114, 131`
+- **位置**：`src/systograph/web/middleware.py:53, 64->49, 87, 97, 114, 131`
 - **現況**
   ```python
   # middleware.py:52-65（64->49 分支未覆蓋 = 多 chunk body 從未被測）
@@ -732,13 +732,13 @@ Required test coverage of 85.0% reached. Total coverage: 91.39%
 | `map_build_routes.py:64, 66` | 64, 66 | apply 的 `ApplyValidationError` → 422、`ProjectStateBusyError` → 503 |
 | `map_routes.py:58` | 58 | `map_markdown_path` 有值但檔案已被刪 → 404（現有 `test_map_report_route_before_build_returns_404` 打的是 `result is None` 那條） |
 | `trace_routes.py:56` | 56 | `build_id` 屬於別的 project → 404 `build_not_found`（`test_detail_scan_build_binding.py:174` 有 detail-scan 版，trace 版沒有） |
-| `trace_routes.py:62-63` | 62-63 | 專案 `pyproject.toml` 的 `[tool.kai-mind.trace]` 壞掉 → 400 `invalid_trace_config`（`test_trace_routes.py:133` 只測 happy path） |
+| `trace_routes.py:62-63` | 62-63 | 專案 `pyproject.toml` 的 `[tool.systograph.trace]` 壞掉 → 400 `invalid_trace_config`（`test_trace_routes.py:133` 只測 happy path） |
 | `detail_scan_routes.py:138, 141` | 138, 141 | `GET /api/detail-scans/{unknown}` → 404 `detail_scan_not_found`；`map_not_loaded` → 404 |
 | `detail_scan_routes.py:106` | 106 | `detail_build_incomplete` → 500 |
 | `mapping_proposal_routes.py:93-94` | 93-94 | `create_proposal` 的 `ValueError` → 422 |
 | `schemas.py:151` | 151 | `MapBuildScopedResponse.from_core` 缺 lineage/viewer 時的 `ValueError` |
 | `legacy_mapping_guards.py:18, 32-33` | 18, 32-33 | 非 dict payload；body 非合法 JSON 時的 `JSONDecodeError` 放行 |
-| `app.py:87` | 87 | `KAI_MIND_STATE_DIR` 未設時 fallback 到 `~/.kai-mind`（`tests/conftest.py:40` autouse 永遠設了它，所以這條**在測試環境中不可能執行**） |
+| `app.py:87` | 87 | `SYSTOGRAPH_STATE_DIR` 未設時 fallback 到 `~/.systograph`（`tests/conftest.py:40` autouse 永遠設了它，所以這條**在測試環境中不可能執行**） |
 | `app.py:168` | 168 | 顯式注入 `inventory_preflight_service=` 的分支（對應 D-3） |
 
 - **嚴重度**：**P2**（單一條都不致命，但合起來代表「錯誤契約」這一層沒有回歸保護；`docs/API-GUIDE.md` 的錯誤碼目前沒有測試背書）

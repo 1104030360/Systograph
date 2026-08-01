@@ -2,7 +2,7 @@
 
 ## 結論
 
-Plan 19 已完成。`scan_inventory_rules.toml` 現在是 KAI-owned default path policy 的唯一
+Plan 19 已完成。`scan_inventory_rules.toml` 現在是 Systograph-owned default path policy 的唯一
 executable source of truth；Git、recursive 與 fallback 共用 ordered matcher，Python只保留
 不可覆寫的 filesystem safety。每次新 scan 都保存 policy schema/digest、source mode、
 content-free audit 與完整 run digest。
@@ -24,7 +24,7 @@ content-free audit 與完整 run digest。
 ## Intentional delta
 
 Plan 19 前，Git mode會讓tracked `node_modules`／build output進入scanner；現在Git列出的path也
-會套用與recursive相同的KAI catalog。Git仍保留其candidate-source語意：tracked ignored file
+會套用與recursive相同的Systograph catalog。Git仍保留其candidate-source語意：tracked ignored file
 可列入，`.git/info/exclude`與configured global excludes只影響Git mode；recursive只信target
 tree內的`.gitignore`。
 
@@ -36,7 +36,7 @@ ruff check src tests                   all checks passed
 mypy src tests                         266 source files, no issues
 git diff --check                       passed
 wheel build                            success
-wheel resource                         kai_mind/core/rules/scan_inventory_rules.toml
+wheel resource                         systograph/core/rules/scan_inventory_rules.toml
 isolated installed import              schema v1 / 17 rules / sha256 digest
 ```
 

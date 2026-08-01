@@ -27,7 +27,7 @@
 3. 實作或擴充 scanner models：
    - `ProjectScanResult`
    - provider stage warning / skipped summary 欄位。
-4. 建立 `src/kai_mind/core/services/project_scan_service.py`：
+4. 建立 `src/systograph/core/services/project_scan_service.py`：
    - default providers wiring。
    - provider dependency injection，方便測試。
    - provider exception isolation。

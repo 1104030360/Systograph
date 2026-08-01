@@ -6,8 +6,8 @@ from typing import Never
 
 import pytest
 
-from kai_mind.core.services import capability_reference_map_loader
-from kai_mind.core.services.capability_reference_map_loader import (
+from systograph.core.services import capability_reference_map_loader
+from systograph.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapError,
     CapabilityReferenceMapLoader,
 )

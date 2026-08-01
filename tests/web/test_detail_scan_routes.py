@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from tests.web.test_detail_scan_build_binding import prepare_detail_scan
 
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def test_detail_scan_result_is_readable_by_id(tmp_path: Path) -> None:

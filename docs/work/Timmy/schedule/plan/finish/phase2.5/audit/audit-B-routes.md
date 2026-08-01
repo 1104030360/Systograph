@@ -1,4 +1,4 @@
-# Audit B — `src/kai_mind/web/routes/` 現況稽核（重構前，READ-ONLY）
+# Audit B — `src/systograph/web/routes/` 現況稽核（重構前，READ-ONLY）
 
 - 稽核範圍：9 個 route 檔（1,150 行）+ `dependencies.py`（參考）
 - 已讀完的契約文件：`docs/MODEL-CONTRACT.md`、`docs/API-GUIDE.md`、`frontend/API_CONTRACT.md`、`CLAUDE.md`
@@ -12,8 +12,8 @@
 以下表格由實際跑 `create_app()` 後列舉 `app.routes` 產生（`APIRoute` only，過濾 HEAD/OPTIONS）：
 
 ```
-KAI_MIND_STATE_DIR=<tmp> uv run python -c "
-from kai_mind.web.app import create_app
+SYSTOGRAPH_STATE_DIR=<tmp> uv run python -c "
+from systograph.web.app import create_app
 from fastapi.routing import APIRoute
 import inspect
 a = create_app()
@@ -50,7 +50,7 @@ for r in a.app.routes: ...  # methods/path/status_code/response_model/response_c
 ### 表格直接讀出來的不一致
 
 1. **`status_code=` 欄位 23/23 都是 `None`** — 沒有任何 route 在 decorator 宣告 status code；POST 建立資源一律 200。
-2. **`responses={...}` 0/23** — 實測 `grep -c "responses=" src/kai_mind/web/routes/*.py` → `0`。所以 OpenAPI 只有 `200` 與 FastAPI 自動加的 `422`：
+2. **`responses={...}` 0/23** — 實測 `grep -c "responses=" src/systograph/web/routes/*.py` → `0`。所以 OpenAPI 只有 `200` 與 FastAPI 自動加的 `422`：
 
 ```
 GET    /api/map/report              codes=['200','422']  200content=['application/json']   ← 實際是 text/markdown
@@ -70,9 +70,9 @@ GET    /api/detail-scans/{id}       codes=['200','422']  ← 文件寫了 404，
 ### B-1. 同一個 `project_not_found` 有兩種 response body shape，且前端只認得其中一種
 
 - **位置（全部出現點）**
-  - dict 形（`{"detail": {code, message, retryable, context}}`）：`src/kai_mind/web/routes/scan_routes.py:98-101`、`src/kai_mind/web/routes/scan_routes.py:163-166`
-  - 純字串形（`{"detail": "project_not_found"}`）：`src/kai_mind/web/routes/project_routes.py:28`、`src/kai_mind/web/routes/detail_scan_routes.py:56`、`src/kai_mind/web/routes/map_build_routes.py:119`、`src/kai_mind/web/routes/mapping_proposal_routes.py:69`、`src/kai_mind/web/routes/trace_routes.py:40`
-  - 產生 dict 形的來源：`src/kai_mind/web/inventory_error_response.py:65-70`
+  - dict 形（`{"detail": {code, message, retryable, context}}`）：`src/systograph/web/routes/scan_routes.py:98-101`、`src/systograph/web/routes/scan_routes.py:163-166`
+  - 純字串形（`{"detail": "project_not_found"}`）：`src/systograph/web/routes/project_routes.py:28`、`src/systograph/web/routes/detail_scan_routes.py:56`、`src/systograph/web/routes/map_build_routes.py:119`、`src/systograph/web/routes/mapping_proposal_routes.py:69`、`src/systograph/web/routes/trace_routes.py:40`
+  - 產生 dict 形的來源：`src/systograph/web/inventory_error_response.py:65-70`
 
 - **現況**（兩種寫法並列）
 
@@ -147,7 +147,7 @@ def api_error(status_code: int, code: str, ...) -> HTTPException: ...
 
 ### B-2. `trace_routes` 把原始 exception 字串（含**絕對路徑**）回給 HTTP client
 
-- **位置**：`src/kai_mind/web/routes/trace_routes.py:58-66`
+- **位置**：`src/systograph/web/routes/trace_routes.py:58-66`
 
 - **現況**
 
@@ -163,7 +163,7 @@ except QueryTraceConfigError as exc:
     ) from exc
 ```
 
-  上游 `src/kai_mind/core/services/query_trace_config_loader.py:45-48`：
+  上游 `src/systograph/core/services/query_trace_config_loader.py:45-48`：
 
 ```python
 except OSError as exc:
@@ -205,11 +205,11 @@ DETAIL WOULD BE: invalid_trace_config: Failed to read pyproject.toml:
 ### B-3. `detail=str(exc)` 有 8 處，把不可列舉的自由文字當成 API 錯誤契約
 
 - **位置（全部）**
-  - `src/kai_mind/web/routes/scan_routes.py:265`、`src/kai_mind/web/routes/scan_routes.py:337`
-  - `src/kai_mind/web/routes/detail_scan_routes.py:90-97`（`detail = str(exc)`）、`:99-100`、`:102`
-  - `src/kai_mind/web/routes/map_build_routes.py:57`、`:64`
-  - `src/kai_mind/web/routes/mapping_routes.py:55`、`:76`
-  - `src/kai_mind/web/routes/mapping_proposal_routes.py:94`、`:119`
+  - `src/systograph/web/routes/scan_routes.py:265`、`src/systograph/web/routes/scan_routes.py:337`
+  - `src/systograph/web/routes/detail_scan_routes.py:90-97`（`detail = str(exc)`）、`:99-100`、`:102`
+  - `src/systograph/web/routes/map_build_routes.py:57`、`:64`
+  - `src/systograph/web/routes/mapping_routes.py:55`、`:76`
+  - `src/systograph/web/routes/mapping_proposal_routes.py:94`、`:119`
 
 - **現況**（三種寫法並列，全在同一層）
 
@@ -285,8 +285,8 @@ def http_error_from(exc: Exception) -> HTTPException: ...
 ### B-4. `ScanCreateResponse` 把三種結果壓成一個 model，且前端 zod schema 與它不相容（boundary flow 必然 parse 失敗）
 
 - **位置**
-  - 定義：`src/kai_mind/web/schemas.py:236-257`
-  - 四個回傳點：`src/kai_mind/web/routes/scan_routes.py:193-201`、`:236-240`、`:243-248`、`:268-273`、`:344-351`
+  - 定義：`src/systograph/web/schemas.py:236-257`
+  - 四個回傳點：`src/systograph/web/routes/scan_routes.py:193-201`、`:236-240`、`:243-248`、`:268-273`、`:344-351`
   - 前端 schema：`frontend/src/types.ts:210-217`
   - 前端呼叫點：`frontend/src/services/projectScanApi.ts:27-37`
 
@@ -369,7 +369,7 @@ export const scanCreateResponseSchema = z.discriminatedUnion("status", [
 
 ### B-5. `create_scan` 在 route 裡塞了 ~190 行編排邏輯，包含 build_id 生成與樂觀鎖參數計算
 
-- **位置**：`src/kai_mind/web/routes/scan_routes.py:131-351`（單一函式 221 行，其中函式體 190 行）
+- **位置**：`src/systograph/web/routes/scan_routes.py:131-351`（單一函式 221 行，其中函式體 190 行）
 
 - **現況**（節錄關鍵段落）
 
@@ -473,7 +473,7 @@ def create_scan(
 
 ### B-6. `scan_routes.py:267-273` 是死碼，`inventory_policy = None` 是廢變數
 
-- **位置**：`src/kai_mind/web/routes/scan_routes.py:226`、`:253`、`:267-273`、`:276`
+- **位置**：`src/systograph/web/routes/scan_routes.py:226`、`:253`、`:267-273`、`:276`
 
 - **現況**
 
@@ -529,7 +529,7 @@ def create_scan(
 
 ### B-7. `_legacy_detail_scan`（46 行）在 production 佈線下不可達，只有 `InMemorySessionStore` 測試打得到
 
-- **位置**：`src/kai_mind/web/routes/detail_scan_routes.py:58-71`（進入條件）、`:163-208`（函式本體）
+- **位置**：`src/systograph/web/routes/detail_scan_routes.py:58-71`（進入條件）、`:163-208`（函式本體）
 
 - **現況**
 
@@ -544,7 +544,7 @@ if (
     return _legacy_detail_scan(...)
 ```
 
-  但 production 用的是 `PersistentSessionStore`（`web/app.py:233-237`），它的 `build_result()`（`web/session_store.py:216-228`）一定走 `self._manifest_service.load(manifest)`，而 `BuildManifestService.load` 在 `src/kai_mind/core/services/build_manifest_service.py:179` 無條件設 `lineage=manifest.lineage`（`MapBuildManifest.lineage` 非 Optional）。
+  但 production 用的是 `PersistentSessionStore`（`web/app.py:233-237`），它的 `build_result()`（`web/session_store.py:216-228`）一定走 `self._manifest_service.load(manifest)`，而 `BuildManifestService.load` 在 `src/systograph/core/services/build_manifest_service.py:179` 無條件設 `lineage=manifest.lineage`（`MapBuildManifest.lineage` 非 Optional）。
   → **`build_result.lineage` 在 production 永遠不是 `None`**，legacy 分支不可達。
 
   唯一打得到的入口：`tests/web/test_detail_scan_routes.py:73-94`
@@ -583,11 +583,11 @@ return TestClient(create_app(session_store=store)), ...
 ### B-8. Route 內直接 `new` 服務物件 + 內嵌 domain 規則（DI 破口 + 業務邏輯外洩）
 
 - **位置**
-  - `src/kai_mind/web/routes/trace_routes.py:59` — `QueryTraceConfigLoader()`
-  - `src/kai_mind/web/routes/mapping_proposal_routes.py:74` — `SystemMapIndex.from_map(normalized)`
-  - `src/kai_mind/web/routes/mapping_proposal_routes.py:78-82` — `semantic_kind == "repo_component"` 的 domain 規則
-  - `src/kai_mind/web/routes/mapping_proposal_routes.py:83-90` — `MappingEvidencePacketBuilder()` + `template_slots()`
-  - `src/kai_mind/web/routes/detail_scan_routes.py:187-200` —（legacy 路徑內）`viewer_service.build_canonical` + `model_copy`
+  - `src/systograph/web/routes/trace_routes.py:59` — `QueryTraceConfigLoader()`
+  - `src/systograph/web/routes/mapping_proposal_routes.py:74` — `SystemMapIndex.from_map(normalized)`
+  - `src/systograph/web/routes/mapping_proposal_routes.py:78-82` — `semantic_kind == "repo_component"` 的 domain 規則
+  - `src/systograph/web/routes/mapping_proposal_routes.py:83-90` — `MappingEvidencePacketBuilder()` + `template_slots()`
+  - `src/systograph/web/routes/detail_scan_routes.py:187-200` —（legacy 路徑內）`viewer_service.build_canonical` + `model_copy`
 
 - **現況**（三種取得服務的方式並列）
 
@@ -656,8 +656,8 @@ class MappingProposalService:
 ### B-9. project 存在性檢查政策不一致：兩個 endpoint 對不存在的 project 回 200 + 空陣列
 
 - **位置**
-  - **有檢查**：`src/kai_mind/web/routes/project_routes.py:26-28`、`src/kai_mind/web/routes/detail_scan_routes.py:54-56`、`src/kai_mind/web/routes/map_build_routes.py:118-119`、`src/kai_mind/web/routes/mapping_proposal_routes.py:68-69`、`src/kai_mind/web/routes/trace_routes.py:38-40`、`src/kai_mind/web/routes/scan_routes.py:96-101`、`:161-166`
-  - **沒檢查**：`src/kai_mind/web/routes/mapping_routes.py:25-36`（`GET /api/mappings`）、`src/kai_mind/web/routes/mapping_proposal_routes.py:41-52`（`GET /api/mapping-proposals`）
+  - **有檢查**：`src/systograph/web/routes/project_routes.py:26-28`、`src/systograph/web/routes/detail_scan_routes.py:54-56`、`src/systograph/web/routes/map_build_routes.py:118-119`、`src/systograph/web/routes/mapping_proposal_routes.py:68-69`、`src/systograph/web/routes/trace_routes.py:38-40`、`src/systograph/web/routes/scan_routes.py:96-101`、`:161-166`
+  - **沒檢查**：`src/systograph/web/routes/mapping_routes.py:25-36`（`GET /api/mappings`）、`src/systograph/web/routes/mapping_proposal_routes.py:41-52`（`GET /api/mapping-proposals`）
 
 - **現況**
 
@@ -802,7 +802,7 @@ router = APIRouter(tags=["detail-scans"])     # detail_scan_routes.py:36
 
 ### B-12. 零個 route 宣告 `responses={}`，OpenAPI 完全沒有錯誤碼；`/api/map/report` 的 content-type 在 OpenAPI 是錯的
 
-- **位置**：全 9 檔（`grep -c "responses=" src/kai_mind/web/routes/*.py` → `0`）；`map_routes.py:45-72`
+- **位置**：全 9 檔（`grep -c "responses=" src/systograph/web/routes/*.py` → `0`）；`map_routes.py:45-72`
 
 - **現況**（實跑 `app.openapi()` 的結果）
 
@@ -933,7 +933,7 @@ def required_build(
 
 ### B-14. `f"build:{uuid4()}"` 的 ID 慣例在 web 層重複實作
 
-- **位置**：`src/kai_mind/web/routes/scan_routes.py:284`；core 既有三處 `src/kai_mind/core/services/map_build_service.py:213`、`:253`、`:293`；另有 `core/services/scan_snapshot_service.py:50`（`scan_id_factory`）、`core/services/apply_confirmations_service.py:97`（`self._build_id_factory()`）
+- **位置**：`src/systograph/web/routes/scan_routes.py:284`；core 既有三處 `src/systograph/core/services/map_build_service.py:213`、`:253`、`:293`；另有 `core/services/scan_snapshot_service.py:50`（`scan_id_factory`）、`core/services/apply_confirmations_service.py:97`（`self._build_id_factory()`）
 
 - **現況**
 
@@ -1034,9 +1034,9 @@ def get_build(...) -> MapBuildScopedResponse:
 ### B-16. 三個未文件化 / 不一致的字串：`detail_build_incomplete`、`project_build_mismatch`、`legacy_latest_build_fallback`
 
 - **位置**
-  - `src/kai_mind/web/routes/detail_scan_routes.py:106` — `raise HTTPException(status_code=500, detail="detail_build_incomplete")`
-  - `src/kai_mind/web/routes/detail_scan_routes.py:89-97` — `project_build_mismatch` 由 `str(exc)` 產生（測試斷言在 `tests/web/test_detail_scan_build_binding.py:206`）
-  - `src/kai_mind/web/routes/detail_scan_routes.py:207` — `warnings=["legacy_latest_build_fallback"]`
+  - `src/systograph/web/routes/detail_scan_routes.py:106` — `raise HTTPException(status_code=500, detail="detail_build_incomplete")`
+  - `src/systograph/web/routes/detail_scan_routes.py:89-97` — `project_build_mismatch` 由 `str(exc)` 產生（測試斷言在 `tests/web/test_detail_scan_build_binding.py:206`）
+  - `src/systograph/web/routes/detail_scan_routes.py:207` — `warnings=["legacy_latest_build_fallback"]`
 
 - **現況**
 
@@ -1079,7 +1079,7 @@ if child.ai_system_map is None or child.viewer_load_result is None:
 ### B-17. docstring 與註解風格不一致（module docstring 缺 1、route docstring 缺 6、中英混用）
 
 - **位置**
-  - **缺 module docstring**：`src/kai_mind/web/routes/map_build_routes.py:1`（第 1 行直接是 `from __future__ import annotations`）。另外 8 個檔都有（`detail_scan_routes.py:1`、`map_routes.py:1`、`mapping_proposal_routes.py:1`、`mapping_routes.py:1`、`project_routes.py:1`、`scan_routes.py:1`、`trace_routes.py:1`、`viewer_routes.py:1`）
+  - **缺 module docstring**：`src/systograph/web/routes/map_build_routes.py:1`（第 1 行直接是 `from __future__ import annotations`）。另外 8 個檔都有（`detail_scan_routes.py:1`、`map_routes.py:1`、`mapping_proposal_routes.py:1`、`mapping_routes.py:1`、`project_routes.py:1`、`scan_routes.py:1`、`trace_routes.py:1`、`viewer_routes.py:1`）
   - **缺 route docstring（6 條）**：`map_build_routes.py:42`（`apply_confirmations`）、`:83`（`get_build`）、`:98`（`get_latest_build`）、`:113`（`list_builds`）、`project_routes.py:22`（`get_project`）、`scan_routes.py:83`（`create_scan_preflight`）
   - **中文 docstring（5 條）**：`scan_routes.py:160`、`scan_routes.py:356`、`map_routes.py:28`、`map_routes.py:41`、`map_routes.py:79`、`project_routes.py:41`
   - **英文 docstring（其餘 12 條）**
@@ -1105,7 +1105,7 @@ def apply_confirmations(
 - **為什麼是問題**
   - FastAPI 把 docstring 當成 OpenAPI 的 `description`（`docs/API-GUIDE.md:14` 把 `/docs` 列為官方介面）。6 條沒有 description，5 條是中文、12 條是英文 → `/docs` 讀起來是三種語言狀態。
   - `CLAUDE.md` 提到 core 的 service 檔「carry structured header comments（責任 / 呼叫鏈）」，routes 層沒有對等規範。
-  - 附帶：中文 docstring 的**顯示寬度**超過 79 欄（`scan_routes.py:160` 是 91 bytes / 大量 CJK；ruff 的 E501 按 Unicode code point 計數所以放行，`uv run ruff check src/kai_mind/web/routes/` 是 `All checks passed!`）。這不是 lint 違規，但在 79 欄的編輯器裡會折行，與其他檔的視覺一致性不同。
+  - 附帶：中文 docstring 的**顯示寬度**超過 79 欄（`scan_routes.py:160` 是 91 bytes / 大量 CJK；ruff 的 E501 按 Unicode code point 計數所以放行，`uv run ruff check src/systograph/web/routes/` 是 `All checks passed!`）。這不是 lint 違規，但在 79 欄的編輯器裡會折行，與其他檔的視覺一致性不同。
 
 - **建議改法**
   1. 定調語言（依 repo 現況多數 → 英文），把 5 條中文 docstring 翻成英文；或反過來全中文。**必須二選一並寫進 `CLAUDE.md`。**
@@ -1122,7 +1122,7 @@ def apply_confirmations(
 
 ### B-18. 隱式 preflight 流程不回傳 `preflight_request_id`，客戶端無法沿用
 
-- **位置**：`src/kai_mind/web/routes/scan_routes.py:174-183`、`:193-201`、`:222-240`、`:243-248`
+- **位置**：`src/systograph/web/routes/scan_routes.py:174-183`、`:193-201`、`:222-240`、`:243-248`
 
 - **現況**
 
@@ -1183,7 +1183,7 @@ return ScanCreateResponse(
 
 ### B-19.（附註）`PersistentSessionStore.save_build_result` 收下 `project_id` 但完全不使用
 
-- **位置**：`src/kai_mind/web/session_store.py:179-189`；呼叫端 `src/kai_mind/web/routes/detail_scan_routes.py:201`、`src/kai_mind/web/routes/map_routes.py:33`、`src/kai_mind/web/session_store.py:53-67`（`save_committed_build_projection`）
+- **位置**：`src/systograph/web/session_store.py:179-189`；呼叫端 `src/systograph/web/routes/detail_scan_routes.py:201`、`src/systograph/web/routes/map_routes.py:33`、`src/systograph/web/session_store.py:53-67`（`save_committed_build_projection`）
 
 - **現況**
 
@@ -1223,7 +1223,7 @@ detail_scan_routes.py:201 store.save_build_result(updated, project_id=...)     #
 
 ### B-20. async/sync 標準未成文（現況正確但沒有規則）
 
-- **位置**：`src/kai_mind/web/routes/scan_routes.py:355`（唯一的 `async def`）；其餘 22 條全是 `def`
+- **位置**：`src/systograph/web/routes/scan_routes.py:355`（唯一的 `async def`）；其餘 22 條全是 `def`
 
 - **現況**（實測 `inspect.iscoroutinefunction` / `isasyncgenfunction`）
 
@@ -1232,7 +1232,7 @@ detail_scan_routes.py:201 store.save_build_result(updated, project_id=...)     #
  1 條 async def：scan_routes.py:355  scan_events  →  AsyncIterator[ServerSentEvent]
 ```
 
-  另有 `src/kai_mind/web/legacy_mapping_guards.py:28` 的 `async def reject_legacy_mapping_type`（需要 `await request.json()`）。
+  另有 `src/systograph/web/legacy_mapping_guards.py:28` 的 `async def reject_legacy_mapping_type`（需要 `await request.json()`）。
 
 - **為什麼（目前）不是缺陷**：所有做阻塞 I/O 的 handler 都是 `def` —— `map_routes.py:69` 的 `result.map_markdown_path.read_text(...)`、`scan_routes.py:277` 的 `snapshot_service.scan_and_save(...)`（整個檔案系統掃描）、`trace_routes.py:59` 的 `load_project_config(...)` 全部在 threadpool 執行，**不會卡住 event loop**。`scan_events` 是 async generator 但只 yield 一個常數事件，不做 I/O。所以現況是對的。
 - **為什麼還是要記一筆**：這個「對」是巧合而非規則。`CLAUDE.md` 與 `docs/API-GUIDE.md` 都沒有寫「route handler 一律用 `def`，除非需要 async 原生 I/O 或 streaming」。任何人把 `create_scan` 改成 `async def` 求「看起來比較快」，就會讓一次完整 repo 掃描（可能數十秒）卡死整個 event loop —— 而且不會有測試抓到（`TestClient` 是同步的）。
@@ -1272,11 +1272,11 @@ def test_only_streaming_routes_are_async() -> None:
 
 以下是我逐行讀完 9 個 route 檔後**實際查證為一致 / 正確**的部分，重構時不要「順手改」：
 
-1. **依賴注入 100% 統一**。9 個檔、23 條 route、全部服務都走 `Annotated[X, Depends(dependencies.y)]`。`grep -rn "app.state\|request\." src/kai_mind/web/routes/` → **0 命中**。沒有任何 route 直接摸 `request.app.state`。（`dependencies.py` 內部的 17 個 `cast()` **[已被 Plan 1 涵蓋]**。）
+1. **依賴注入 100% 統一**。9 個檔、23 條 route、全部服務都走 `Annotated[X, Depends(dependencies.y)]`。`grep -rn "app.state\|request\." src/systograph/web/routes/` → **0 命中**。沒有任何 route 直接摸 `request.app.state`。（`dependencies.py` 內部的 17 個 `cast()` **[已被 Plan 1 涵蓋]**。）
 
-2. **`raise ... from exc` 的 exception chaining 一致**。我逐一核對了 `grep -rn "status_code=" src/kai_mind/web/routes/` 的 48 個命中點：所有在 `except` 區塊內的 `raise HTTPException` 都有 `from exc`；所有沒有 `from exc` 的都不在 `except` 內（是主動的前置檢查）。零例外。
+2. **`raise ... from exc` 的 exception chaining 一致**。我逐一核對了 `grep -rn "status_code=" src/systograph/web/routes/` 的 48 個命中點：所有在 `except` 區塊內的 `raise HTTPException` 都有 `from exc`；所有沒有 `from exc` 的都不在 `except` 內（是主動的前置檢查）。零例外。
 
-3. **沒有 TODO / FIXME / HACK / 被註解掉的死碼**。`grep -rniE "todo|fixme|xxx|hack|暫時|temporar|deprecat"` 在 9 個 `.py` 檔只命中 `legacy_mapping_guards` 的 import 與 `_legacy_detail_scan`（已在 B-7 處理）。`grep -rn "^\s*#" src/kai_mind/web/routes/` → 零行被註解掉的程式碼。
+3. **沒有 TODO / FIXME / HACK / 被註解掉的死碼**。`grep -rniE "todo|fixme|xxx|hack|暫時|temporar|deprecat"` 在 9 個 `.py` 檔只命中 `legacy_mapping_guards` 的 import 與 `_legacy_detail_scan`（已在 B-7 處理）。`grep -rn "^\s*#" src/systograph/web/routes/` → 零行被註解掉的程式碼。
 
 4. **POST 一律回 200（不是 201），且與文件一致**。23/23 route 都沒宣告 `status_code=`。`docs/API-GUIDE.md:109`、`:344`、`:565`、`:662`、`:752`、`:800`、`:841`、`:960` 全部寫 `Response 200`。**不建議改成 201** —— 內部一致、文件一致、前端 `frontend/src/services/http.ts:41` 只檢查 `response.ok`，改了只有壞處。
 
@@ -1286,9 +1286,9 @@ def test_only_streaming_routes_are_async() -> None:
 
 7. **所有 web request/response schema 都繼承 `WebSchema`（`extra="forbid"`）**（`web/schemas.py:43-46`），符合 `docs/API-GUIDE.md:25`「未知欄位 | 寫入類 endpoint `extra="forbid"`」。
 
-8. **`uv run ruff check src/kai_mind/web/routes/` → `All checks passed!`**。79 欄限制沒有違規（中文 docstring 的視覺寬度問題見 B-17，那不是 lint 違規）。
+8. **`uv run ruff check src/systograph/web/routes/` → `All checks passed!`**。79 欄限制沒有違規（中文 docstring 的視覺寬度問題見 B-17，那不是 lint 違規）。
 
-9. **測試不會寫到真實 state dir**。我一度懷疑 `tests/` 裡 29 處 `create_app()`（無 `state_dir`）會寫到 `~/.kai-mind`，查證後 `tests/conftest.py:21` 已全域設 `os.environ["KAI_MIND_STATE_DIR"]`，`tests/conftest.py:40` 另有 per-test monkeypatch。符合 `CLAUDE.md`「Tests inject a temp state dir」。**不是問題。**
+9. **測試不會寫到真實 state dir**。我一度懷疑 `tests/` 裡 29 處 `create_app()`（無 `state_dir`）會寫到 `~/.systograph`，查證後 `tests/conftest.py:21` 已全域設 `os.environ["SYSTOGRAPH_STATE_DIR"]`，`tests/conftest.py:40` 另有 per-test monkeypatch。符合 `CLAUDE.md`「Tests inject a temp state dir」。**不是問題。**
 
 10. **CORS、request size limit、unhandled-exception 遮蔽全在 `app.py` / `middleware.py`，routes 完全乾淨**。沒有任何 route 自己加 CORS header 或 try/except-everything。`web/middleware.py:105-121` 的 500 遮蔽是集中的（B-16 的 `detail_scan_routes.py:106` 是唯一繞過它的地方）。
 

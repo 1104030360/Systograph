@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.scan import OutputRun
-from kai_mind.core.models.system_map import RagSystemMap
-from kai_mind.core.providers.output_artifact_provider import (
+from systograph.core.models.scan import OutputRun
+from systograph.core.models.system_map import RagSystemMap
+from systograph.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 

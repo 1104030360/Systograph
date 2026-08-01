@@ -5,13 +5,13 @@ from typing import Final, Never
 
 import pytest
 
-from kai_mind.core.models.capability_reference_map import (
+from systograph.core.models.capability_reference_map import (
     CapabilityReferenceCatalog,
 )
-from kai_mind.core.services.capability_reference_map_loader import (
+from systograph.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapLoader,
 )
-from kai_mind.core.services.capability_type_node_map_loader import (
+from systograph.core.services.capability_type_node_map_loader import (
     CapabilityTypeNodeMapError,
     CapabilityTypeNodeMapLoader,
 )

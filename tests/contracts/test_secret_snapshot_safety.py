@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.services.snapshot_safety_service import (
+from systograph.core.services.snapshot_safety_service import (
     SnapshotSafetyError,
     SnapshotSafetyService,
 )
@@ -35,15 +35,12 @@ def test_snapshot_scanner_rejects_url_credentials() -> None:
 
 def test_snapshot_scanner_rejects_workspace_absolute_path() -> None:
     scanner = SnapshotSafetyService(
-        workspace_root=Path("/Users/linjunting/Local_AI_Health_Doctor")
+        workspace_root=Path("/Users/linjunting/Systograph")
     )
 
     with pytest.raises(SnapshotSafetyError, match="local_path"):
         scanner.assert_safe_text(
-            (
-                "map_json_path="
-                "/Users/linjunting/Local_AI_Health_Doctor/outputs/map.json"
-            ),
+            ("map_json_path=/Users/linjunting/Systograph/outputs/map.json"),
             source="snapshot.md",
         )
 

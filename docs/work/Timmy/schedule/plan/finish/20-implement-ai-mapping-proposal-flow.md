@@ -16,7 +16,7 @@ Phase 20 已完成第一版 core / local API implementation：
 - 已支援 optional provider protocol，provider output 會經 Pydantic schema validation、bounded output limits、unknown evidence / slot / edge reference validation、secret validation、`confidence` rejection；失敗時最多 retry 一次後 fallback。
 - 已新增 `NvidiaNimProposalProvider` hosted NIM adapter。它不是 production default，也不是本機模型；必須 explicit opt-in 注入 provider，測試不呼叫真實 NVIDIA endpoint。
 - `NvidiaNimProposalProvider` 的 prompt template 已外部化到 YAML，方便後續調整提示詞；但 schema validation、evidence/slot reference validation 與 secret validation 仍保留在 Python service 層。
-- `NvidiaNimProposalProvider` 的 endpoint、model、timeout、generation defaults 已外部化到 bundled TOML；`KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` 與 `NVIDIA_API_KEY` 仍只允許由 `.env` / 環境變數提供。
+- `NvidiaNimProposalProvider` 的 endpoint、model、timeout、generation defaults 已外部化到 bundled TOML；`SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS=true` 與 `NVIDIA_API_KEY` 仍只允許由 `.env` / 環境變數提供。
 - provider runtime defaults 參考 R2R / LangChain 這類開源 RAG/LLM 專案做成可設定值；但 `MappingCandidate` 的欄位長度、candidate count、suggested edge count 等 output bounds 屬於 API/schema safety contract，集中成 Python constants 並留在 Pydantic model，不放 TOML。
 - 已新增 `/api/mapping-proposals` list/create routes 與 `/api/mapping-proposals/{proposal_id}/decision` route。
 - Accept / edit 會轉成 Phase 19 `ManualMappingService` 的 manual mapping draft；reject / skip 只更新 proposal status。
@@ -25,14 +25,14 @@ Phase 20 已完成第一版 core / local API implementation：
 
 仍刻意不包含：
 
-- 不會只因 `.env` 或 process env 有 `NVIDIA_API_KEY` 就啟用 hosted NIM；必須同時設定 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true`。production config / secrets policy / licensing / retention 需另開設定任務。
+- 不會只因 `.env` 或 process env 有 `NVIDIA_API_KEY` 就啟用 hosted NIM；必須同時設定 `SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS=true`。production config / secrets policy / licensing / retention 需另開設定任務。
 - 不做 frontend implementation、GUI candidate card UI、proposal button、decision mutation 或 frontend API helper；這些工作由 Task 20a 獨立處理。
 - 不把 proposal 寫進 canonical `ai_system_map.json`；confirmed 後仍要由下次 scan / normalize 套用 manual mapping。
 
 ## 產品與架構校正
-本任務的核心 UX 不是讓使用者自己翻 code，也不是讓 AI 自動修改 map；而是讓 KAI-Mind 針對 `unmapped / needs_confirmation` 提供 2-3 個有 evidence 的候選方案，使用者再 accept/edit/reject/skip。
+本任務的核心 UX 不是讓使用者自己翻 code，也不是讓 AI 自動修改 map；而是讓 Systograph 針對 `unmapped / needs_confirmation` 提供 2-3 個有 evidence 的候選方案，使用者再 accept/edit/reject/skip。
 
-AI 可以是地端模型，但仍不可被設計成「自己去找檔案、自己讀 raw source、自己決定要掃哪裡」的 agent。KAI-Mind scanner 必須先用 deterministic provider / bounded detail scan 收集 evidence，經過 `SecretMaskingService` 後組成 `MappingEvidencePacket`，再把這個 bounded context 餵給 AI。
+AI 可以是地端模型，但仍不可被設計成「自己去找檔案、自己讀 raw source、自己決定要掃哪裡」的 agent。Systograph scanner 必須先用 deterministic provider / bounded detail scan 收集 evidence，經過 `SecretMaskingService` 後組成 `MappingEvidencePacket`，再把這個 bounded context 餵給 AI。
 
 ### Evidence packet 與現有能力邊界
 
@@ -66,7 +66,7 @@ Task 21 應負責：
 
 - 權限風險：一旦給 local LLM `read_file`、shell、network 或 project root traversal，它就從純函數變成 agent。repo 內 README、註解、fixture 或測試資料也可能含有 prompt injection，讓模型偏離原本任務。
 - 不可重現：release-readiness gate 需要同一份 repo、同一組 deterministic rules 產生可追溯 facts。LLM output 可能因模型版本、sampling、prompt wording 或上下文順序而變動。
-- Evidence 不可信：KAI-Mind 需要 `evidence_id`、file、line range、rule id、masked snippet。LLM 自掃容易編造不存在的 path、slot、edge 或 evidence id，不能直接進 canonical map。
+- Evidence 不可信：Systograph 需要 `evidence_id`、file、line range、rule id、masked snippet。LLM 自掃容易編造不存在的 path、slot、edge 或 evidence id，不能直接進 canonical map。
 - 長上下文退化：即使 local model 支援大 context，把整個 repo 塞進 prompt 仍會有 lost-in-the-middle、漏看中段細節、被雜訊稀釋的問題。
 - 成本與 UX：地端模型逐檔讀整個 repo 慢、吃 RAM/GPU，且會把大量不相關 UI、test、log、template 放進 prompt；deterministic provider 先篩掉 99% 雜訊更穩。
 - Secret 最小化：local 不等於無外洩。proposal JSON、logs、GUI、debug trace 都是 downstream leakage surface，所以送進模型前仍必須先 bounded + masked。
@@ -77,8 +77,8 @@ Task 21 應負責：
 
 - Semgrep / CodeQL：參考其「先用 rules / semantic query 產生可追溯 finding，再做後續 triage」的精神；不要在 Task 20 引入大型 SAST runtime，也不要讓 AI 取代 deterministic findings。
 - LangGraph HITL：參考 interrupt / resume / checkpoint 的產品語意，也就是 proposal 先 pending、等待使用者 accept/edit/reject；不需要把 Task 20 實作成 LangGraph workflow。
-- Microsoft Presidio：參考 analyzer/anonymizer 的資料流觀念；目前不要直接引入核心依賴，因為 KAI-Mind 現階段主要處理 code/config/report secrets，已由 `SecretMaskingService` 負責。若未來要掃醫療個資或 report PII，再評估是否擴充。
-- OpenAI Structured Outputs / JSON Schema 類型約束：參考 structured output + schema validation 的作法；即使 local LLM 不支援 strict structured output，也必須在 KAI-Mind 端用 Pydantic / JSON Schema 做最終驗證。
+- Microsoft Presidio：參考 analyzer/anonymizer 的資料流觀念；目前不要直接引入核心依賴，因為 Systograph 現階段主要處理 code/config/report secrets，已由 `SecretMaskingService` 負責。若未來要掃醫療個資或 report PII，再評估是否擴充。
+- OpenAI Structured Outputs / JSON Schema 類型約束：參考 structured output + schema validation 的作法；即使 local LLM 不支援 strict structured output，也必須在 Systograph 端用 Pydantic / JSON Schema 做最終驗證。
 - OWASP LLM Top 10 / NIST SSDF：參考 prompt injection、sensitive information disclosure、excessive agency、secure-by-design、least privilege 與 auditability 原則。
 
 ### 開源 RAG / LLM 專案設定模式校正
@@ -86,20 +86,20 @@ Task 21 應負責：
 已查 R2R、LangChain、LlamaIndex、Dify 的設定方式後，本任務採用以下分界：
 
 - 可調 runtime provider 設定放 TOML / env：model、endpoint、timeout、temperature、top_p、max_tokens、stream、enable_thinking。這類設定類似 R2R 的 `[completion.generation_config]`，或 LangChain / LlamaIndex 對 LLM model、temperature、request timeout 的設定。
-- Secret 不放 TOML：`NVIDIA_API_KEY` 只走 `.env` / process env，且 hosted NVIDIA provider 還需要 `KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true` 才啟用。
+- Secret 不放 TOML：`NVIDIA_API_KEY` 只走 `.env` / process env，且 hosted NVIDIA provider 還需要 `SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS=true` 才啟用。
 - Output schema / safety bounds 不放 TOML：`MappingCandidate` 的 `label`、`rationale`、`flow_hint` 長度、candidate 數量、evidence id 數量、suggested edge 數量是 API contract 與安全邊界，集中成 Python constants 並由 Pydantic model 產生 JSON Schema。
 - Provider TOML loader 仍會檢查 runtime 設定範圍，例如 timeout、temperature、top_p、max_tokens，避免 TOML 設成不合理值造成 hanging request 或超大 response。
 
-取捨理由：R2R / Dify 類產品會讓 ingestion chunk size、LLM generation、timeout 這些部署參數可調；但 KAI-Mind 的 proposal candidate 是前後端 API contract，也是防止 LLM output bloat / leakage 的 safety guardrail。若把這些 output bounds 變成 TOML，部署時一個錯誤設定就可能放寬 AI output 邊界，和 Task 20 的 bounded proposal 承諾衝突。
+取捨理由：R2R / Dify 類產品會讓 ingestion chunk size、LLM generation、timeout 這些部署參數可調；但 Systograph 的 proposal candidate 是前後端 API contract，也是防止 LLM output bloat / leakage 的 safety guardrail。若把這些 output bounds 變成 TOML，部署時一個錯誤設定就可能放寬 AI output 邊界，和 Task 20 的 bounded proposal 承諾衝突。
 
 ### NVIDIA NIM / Gemma 4 31B 查證與整合邊界
 
 使用者提到的 NVIDIA Platform / Gemma 4 31B 可以作為 Task 20 的「optional proposal provider」測試 adapter，但文件必須修正幾個容易誤解的點：
 
 - 官方模型 ID 應寫成 `google/gemma-4-31b-it`，不是只寫「Gemma 4 31b」。NVIDIA API reference 顯示該模型的 inference endpoint 是 `POST https://integrate.api.nvidia.com/v1/chat/completions`，request body 需要 `model` 與 `messages`。
-- NVIDIA hosted NIM API 是外部雲端 endpoint，不是 KAI-Mind 本機模型。若用它解決本機 GPU/VRAM 不足，應命名為 `NvidiaNimProposalProvider` 或 `HostedNimProposalProvider`，不要把它寫成 `LocalLlmProvider` 的唯一實作。
+- NVIDIA hosted NIM API 是外部雲端 endpoint，不是 Systograph 本機模型。若用它解決本機 GPU/VRAM 不足，應命名為 `NvidiaNimProposalProvider` 或 `HostedNimProposalProvider`，不要把它寫成 `LocalLlmProvider` 的唯一實作。
 - `NVIDIA_API_KEY=nvapi-...` 可以作為 explicit opt-in 憑證，但 default scan/proposal flow 必須在沒有 key、401、quota、timeout、202 pending、422 validation 或 500 provider error 時直接 deterministic fallback。不得讓 proposal endpoint 因外部服務不可用而中斷。
-- NVIDIA NIM API 雖有 OpenAI-compatible chat completions 形狀，但不同 model 的可用 message role / 參數可能不同；Gemma 4 31B reference 顯示 `messages` role 以 `user` / `assistant` 為主，且有 `chat_template_kwargs`。因此 provider 不應假設所有模型都支援 strict structured output 或同一組 OpenAI 參數；KAI-Mind 端仍要用 Pydantic schema 做最終驗證。
+- NVIDIA NIM API 雖有 OpenAI-compatible chat completions 形狀，但不同 model 的可用 message role / 參數可能不同；Gemma 4 31B reference 顯示 `messages` role 以 `user` / `assistant` 為主，且有 `chat_template_kwargs`。因此 provider 不應假設所有模型都支援 strict structured output 或同一組 OpenAI 參數；Systograph 端仍要用 Pydantic schema 做最終驗證。
 - NVIDIA Developer Program hosted endpoint 適合 prototype / development / testing；production 使用 NVIDIA NIM 需要另行確認 NVIDIA AI Enterprise 授權、資料處理政策、retention、region、audit 與成本。Phase 20 不把 hosted NIM 設為 production default。
 - 即使用 NVIDIA hosted NIM，也只能送 masked `MappingEvidencePacket`、allowed slots/extensions 與 output schema summary；不得送 project root、raw source、未遮蔽 secret、raw prompt logs，或讓 provider 有任何 repo traversal / shell 權限。
 
@@ -160,8 +160,8 @@ Task 21 應負責：
 - 不做 runtime tracing、`sys.settrace`、in-process instrumentation 或呼叫 target app；runtime trace 屬於 Task 22 且必須 opt-in。
 
 ## 建議實作步驟
-1. 擴充 `src/kai_mind/core/models/mapping.py`。
-2. 建立 `src/kai_mind/core/services/mapping_proposal_service.py`。
+1. 擴充 `src/systograph/core/models/mapping.py`。
+2. 建立 `src/systograph/core/services/mapping_proposal_service.py`。
 3. 建立 `MappingEvidencePacket` builder 的第一版：從既有 unmapped component + evidence array 組出 masked packet；Task 21 可在之後用 bounded detail scan 補更完整 signals。
 4. 實作 deterministic fallback proposal：根據 known extension keywords、observed kind、rule ids、dependency/import/function signals 提供候選。
 5. 對 ambiguous unmapped component 產生 2-3 個候選：例如 map to existing slot、confirm as extension、skip / needs more info。
@@ -177,10 +177,10 @@ Task 21 應負責：
 15. 測試：proposal pending、不進 canonical map、accept 後需 validation；proposal 不會讓 unmapped component 直接出現在 baseline `Flow.edges`；web route 不會在 AI unavailable 時讓 scan 失敗；local LLM provider 不會收到 raw project root 或 unmasked evidence；`confidence` output 被拒絕；LLM hallucinated evidence/slot 被拒絕後 fallback。
 
 ## 預期輸出
-- `src/kai_mind/core/services/mapping_proposal_service.py`
-- 更新 `src/kai_mind/core/models/mapping.py`
-- `src/kai_mind/core/services/mapping_evidence_packet_builder.py`
-- `src/kai_mind/web/routes/mapping_proposal_routes.py`
+- `src/systograph/core/services/mapping_proposal_service.py`
+- 更新 `src/systograph/core/models/mapping.py`
+- `src/systograph/core/services/mapping_evidence_packet_builder.py`
+- `src/systograph/web/routes/mapping_proposal_routes.py`
 - 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
 - `tests/unit/core/test_mapping_proposal_service.py`
 - `tests/unit/core/test_mapping_evidence_packet_builder.py`

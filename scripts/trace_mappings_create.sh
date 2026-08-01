@@ -32,30 +32,30 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
-[[ ${#KAI_EXTRA_ARGS[@]} -eq 0 ]] || kai_die "Unknown option: ${KAI_EXTRA_ARGS[*]}"
-kai_bootstrap_server
+systograph_parse_common_args "$@"
+[[ ${#SYSTOGRAPH_EXTRA_ARGS[@]} -eq 0 ]] || systograph_die "Unknown option: ${SYSTOGRAPH_EXTRA_ARGS[*]}"
+systograph_bootstrap_server
 
-kai_section "準備：匯入 + 掃描，取得 slot 與 evidence"
-PROJECT_ID="$(kai_import_project)"
-SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
+systograph_section "準備：匯入 + 掃描，取得 slot 與 evidence"
+PROJECT_ID="$(systograph_import_project)"
+SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
 SLOT="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
 EVIDENCE_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.evidence[0].id // empty')"
-[[ -n "$SLOT" && "$SLOT" != "null" ]] || kai_die "Could not derive a target slot"
-[[ -n "$EVIDENCE_ID" ]] || kai_die "Could not derive an evidence id"
+[[ -n "$SLOT" && "$SLOT" != "null" ]] || systograph_die "Could not derive a target slot"
+[[ -n "$EVIDENCE_ID" ]] || systograph_die "Could not derive an evidence id"
 
-kai_section "建立 mapping：POST /api/mappings"
+systograph_section "建立 mapping：POST /api/mappings"
 REQUEST_BODY="$(jq -n \
   --arg id "$PROJECT_ID" \
   --arg slot "$SLOT" \
   --arg ev "$EVIDENCE_ID" \
   '{project_id:$id, mapping_type:"existing_slot_mapping", decision:"confirmed",
     target_slot:$slot, component_name:"TraceDemoComponent", evidence_ids:[$ev]}')"
-kai_progress "現在要建立 confirmed manual mapping（slot=${SLOT}）..."
+systograph_progress "現在要建立 confirmed manual mapping（slot=${SLOT}）..."
 api_call POST "/api/mappings" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Mapping summary"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Mapping summary"
 echo "$LAST_BODY" | jq '{
   mapping_id, project_id, mapping_type, decision, target_slot, component_name,
   mapping_digest, created_at

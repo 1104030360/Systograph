@@ -58,23 +58,23 @@ dependency、API trace scripts 的 macOS Bash 3.2 相容性，以及 TODO/Report
 - `uv sync --frozen` 與 `uv lock --check`：通過；pytest-cov 7.1.0、coverage 7.15.1。
 - `git diff --check`：通過。
 - 所有 `scripts/**/*.sh` 執行 `bash -n`：通過。
-- `uv build`：成功建立 `kai_mind-0.1.0.tar.gz` 與
-  `kai_mind-0.1.0-py3-none-any.whl`，輸出位於暫存目錄並已清除。
+- `uv build`：成功建立 `systograph-0.1.0.tar.gz` 與
+  `systograph-0.1.0-py3-none-any.whl`，輸出位於暫存目錄並已清除。
 
 ## Manual QA
 
 ### CLI
 
-- `.venv/bin/kai-mind --help`：exit 0，正確顯示 commands/options。
-- 對 `basic_qdrant_ollama_rag` 執行 `kai-mind map`：exit 0，產生 10 個 output files；
+- `.venv/bin/systograph --help`：exit 0，正確顯示 commands/options。
+- 對 `basic_qdrant_ollama_rag` 執行 `systograph map`：exit 0，產生 10 個 output files；
   `ai_system_map.json` 為 `ai-system-map/v1`，`profile_signals.json` 為
   `profile-signals/v1`，Markdown artifact 存在。
-- 對不存在的 project path 執行 `kai-mind map`：exit 1，產生 `map-error.md`；沒有
+- 對不存在的 project path 執行 `systograph map`：exit 1，產生 `map-error.md`；沒有
   `ai_system_map.json` 或 `profile_signals.json` success artifacts。
 
 ### Live API
 
-- 以隔離的 `KAI_MIND_STATE_DIR` 啟動 uvicorn，再由 trace script 透過 curl 執行。
+- 以隔離的 `SYSTOGRAPH_STATE_DIR` 啟動 uvicorn，再由 trace script 透過 curl 執行。
 - project import：成功取得 `project_id`。
 - system scan：status completed，成功取得 source `build_id`。
 - `POST /api/detail-scans`：HTTP 200，detail scan status completed，finding count 4。

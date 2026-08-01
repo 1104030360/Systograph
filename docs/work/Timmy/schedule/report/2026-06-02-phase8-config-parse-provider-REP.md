@@ -11,8 +11,8 @@ evidence，而不是中止整體掃描。
 
 本次新增與修改：
 
-- `src/kai_mind/core/providers/config_parse_provider.py`
-- `src/kai_mind/core/models/scan.py`
+- `src/systograph/core/providers/config_parse_provider.py`
+- `src/systograph/core/models/scan.py`
 - `tests/unit/core/test_config_parse_provider.py`
 - `tests/integration/test_phase8_config_parse_provider_behaviors.py`
 - `pyproject.toml`
@@ -122,7 +122,7 @@ evidence，而不是中止整體掃描。
 
 修改：
 
-- `src/kai_mind/core/models/scan.py`
+- `src/systograph/core/models/scan.py`
 
 新增：
 
@@ -132,7 +132,7 @@ evidence，而不是中止整體掃描。
 
 新增：
 
-- `src/kai_mind/core/providers/config_parse_provider.py`
+- `src/systograph/core/providers/config_parse_provider.py`
 
 主要行為：
 
@@ -149,8 +149,8 @@ Targeted verification：
 
 ```bash
 .venv/bin/python -m pytest tests/unit/core/test_config_parse_provider.py tests/integration/test_phase8_config_parse_provider_behaviors.py
-.venv/bin/ruff check src/kai_mind/core/models/scan.py src/kai_mind/core/providers/config_parse_provider.py tests/unit/core/test_config_parse_provider.py tests/integration/test_phase8_config_parse_provider_behaviors.py
-.venv/bin/mypy src/kai_mind/core/models/scan.py src/kai_mind/core/providers/config_parse_provider.py tests/unit/core/test_config_parse_provider.py tests/integration/test_phase8_config_parse_provider_behaviors.py
+.venv/bin/ruff check src/systograph/core/models/scan.py src/systograph/core/providers/config_parse_provider.py tests/unit/core/test_config_parse_provider.py tests/integration/test_phase8_config_parse_provider_behaviors.py
+.venv/bin/mypy src/systograph/core/models/scan.py src/systograph/core/providers/config_parse_provider.py tests/unit/core/test_config_parse_provider.py tests/integration/test_phase8_config_parse_provider_behaviors.py
 ```
 
 Full verification：
@@ -188,7 +188,7 @@ uv lock
 
 解法：
 
-- 先在 `src/kai_mind/core/models/scan.py` 補最小模型，
+- 先在 `src/systograph/core/models/scan.py` 補最小模型，
   只放 Phase 8 真的需要的欄位，不預先發明過多抽象。
 
 ### 3. `PyYAML` 是 runtime dependency，但型別檢查沒有 stubs
@@ -280,7 +280,7 @@ PR review 指出 YAML / TOML valid date config 會 parse 成 `datetime.date`，
 ## 測試結果
 
 - 初次 targeted pytest RED：2 errors
-  - `ModuleNotFoundError: No module named 'kai_mind.core.providers.config_parse_provider'`
+  - `ModuleNotFoundError: No module named 'systograph.core.providers.config_parse_provider'`
 - Targeted pytest GREEN：`9 passed`
 - Review regression targeted pytest：`11 passed`
 - PR review regression targeted pytest：`16 passed`

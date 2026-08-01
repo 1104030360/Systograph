@@ -75,8 +75,8 @@ multimodal_retriever
 ### Task 2: Add provider rules
 
 **Files:**
-- Modify: `src/kai_mind/core/rules/code_pattern_rules.toml`
-- Modify: `src/kai_mind/core/rules/dependency_manifest_rules.toml`
+- Modify: `src/systograph/core/rules/code_pattern_rules.toml`
+- Modify: `src/systograph/core/rules/dependency_manifest_rules.toml`
 - Test: `tests/unit/core/test_rule_catalog_loader.py`
 - Test: `tests/integration/test_phase11_code_pattern_provider_behaviors.py`
 
@@ -87,7 +87,7 @@ multimodal_retriever
 ### Task 3: Map to generic v2 facts and multimodal capability status
 
 **Files:**
-- Modify: `src/kai_mind/core/services/component_detection_service.py`
+- Modify: `src/systograph/core/services/component_detection_service.py`
 - Test: `tests/unit/core/test_component_detection_service.py`
 - Test: `tests/integration/test_phase13_component_detection_behaviors.py`
 
@@ -99,7 +99,7 @@ multimodal_retriever
 ### Task 4: Add risk hints and backend projection handoff
 
 **Files:**
-- Modify: `src/kai_mind/core/rules/risk_hint_rules.toml`
+- Modify: `src/systograph/core/rules/risk_hint_rules.toml`
 - Modify: `docs/API-GUIDE.md`
 - Modify: `frontend/API_CONTRACT.md` only for backend-emitted fields consumed by Task 42
 - Test: `tests/unit/core/test_risk_hint_service.py`

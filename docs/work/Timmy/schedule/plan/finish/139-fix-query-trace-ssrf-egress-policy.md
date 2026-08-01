@@ -4,14 +4,14 @@
 
 **Date reviewed:** 2026-06-23
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/139
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/139
 
 **Goal:** 防止 query trace 對 metadata、loopback、private/link-local network、unspecified address 或未授權 endpoint 發送請求。
 
 **Verdict on proposed plan:** 方向正確，可以解 #139 的 MVP security baseline；但必須補上下列落地約束，否則仍可能留下 SSRF bypass：
 
-- egress policy 必須接在 shared `EndpointCallProvider` boundary，涵蓋 web `/api/trace` 與 CLI `kai-mind trace`。
-- local-dev 放行設定不可只讀被掃描 repo 的 `pyproject.toml`，否則惡意 repo 可自行開啟 localhost/private egress；必須是 KAI-Mind operator-controlled opt-in。
+- egress policy 必須接在 shared `EndpointCallProvider` boundary，涵蓋 web `/api/trace` 與 CLI `systograph trace`。
+- local-dev 放行設定不可只讀被掃描 repo 的 `pyproject.toml`，否則惡意 repo 可自行開啟 localhost/private egress；必須是 Systograph operator-controlled opt-in。
 - DNS resolve 後檢查能擋「hostname 解析到 private/metadata」這類 case，但不能宣稱已完成 production-grade DNS pinning；若要完全處理 DNS rebinding TOCTOU，還需要 pinned-IP transport 或 network-layer egress deny。
 - 若 #139 reviewer 要求「DNS rebinding 完整關閉」而不是「baseline 風險降低」，本 PR 必須採用 pinned connect target 或 network-layer deny；單次 preflight DNS check 不可被描述成完整修復。
 - blocked case 的 provider result 必須 `query_sent=false`，且不能呼叫 HTTP client；service/API 層也要保證不產生 `request_sent` event。
@@ -32,23 +32,23 @@
 
 ### Current Repo Observations
 
-- `src/kai_mind/core/providers/endpoint_call_provider.py`
+- `src/systograph/core/providers/endpoint_call_provider.py`
   - `EndpointCallProvider.__init__()` currently creates `httpx.Client()` with default settings.
   - `_endpoint_preflight_result()` only checks scheme is `http` or `https`.
   - `_request()` directly calls `self._client.request(...)`.
   - No hostname, DNS, IP range, metadata, proxy, or redirect policy is enforced.
 
-- `src/kai_mind/core/services/query_trace_service.py`
+- `src/systograph/core/services/query_trace_service.py`
   - `QueryTraceService.trace()` finds the endpoint by `endpoint_id`, then calls `EndpointCallProvider.call(...)`.
   - It creates a `request_sent` event before calling the provider, but drops that event when `call_result.query_sent` is false.
   - This is compatible with blocked SSRF behavior, but needs a regression test for `blocked_endpoint`.
 
-- `src/kai_mind/web/routes/trace_routes.py`
+- `src/systograph/web/routes/trace_routes.py`
   - `/api/trace` loads the project map and `retrieved_chunks_keys`, then calls `QueryTraceService.trace(...)`.
   - Current project trace config is loaded from the scanned project root.
 
-- `src/kai_mind/cli/trace_command.py`
-  - `kai-mind trace` also constructs `QueryTraceService()` directly.
+- `src/systograph/cli/trace_command.py`
+  - `systograph trace` also constructs `QueryTraceService()` directly.
   - The fix must cover CLI and web through shared core code, not just the route.
 
 - Existing tests:
@@ -101,9 +101,9 @@ Query trace is an explicit runtime feature, but its endpoint comes from the scan
 Current risk path:
 
 1. A scanned project influences `ai_system_map.endpoints[].value`.
-2. Web `/api/trace` or CLI `kai-mind trace` selects an endpoint by `endpoint_id`.
+2. Web `/api/trace` or CLI `systograph trace` selects an endpoint by `endpoint_id`.
 3. `EndpointCallProvider` sends one HTTP request to `endpoint.value`.
-4. If `endpoint.value` points to metadata, loopback, private, link-local, unspecified, or a hostname resolving to those ranges, KAI-Mind can become an SSRF proxy or network reachability oracle.
+4. If `endpoint.value` points to metadata, loopback, private, link-local, unspecified, or a hostname resolving to those ranges, Systograph can become an SSRF proxy or network reachability oracle.
 
 Risk examples:
 
@@ -189,8 +189,8 @@ Decision gate before implementation:
 
 Prefer a security-owned module instead of a generic service module:
 
-- Create: `src/kai_mind/core/security/__init__.py`
-- Create: `src/kai_mind/core/security/egress_policy.py`
+- Create: `src/systograph/core/security/__init__.py`
+- Create: `src/systograph/core/security/egress_policy.py`
 
 Reason:
 
@@ -220,7 +220,7 @@ Recommended MVP contract:
 
 If the UI/product requires top-level `status="blocked_endpoint"`, then this issue must also update:
 
-- `src/kai_mind/core/models/trace.py`
+- `src/systograph/core/models/trace.py`
 - `docs/API-GUIDE.md`
 - `schemas/ai-system-map.v1.schema.json` if schema generation is affected
 - route and frontend expectations
@@ -411,20 +411,20 @@ Local-first development needs an explicit escape hatch, but it must be operator-
 
 Allowed sources:
 
-- trusted KAI-Mind app config
+- trusted Systograph app config
 - explicit CLI flags
 - explicit environment variables owned by the operator
 - future UI toggle with clear confirmation
 
 Disallowed as the sole source:
 
-- scanned project `[tool.kai-mind.trace.security]`
+- scanned project `[tool.systograph.trace.security]`
 - endpoint metadata generated from the scanned repo
 
 Suggested local-dev behavior:
 
 ```toml
-# Example only. Store in trusted KAI-Mind/operator config, not untrusted scanned repo config.
+# Example only. Store in trusted Systograph/operator config, not untrusted scanned repo config.
 [trace.security]
 mode = "local-dev"
 allow_loopback = true
@@ -455,9 +455,9 @@ Rules:
 
 ### Files
 
-- Modify: `src/kai_mind/core/providers/endpoint_call_provider.py`
-- Create: `src/kai_mind/core/security/__init__.py`
-- Create: `src/kai_mind/core/security/egress_policy.py`
+- Modify: `src/systograph/core/providers/endpoint_call_provider.py`
+- Create: `src/systograph/core/security/__init__.py`
+- Create: `src/systograph/core/security/egress_policy.py`
 - Create: `tests/unit/core/security/test_egress_policy.py`
 - Modify/Create: `tests/unit/core/test_endpoint_call_provider.py`
 
@@ -553,10 +553,10 @@ Same for JSON POST.
 
 ### Files
 
-- Modify: `src/kai_mind/core/services/query_trace_service.py`
-- Modify: `src/kai_mind/web/routes/trace_routes.py` if route must pass trusted policy config.
-- Modify: `src/kai_mind/cli/trace_command.py` if CLI supports local-dev policy flags.
-- Modify: `src/kai_mind/core/services/query_trace_config_loader.py` only for trusted non-security trace config or if operator-owned config is clearly separated.
+- Modify: `src/systograph/core/services/query_trace_service.py`
+- Modify: `src/systograph/web/routes/trace_routes.py` if route must pass trusted policy config.
+- Modify: `src/systograph/cli/trace_command.py` if CLI supports local-dev policy flags.
+- Modify: `src/systograph/core/services/query_trace_config_loader.py` only for trusted non-security trace config or if operator-owned config is clearly separated.
 
 ### Required Behavior
 
@@ -583,7 +583,7 @@ If local-dev is included in this PR, choose one of these safe wiring options:
    - Defaults stay safe.
 
 3. **Environment variables**
-   - KAI-Mind-owned env vars, for example `KAI_MIND_TRACE_EGRESS_MODE`.
+   - Systograph-owned env vars, for example `SYSTOGRAPH_TRACE_EGRESS_MODE`.
    - Must be documented and tested.
 
 Do not make scanned project config the only source of local-dev allowance.
@@ -846,8 +846,8 @@ Must pass:
 
 **Files:**
 
-- Create: `src/kai_mind/core/security/__init__.py`
-- Create: `src/kai_mind/core/security/egress_policy.py`
+- Create: `src/systograph/core/security/__init__.py`
+- Create: `src/systograph/core/security/egress_policy.py`
 
 - [x] Add `EgressPolicyConfig`, `EgressDecision`, `EgressBlockReason`.
 - [x] Add `HostResolver` protocol and default socket resolver.
@@ -864,7 +864,7 @@ Must pass:
 
 **Files:**
 
-- Modify: `src/kai_mind/core/providers/endpoint_call_provider.py`
+- Modify: `src/systograph/core/providers/endpoint_call_provider.py`
 - Modify: `tests/unit/core/test_endpoint_call_provider.py`
 
 - [x] Add `blocked_endpoint` to `EndpointCallStatus`.
@@ -883,7 +883,7 @@ Must pass:
 
 **Files:**
 
-- Modify: `src/kai_mind/core/services/query_trace_service.py`
+- Modify: `src/systograph/core/services/query_trace_service.py`
 - Modify: `tests/unit/core/test_query_trace_service.py`
 
 - [x] Add blocked endpoint service test.
@@ -897,13 +897,13 @@ Must pass:
 
 **Files:**
 
-- Modify: `src/kai_mind/web/routes/trace_routes.py` if policy config is passed per request.
-- Modify: `src/kai_mind/cli/trace_command.py` if local-dev CLI flags are added.
+- Modify: `src/systograph/web/routes/trace_routes.py` if policy config is passed per request.
+- Modify: `src/systograph/cli/trace_command.py` if local-dev CLI flags are added.
 - Modify: `tests/web/test_trace_routes.py`
 - Modify: `tests/cli/test_trace_command.py` if CLI behavior changes.
 
 - [x] Verify `/api/trace` uses the shared protected provider path.
-- [x] Verify `kai-mind trace` uses the shared protected provider path.
+- [x] Verify `systograph trace` uses the shared protected provider path.
 - [x] Do not make scanned project config the sole authority for local-dev egress.
 - [x] Keep trusted egress config separate; `QueryTraceConfigLoader` was not extended with security authority.
 - [x] Add route/CLI regression tests when the user-facing contract changes.
@@ -957,7 +957,7 @@ fix(security): add query trace egress policy
 
 Content:
 
-- `src/kai_mind/core/security/egress_policy.py`
+- `src/systograph/core/security/egress_policy.py`
 - policy models
 - resolver abstraction
 - egress policy unit tests

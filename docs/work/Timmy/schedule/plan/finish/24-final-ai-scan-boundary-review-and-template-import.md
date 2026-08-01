@@ -32,7 +32,7 @@ POST /api/projects/import
 
 移除原因：
 
-- 一般使用者真正期待的是「匯入 GitHub repo / 本機資料夾 -> 掃描 -> confirm component」，不是自行準備 `kai-mind-template.yaml`。
+- 一般使用者真正期待的是「匯入 GitHub repo / 本機資料夾 -> 掃描 -> confirm component」，不是自行準備 `systograph-template.yaml`。
 - 目前已完成的 `ManualMappingService` / `MappingProposalService` 更符合一般使用者的客製化流程。
 - Epic 1 目前 canonical template selection 仍固定 `rag-core-v1`，即使匯入 scan profile 也不能立即套用，容易讓使用者困惑。
 - `Template Import` 容易被誤解成 project import、RAG framework import、GitHub template import，和實際產品主流程衝突。
@@ -43,7 +43,7 @@ POST /api/projects/import
 - `TemplateImportService`
 - `POST /api/templates/import`
 - `GET /api/templates`
-- `kai-mind-template.yaml` import
+- `systograph-template.yaml` import
 - archive / folder template package validation
 - template quarantine / digest / provenance catalog
 
@@ -59,7 +59,7 @@ POST /api/projects/import
 
 對 Task 24 的落地影響：
 
-- Boundary decision 只跟本次 `POST /api/scans` request 一起送入，不寫入被掃描 repo，也不保存成 KAI-Mind 長期偏好。
+- Boundary decision 只跟本次 `POST /api/scans` request 一起送入，不寫入被掃描 repo，也不保存成 Systograph 長期偏好。
 - Decision 必須依 `target_path + fingerprint` 套用；同一路徑內容或 metadata 改變時，舊 decision 不得放行新內容。
 - Response 只提供 project-relative path、fingerprint、masked/bounded packet，不提供 raw file content、raw secret 或本機絕對路徑。
 
@@ -79,13 +79,13 @@ POST /api/projects/import
 
 已實作檔案：
 
-- `src/kai_mind/core/models/scan_boundary.py`
-- `src/kai_mind/core/services/scan_boundary_review_service.py`
-- `src/kai_mind/core/services/project_scan_service.py`
-- `src/kai_mind/core/services/map_build_service.py`
-- `src/kai_mind/web/routes/scan_routes.py`
-- `src/kai_mind/web/app.py`
-- `src/kai_mind/web/schemas.py`
+- `src/systograph/core/models/scan_boundary.py`
+- `src/systograph/core/services/scan_boundary_review_service.py`
+- `src/systograph/core/services/project_scan_service.py`
+- `src/systograph/core/services/map_build_service.py`
+- `src/systograph/web/routes/scan_routes.py`
+- `src/systograph/web/app.py`
+- `src/systograph/web/schemas.py`
 - `tests/unit/core/test_scan_boundary_review_service.py`
 - `tests/web/test_scan_boundary_routes.py`
 - `docs/API-GUIDE.md`

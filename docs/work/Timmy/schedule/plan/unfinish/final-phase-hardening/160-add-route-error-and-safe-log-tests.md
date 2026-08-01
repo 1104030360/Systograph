@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/160
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/160
 
 **Goal:** 補齊報告列出的 route error paths、CLI map error path、`safe_log_event` 與 config loader 測試。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #160, assignee Timmy.
 - Origin: Backend findings M-14.
-- Primary files: route tests, CLI tests, `src/kai_mind/core/services/logging_service.py`.
+- Primary files: route tests, CLI tests, `src/systograph/core/services/logging_service.py`.
 
 ### Task 1: Add route error tests
 

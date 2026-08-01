@@ -37,40 +37,40 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --map-json-path)
       i=$((i + 1))
-      MAP_JSON_PATH="${KAI_EXTRA_ARGS[$i]:?missing value for --map-json-path}"
+      MAP_JSON_PATH="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --map-json-path}"
       ;;
-    *) kai_die "Unknown option: $arg" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
 if [[ -z "$MAP_JSON_PATH" ]]; then
-  kai_section "準備：先建圖取得 map_json_path"
-  kai_progress "現在要先呼叫 map/build 取得地圖檔路徑..."
+  systograph_section "準備：先建圖取得 map_json_path"
+  systograph_progress "現在要先呼叫 map/build 取得地圖檔路徑..."
   BUILD_JSON="$(setup_post "/api/map/build" \
     "$(jq -n --arg p "$PROJECT_PATH" --arg out "$OUTPUT_DIR" \
       '{project_path:$p, output:$out, redact_root_path:true, no_snippets:false}')")"
   MAP_JSON_PATH="$(echo "$BUILD_JSON" | jq -r '.map_json_path')"
   [[ -n "$MAP_JSON_PATH" && "$MAP_JSON_PATH" != "null" ]] \
-    || kai_die "Build did not return a map_json_path"
-  kai_progress "已取得 map_json_path=$MAP_JSON_PATH"
+    || systograph_die "Build did not return a map_json_path"
+  systograph_progress "已取得 map_json_path=$MAP_JSON_PATH"
 fi
 
-kai_section "載入 Viewer：POST /api/viewer/load"
+systograph_section "載入 Viewer：POST /api/viewer/load"
 REQUEST_BODY="$(jq -n --arg path "$MAP_JSON_PATH" '{map_json_path:$path}')"
-kai_progress "現在要從磁碟載入 ai_system_map.json 到 viewer..."
+systograph_progress "現在要從磁碟載入 ai_system_map.json 到 viewer..."
 api_call POST "/api/viewer/load" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Graph projection 摘要（Track A）"
-kai_summarize_viewer_payload "$LAST_BODY"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Graph projection 摘要（Track A）"
+systograph_summarize_viewer_payload "$LAST_BODY"
 # map_json_path was resolved above; expect a loaded projection.
-kai_assert_graph_projection_loaded "$LAST_BODY"
+systograph_assert_graph_projection_loaded "$LAST_BODY"

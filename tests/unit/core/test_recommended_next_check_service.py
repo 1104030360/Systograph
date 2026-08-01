@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from kai_mind.core.models.recommended_next_check import RecommendedNextCheck
-from kai_mind.core.models.scan import ProjectScanResult
-from kai_mind.core.models.system_map import Endpoint, RagSystemMap, RiskHint
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.models.recommended_next_check import RecommendedNextCheck
+from systograph.core.models.scan import ProjectScanResult
+from systograph.core.models.system_map import Endpoint, RagSystemMap, RiskHint
+from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
 )
-from kai_mind.core.services.recommended_next_check_service import (
+from systograph.core.services.recommended_next_check_service import (
     RecommendedNextCheckService,
 )
 

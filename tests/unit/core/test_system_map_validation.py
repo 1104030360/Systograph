@@ -5,7 +5,7 @@ from typing import Any, cast
 
 import pytest
 
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationError,
     SystemMapValidationService,
 )

@@ -32,23 +32,23 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
-[[ ${#KAI_EXTRA_ARGS[@]} -eq 0 ]] || kai_die "Unknown option: ${KAI_EXTRA_ARGS[*]}"
-[[ -d "$PROJECT_PATH" ]] || kai_die "Project path does not exist: $PROJECT_PATH"
-kai_bootstrap_server
+systograph_parse_common_args "$@"
+[[ ${#SYSTOGRAPH_EXTRA_ARGS[@]} -eq 0 ]] || systograph_die "Unknown option: ${SYSTOGRAPH_EXTRA_ARGS[*]}"
+[[ -d "$PROJECT_PATH" ]] || systograph_die "Project path does not exist: $PROJECT_PATH"
+systograph_bootstrap_server
 
-kai_section "Demo 建圖：POST /api/map/build"
+systograph_section "Demo 建圖：POST /api/map/build"
 REQUEST_BODY="$(jq -n --arg p "$PROJECT_PATH" --arg out "$OUTPUT_DIR" \
   '{project_path:$p, output:$out, redact_root_path:true, no_snippets:false}')"
-kai_progress "現在要用 path 一次掃描並建圖（demo 流程）..."
+systograph_progress "現在要用 path 一次掃描並建圖（demo 流程）..."
 api_call POST "/api/map/build" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "結果摘要（含 Track A graph projection）"
-kai_summarize_map_build_result "$LAST_BODY"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "結果摘要（含 Track A graph projection）"
+systograph_summarize_map_build_result "$LAST_BODY"
 
 BUILD_STATUS="$(echo "$LAST_BODY" | jq -r '.status')"
 VIEWER_PRESENT="$(echo "$LAST_BODY" | jq -r '.viewer_load_result != null')"
 if [[ "$BUILD_STATUS" == "ok" && "$VIEWER_PRESENT" == "true" ]]; then
-  kai_assert_graph_projection_loaded "$(echo "$LAST_BODY" | jq '{viewer_load_result}')"
+  systograph_assert_graph_projection_loaded "$(echo "$LAST_BODY" | jq '{viewer_load_result}')"
 fi

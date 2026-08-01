@@ -1,6 +1,6 @@
 # Audit C — web schema / helper 層現況稽核（READ-ONLY）
 
-分區：`src/kai_mind/web/schemas.py`（432 行）、`inventory_error_response.py`（86 行）、
+分區：`src/systograph/web/schemas.py`（432 行）、`inventory_error_response.py`（86 行）、
 `inventory_preflight_projection.py`（116 行）、`legacy_mapping_guards.py`（39 行）。
 
 前置：已讀完 `docs/work/Timmy/schedule/plan/unfinish/phase2.5/1.md`。Plan 1 的範圍是
@@ -36,7 +36,7 @@
 
 ## 0. `schemas.py` 全部 class 一覽表
 
-`grep -c "^class " src/kai_mind/web/schemas.py` → **27**。全部繼承 `WebSchema`（除
+`grep -c "^class " src/systograph/web/schemas.py` → **27**。全部繼承 `WebSchema`（除
 `ApplyConfirmationsResponse` 繼承 `MapBuildScopedResponse`）。
 
 | # | Class | 行號 | 用途 | 被誰 import（實際 grep） | 死 code？ |
@@ -85,7 +85,7 @@
 
 ## C-1. 432 行單檔塞了 8 個路由領域的 27 個 model，應按 route 拆檔
 
-- **位置**：`src/kai_mind/web/schemas.py:1-432`（全檔）
+- **位置**：`src/systograph/web/schemas.py:1-432`（全檔）
 - **現況**：一個模組同時承載 8 個互不相干的 API 領域：
 
   | 領域 | class 行號範圍 | 消費 route |
@@ -105,9 +105,9 @@
   `web/routes/` 已經按 route 拆成 9 個檔，schema 卻沒有跟著拆 —— 同一層裡兩種組織原則。
   實務後果：改 inventory preflight 的欄位會讓 `git blame`／PR diff 掃到 mapping、trace 的 reviewer；
   27 個 class 共用一個 `extra="forbid"` base，任何 config 調整都是全域爆炸半徑。
-- **建議改法**：改成 package `src/kai_mind/web/schemas/`：
+- **建議改法**：改成 package `src/systograph/web/schemas/`：
   - `__init__.py` — 只放 `WebSchema` base 與明確的 re-export（或乾脆不 re-export，讓 route 直接
-    `from kai_mind.web.schemas.scan import ScanCreateRequest`）
+    `from systograph.web.schemas.scan import ScanCreateRequest`）
   - `base.py` — `WebSchema`
   - `map.py` — `MapBuildApiRequest`
   - `viewer.py` — `ViewerLoadMapRequest`
@@ -124,7 +124,7 @@
   `frontend/src/types.ts`、`frontend/src/services/viewerApi.ts`、`frontend/src/services/projectScanApi.ts`
   完全不受影響（前端不知道後端模組佈局）。
   唯一需要同步的是 `tests/contracts/test_v2_cutover_consumer_allowlist.py:270`
-  的 `ConsumerRecord(path="src/kai_mind/web/schemas.py", symbol="ai-system-map/v1", ...)` ——
+  的 `ConsumerRecord(path="src/systograph/web/schemas.py", symbol="ai-system-map/v1", ...)` ——
   `ai-system-map/v1` 這個 Literal 出現在 54-57、95-97、226-229 行，拆檔後會落到
   `schemas/map.py`、`schemas/map_build.py`、`schemas/scan.py` 三個新路徑，allowlist 必須改成 3 筆。
 - **相關測試**：
@@ -132,7 +132,7 @@
     → `test_direct_legacy_consumers_match_classified_allowlist`（`CONSUMER_ALLOWLIST` 第 269-274 行那筆
       要拆成 3 筆新路徑，否則 `stale legacy consumer records` assert 會失敗）
   - **不需改**：`tests/web/` 16 個檔全部走 HTTP（`TestClient`），沒有任何一個 import
-    `kai_mind.web.schemas`（`grep -rn "web.schemas" tests/` 只命中上面那筆字串常數）
+    `systograph.web.schemas`（`grep -rn "web.schemas" tests/` 只命中上面那筆字串常數）
 - **嚴重度**：P2
 - **風險**：低 —— 純機械式搬移，`ruff`／`mypy strict` 會抓出所有漏改的 import；行為零變動。
 
@@ -140,7 +140,7 @@
 
 ## C-2. `__all__` 有 4 個完全沒人用的 core model re-export（死 code），import 路徑雙軌
 
-- **位置**：`src/kai_mind/web/schemas.py:23-31`（import）、`408-432`（`__all__`）
+- **位置**：`src/systograph/web/schemas.py:23-31`（import）、`408-432`（`__all__`）
 - **現況**：實測「這個名字在 `schemas.py` body（42-407 行）被用到幾次」：
 
   ```
@@ -151,7 +151,7 @@
   MappingProposalDecisionRequest   body-uses=0    ← 同上，但有 1 個消費者
   ```
 
-  再查誰真的從 `kai_mind.web.schemas` import 這些名字（完整清單，`grep -rn "web.schemas" src tests`
+  再查誰真的從 `systograph.web.schemas` import 這些名字（完整清單，`grep -rn "web.schemas" src tests`
   只有 11 個 import 點）：
 
   | re-export 名字 | 有人從 `web.schemas` import 嗎 |
@@ -181,7 +181,7 @@
      `:30`（`MappingProposalDecisionResult`）、`:40` 的 `ViewerPayload` 這 4 個 import，
      以及 `__all__` 中對應的 4 筆（412、414、420、431 行）。
   2. `routes/mapping_proposal_routes.py:29` 的 `MappingProposalDecisionRequest` 改成從
-     `kai_mind.core.models.mapping` import（跟同檔 `:10-13` 一致），
+     `systograph.core.models.mapping` import（跟同檔 `:10-13` 一致），
      然後把 `schemas.py:29` 與 `__all__:419` 一併刪掉。
   3. 剩下的 `MapBuildResult`、`ManualMapping`、`MappingProposal`、`ScanBoundaryDecisionRequest`、
      `ScanBoundaryProposal` 這 5 個 import 是**欄位型別**（實際被 body 用到 1-4 次），保留 import
@@ -288,9 +288,9 @@
   對照表 C 的 `can_expand` 預設相反，是最典型的契約漂移前兆。
 - **建議改法**：
   1. `MapBuildHistorySummary`、`MapBuildScopedResponse` 的 `build_reason` 改用
-     `from kai_mind.core.models.analysis_history import BuildReason`，不要 inline Literal。
+     `from systograph.core.models.analysis_history import BuildReason`，不要 inline Literal。
   2. `Phase2MapBuildResult` / `MapBuildApiRequest` / `ScanCreateRequest` 的三個 schema-version
-     欄位改用 `from kai_mind.core.models.map_build import SystemMapSchemaSelection`。
+     欄位改用 `from systograph.core.models.map_build import SystemMapSchemaSelection`。
   3. `InventoryBlockedSummaryView.can_expand` 的預設改成**沒有預設**（`can_expand: bool`），
      強迫 `inventory_preflight_projection.py:72-80` 明確寫 `can_expand=False`，把隱性約定變成
      顯性程式碼。
@@ -324,7 +324,7 @@
 
 ## C-4. `InventoryPreflightApiRequest` 是 core model 的逐欄位複製，`to_core()` 繞一圈序列化
 
-- **位置**：`src/kai_mind/web/schemas.py:260-269` vs `src/kai_mind/core/models/inventory_selection.py:210-214`
+- **位置**：`src/systograph/web/schemas.py:260-269` vs `src/systograph/core/models/inventory_selection.py:210-214`
 - **現況**：兩者欄位**完全相同**，只有 `requested_paths` 的預設寫法不同：
 
   ```python
@@ -377,7 +377,7 @@
 
 ## C-5. Optional 欄位序列化四套寫法並存，其中 `exclude_if` 還有 Pydantic 版本地雷
 
-- **位置**：`src/kai_mind/web/schemas.py:236-257`（同一個 class 內就有三套）、
+- **位置**：`src/systograph/web/schemas.py:236-257`（同一個 class 內就有三套）、
   以及 `:99-100, 244-252, 282, 308-318, 364, 378-386, 398-405`
 - **現況**：`ScanCreateResponse` 一個 class 裡，四個 optional 欄位用了三種不同策略：
 
@@ -419,10 +419,10 @@
   同一支 endpoint、同樣是「沒有值」，兩種 JSON 表示法。
 
   全檔沒有任何 `by_alias`、`exclude_none`、`alias`、`populate_by_name`
-  （`grep -rn "by_alias\|exclude_none\|alias" src/kai_mind/web/` 只命中
+  （`grep -rn "by_alias\|exclude_none\|alias" src/systograph/web/` 只命中
   `inventory_error_response.py` 的三個 `.model_dump(mode="json")`）。
   所有 route 也沒有 `response_model_exclude_none` / `response_model_by_alias`
-  （`grep -rn "response_model_exclude" src/kai_mind/web/routes/` 無命中）。
+  （`grep -rn "response_model_exclude" src/systograph/web/routes/` 無命中）。
   **camelCase/snake_case**：全線 snake_case，`frontend/src/types.ts` 也全部 snake_case
   （如 `:154 project_id`、`:211 scan_id`、`:214 build_result`），這點是一致的，沒有問題。
 
@@ -495,7 +495,7 @@
 
 ## C-6. 【P1】`/api/scans` 的 `requires_boundary_decision` response 會讓前端 zod 直接 throw
 
-- **位置**：後端 `src/kai_mind/web/schemas.py:237-240`；
+- **位置**：後端 `src/systograph/web/schemas.py:237-240`；
   前端 `frontend/src/types.ts:210-217`、`frontend/src/services/projectScanApi.ts:27-37`
 - **現況**：
 
@@ -578,7 +578,7 @@
 
 ## C-7. 【P1】SSE `ScanProgressEvent` 送 `null`，前端 zod 只收 `undefined` → 進度事件全部被當成 invalid
 
-- **位置**：後端 `src/kai_mind/web/schemas.py:328-345`、`routes/scan_routes.py:354-359`；
+- **位置**：後端 `src/systograph/web/schemas.py:328-345`、`routes/scan_routes.py:354-359`；
   前端 `frontend/src/types.ts:116-131`、`frontend/src/services/viewerApi.ts:35-47`
 - **現況**：後端實測輸出（`ScanProgressEvent().model_dump(mode="json")`）：
 
@@ -658,7 +658,7 @@
 
 ## C-8. `ManualMappingListResponse.available_actions` 硬編 5 個字串，跟 `ManualMappingDecision` enum 對不上
 
-- **位置**：`src/kai_mind/web/schemas.py:375-386` vs `src/kai_mind/core/models/mapping_base.py:18-22`
+- **位置**：`src/systograph/web/schemas.py:375-386` vs `src/systograph/core/models/mapping_base.py:18-22`
 - **現況**：
 
   ```python
@@ -749,9 +749,9 @@
 
 ## C-9. `POST /api/map/build` 與 `POST /api/scans` 直接把 core `MapBuildResult` 當 response，含 absolute path
 
-- **位置**：`src/kai_mind/web/routes/map_routes.py:22-34`、
-  `src/kai_mind/web/schemas.py:243`（`build_result: MapBuildResult | None`）、
-  `src/kai_mind/web/routes/scan_routes.py:344-351`
+- **位置**：`src/systograph/web/routes/map_routes.py:22-34`、
+  `src/systograph/web/schemas.py:243`（`build_result: MapBuildResult | None`）、
+  `src/systograph/web/routes/scan_routes.py:344-351`
 - **現況**：三種 build response 形狀並存：
 
   | endpoint | response model | 含 `*_path` / `output_run_dir`？ | 含完整 `ai_system_map`？ |
@@ -826,7 +826,7 @@
 
 ## C-10. `WebSchema` 的 `model_config` 與 core model base 不一致（`frozen` 缺席、`arbitrary_types_allowed` 疑似多餘）
 
-- **位置**：`src/kai_mind/web/schemas.py:43-46` vs 四個 core base
+- **位置**：`src/systograph/web/schemas.py:43-46` vs 四個 core base
 - **現況**：
 
   | base class | 檔案:行號 | `extra` | `frozen` | `arbitrary_types_allowed` |
@@ -878,15 +878,15 @@
 
 ## C-11. `Field()` 全檔零 `description` / `examples`，OpenAPI 沒有任何語意；沒有任何 `responses=` 宣告
 
-- **位置**：`src/kai_mind/web/schemas.py` 20 個 `Field(` 呼叫（99、100、127、230、237、244、247、
+- **位置**：`src/systograph/web/schemas.py` 20 個 `Field(` 呼叫（99、100、127、230、237、244、247、
   253、264、282、308、312、315、318、333、341、364、372、378、398 行）
 - **現況**：20 個 `Field()` 只用了 `default` / `default_factory` / `min_length` / `ge` / `le` /
   `gt` / `exclude_if`，**沒有一個帶 `description` 或 `examples`**
-  （`grep -rn "description=\|examples=\|json_schema_extra" src/kai_mind` 在整個
-  `src/kai_mind/web/` 底下零命中；只有 `core/models/system_map.py:111,194` 兩處用了 `description=`）。
+  （`grep -rn "description=\|examples=\|json_schema_extra" src/systograph` 在整個
+  `src/systograph/web/` 底下零命中；只有 `core/models/system_map.py:111,194` 兩處用了 `description=`）。
 
   所有 route 也都沒有宣告 `responses={...}`
-  （`grep -rn "responses=" src/kai_mind/web/routes/*.py` 零命中），
+  （`grep -rn "responses=" src/systograph/web/routes/*.py` 零命中），
   所以 `InventoryApiErrorDetail`（`schemas.py:321-325`）這個 error envelope
   **完全不在 OpenAPI schema 裡** —— client 從 `/openapi.json` 看不到 422 的形狀，
   只能讀 `frontend/API_CONTRACT.md:259` 那句手寫的
@@ -930,8 +930,8 @@
 
 ## C-12. `inventory_error_response.py`：只有 inventory 有結構化 error envelope，其他 route 全是裸 `detail: str`
 
-- **位置**：`src/kai_mind/web/inventory_error_response.py:1-86`；
-  對照 `src/kai_mind/web/schemas.py:321-325`（`InventoryApiErrorDetail`）
+- **位置**：`src/systograph/web/inventory_error_response.py:1-86`；
+  對照 `src/systograph/web/schemas.py:321-325`（`InventoryApiErrorDetail`）
 - **現況**：整個 web 層有**兩種**錯誤形狀：
 
   **A. inventory 專屬結構化 envelope**（`inventory_error_response.py:54-85`，3 個工廠函式）：
@@ -972,7 +972,7 @@
     `http_status` / `retryable` / `context` 三個欄位，是**core 層刻意設計的結構化錯誤**。
   結論：A 是正確方向，B 是舊寫法；不是過渡 hack，而是**新標準只鋪了 inventory 一條路**。
 - **被誰用（實際 grep）**：`grep -rn "inventory_error_response" src tests` →
-  只有 `src/kai_mind/web/routes/scan_routes.py:50-54`（import 三個函式）
+  只有 `src/systograph/web/routes/scan_routes.py:50-54`（import 三個函式）
   以及 6 個呼叫點（`:100, 118, 123, 165, 257, 262, 329, 334`）。**零測試直接 import**。
 - **為什麼是問題**：
   1. `ERROR_MESSAGES`（:11-51）是一個 13 entry 的 dict，用 `ERROR_MESSAGES[error.code]`
@@ -1029,7 +1029,7 @@
 
 ## C-13. `inventory_preflight_projection.py`：projection 邏輯放在 web 層，且重建了 core 已經丟掉的 index
 
-- **位置**：`src/kai_mind/web/inventory_preflight_projection.py:26-115`
+- **位置**：`src/systograph/web/inventory_preflight_projection.py:26-115`
 - **現況**：這是整個 `web/` 底下**唯一**的 projection 模組。core 有一整族 projection service：
   - `core/services/graph_projection_service.py:54` `GraphProjectionService.project()`
   - `core/services/profile_registry_projection_service.py:15` `ProfileRegistryProjectionService.project()`
@@ -1129,7 +1129,7 @@
       —— 把那條跨 4 個檔的隱性不變量變成明確測試。**目前完全沒有單元測試**
       （`ls tests/unit/` 底下沒有對應檔）。
   - **可選新增**：把 `test_viewer_route_is_thin_adapter_without_project_scan_logic`
-    的手法推廣成 `tests/web/test_web_layer_is_thin.py`，斷言 `src/kai_mind/web/`
+    的手法推廣成 `tests/web/test_web_layer_is_thin.py`，斷言 `src/systograph/web/`
     底下沒有模組 import 兩個以上 core service（projection 搬走後就成立）。
 - **嚴重度**：P2
 - **風險**：中 —— 搬 90 行跨層，但輸出可以逐欄位比對；建議先加 golden-JSON 測試再搬。
@@ -1138,7 +1138,7 @@
 
 ## C-14. `legacy_mapping_guards.py`：它守的不是 `ai-system-map/v1`，v1 退場後**不能**刪
 
-- **位置**：`src/kai_mind/web/legacy_mapping_guards.py:1-39`
+- **位置**：`src/systograph/web/legacy_mapping_guards.py:1-39`
 - **它守什麼**：一個**已退場的 manual mapping 寫入型別** `"new_extension_component"`。
   ```python
   _LEGACY_MAPPING_TYPE = LegacyManualMappingType.NEW_EXTENSION.value    # :13 → "new_extension_component"
@@ -1159,9 +1159,9 @@
   只是 `detail` 會變成 FastAPI 的 `RequestValidationError` 陣列而不是穩定字串。
   **這個 guard 的唯一價值是把 422 的 `detail` 從噪音變成穩定 code。**
 - **被誰用（實際 grep）**：
-  - `src/kai_mind/web/routes/mapping_routes.py:18`（import）、`:42`
+  - `src/systograph/web/routes/mapping_routes.py:18`（import）、`:42`
     （`POST /api/mappings` 的 `dependencies=[Depends(reject_legacy_mapping_type)]`）
-  - `src/kai_mind/web/routes/mapping_proposal_routes.py:26`（import）、`:100`
+  - `src/systograph/web/routes/mapping_proposal_routes.py:26`（import）、`:100`
     （`POST /api/mapping-proposals/{id}/decision`）
   - 測試：`tests/web/test_legacy_mapping_write_rejection.py`
     → `test_mapping_api_rejects_legacy_type_with_stable_code`（:28，斷言在 :49-50）
@@ -1217,7 +1217,7 @@
      「mapping_type 的 enum 驗證失敗且值是 `new_extension_component`」的 422 改寫成穩定 code。
      這樣就不需要事前讀 body。**但這會改所有 route 的 422 形狀**，風險較高，可延後。
   4. **加進 allowlist**：`tests/contracts/test_v2_cutover_consumer_allowlist.py` 補一筆
-     `ConsumerRecord(path="src/kai_mind/web/legacy_mapping_guards.py", symbol="new_extension_component",
+     `ConsumerRecord(path="src/systograph/web/legacy_mapping_guards.py", symbol="new_extension_component",
      classification="migration_only", removal_plan="Plan 15 removes the retired mapping type guard.")`
      —— 讓它跟 migration service 一起被追蹤移除。
 - **影響面**：
@@ -1240,7 +1240,7 @@
 
 ## C-15. `DetailScanCreateRequest.target_type` 是裸 `str`，而 code / API-GUIDE / API_CONTRACT **三份清單互相打架**
 
-- **位置**：`src/kai_mind/web/schemas.py:348-353`
+- **位置**：`src/systograph/web/schemas.py:348-353`
 - **現況**：
   ```python
   class DetailScanCreateRequest(WebSchema):
@@ -1326,7 +1326,7 @@
 
 ## C-16. `ScanProgressEvent` 是硬編 stub，且 `slot` 欄位語意與契約不符
 
-- **位置**：`src/kai_mind/web/schemas.py:328-345`、`src/kai_mind/web/routes/scan_routes.py:354-359`
+- **位置**：`src/systograph/web/schemas.py:328-345`、`src/systograph/web/routes/scan_routes.py:354-359`
 - **現況**：
   ```python
   @router.get("/api/scan/events", response_class=EventSourceResponse)
@@ -1385,7 +1385,7 @@
 
 3. **camelCase vs snake_case：全線 snake_case，前後端一致。**
    後端 `schemas.py` 27 個 class 全部 snake_case 欄位；
-   `grep -rn "by_alias\|alias=\|populate_by_name" src/kai_mind/web/` → **零命中**（沒有 alias 機制）；
+   `grep -rn "by_alias\|alias=\|populate_by_name" src/systograph/web/` → **零命中**（沒有 alias 機制）；
    前端 `frontend/src/types.ts` 也全部 snake_case（`:154 project_id`、`:211 scan_id`、
    `:214 build_result`、`:174 evidence_ids`）。這塊沒有轉換層需求，是對的。
 

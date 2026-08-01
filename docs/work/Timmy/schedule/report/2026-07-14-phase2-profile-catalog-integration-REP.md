@@ -35,8 +35,8 @@ H3_SEMANTICS_OK assessments=52 profiles=15 denominator=52
 ### 真實 CLI surface
 
 ```text
-uv run kai-mind --help                  exit 0
-uv run kai-mind map --help              exit 0
+uv run systograph --help                  exit 0
+uv run systograph map --help              exit 0
 CLI map fixture                         exit 0
 profile_signals.json                    52 assessments / 15 profiles
 CLI map missing project                 exit 1
@@ -71,7 +71,7 @@ frontend Vitest                         3 files / 7 tests passed
 frontend ESLint                         0 errors / 1 existing warning
 frontend TypeScript + Vite build        success, 1844 modules transformed
 wheel build                             exit 0
-wheel package resource                  kai_mind/core/rules/profile_registry.toml
+wheel package resource                  systograph/core/rules/profile_registry.toml
 no-excuse checker                       no violations in 19 changed Python files
 git diff --check                        passed
 ```

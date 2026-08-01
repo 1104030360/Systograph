@@ -16,7 +16,7 @@ Plan `01B`（Step 4 component bridge）、`00-phase2-pipeline-ascii-map.md`、
 
 ## 一句話
 
-Step 3 採 staged rollout：Phase A 為 KAI scan TOML providers primary，UA sidecar 可為 null；
+Step 3 採 staged rollout：Phase A 為 Systograph scan TOML providers primary，UA sidecar 可為 null；
 Phase B 為 UA structural primary + TOML parity；Phase C 為 UA only。以下 UA 行為適用於
 Phase B/C，Phase A 仍須允許 `ua_analysis_result=null` 完成 initial build 與 Apply。
 
@@ -89,7 +89,7 @@ semantic sidecar 是 reserved nullable slot，Phase2 active path 不產生、不
 project path（repo）
   → boundary complete
   → filesystem inventory
-  → Phase A：KAI scan TOML providers primary，ua_analysis_result=null 可接受
+  → Phase A：Systograph scan TOML providers primary，ua_analysis_result=null 可接受
   → Phase B/C：UnderstandAnythingAnalysisService
        extract-import-map → compute-batches → extract-structure
        → file-analyzer / ua-analysis-result deferred（不執行）
@@ -115,7 +115,7 @@ scans/{scan_id}/snapshot.json     ← 唯一 raw scan truth（internal UA sideca
 State 目錄 layout（Plan 03A target）：
 
 ```text
-~/.kai-mind/projects/{project_id}/
+~/.systograph/projects/{project_id}/
 ├── scans/{scan_id}/snapshot.json
 ├── mappings/{mapping_id}.json
 ├── builds/{build_id}/manifest.json

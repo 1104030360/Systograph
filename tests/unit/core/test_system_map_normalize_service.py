@@ -6,31 +6,31 @@ from dataclasses import dataclass
 import pytest
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.models.scan import ProjectScanResult
-from kai_mind.core.models.system_map import (
+from systograph.core.models.scan import ProjectScanResult
+from systograph.core.models.system_map import (
     Endpoint,
     Flow,
     RagSystemMap,
     RiskHint,
 )
-from kai_mind.core.models.template import RagTemplate
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.models.template import RagTemplate
+from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
     ComponentDetectionService,
 )
-from kai_mind.core.services.endpoint_detection_service import (
+from systograph.core.services.endpoint_detection_service import (
     EndpointDetectionService,
 )
-from kai_mind.core.services.flow_derivation_service import (
+from systograph.core.services.flow_derivation_service import (
     FlowDerivationService,
 )
-from kai_mind.core.services.project_scan_service import ProjectScanService
-from kai_mind.core.services.rag_template_service import RagTemplateService
-from kai_mind.core.services.risk_hint_service import RiskHintService
-from kai_mind.core.services.system_map_normalize_service import (
+from systograph.core.services.project_scan_service import ProjectScanService
+from systograph.core.services.rag_template_service import RagTemplateService
+from systograph.core.services.risk_hint_service import RiskHintService
+from systograph.core.services.system_map_normalize_service import (
     SystemMapNormalizeService,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 

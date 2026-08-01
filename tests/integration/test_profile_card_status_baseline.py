@@ -4,8 +4,8 @@ from pathlib import Path
 
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.models.map_build import MapBuildRequest
-from kai_mind.core.services.map_build_service import MapBuildService
+from systograph.core.models.map_build import MapBuildRequest
+from systograph.core.services.map_build_service import MapBuildService
 
 # Today's adjudicated status of all 15 capability profile cards on the
 # basic Qdrant + Ollama fixture. Two cards reach `partial`, the other 13
@@ -80,7 +80,7 @@ def test_basic_rag_fixture_pins_all_fifteen_profile_card_statuses(
 
     Durable local state is redirected by the autouse
     `isolate_default_state_root` fixture in tests/conftest.py, so this
-    build never writes to the real ~/.kai-mind.
+    build never writes to the real ~/.systograph.
     """
     # Given / When
     result = MapBuildService().build(

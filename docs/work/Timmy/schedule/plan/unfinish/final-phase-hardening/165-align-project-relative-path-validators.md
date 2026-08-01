@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/165
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/165
 
 **Goal:** 讓 `is_project_relative_posix_path` 與 `normalize_project_relative_path` 對含冒號 segment、Windows drive-like path、UNC-like path 等非法路徑採一致規則。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #165, assignee Timmy.
 - Origin: Backend findings L-8.
-- Primary file: `src/kai_mind/core/services/path_safety_service.py`.
+- Primary file: `src/systograph/core/services/path_safety_service.py`.
 - Related plans: #140 viewer path oracle, #146 scan root boundary policy, #147 output artifact confinement.
 
 ### Task 1: Add path policy regression tests
@@ -36,7 +36,7 @@ Cover `foo/a:b`, `config:prod.yaml`, `C:relative/path`, and `C:/absolute/path`.
 ### Task 2: Centralize validation rules
 
 **Files:**
-- Modify: `src/kai_mind/core/services/path_safety_service.py`
+- Modify: `src/systograph/core/services/path_safety_service.py`
 
 - [ ] **Step 1: Add helper for invalid path segments**
 - [ ] **Step 2: Make normalize and predicate share the same checks**
@@ -45,9 +45,9 @@ Cover `foo/a:b`, `config:prod.yaml`, `C:relative/path`, and `C:/absolute/path`.
 ### Task 3: Sweep call sites
 
 **Files:**
-- Inspect/Modify: `src/kai_mind/core/services/system_map_validation_service.py`
-- Inspect/Modify: `src/kai_mind/core/services/scan_boundary_review_service.py`
-- Inspect/Modify: `src/kai_mind/core/services/code_path_scan_service.py`
+- Inspect/Modify: `src/systograph/core/services/system_map_validation_service.py`
+- Inspect/Modify: `src/systograph/core/services/scan_boundary_review_service.py`
+- Inspect/Modify: `src/systograph/core/services/code_path_scan_service.py`
 
 - [ ] **Step 1: Remove duplicate or weaker path predicates if present**
 - [ ] **Step 2: Confirm all public path fields remain project-relative POSIX**

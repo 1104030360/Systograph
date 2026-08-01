@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 安全接受 `.zip` / `.tar` 專案上傳，解壓到 KAI-Mind 管理的暫存 workspace，再沿用既有 project/scan pipeline。
+**Goal:** 安全接受 `.zip` / `.tar` 專案上傳，解壓到 Systograph 管理的暫存 workspace，再沿用既有 project/scan pipeline。
 
 **Architecture:** Upload ingestion 只負責接收、驗證、解壓與生命週期管理；不得直接呼叫 scanner provider。合法 archive 轉成受控 project record 後，仍經 `POST /api/scans`、scan boundary review 與 `MapBuildService`。
 
@@ -14,7 +14,7 @@
 
 - `ProjectImportRequest.source_type` 仍固定為 `local_path`。
 - 尚無 upload route、archive extractor、temporary workspace manager 或 cleanup。
-- 本計畫不是 Epic 1 blocker；GitHub issue：[#125](https://github.com/1104030360/Local-AI-Health-Doctor/issues/125)。
+- 本計畫不是 Epic 1 blocker；GitHub issue：[#125](https://github.com/1104030360/Systograph/issues/125)。
 - 啟動前必須完成 #140、#142、#146、#147、#152 與 Task 26，否則 upload 會放大既有 path、decode、output、resource 與 retention 風險。
 - 官方文件查證（2026-06-18）：Python 3.14 的 `tarfile` 預設 extraction filter 已改為 `data`，但文件仍提醒 extraction 發生 exception 後可能已部分寫入，需自行 cleanup；本 repo 支援 Python 3.11，因此此計畫不可依賴 3.14 預設防線，必須逐 entry 驗證並手動寫入。
 
@@ -25,12 +25,12 @@
 - 拒絕 absolute path、`..`、drive/UNC path、symlink、hardlink、device file。
 - 限制 upload bytes、展開後總 bytes、檔案數、單檔 bytes、目錄深度。
 - workspace 由 service 管理，project record 只保存 safe metadata 與 workspace id。
-- cleanup 不得刪除非 KAI-Mind 管理的目錄。
+- cleanup 不得刪除非 Systograph 管理的目錄。
 
 ### Task 1: Define upload models and limits
 
 **Files:**
-- Create: `src/kai_mind/core/models/project_upload.py`
+- Create: `src/systograph/core/models/project_upload.py`
 - Test: `tests/unit/core/test_project_upload_models.py`
 
 - [ ] **Step 1: Write failing model tests**
@@ -65,8 +65,8 @@ archive_cleanup_failed
 ### Task 2: Implement safe archive extraction
 
 **Files:**
-- Create: `src/kai_mind/core/services/project_upload_ingestion_service.py`
-- Modify: `src/kai_mind/core/services/path_safety_service.py`
+- Create: `src/systograph/core/services/project_upload_ingestion_service.py`
+- Modify: `src/systograph/core/services/path_safety_service.py`
 - Test: `tests/unit/core/test_project_upload_ingestion_service.py`
 
 - [ ] **Step 1: Write red tests for traversal, links, device entries, zip bomb limits, and cleanup**
@@ -82,10 +82,10 @@ archive_cleanup_failed
 ### Task 3: Add upload route without creating a second scan pipeline
 
 **Files:**
-- Create: `src/kai_mind/web/routes/upload_routes.py`
-- Modify: `src/kai_mind/web/app.py`
-- Modify: `src/kai_mind/web/schemas.py`
-- Modify: `src/kai_mind/web/session_store.py`
+- Create: `src/systograph/web/routes/upload_routes.py`
+- Modify: `src/systograph/web/app.py`
+- Modify: `src/systograph/web/schemas.py`
+- Modify: `src/systograph/web/session_store.py`
 - Test: `tests/web/test_project_upload_routes.py`
 
 - [ ] **Step 1: Write route tests for valid upload and every stable error code**
@@ -101,7 +101,7 @@ archive_cleanup_failed
 ### Task 4: Add retention and documentation
 
 **Files:**
-- Modify: `src/kai_mind/core/services/session_history_service.py`
+- Modify: `src/systograph/core/services/session_history_service.py`
 - Modify: `docs/API-GUIDE.md`
 - Test: `tests/unit/core/test_session_history_service.py`
 

@@ -4,16 +4,18 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from kai_mind.core.models.mapping import (
+from systograph.core.models.mapping import (
     ManualMappingType,
     MappingCandidateType,
 )
-from kai_mind.core.services.manual_mapping_service import ManualMappingService
-from kai_mind.core.services.mapping_proposal_service import (
+from systograph.core.services.manual_mapping_service import (
+    ManualMappingService,
+)
+from systograph.core.services.mapping_proposal_service import (
     InMemoryMappingProposalRepository,
     MappingProposalService,
 )
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def test_active_mapping_enums_do_not_contain_legacy_extension() -> None:

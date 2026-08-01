@@ -782,5 +782,5 @@
   "title": "AiSystemMapV2",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kai-mind.local/schemas/ai-system-map.v2.schema.json"
+  "$id": "https://systograph.local/schemas/ai-system-map.v2.schema.json"
 }

@@ -20,7 +20,7 @@
 4. 實作 `MinimalViewerProjectionService`，輸出最小 `GraphViewModel` shell 並索引 evidence / risk hints。
 5. 新增 web schema、FastAPI app 與 `map/project/scan` route modules，route 使用 `response_model`。
 6. 實作 `POST /api/map/build`、`GET /api/map`、`GET /map`、`POST /api/projects/import`、`POST /api/scans`、`GET /api/scan/events`。
-7. 實作 `kai-mind map` CLI thin adapter，確認 CLI 不直接呼叫 providers。
+7. 實作 `systograph map` CLI thin adapter，確認 CLI 不直接呼叫 providers。
 8. 建立 `docs/work/Timmy/design/epic1-local-api-guide.md`，記錄 local API contract、error format、SSE 與後續 Task 18/21/22 邊界。
 9. 執行相關測試與全量驗證，修正與本次改動相關的失敗。
 10. 完成 phase16 report，逐項回核 plan 驗收條件。

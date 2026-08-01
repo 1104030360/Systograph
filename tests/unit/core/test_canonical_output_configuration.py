@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from kai_mind.core.services.canonical_output_configuration import (
+from systograph.core.services.canonical_output_configuration import (
     CANONICAL_OUTPUT_ENV,
     CanonicalOutputConfigurationError,
     canonical_output_version_from_env,

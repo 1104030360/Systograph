@@ -4,8 +4,8 @@
 > High-level overview: `understand_anything_architecture.md`.
 > Canonical pipeline visual: `understand_anything_pipeline_visual.md`.
 > Runtime/agent narrative: `understand_anything_flow.md`.
-> KAI-Mind side: `kai_mind_architecture.md`, `kai_mind_flow.md`, and the accepted
-> boundary record `../kai-mind-understand-anything-integration-boundary.md`.
+> Systograph side: `systograph_architecture.md`, `systograph_flow.md`, and the accepted
+> boundary record `../systograph-understand-anything-integration-boundary.md`.
 >
 > Scope: the `/understand` codebase-analysis pipeline plus the local dashboard read path.
 > Source of truth: pinned submodule `73559a16` (plugin 2.8.2) —
@@ -171,7 +171,7 @@
   script；LLM 只負責從 README / manifest 合成 `name` / `description` / `frameworks`。
 - `compute-batches.mjs` 的輸入輸出路徑都是**寫死**的（`intermediate/scan-result.json` →
   `intermediate/batches.json`），完全沒有 `--input` / `--output` / `--work-dir`。這正是
-  KAI-Mind 整合時必須改寫的第一個相容性缺口（見 boundary doc §3.2 / §7）。
+  Systograph 整合時必須改寫的第一個相容性缺口（見 boundary doc §3.2 / §7）。
 - Phase 2 的 batch 檔名是 `batch-<batchIndex>.json`；`merge-batch-graphs.py` 以正規表示式
   `batch-(\d+)(-part-\d+)?.json` 收檔，**任何被合併過的自訂檔名都會被靜默丟棄**。
 - 語言 / framework 的補充 prompt 只在 Phase 4 注入，Phase 2 的 file-analyzer 拿不到
@@ -487,15 +487,15 @@ README / manifest / dir tree
   product is `knowledge-graph.json`.
 - **The dashboard is a reader.** It renders graph artifacts and source previews and never
   re-runs `/understand` or mutates any artifact.
-- **KAI-Mind adopts only the deterministic middle.** Per the accepted boundary record, the
+- **Systograph adopts only the deterministic middle.** Per the accepted boundary record, the
   integration uses exactly three scripts — `extract-import-map.mjs` → `compute-batches.mjs`
-  → `extract-structure.mjs` — entering after KAI-Mind's own Step 2 inventory approval and
+  → `extract-structure.mjs` — entering after Systograph's own Step 2 inventory approval and
   returning immediately **before** `file-analyzer`. `scan-project.mjs` is never executed
-  (its language / `fileCategory` / line-count enrichment is ported into KAI-Mind Step 2),
+  (its language / `fileCategory` / line-count enrichment is ported into Systograph Step 2),
   and Phases 3–7 (assemble-reviewer, architecture-analyzer, tour-builder, knowledge-graph
   assembly, dashboard) are **not adopted**. Semantic merge is deferred to Plan 17.
 - **Required upstream modifications for that integration**: `compute-batches.mjs` must gain
   explicit `--input` / `--output` / `--work-dir` instead of its hardcoded
   `.understand-anything/intermediate/` paths (it must never create that directory inside a
   scanned repo), `extract-import-map.mjs` needs an allowlist / path-validation wrapper, and
-  `extract-structure.mjs` must keep all temp and output files inside KAI-Mind's work dir.
+  `extract-structure.mjs` must keep all temp and output files inside Systograph's work dir.

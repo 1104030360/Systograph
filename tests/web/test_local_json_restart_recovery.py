@@ -8,7 +8,7 @@ from pytest import MonkeyPatch
 from tests.web.test_detail_scan_build_binding import prepare_detail_scan
 from tests.web.test_map_build_apply_routes import apply, prepare_apply
 
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def _mark_manifest_as_pre_cutover(
@@ -39,7 +39,7 @@ def test_default_state_root_uses_environment_and_survives_restart(
     state_dir = tmp_path / "configured-state"
     project_root = tmp_path / "project"
     project_root.mkdir()
-    monkeypatch.setenv("KAI_MIND_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("SYSTOGRAPH_STATE_DIR", str(state_dir))
 
     first = TestClient(create_app())
     original = first.post(

@@ -44,7 +44,7 @@ ProjectScanResult
 5. RED 階段確認：
    - `ComponentDetectionService` 尚不存在，unit / integration tests 失敗於 `ModuleNotFoundError`。
    - Chroma code pattern / Docker image rule 尚未加入，provider tests 失敗於 missing rule id。
-6. 建立 `src/kai_mind/core/services/component_detection_service.py`：
+6. 建立 `src/systograph/core/services/component_detection_service.py`：
    - `ComponentDetectionResult`
    - `ManualMappingHook` placeholder
    - deterministic component ids
@@ -53,11 +53,11 @@ ProjectScanResult
    - strong evidence mapping
    - weak dependency / router unmapped handling
    - reranker extension candidate handling
-7. 補 `src/kai_mind/core/rules/code_pattern_rules.toml`：
+7. 補 `src/systograph/core/rules/code_pattern_rules.toml`：
    - `code_pattern_vector_store_chroma_http`
    - `code_pattern_vector_store_chroma_async_http`
    - `code_pattern_vector_store_chroma_persistent`
-8. 補 `src/kai_mind/core/rules/docker_image_rules.toml`：
+8. 補 `src/systograph/core/rules/docker_image_rules.toml`：
    - `docker_chromadb_chroma_image_detected`
 9. 修正 ruff 行長與 mypy literal / helper return type 問題。
 10. 將 Task 13 plan 從 `plan/unfinish` 移到 `plan/finish`。

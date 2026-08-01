@@ -2,24 +2,24 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
     CanonicalEvidence,
     CanonicalEvidenceLocation,
     CanonicalProject,
     CanonicalUnmappedComponent,
 )
-from kai_mind.core.models.mapping import MappingEvidencePacket
-from kai_mind.core.models.system_map import (
+from systograph.core.models.mapping import MappingEvidencePacket
+from systograph.core.models.system_map import (
     Evidence,
     RagSystemMap,
     UnmappedComponent,
 )
-from kai_mind.core.services.mapping_evidence_packet_builder import (
+from systograph.core.services.mapping_evidence_packet_builder import (
     MappingEvidencePacketBuilder,
 )
-from kai_mind.core.services.system_map_index import SystemMapIndex
-from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+from systograph.core.services.system_map_index import SystemMapIndex
+from systograph.core.services.system_map_v1_to_v2_adapter import (
     SystemMapV1ToV2Adapter,
 )
 

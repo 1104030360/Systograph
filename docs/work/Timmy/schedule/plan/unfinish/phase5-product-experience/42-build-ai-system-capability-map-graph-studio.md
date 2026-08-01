@@ -122,8 +122,8 @@ policy、approval、risk 與 audit 關聯，但前端不得因 lens 建立第二
 ### Task 1: Version the backend viewer projection
 
 **Files:**
-- Modify: `src/kai_mind/core/models/viewer.py`
-- Modify: `src/kai_mind/core/services/graph_projection_service.py`
+- Modify: `src/systograph/core/models/viewer.py`
+- Modify: `src/systograph/core/services/graph_projection_service.py`
 - Test: `tests/unit/core/test_graph_projection_service.py`
 
 - [ ] 定義 exactly 52 reference nodes、repo overlays、統一五態、六個固定 lens filters、Mapping

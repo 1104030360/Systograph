@@ -99,7 +99,7 @@ workflow-orchestrated system。直接就地修改 v1 會破壞既有 JSON、view
 
 ### 目前 code 狀態
 
-- `src/kai_mind/core/models/system_map.py` 只接受 `system_type="rag"`。
+- `src/systograph/core/models/system_map.py` 只接受 `system_type="rag"`。
 - `schemas/ai-system-map.v1.schema.json` 是目前 active schema。
 - `SystemMapNormalizeService` 直接產生 `RagSystemMap`。
 - `ViewerSessionService`、detail scan、mapping 與 trace 都直接讀 v1 shape。
@@ -107,16 +107,16 @@ workflow-orchestrated system。直接就地修改 v1 會破壞既有 JSON、view
 
 ### 相關檔案
 
-- Create: `src/kai_mind/core/models/ai_system_map_v2.py`
-- Create: `src/kai_mind/core/services/system_map_v1_to_v2_adapter.py`
-- Create: `src/kai_mind/core/services/canonical_map_loader.py`
-- Create: `src/kai_mind/core/providers/workflow_json_provider.py`
+- Create: `src/systograph/core/models/ai_system_map_v2.py`
+- Create: `src/systograph/core/services/system_map_v1_to_v2_adapter.py`
+- Create: `src/systograph/core/services/canonical_map_loader.py`
+- Create: `src/systograph/core/providers/workflow_json_provider.py`
 - Create: `schemas/ai-system-map.v2.schema.json`
 - Create: `tests/contracts/test_ai_system_map_v2_schema.py`
 - Create: `tests/unit/core/test_system_map_v1_to_v2_adapter.py`
-- Modify: `src/kai_mind/core/services/system_map_validation_service.py`
-- Modify: `src/kai_mind/core/services/system_map_normalize_service.py`
-- Modify: `src/kai_mind/core/models/map_build.py`
+- Modify: `src/systograph/core/services/system_map_validation_service.py`
+- Modify: `src/systograph/core/services/system_map_normalize_service.py`
+- Modify: `src/systograph/core/models/map_build.py`
 
 ### 實作步驟
 

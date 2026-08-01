@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/170
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/170
 
 **Goal:** 修正 README 對 READY/RISKY/NOT READY verdict 的實作狀態宣稱，並補上正式 API-GUIDE / CLI entry point 連結。
 
@@ -17,15 +17,15 @@
 - GitHub issue #170, assignee Timmy.
 - Origin: Backend findings L-14.
 - Primary file: `README.md`.
-- Related docs: `docs/API-GUIDE.md`, CLI entry point `kai-mind`.
+- Related docs: `docs/API-GUIDE.md`, CLI entry point `systograph`.
 
 ### Task 1: Trace implemented command surface
 
 **Files:**
-- Inspect: `src/kai_mind/cli/main.py`
-- Inspect: `src/kai_mind/cli/map_command.py`
-- Inspect: `src/kai_mind/cli/trace_command.py`
-- Inspect: `src/kai_mind/cli/viewer_command.py`
+- Inspect: `src/systograph/cli/main.py`
+- Inspect: `src/systograph/cli/map_command.py`
+- Inspect: `src/systograph/cli/trace_command.py`
+- Inspect: `src/systograph/cli/viewer_command.py`
 - Inspect: `docs/API-GUIDE.md`
 
 - [ ] **Step 1: List actual CLI commands**
@@ -54,10 +54,10 @@
 ## Verification
 
 ```bash
-.venv/bin/kai-mind --help
-.venv/bin/kai-mind map --help
-.venv/bin/kai-mind trace --help
-.venv/bin/kai-mind validate-map --help
+.venv/bin/systograph --help
+.venv/bin/systograph map --help
+.venv/bin/systograph trace --help
+.venv/bin/systograph validate-map --help
 .venv/bin/pytest
 .venv/bin/ruff check .
 .venv/bin/mypy

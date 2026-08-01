@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.mapping import ManualMappingType
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.mapping import ManualMappingType
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.providers.local_json_state_storage import (
+from systograph.core.providers.local_json_state_storage import (
     LocalJsonStateStorage,
 )
-from kai_mind.core.services.legacy_manual_mapping_migration_service import (
+from systograph.core.services.legacy_manual_mapping_migration_service import (
     LEGACY_MAPPING_MIGRATION_VERSION,
     LegacyManualMappingMigrationService,
 )
@@ -266,7 +266,7 @@ def test_apply_failure_keeps_original_file_and_reports_stable_error(
         real_replace(source, target)
 
     monkeypatch.setattr(
-        "kai_mind.core.providers.local_json_state_storage.os.replace",
+        "systograph.core.providers.local_json_state_storage.os.replace",
         fail_mapping_replace,
     )
 
@@ -337,7 +337,7 @@ def test_retire_failure_keeps_incomplete_row_and_reports_stable_error(
         real_replace(source, target)
 
     monkeypatch.setattr(
-        "kai_mind.core.services."
+        "systograph.core.services."
         "legacy_manual_mapping_migration_service.os.replace",
         fail_retire_replace,
     )

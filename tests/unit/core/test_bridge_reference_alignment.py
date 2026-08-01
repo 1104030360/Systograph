@@ -2,19 +2,19 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from kai_mind.core.models.capability_reference_map import (
+from systograph.core.models.capability_reference_map import (
     CapabilityReferenceCatalog,
 )
-from kai_mind.core.services.capability_reference_map_loader import (
+from systograph.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapLoader,
 )
-from kai_mind.core.services.capability_type_node_map_loader import (
+from systograph.core.services.capability_type_node_map_loader import (
     CapabilityTypeNodeMapLoader,
 )
-from kai_mind.core.services.component_bridge_rules import (
+from systograph.core.services.component_bridge_rules import (
     COMPONENT_BRIDGE_RULES,
 )
-from kai_mind.core.services.reference_capability_assessment_service import (
+from systograph.core.services.reference_capability_assessment_service import (
     ReferenceCapabilityAssessmentService,
 )
 

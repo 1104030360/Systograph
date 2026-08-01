@@ -43,8 +43,8 @@ validated RagSystemMap
    - `RecommendedNextCheckRuleMetadata`
    - `load_recommended_next_check_rules()`
    - `load_default_recommended_next_check_rules()`
-5. 新增 `src/kai_mind/core/rules/recommended_next_check_rules.toml`。
-6. 新增 `src/kai_mind/core/services/system_map_normalize_service.py`：
+5. 新增 `src/systograph/core/rules/recommended_next_check_rules.toml`。
+6. 新增 `src/systograph/core/services/system_map_normalize_service.py`：
    - `RecommendedNextCheckService`
    - `SystemMapNormalizeService`
    - `RecommendedCheckTarget`

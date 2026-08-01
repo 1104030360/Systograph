@@ -6,19 +6,19 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.analysis_history import (
+from systograph.core.models.analysis_history import (
     MapBuildLineage,
     MapBuildManifest,
     ProjectState,
     ScanSnapshot,
 )
-from kai_mind.core.models.mapping import (
+from systograph.core.models.mapping import (
     ManualMapping,
     ManualMappingDecision,
     ManualMappingType,
 )
-from kai_mind.core.models.scan import ProjectScanResult
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.scan import ProjectScanResult
+from systograph.core.providers.local_json_state_provider import (
     InvalidStateIdError,
     LocalJsonStateProvider,
     StateConflictError,

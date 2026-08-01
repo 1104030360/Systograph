@@ -10,35 +10,35 @@ from typing import Final
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
     CanonicalProject,
 )
-from kai_mind.core.models.analysis_history import MapBuildLineage
-from kai_mind.core.models.map_build import MapBuildRequest
-from kai_mind.core.models.scan import OutputRun, ProjectScanResult
-from kai_mind.core.services.build_artifact_publisher import (
+from systograph.core.models.analysis_history import MapBuildLineage
+from systograph.core.models.map_build import MapBuildRequest
+from systograph.core.models.scan import OutputRun, ProjectScanResult
+from systograph.core.services.build_artifact_publisher import (
     BuildArtifactPublisher,
 )
-from kai_mind.core.services.legacy_v1_rollback_service import (
+from systograph.core.services.legacy_v1_rollback_service import (
     LegacyV1RollbackError,
     LegacyV1RollbackService,
 )
-from kai_mind.core.services.map_build_pipeline import MapBuildPipeline
-from kai_mind.core.services.map_build_service import MapBuildService
-from kai_mind.core.services.system_map_materialization_service import (
+from systograph.core.services.map_build_pipeline import MapBuildPipeline
+from systograph.core.services.map_build_service import MapBuildService
+from systograph.core.services.system_map_materialization_service import (
     SystemMapMaterializationService,
 )
-from kai_mind.core.services.system_map_v2_materialization_service import (
+from systograph.core.services.system_map_v2_materialization_service import (
     SystemMapV2MaterializationService,
 )
 
 # Modules that only the operator rollback writer needs. Plan 15 deletes
 # them, so the active v2 build path must never reach them.
 ROLLBACK_MODULES: Final[tuple[str, ...]] = (
-    "kai_mind.core.services.legacy_v1_rollback_service",
-    "kai_mind.core.services.system_map_materialization_service",
-    "kai_mind.core.services.system_map_normalize_service",
+    "systograph.core.services.legacy_v1_rollback_service",
+    "systograph.core.services.system_map_materialization_service",
+    "systograph.core.services.system_map_normalize_service",
 )
 
 # The active entry points that must stay free of the rollback graph. The
@@ -47,15 +47,15 @@ ROLLBACK_MODULES: Final[tuple[str, ...]] = (
 # services together.
 ENTRY_POINTS: Final[dict[str, str]] = {
     "map_build_service": (
-        "from kai_mind.core.services.map_build_service import "
+        "from systograph.core.services.map_build_service import "
         "MapBuildService\n"
         "MapBuildService()"
     ),
     "web_create_app": (
-        "from kai_mind.web.app import create_app\n"
+        "from systograph.web.app import create_app\n"
         "create_app(state_dir=Path(sys.argv[1]))"
     ),
-    "cli_main": "import kai_mind.cli.main",
+    "cli_main": "import systograph.cli.main",
 }
 
 # Import purity is only observable in a fresh interpreter: an in-process
@@ -79,10 +79,10 @@ def _rollback_modules_loaded_by(
     state_dir: Path,
 ) -> set[str]:
     env = dict(os.environ)
-    env["KAI_MIND_CANONICAL_OUTPUT_VERSION"] = canonical_output_version
-    # kai_mind.web.app builds an app at import time, so only the env keeps
+    env["SYSTOGRAPH_CANONICAL_OUTPUT_VERSION"] = canonical_output_version
+    # systograph.web.app builds an app at import time, so only the env keeps
     # that side effect off the real state dir.
-    env["KAI_MIND_STATE_DIR"] = str(state_dir)
+    env["SYSTOGRAPH_STATE_DIR"] = str(state_dir)
     probe = subprocess.run(
         [
             sys.executable,

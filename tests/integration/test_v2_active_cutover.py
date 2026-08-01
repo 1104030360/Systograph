@@ -7,29 +7,29 @@ from pathlib import Path
 import pytest
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
-from kai_mind.core.models.analysis_history import ScanSnapshot
-from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
-from kai_mind.core.models.scan import OutputRun, ProjectScanResult
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.models.analysis_history import ScanSnapshot
+from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
+from systograph.core.models.scan import OutputRun, ProjectScanResult
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.services.build_manifest_service import (
+from systograph.core.services.build_manifest_service import (
     BuildManifestService,
 )
-from kai_mind.core.services.canonical_map_loader import (
+from systograph.core.services.canonical_map_loader import (
     CanonicalMapLoader,
     CanonicalMapLoadError,
 )
-from kai_mind.core.services.canonical_output_configuration import (
+from systograph.core.services.canonical_output_configuration import (
     CanonicalOutputConfigurationError,
 )
-from kai_mind.core.services.legacy_v1_rollback_service import (
+from systograph.core.services.legacy_v1_rollback_service import (
     LegacyV1RollbackError,
 )
-from kai_mind.core.services.map_build_service import MapBuildService
-from kai_mind.core.services.rag_template_service import RagTemplateService
-from kai_mind.web.app import create_app
+from systograph.core.services.map_build_service import MapBuildService
+from systograph.core.services.rag_template_service import RagTemplateService
+from systograph.web.app import create_app
 
 
 def _build(
@@ -296,14 +296,14 @@ def test_operator_env_rollback_writes_the_v1_artifact(
 ) -> None:
     """The env-driven rollback keeps its lazily built writer graph.
 
-    Given KAI_MIND_CANONICAL_OUTPUT_VERSION selecting the legacy version,
+    Given SYSTOGRAPH_CANONICAL_OUTPUT_VERSION selecting the legacy version,
     When a default MapBuildService builds a snapshot,
     Then the rollback writer is still constructed and emits one v1
     artifact while the returned map stays v2.
     """
     # Given
     monkeypatch.setenv(
-        "KAI_MIND_CANONICAL_OUTPUT_VERSION",
+        "SYSTOGRAPH_CANONICAL_OUTPUT_VERSION",
         "ai-system-map/v1",
     )
 
@@ -345,7 +345,7 @@ def test_invalid_operator_version_prevents_app_startup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(
-        "KAI_MIND_CANONICAL_OUTPUT_VERSION",
+        "SYSTOGRAPH_CANONICAL_OUTPUT_VERSION",
         "ai-system-map/v999",
     )
 

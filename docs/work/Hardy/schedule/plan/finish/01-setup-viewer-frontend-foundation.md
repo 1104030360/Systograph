@@ -29,7 +29,7 @@ Epic 1 的產品入口優先順序已偏向 GUI / local web UI。前端需要先
 ## 不包含範圍
 
 - 不實作後端 scanner。
-- 不實作正式 `kai-mind viewer` CLI。
+- 不實作正式 `systograph viewer` CLI。
 - 不實作 query trace request API。
 - 不實作 local model chat API。
 

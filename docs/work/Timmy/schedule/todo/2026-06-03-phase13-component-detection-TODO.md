@@ -34,7 +34,7 @@
 4. 確認 RED：
    - 新 service 尚不存在時 unit/integration tests 失敗。
    - 新 catalog 規則未補時 provider tests 失敗。
-5. 實作 `src/kai_mind/core/services/component_detection_service.py`：
+5. 實作 `src/systograph/core/services/component_detection_service.py`：
    - `ComponentDetectionResult`。
    - `ManualMappingHook` placeholder interface。
    - deterministic component ids。
@@ -42,7 +42,7 @@
    - strong evidence mapping。
    - weak evidence candidates 不升級 detected。
    - unmapped / extension candidate handling。
-6. 更新 `src/kai_mind/core/rules/code_pattern_rules.toml` 與 `docker_image_rules.toml`。
+6. 更新 `src/systograph/core/rules/code_pattern_rules.toml` 與 `docker_image_rules.toml`。
 7. 跑 Phase 13 tests 與 provider regression tests。
 8. 跑 full verification。
 9. 建立 Phase 13 Report，記錄實作邏輯、步驟、測試方式、問題與解法、測試結果。

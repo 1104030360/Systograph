@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kai_mind.core.models.inventory_policy import (
+from systograph.core.models.inventory_policy import (
     InventoryPolicyAction,
     ScanInventoryPolicyCatalog,
 )
-from kai_mind.core.services.inventory_policy_matcher import (
+from systograph.core.services.inventory_policy_matcher import (
     InventoryPolicyMatcher,
 )
-from kai_mind.core.services.scan_inventory_rule_loader import (
+from systograph.core.services.scan_inventory_rule_loader import (
     ScanInventoryRuleLoader,
 )
 

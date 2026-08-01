@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/163
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/163
 
 **Goal:** 配合 SSRF egress 修補，降低 web query trace `timeout_seconds` 最高 120 秒造成的慢速探測與資源占用風險。
 
@@ -16,15 +16,15 @@
 
 - GitHub issue #163, assignee Timmy.
 - Origin: Backend findings L-2.
-- Primary files: `src/kai_mind/web/schemas.py`, `src/kai_mind/core/services/query_trace_service.py`.
+- Primary files: `src/systograph/web/schemas.py`, `src/systograph/core/services/query_trace_service.py`.
 - Related plans: #139 SSRF egress policy, #167 CLI trace timeout bound.
 
 ### Task 1: Define shared timeout policy
 
 **Files:**
-- Create/Modify: `src/kai_mind/core/services/query_trace_policy.py`
-- Modify: `src/kai_mind/web/schemas.py`
-- Modify: `src/kai_mind/cli/trace_command.py`
+- Create/Modify: `src/systograph/core/services/query_trace_policy.py`
+- Modify: `src/systograph/web/schemas.py`
+- Modify: `src/systograph/cli/trace_command.py`
 
 - [ ] **Step 1: Pick safe default and maximum**
 
@@ -47,9 +47,9 @@ Use the smallest practical max for local release-readiness checks; do not keep 1
 ### Task 3: Wire policy into runtime
 
 **Files:**
-- Modify: `src/kai_mind/web/schemas.py`
-- Modify: `src/kai_mind/cli/trace_command.py`
-- Modify: `src/kai_mind/core/services/query_trace_service.py`
+- Modify: `src/systograph/web/schemas.py`
+- Modify: `src/systograph/cli/trace_command.py`
+- Modify: `src/systograph/core/services/query_trace_service.py`
 
 - [ ] **Step 1: Use shared max in `TraceCreateRequest`**
 - [ ] **Step 2: Use shared max in Typer option callback or service validation**

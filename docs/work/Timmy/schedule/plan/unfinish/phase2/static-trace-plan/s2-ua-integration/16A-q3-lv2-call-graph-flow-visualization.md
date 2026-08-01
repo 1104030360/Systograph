@@ -3,9 +3,9 @@
 Status: **decision recorded**（2026-07-29）— 產品／架構洞察，非正式實作 plan。
 實作仍以 [`16-implement-understand-anything-sidecar-service.md`](./16-implement-understand-anything-sidecar-service.md) 為主；本檔說明 **為什麼 call-graph 深度（Lv2）值得做，以及一份 UA 資料會餵飽哪些下游。**
 
-> **對象：** Plan 16 執行者、討論「接 UA 之後能畫什麼 flow」的人  
-> **性質：** 決策紀錄 + 現況對照；**不**改產品碼  
-> **來源：** 2026-07-29 UA 整合對話 Q3（選 Lv2）  
+> **對象：** Plan 16 執行者、討論「接 UA 之後能畫什麼 flow」的人
+> **性質：** 決策紀錄 + 現況對照；**不**改產品碼
+> **來源：** 2026-07-29 UA 整合對話 Q3（選 Lv2）
 > **證據交叉驗證（寫入當日）：** `FlowDerivationService`、`rag-core-v1.json` flows、`profile_rule_definitions.py`（`rag-grounding` → `context_flow`）、static-trace README P0 artifacts
 
 ---
@@ -26,7 +26,7 @@ Status: **decision recorded**（2026-07-29）— 產品／架構洞察，非正�
 
 ### 2.1 模板寫死兩條線
 
-來源：`src/kai_mind/core/templates/rag-core-v1.json` → `flows[]`
+來源：`src/systograph/core/templates/rag-core-v1.json` → `flows[]`
 
 ```text
 indexing:
@@ -159,9 +159,9 @@ Lv（對話語境，非正式版本號）
 
 ## 5. 必須守住的契約／安全邊界
 
-與 Plan 16、`ref-opensource/kai-mind-understand-anything-integration-boundary.md`、static-trace README 一致：
+與 Plan 16、`ref-opensource/systograph-understand-anything-integration-boundary.md`、static-trace README 一致：
 
-1. **Adapter 必經之路**：UA 輸出不得直接當 `ai_system_map.json`；必須變成 KAI `ScanFact` / `Evidence`。
+1. **Adapter 必經之路**：UA 輸出不得直接當 `ai_system_map.json`；必須變成 Systograph `ScanFact` / `Evidence`。
 2. **direct evidence 語意**：只有「真的看到 call／wiring」才能標 `evidence_kind=direct`；不得把兩端證據聯集假裝成 call-site。
 3. **仍是 static inferred**：`runtime_verified=false`；不得在 UI／報告宣稱 runtime proof。
 4. **不跑 UA semantic / knowledge-graph.json canonical**：Phase2 structural only。
@@ -233,9 +233,9 @@ UA 端不得自創同義新名——否則又製造一次字彙漂移（同 G5 �
 | 檔案 | 角色 |
 |------|------|
 | [`16-implement-understand-anything-sidecar-service.md`](./16-implement-understand-anything-sidecar-service.md) | S2 實作主 plan |
-| `ref-opensource/kai-mind-understand-anything-integration-boundary.md` | UA 整合邊界（Accepted） |
+| `ref-opensource/systograph-understand-anything-integration-boundary.md` | UA 整合邊界（Accepted） |
 | `../README.md` | Stage / Gate / artifact 對照 |
-| `src/kai_mind/core/services/flow_derivation_service.py` | 今日假想線實作 |
-| `src/kai_mind/core/templates/rag-core-v1.json` | indexing / query_answer 模板 |
-| `src/kai_mind/core/services/profile_rule_definitions.py` | `rag-grounding` ↔ `context_flow` |
-| `src/kai_mind/core/services/static_execution_artifact_service.py` | call_graph / execution_paths / mermaid |
+| `src/systograph/core/services/flow_derivation_service.py` | 今日假想線實作 |
+| `src/systograph/core/templates/rag-core-v1.json` | indexing / query_answer 模板 |
+| `src/systograph/core/services/profile_rule_definitions.py` | `rag-grounding` ↔ `context_flow` |
+| `src/systograph/core/services/static_execution_artifact_service.py` | call_graph / execution_paths / mermaid |

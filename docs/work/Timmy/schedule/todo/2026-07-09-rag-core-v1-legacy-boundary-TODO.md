@@ -3,7 +3,7 @@
 ## 目標
 
 執行第一個 phase2 contract compatibility 階段，對齊實際 target plan：
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s0-contract-compatibility/00-define-rag-core-v1-legacy-template-boundary.md`。
+`/Users/linjunting/Systograph/docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s0-contract-compatibility/00-define-rag-core-v1-legacy-template-boundary.md`。
 
 本階段要把 `rag-core-v1` 固定成 legacy migration input，補上
 characterization / regression guard，並新增 deterministic、read-only 的 v1-to-v2
@@ -68,7 +68,7 @@ adapter boundary。現行 active v1 build path 不做 silent cutover。
 - [x] 已建立 `docs/work/Timmy/schedule/todo/2026-07-09-rag-core-v1-legacy-boundary-TODO.md`。
 - [x] 文件內容使用繁體中文，且段落清楚可供其他人直接接手。
 - [x] 文件明確引用實際 target plan 路徑：
-      `/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s0-contract-compatibility/00-define-rag-core-v1-legacy-template-boundary.md`
+      `/Users/linjunting/Systograph/docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s0-contract-compatibility/00-define-rag-core-v1-legacy-template-boundary.md`
 - [x] `rag-core-v1` 有 service-level legacy-only boundary metadata。
 - [x] 新增 regression test，避免 v1 slot completeness 被宣稱為 active
       readiness/profile/frontend summary surface。

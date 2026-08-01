@@ -36,9 +36,9 @@
    - flow edge 引用 valid evidence ids。
 4. 補整合測試：
    - sample RAG fixture 經 ProjectScanService -> ComponentDetectionService -> Task 14 services 後，endpoint / risk hint / flow 可通過 `SystemMapValidationService`。
-5. 實作 `src/kai_mind/core/services/endpoint_detection_service.py`。
-6. 實作 `src/kai_mind/core/services/risk_hint_service.py`。
-7. 實作 `src/kai_mind/core/services/flow_derivation_service.py`。
+5. 實作 `src/systograph/core/services/endpoint_detection_service.py`。
+6. 實作 `src/systograph/core/services/risk_hint_service.py`。
+7. 實作 `src/systograph/core/services/flow_derivation_service.py`。
 8. 跑 targeted tests，確認新增服務通過。
 9. 跑 full verification。
 10. 建立 Phase 14 Report。

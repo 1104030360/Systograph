@@ -14,16 +14,16 @@
 1. 建立 Phase 3 TODO。
 2. 先寫 `tests/core/test_rag_template_service.py`，鎖定 template loader、slot、flow、status 與 validation failure 行為。
 3. 執行目標測試確認 RED。
-4. 建立 `src/kai_mind/core/models/template.py`，定義 template Pydantic models。
-5. 建立 `src/kai_mind/core/templates/rag-core-v1.json`，填入 13 個 slots、allowed statuses、requiredness hints 與兩條 flow slot order。
-6. 建立 `src/kai_mind/core/services/rag_template_service.py`，實作內建 template 載入與 validation。
+4. 建立 `src/systograph/core/models/template.py`，定義 template Pydantic models。
+5. 建立 `src/systograph/core/templates/rag-core-v1.json`，填入 13 個 slots、allowed statuses、requiredness hints 與兩條 flow slot order。
+6. 建立 `src/systograph/core/services/rag_template_service.py`，實作內建 template 載入與 validation。
 7. 執行目標測試與完整測試。
 8. 執行 Ruff 與 mypy，確認格式與 strict typing。
 
 ## 測試方式
 
 - RED：`.venv/bin/python -m pytest tests/core/test_rag_template_service.py -q`
-  - 初始失敗原因：`kai_mind.core.services.rag_template_service` 尚未存在。
+  - 初始失敗原因：`systograph.core.services.rag_template_service` 尚未存在。
 - GREEN focused：`.venv/bin/python -m pytest tests/core/test_rag_template_service.py -q`
   - 結果：8 passed。
 - Full test：`.venv/bin/python -m pytest -q`

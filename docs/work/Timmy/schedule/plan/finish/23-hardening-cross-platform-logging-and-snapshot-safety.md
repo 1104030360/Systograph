@@ -46,7 +46,7 @@
 - `tests/contracts/test_secret_snapshot_safety.py`
 - `tests/unit/core/test_cross_platform_paths.py`
 - `tests/web/test_local_api_hardening.py`
-- `src/kai_mind/core/services/logging_service.py` 或等價 helper
+- `src/systograph/core/services/logging_service.py` 或等價 helper
 - 更新相關 tests/docs
 
 ## 2026-06-10 研究校正與最佳實踐
@@ -55,7 +55,7 @@
 
 **結論：研究方向正確，但實作細節需修正。**
 
-- Checkov 是可參考的 scanner 類專案；其 README 說明它是 IaC / container image / package 的 static analysis / SCA scanner，與 KAI-Mind 的 read-only scanner 形態相近：`https://github.com/bridgecrewio/checkov`
+- Checkov 是可參考的 scanner 類專案；其 README 說明它是 IaC / container image / package 的 static analysis / SCA scanner，與 Systograph 的 read-only scanner 形態相近：`https://github.com/bridgecrewio/checkov`
 - Checkov Windows issue 顯示跨 drive / path normalization 真的會造成 Windows failure，且該 issue 中 output path 被註解為應該維持 Unix path：`https://github.com/bridgecrewio/checkov/issues/1949`
 - Python `pathlib` 官方文件指出 `Path` 會使用目前作業系統語意；如果要在 Unix/macOS 上處理 Windows path，應使用 `PureWindowsPath`，而 `PurePath.as_posix()` 才是把 path 轉成 forward slash 的語意化 API：`https://docs.python.org/3/library/pathlib.html`
 
@@ -90,7 +90,7 @@
 
 需要修正的點：
 
-- 不應把 logging 設定集中到 `src/kai_mind/core/configs/`；目前 repo 的 logging 使用點在 service 層，Phase 23 應先建立小型 `logging_service.py` helper，避免大規模重構。
+- 不應把 logging 設定集中到 `src/systograph/core/configs/`；目前 repo 的 logging 使用點在 service 層，Phase 23 應先建立小型 `logging_service.py` helper，避免大規模重構。
 - Key-based masking 是第一層，但不能完全取代 pattern-based masking。現有 `SecretMaskingService` 已同時支援 key-value 與常見 token pattern，structured log helper 應復用它。
 - Provider failure log 應記錄 `event`、`stage`、`provider`、`exception_type`、`frame_count` 等結構化欄位；不記錄完整 secret、raw exception message 或本機絕對 path。
 

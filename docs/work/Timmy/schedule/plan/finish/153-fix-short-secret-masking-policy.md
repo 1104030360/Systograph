@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/153
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/153
 
 **Goal:** 避免 9-16 字元 secret 因固定露出前後四字元而幾乎完整洩漏。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #153, assignee Timmy.
 - Origin: Backend findings M-7.
-- Primary file: `src/kai_mind/core/services/secret_masking_service.py`.
+- Primary file: `src/systograph/core/services/secret_masking_service.py`.
 
 ### Task 1: Add short-secret regression tests
 
@@ -30,7 +30,7 @@
 ### Task 2: Update masking policy
 
 **Files:**
-- Modify: `src/kai_mind/core/services/secret_masking_service.py`
+- Modify: `src/systograph/core/services/secret_masking_service.py`
 
 - [ ] **Step 1: Full mask values with length <= 16**
 - [ ] **Step 2: Keep long secret prefix/suffix visibility capped**

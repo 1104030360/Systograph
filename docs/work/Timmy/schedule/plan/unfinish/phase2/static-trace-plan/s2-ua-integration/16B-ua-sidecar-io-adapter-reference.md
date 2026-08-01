@@ -5,9 +5,9 @@ Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件�
 > **對象：** Plan 16 執行者（Task 1/3/4/6 的直接輸入）
 > **性質：** 實測查核紀錄；**不**改產品碼
 > **來源：** 2026-07-29 三路查核 —— (a) vendored submodule 三支 script 原始碼逐行讀
-> （pinned commit `73559a1`，plugin v2.8.2）、(b) `src/kai_mind/` 掃描管線程式碼、
+> （pinned commit `73559a1`，plugin v2.8.2）、(b) `src/systograph/` 掃描管線程式碼、
 > (c) boundary decision record 全文
-> **權威順序：** `ref-opensource/kai-mind-understand-anything-integration-boundary.md`
+> **權威順序：** `ref-opensource/systograph-understand-anything-integration-boundary.md`
 > （Accepted）> [`16`](./16-implement-understand-anything-sidecar-service.md) > 本檔。
 > 本檔只記「實測為何」；若與 boundary doc 衝突，以 boundary doc 為準並回報。
 
@@ -20,7 +20,7 @@ Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件�
               UA-PRIMARY SCAN - FULL PICTURE (Plan 16, Phase B/C)
 ====================================================================================
 
- KAI-MIND SIDE (Python, src/kai_mind/)          UA SIDECAR SIDE (Node >= 22)
+ Systograph SIDE (Python, src/systograph/)          UA SIDECAR SIDE (Node >= 22)
  --------------------------------------         ------------------------------------
 
  Step 2  Boundary gate（核心不變）
@@ -28,13 +28,13 @@ Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件�
     |      + NEW enrichment: language / file_category / size_lines
     |        （移植自 scan-project.mjs；scan-project.mjs 本身永不執行）
     v
- Step 3  UnderstandAnythingAnalysisService     <== [K1] KAI 接入點（新增）
+ Step 3  UnderstandAnythingAnalysisService     <== [K1] Systograph 接入點（新增）
     |     | (1) NodeRuntimePreflight  -- Node 缺失 => fail-closed
-    |     | (2) 產生 kai-mind-ua-request/v1
+    |     | (2) 產生 systograph-ua-request/v1
     |     | (3) SubprocessRunner (shell=False, timeout)
     |     |        |
     |     |        v
-    |     |   node kai-mind-analyze.mjs         <== [U0] UA 起點（新增 wrapper）
+    |     |   node systograph-analyze.mjs         <== [U0] UA 起點（新增 wrapper）
     |     |     --project-root / --inventory / --work-dir / --output
     |     |        |
     |     |        |  [U1] extract-import-map.mjs      （原樣沿用）
@@ -42,7 +42,7 @@ Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件�
     |     |        |  [U3] compute-batches.mjs         （必須 fork，見 §3.2）
     |     |        |  [U4] extract-structure.mjs       （原樣沿用，逐 batch）
     |     |        v
-    |     |   kai-mind-ua-result/v1             <== [U5] UA 輸出點
+    |     |   systograph-ua-result/v1             <== [U5] UA 輸出點
     |     |
     |     | (4) ResultValidator  -- schema + path allowlist，fail-closed
     |     | (5) UaStructuralAdapter              <== [K2] Adapter（轉換點）
@@ -60,7 +60,7 @@ Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件�
 
 ---
 
-## 2. KAI 側已驗證接縫（2026-07-29 對 codebase 實測）
+## 2. Systograph 側已驗證接縫（2026-07-29 對 codebase 實測）
 
 ### 2.1 接縫早已預留（Plan 03A 產物，全部存在且有測試覆蓋）
 
@@ -101,7 +101,7 @@ provider loop 之上包住，失敗直接 raise，不得依賴 provider 例外�
 
 ### 2.4 CLI 路徑的缺口
 
-`kai-mind map`（`cli/map_command.py:63`）直接呼叫 `MapBuildService.build()`——
+`systograph map`（`cli/map_command.py:63`）直接呼叫 `MapBuildService.build()`——
 **沒有 boundary gate、沒有 snapshot**。UA 接入 web 路徑後，CLI 是否也走 UA
 （以及怎麼補 gate）是 open question，見 §6。
 
@@ -225,14 +225,14 @@ out : ua-file-extract-results-<batchIndex>.json
 
 ---
 
-## 4. `kai-mind-analyze.mjs` wrapper 的膠水責任（Task 4 輸入）
+## 4. `systograph-analyze.mjs` wrapper 的膠水責任（Task 4 輸入）
 
 ```text
  [U1] extract-import-map  ->  importMap
             |
             v
  [U2] 合成 scan-result.json = { files:(inventory 含 sizeLines), importMap:(原樣) }
-      （上游這份 JSON 由 LLM agent 拼裝；KAI 改由 wrapper 決定性拼裝，
+      （上游這份 JSON 由 LLM agent 拼裝；Systograph 改由 wrapper 決定性拼裝，
         files 與 importMap 必須原樣傳遞、不得增刪改）
             |
             v
@@ -242,16 +242,16 @@ out : ua-file-extract-results-<batchIndex>.json
  [U4] extract-structure  ->  ua-file-extract-results-<batchIndex>.json
             |
             v
- [U5] 收攏成 kai-mind-ua-result/v1（semantic 恆 null）
+ [U5] 收攏成 systograph-ua-result/v1（semantic 恆 null）
 ```
 
 | # | 責任 | 原因 |
 |---|------|------|
-| 1 | snake_case ⇄ camelCase 轉換 | KAI request 是 `size_lines`/`file_category`；UA 內部是 `sizeLines`/`fileCategory`（BD §3.2.A 兩邊皆有示例） |
-| 2 | 決定性合成 `scan-result.json` | 上游無此接合產物（LLM agent 拼的）；KAI 必須自拼 |
+| 1 | snake_case ⇄ camelCase 轉換 | Systograph request 是 `size_lines`/`file_category`；UA 內部是 `sizeLines`/`fileCategory`（BD §3.2.A 兩邊皆有示例） |
+| 2 | 決定性合成 `scan-result.json` | 上游無此接合產物（LLM agent 拼的）；Systograph 必須自拼 |
 | 3 | 逐 batch 呼叫並以 `batchIndex` 收檔 | `batchIndex` 1-based；`--changed-files` 下可能不連續 |
 | 4 | 每步前 `mkdir -p` work dir | 三支 script 都不自建目錄 |
-| 5 | 絕不執行 `scan-project.mjs` | 它會自己 walk 檔案樹，破壞「KAI inventory 是唯一白名單」 |
+| 5 | 絕不執行 `scan-project.mjs` | 它會自己 walk 檔案樹，破壞「Systograph inventory 是唯一白名單」 |
 | 6 | stderr 全量收集、限量、轉交 | stderr 是唯一警告通道；截斷/降級訊息必須進 warnings（不得靜默丟） |
 
 ---
@@ -288,7 +288,7 @@ UA batching 全程 byte-for-byte 決定性（§3.2），穩定 id 有基礎。
 ### 5.2 欄位映射表（BD §4.2 裁定 + rule_id 前綴）
 
 ```text
- UA 欄位                          rule_id 前綴      -> KAI 去向
+ UA 欄位                          rule_id 前綴      -> Systograph 去向
  -------------------------------  ----------------  --------------------------------
  import_map[src] -> dst           ua_import_*       import fact + evidence
                                                     （file-level 無行號 => indirect）
@@ -318,10 +318,10 @@ UA batching 全程 byte-for-byte 決定性（§3.2），穩定 id 有基礎。
 
 | # | 問題 | 衝突點 |
 |---|------|--------|
-| 1 | `kai-mind-analyze.mjs` 放哪 | Plan 16 Task 4 寫「`ref-opensource/understand-anything/` 或實際 vendored sidecar path」，但 `ref-opensource/CLAUDE.md` 規定該目錄不放 KAI 產品碼、submodule 是 pinned 不可改。且 §3.4：script 對 `pluginRoot` 有相對位置依賴。需裁定新家（例如 repo 根 `sidecar/`）與 script 路徑解析策略 |
+| 1 | `systograph-analyze.mjs` 放哪 | Plan 16 Task 4 寫「`ref-opensource/understand-anything/` 或實際 vendored sidecar path」，但 `ref-opensource/CLAUDE.md` 規定該目錄不放 Systograph 產品碼、submodule 是 pinned 不可改。且 §3.4：script 對 `pluginRoot` 有相對位置依賴。需裁定新家（例如 repo 根 `sidecar/`）與 script 路徑解析策略 |
 | 2 | `compute-batches.mjs` fork 形式 | local fork / patch layer / 上游 PR？`ref-opensource/CLAUDE.md` 說 vendored 樹的修改應走 upstream 貢獻 |
-| 3 | `kai-mind-ua-result/v1` 的 `stats` / `warnings` 內部形狀 | BD 留白為開放物件；Task 1 需定案（fail-closed + unknown fields 拒絕的前提是形狀有定義） |
-| 4 | CLI `kai-mind map` 是否走 UA | CLI 路徑無 boundary gate 無 snapshot（§2.4）；若走 UA 需先補 gate，若不走需明文記錄行為差異 |
+| 3 | `systograph-ua-result/v1` 的 `stats` / `warnings` 內部形狀 | BD 留白為開放物件；Task 1 需定案（fail-closed + unknown fields 拒絕的前提是形狀有定義） |
+| 4 | CLI `systograph map` 是否走 UA | CLI 路徑無 boundary gate 無 snapshot（§2.4）；若走 UA 需先補 gate，若不走需明文記錄行為差異 |
 | 5 | UA 未 build 的 preflight 邊界 | `pnpm install + build` 是安裝時一次性動作還是 preflight 檢查項？（preflight 只該檢查、不該現場 build） |
 
 ---
@@ -332,9 +332,9 @@ UA batching 全程 byte-for-byte 決定性（§3.2），穩定 id 有基礎。
 |------|------|
 | [`16-implement-understand-anything-sidecar-service.md`](./16-implement-understand-anything-sidecar-service.md) | S2 實作主 plan（本檔是其技術參考） |
 | [`16A-q3-lv2-call-graph-flow-visualization.md`](./16A-q3-lv2-call-graph-flow-visualization.md) | Q3 Lv2 決策（call hints 的 why 與下游） |
-| `ref-opensource/kai-mind-understand-anything-integration-boundary.md` | UA 整合邊界（Accepted，最高權威） |
+| `ref-opensource/systograph-understand-anything-integration-boundary.md` | UA 整合邊界（Accepted，最高權威） |
 | `ref-opensource/Understand-Anything/understand-anything-plugin/skills/understand/` | 三支 script 原始碼（pinned `73559a1`） |
-| `src/kai_mind/core/services/project_scan_service.py` | `ScanResultProvider` Protocol 與 provider loop |
-| `src/kai_mind/core/services/component_detection_service.py` | 四元組 join（規則 A 出處） |
-| `src/kai_mind/core/services/canonical_evidence_service.py` | direct/indirect 判定（規則 B 出處） |
-| `src/kai_mind/core/services/apply_confirmations_service.py` | evidence id 子集檢查（規則 C 出處） |
+| `src/systograph/core/services/project_scan_service.py` | `ScanResultProvider` Protocol 與 provider loop |
+| `src/systograph/core/services/component_detection_service.py` | 四元組 join（規則 A 出處） |
+| `src/systograph/core/services/canonical_evidence_service.py` | direct/indirect 判定（規則 B 出處） |
+| `src/systograph/core/services/apply_confirmations_service.py` | evidence id 子集檢查（規則 C 出處） |

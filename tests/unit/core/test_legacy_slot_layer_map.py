@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import importlib
 
-from kai_mind.core.services.legacy_slot_layer_map import SLOT_LAYER_BY_ID
+from systograph.core.services.legacy_slot_layer_map import SLOT_LAYER_BY_ID
 
 CONSUMER_MODULES = (
-    "kai_mind.core.services.system_map_v1_to_v2_adapter",
-    "kai_mind.core.services.system_map_v2_normalize_service",
+    "systograph.core.services.system_map_v1_to_v2_adapter",
+    "systograph.core.services.system_map_v2_normalize_service",
 )
 
 

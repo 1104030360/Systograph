@@ -2,15 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kai_mind.core.models.filesystem import (
+from systograph.core.models.filesystem import (
     FileInventory,
     FileInventorySource,
     FileRecord,
 )
-from kai_mind.core.providers.docker_compose_provider import (
+from systograph.core.providers.docker_compose_provider import (
     DockerComposeProvider,
 )
-from kai_mind.core.services.secret_masking_service import SecretMaskingService
+from systograph.core.services.secret_masking_service import (
+    SecretMaskingService,
+)
 
 
 def build_inventory(project_root: Path, *paths: str) -> FileInventory:
@@ -218,12 +220,12 @@ def test_collect_masks_environment_map_and_list_values(
             [
                 "services:",
                 "  api:",
-                "    image: kai-mind/api:test",
+                "    image: systograph/api:test",
                 "    environment:",
                 "      OPENAI_API_KEY: sk-test-example",
                 "      QDRANT_URL: http://localhost:6333",
                 "  worker:",
-                "    image: kai-mind/worker:test",
+                "    image: systograph/worker:test",
                 "    environment:",
                 "      - PASSWORD=correct horse battery staple",
                 "      - EMPTY_RUNTIME_KEY",
@@ -275,7 +277,7 @@ def test_collect_emits_env_file_volume_and_depends_on_facts(
             [
                 "services:",
                 "  api:",
-                "    image: kai-mind/api:test",
+                "    image: systograph/api:test",
                 "    env_file:",
                 "      - .env",
                 "      - path: ./worker.env",

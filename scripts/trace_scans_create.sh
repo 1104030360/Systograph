@@ -37,34 +37,34 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --project-id)
       i=$((i + 1))
-      PROJECT_ID="${KAI_EXTRA_ARGS[$i]:?missing value for --project-id}"
+      PROJECT_ID="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --project-id}"
       ;;
-    *) kai_die "Unknown option: $arg" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
 if [[ -z "$PROJECT_ID" ]]; then
-  kai_section "準備：先匯入專案取得 project_id"
-  PROJECT_ID="$(kai_import_project)"
+  systograph_section "準備：先匯入專案取得 project_id"
+  PROJECT_ID="$(systograph_import_project)"
 fi
 
-kai_section "建立掃描：POST /api/scans"
+systograph_section "建立掃描：POST /api/scans"
 REQUEST_BODY="$(jq -n --arg id "$PROJECT_ID" --arg out "$OUTPUT_DIR" \
   '{project_id:$id, scan_depth:"system", output:$out, redact_root_path:true, no_snippets:false}')"
-kai_progress "現在要建立 scan（系統掃描）..."
+systograph_progress "現在要建立 scan（系統掃描）..."
 api_call POST "/api/scans" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Scan 摘要"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Scan 摘要"
 echo "$LAST_BODY" | jq '{
   scan_id,
   project_id,
@@ -73,11 +73,11 @@ echo "$LAST_BODY" | jq '{
   build_id: .build_result.lineage.build_id,
   map_json_path: .build_result.map_json_path
 }'
-kai_section "Build result / graph projection 摘要（Track A）"
+systograph_section "Build result / graph projection 摘要（Track A）"
 BUILD_RESULT_JSON="$(echo "$LAST_BODY" | jq '.build_result')"
-kai_summarize_map_build_result "$BUILD_RESULT_JSON"
+systograph_summarize_map_build_result "$BUILD_RESULT_JSON"
 
 SCAN_STATUS="$(echo "$LAST_BODY" | jq -r '.status')"
 if [[ "$SCAN_STATUS" == "completed" ]]; then
-  kai_assert_graph_projection_loaded "$(echo "$BUILD_RESULT_JSON" | jq '{viewer_load_result}')"
+  systograph_assert_graph_projection_loaded "$(echo "$BUILD_RESULT_JSON" | jq '{viewer_load_result}')"
 fi

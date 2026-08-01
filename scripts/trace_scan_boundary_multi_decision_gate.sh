@@ -74,59 +74,59 @@ proposal_value() {
 }
 
 require_tools
-kai_parse_common_args "$@"
-if [[ ${#KAI_EXTRA_ARGS[@]} -gt 0 ]]; then
-  kai_die "Unknown option: ${KAI_EXTRA_ARGS[*]}"
+systograph_parse_common_args "$@"
+if [[ ${#SYSTOGRAPH_EXTRA_ARGS[@]} -gt 0 ]]; then
+  systograph_die "Unknown option: ${SYSTOGRAPH_EXTRA_ARGS[*]}"
 fi
-kai_bootstrap_server
+systograph_bootstrap_server
 
-kai_section "準備：匯入含兩個 boundary 目標的 demo 專案"
+systograph_section "準備：匯入含兩個 boundary 目標的 demo 專案"
 DEMO_PROJECT_DIR="$(make_demo_project)"
-PROJECT_ID="$(kai_import_project "$DEMO_PROJECT_DIR")"
-kai_progress "先讀取目前 /api/map 作為 baseline..."
+PROJECT_ID="$(systograph_import_project "$DEMO_PROJECT_DIR")"
+systograph_progress "先讀取目前 /api/map 作為 baseline..."
 BEFORE_MAP="$(setup_get "/api/map")"
 
-kai_section "第一次掃描：一次收集所有 pending boundary proposals"
+systograph_section "第一次掃描：一次收集所有 pending boundary proposals"
 FIRST_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
-kai_progress "現在要建立 scan（預期回 requires_boundary_decision）..."
+systograph_progress "現在要建立 scan（預期回 requires_boundary_decision）..."
 api_call POST "/api/scans" "$FIRST_BODY"
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected first scan HTTP: $LAST_STATUS"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected first scan HTTP: $LAST_STATUS"
 FIRST_SCAN="$LAST_BODY"
 FIRST_STATUS="$(jq_get "$FIRST_SCAN" '.status')"
 [[ "$FIRST_STATUS" == "requires_boundary_decision" ]] \
-  || kai_die "Expected requires_boundary_decision, got $FIRST_STATUS"
+  || systograph_die "Expected requires_boundary_decision, got $FIRST_STATUS"
 [[ "$(jq_get "$FIRST_SCAN" '.build_result == null')" == "true" ]] \
-  || kai_die "Expected build_result=null for pending boundary decision"
+  || systograph_die "Expected build_result=null for pending boundary decision"
 
 PROPOSALS_JSON="$(jq -c '.boundary_proposals' <<<"$FIRST_SCAN")"
 PROPOSAL_COUNT="$(jq_get "$FIRST_SCAN" '.boundary_proposals | length')"
 PROPOSAL_PATHS="$(jq -r '.boundary_proposals[].target.path' <<<"$FIRST_SCAN" \
   | sort | paste -sd ',' -)"
 [[ "$PROPOSAL_COUNT" == "2" ]] \
-  || kai_die "Expected 2 boundary proposals, got $PROPOSAL_COUNT"
+  || systograph_die "Expected 2 boundary proposals, got $PROPOSAL_COUNT"
 [[ "$PROPOSAL_PATHS" == ".env,vector_store/data.index" ]] \
-  || kai_die "Unexpected proposal paths: $PROPOSAL_PATHS"
+  || systograph_die "Unexpected proposal paths: $PROPOSAL_PATHS"
 if grep -Fq 'sk-live-secret-value' <<<"$FIRST_SCAN"; then
-  kai_die "Raw secret leaked in first scan response"
+  systograph_die "Raw secret leaked in first scan response"
 fi
 if grep -Fq "$DEMO_PROJECT_DIR" <<<"$FIRST_SCAN"; then
-  kai_die "Local absolute path leaked in first scan response"
+  systograph_die "Local absolute path leaked in first scan response"
 fi
 
-kai_progress "確認 pending 期間 /api/map 沒有被更新..."
+systograph_progress "確認 pending 期間 /api/map 沒有被更新..."
 AFTER_PENDING_MAP="$(setup_get "/api/map")"
 if [[ "$(normalized_json "$BEFORE_MAP")" != "$(normalized_json "$AFTER_PENDING_MAP")" ]]; then
-  kai_die "Pending boundary decision unexpectedly updated /api/map"
+  systograph_die "Pending boundary decision unexpectedly updated /api/map"
 fi
 
-kai_section "第二次掃描：一次送回全部 boundary decisions"
+systograph_section "第二次掃描：一次送回全部 boundary decisions"
 ENV_FINGERPRINT="$(proposal_value "$PROPOSALS_JSON" ".env" '.target.fingerprint')"
 VECTOR_FINGERPRINT="$(proposal_value \
   "$PROPOSALS_JSON" \
   "vector_store/data.index" \
   '.target.fingerprint')"
 [[ -n "$ENV_FINGERPRINT" && -n "$VECTOR_FINGERPRINT" ]] \
-  || kai_die "Could not derive proposal fingerprints"
+  || systograph_die "Could not derive proposal fingerprints"
 DECISIONS="$(jq -n \
   --arg env_fp "$ENV_FINGERPRINT" \
   --arg vector_fp "$VECTOR_FINGERPRINT" \
@@ -145,9 +145,9 @@ DECISIONS="$(jq -n \
     }
   ]')"
 SECOND_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR" "$DECISIONS")"
-kai_progress "接著一次送回全部 boundary_decisions..."
+systograph_progress "接著一次送回全部 boundary_decisions..."
 api_call POST "/api/scans" "$SECOND_BODY"
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected second scan HTTP: $LAST_STATUS"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected second scan HTTP: $LAST_STATUS"
 SECOND_SCAN="$LAST_BODY"
 SECOND_STATUS="$(jq_get "$SECOND_SCAN" '.status')"
 SECOND_PROPOSALS="$(jq_get "$SECOND_SCAN" '.boundary_proposals | length')"
@@ -159,45 +159,45 @@ SECOND_SKIPPED="$(jq_get \
   '.build_result.ai_system_map.scan_summary.files_skipped')"
 SECOND_MAP_JSON_PATH="$(jq_get "$SECOND_SCAN" '.build_result.map_json_path // empty')"
 [[ "$SECOND_STATUS" == "completed" ]] \
-  || kai_die "Expected completed second scan, got $SECOND_STATUS"
+  || systograph_die "Expected completed second scan, got $SECOND_STATUS"
 [[ "$SECOND_PROPOSALS" == "0" ]] \
-  || kai_die "Expected no boundary proposals after all decisions"
+  || systograph_die "Expected no boundary proposals after all decisions"
 [[ "$SECOND_SCANNED" == "2" ]] \
-  || kai_die "Expected files_scanned=2 after scanning .env and app.py, got $SECOND_SCANNED"
+  || systograph_die "Expected files_scanned=2 after scanning .env and app.py, got $SECOND_SCANNED"
 [[ "$SECOND_SKIPPED" -ge 1 ]] \
-  || kai_die "Expected at least one skipped file after skip_this_run"
+  || systograph_die "Expected at least one skipped file after skip_this_run"
 [[ -f "$SECOND_MAP_JSON_PATH" ]] \
-  || kai_die "Expected map_json_path to exist: $SECOND_MAP_JSON_PATH"
+  || systograph_die "Expected map_json_path to exist: $SECOND_MAP_JSON_PATH"
 [[ "$(jq_get "$(cat "$SECOND_MAP_JSON_PATH")" '.scan_summary.files_scanned')" == "$SECOND_SCANNED" ]] \
-  || kai_die "Stored ai_system_map.json files_scanned did not match response"
+  || systograph_die "Stored ai_system_map.json files_scanned did not match response"
 [[ "$(jq_get "$(cat "$SECOND_MAP_JSON_PATH")" '.scan_summary.files_skipped')" == "$SECOND_SKIPPED" ]] \
-  || kai_die "Stored ai_system_map.json files_skipped did not match response"
+  || systograph_die "Stored ai_system_map.json files_skipped did not match response"
 if grep -Fq 'sk-live-secret-value' <<<"$SECOND_SCAN"; then
-  kai_die "Raw secret leaked in second scan response"
+  systograph_die "Raw secret leaked in second scan response"
 fi
 if grep -Fq 'sk-live-secret-value' "$SECOND_MAP_JSON_PATH"; then
-  kai_die "Raw secret leaked in stored ai_system_map.json"
+  systograph_die "Raw secret leaked in stored ai_system_map.json"
 fi
 if grep -Fq "$DEMO_PROJECT_DIR" "$SECOND_MAP_JSON_PATH"; then
-  kai_die "Local absolute path leaked in stored ai_system_map.json"
+  systograph_die "Local absolute path leaked in stored ai_system_map.json"
 fi
 
-kai_progress "確認完成掃描後 /api/map 已更新..."
+systograph_progress "確認完成掃描後 /api/map 已更新..."
 AFTER_COMPLETED_MAP="$(setup_get "/api/map")"
 [[ "$(jq_get "$AFTER_COMPLETED_MAP" '.viewer_load_result.loaded')" == "true" ]] \
-  || kai_die "Completed scan did not update /api/map"
+  || systograph_die "Completed scan did not update /api/map"
 
-kai_section "第三次掃描：same-run decisions 不會被記住"
+systograph_section "第三次掃描：same-run decisions 不會被記住"
 THIRD_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
-kai_progress "再次建立 scan（預期又要求兩筆 boundary decision）..."
+systograph_progress "再次建立 scan（預期又要求兩筆 boundary decision）..."
 api_call POST "/api/scans" "$THIRD_BODY"
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected third scan HTTP: $LAST_STATUS"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected third scan HTTP: $LAST_STATUS"
 THIRD_STATUS="$(jq_get "$LAST_BODY" '.status')"
 THIRD_COUNT="$(jq_get "$LAST_BODY" '.boundary_proposals | length')"
 [[ "$THIRD_STATUS" == "requires_boundary_decision" ]] \
-  || kai_die "Expected requires_boundary_decision third scan, got $THIRD_STATUS"
+  || systograph_die "Expected requires_boundary_decision third scan, got $THIRD_STATUS"
 [[ "$THIRD_COUNT" == "2" ]] \
-  || kai_die "Expected both proposals to be requested again, got $THIRD_COUNT"
+  || systograph_die "Expected both proposals to be requested again, got $THIRD_COUNT"
 
-kai_section "PASS"
+systograph_section "PASS"
 echo "scan boundary multi-decision same-run gate behavior is correct"

@@ -11,7 +11,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 from pydantic import ValidationError
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     REFERENCE_NODE_COUNT,
     AiSystemMapV2,
     AssessmentStatus,
@@ -21,10 +21,10 @@ from kai_mind.core.models.ai_system_map_v2 import (
     ReferenceMapCatalog,
     build_ai_system_map_v2_schema,
 )
-from kai_mind.core.services.capability_reference_map_loader import (
+from systograph.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapLoader,
 )
-from kai_mind.core.services.system_map_v2_validation_service import (
+from systograph.core.services.system_map_v2_validation_service import (
     SystemMapV2ValidationError,
     SystemMapV2ValidationService,
 )

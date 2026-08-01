@@ -4,7 +4,7 @@
 > （submodule pin `73559a1`、plugin 2.8.2、MIT）
 > 詳細架構圖見：`understand_anything_architecture_detailed.md`
 > **Canonical 可視化總圖見：`understand_anything_pipeline_visual.md`**
-> 與 KAI-Mind 的流程對照見：`kai_mind_flow.md`
+> 與 Systograph 的流程對照見：`systograph_flow.md`
 
 ---
 
@@ -319,14 +319,14 @@
 
 ---
 
-## 六、與 KAI-Mind 對照
+## 六、與 Systograph 對照
 
-見 `kai_mind_flow.md`：KAI-Mind 由 **Python Core**（`MapBuildService`）線性編排；UA 由 **IDE 內的 AI agent** 依 Markdown 劇本編排，每個 phase 都可能停下來問使用者。
+見 `systograph_flow.md`：Systograph 由 **Python Core**（`MapBuildService`）線性編排；UA 由 **IDE 內的 AI agent** 依 Markdown 劇本編排，每個 phase 都可能停下來問使用者。
 
-整合邊界（`ref-opensource/kai-mind-understand-anything-integration-boundary.md`，Accepted 2026-07-07 P0）：
+整合邊界（`ref-opensource/systograph-understand-anything-integration-boundary.md`，Accepted 2026-07-07 P0）：
 
-- KAI-Mind 只採用本文 Phase 1–2 的**三支決定性腳本**：`extract-import-map.mjs` → `compute-batches.mjs` → 每個 batch 的 `extract-structure.mjs`，取得結構事實後**立即返回**，不執行 `file-analyzer`、semantic merge 或 Phase 3–7。
-- `scan-project.mjs` **不執行**（會與 KAI Step 2 的 inventory policy 形成第二個掃描邊界）；language detection / fileCategory / line counts 三項 enrichment 改在 KAI Step 2 自行實作。
-- Phase 3–7 的 assemble-reviewer、architecture-analyzer、tour-builder、knowledge-graph 組裝與 dashboard **一律不採用**；KAI-Mind Step 6 是純 Python 的 `ProfileInferenceService`（10 planes / 52 nodes），semantic 合併屬於 **Plan 17 deferred**。
-- `compute-batches.mjs` 目前把 `intermediate/` 路徑寫死在目標 repo 內，違反 KAI-Mind 的唯讀保證，整合時必須改成顯式的 `--input`/`--output`/`--work-dir`。
+- Systograph 只採用本文 Phase 1–2 的**三支決定性腳本**：`extract-import-map.mjs` → `compute-batches.mjs` → 每個 batch 的 `extract-structure.mjs`，取得結構事實後**立即返回**，不執行 `file-analyzer`、semantic merge 或 Phase 3–7。
+- `scan-project.mjs` **不執行**（會與 Systograph Step 2 的 inventory policy 形成第二個掃描邊界）；language detection / fileCategory / line counts 三項 enrichment 改在 Systograph Step 2 自行實作。
+- Phase 3–7 的 assemble-reviewer、architecture-analyzer、tour-builder、knowledge-graph 組裝與 dashboard **一律不採用**；Systograph Step 6 是純 Python 的 `ProfileInferenceService`（10 planes / 52 nodes），semantic 合併屬於 **Plan 17 deferred**。
+- `compute-batches.mjs` 目前把 `intermediate/` 路徑寫死在目標 repo 內，違反 Systograph 的唯讀保證，整合時必須改成顯式的 `--input`/`--output`/`--work-dir`。
 - 現況：`src/` 底下尚無任何程式碼引用 `ref-opensource/`，sidecar 仍屬規劃階段。

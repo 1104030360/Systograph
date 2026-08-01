@@ -62,11 +62,11 @@ Canonical target/evidence若繼續保留兩套 lookup，會形成 split-brain be
 
 ### 相關檔案
 
-- Modify: `src/kai_mind/core/services/detail_scan_service.py`
-- Create: `src/kai_mind/core/services/detail_scan_target_resolver.py`
-- Modify: `src/kai_mind/web/routes/mapping_proposal_routes.py`
-- Modify: `src/kai_mind/core/services/mapping_evidence_packet_builder.py`
-- Read: `src/kai_mind/core/services/canonical_map_loader.py`
+- Modify: `src/systograph/core/services/detail_scan_service.py`
+- Create: `src/systograph/core/services/detail_scan_target_resolver.py`
+- Modify: `src/systograph/web/routes/mapping_proposal_routes.py`
+- Modify: `src/systograph/core/services/mapping_evidence_packet_builder.py`
+- Read: `src/systograph/core/services/canonical_map_loader.py`
 - Modify: `tests/unit/core/test_detail_scan_service.py`
 - Create: `tests/unit/core/test_detail_scan_target_resolver.py`
 - Modify: `tests/unit/core/test_mapping_evidence_packet_builder.py`
@@ -175,10 +175,10 @@ Expected：遷移前 characterization 全部 PASS。
   tests/web/test_detail_scan_routes.py \
   tests/web/test_detail_scan_build_binding.py \
   tests/unit/core/test_mapping_proposal_service.py -q
-.venv/bin/ruff check src/kai_mind/core/services/detail_scan_service.py \
-  src/kai_mind/core/services/detail_scan_target_resolver.py \
-  src/kai_mind/core/services/mapping_evidence_packet_builder.py \
-  src/kai_mind/web/routes/mapping_proposal_routes.py
+.venv/bin/ruff check src/systograph/core/services/detail_scan_service.py \
+  src/systograph/core/services/detail_scan_target_resolver.py \
+  src/systograph/core/services/mapping_evidence_packet_builder.py \
+  src/systograph/web/routes/mapping_proposal_routes.py
 .venv/bin/mypy src tests
 git diff --check -- \
   docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-a-index-projection/08-migrate-mapping-consumers-to-system-map-index.md

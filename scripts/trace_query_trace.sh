@@ -39,31 +39,31 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --endpoint-id)
-      i=$((i + 1)); ENDPOINT_ID="${KAI_EXTRA_ARGS[$i]:?missing value for --endpoint-id}" ;;
+      i=$((i + 1)); ENDPOINT_ID="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --endpoint-id}" ;;
     --query)
-      i=$((i + 1)); QUERY="${KAI_EXTRA_ARGS[$i]:?missing value for --query}" ;;
+      i=$((i + 1)); QUERY="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --query}" ;;
     --timeout-seconds)
-      i=$((i + 1)); TIMEOUT_SECONDS="${KAI_EXTRA_ARGS[$i]:?missing value for --timeout-seconds}" ;;
-    *) kai_die "Unknown option: $arg" ;;
+      i=$((i + 1)); TIMEOUT_SECONDS="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --timeout-seconds}" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
-kai_section "準備：匯入專案並掃描，取得 build_id"
-PROJECT_ID="$(kai_import_project)"
-SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
+systograph_section "準備：匯入專案並掃描，取得 build_id"
+PROJECT_ID="$(systograph_import_project)"
+SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
 BUILD_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.lineage.build_id')"
 [[ -n "$BUILD_ID" && "$BUILD_ID" != "null" ]] \
-  || kai_die "Scan response missing build_result.lineage.build_id"
+  || systograph_die "Scan response missing build_result.lineage.build_id"
 
-kai_section "執行 query trace：POST /api/trace"
+systograph_section "執行 query trace：POST /api/trace"
 REQUEST_BODY="$(jq -n \
   --arg id "$PROJECT_ID" \
   --arg build "$BUILD_ID" \
@@ -72,11 +72,11 @@ REQUEST_BODY="$(jq -n \
   --arg timeout "$TIMEOUT_SECONDS" \
   '{project_id:$id, build_id:$build, endpoint_id:$endpoint, query:$query,
     timeout_seconds:($timeout|tonumber)}')"
-kai_progress "現在要對 build 執行 query trace（endpoint=${ENDPOINT_ID}）..."
+systograph_progress "現在要對 build 執行 query trace（endpoint=${ENDPOINT_ID}）..."
 api_call POST "/api/trace" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Trace 摘要"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Trace 摘要"
 echo "$LAST_BODY" | jq '{
   trace_id,
   status,

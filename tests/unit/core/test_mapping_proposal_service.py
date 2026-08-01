@@ -6,7 +6,7 @@ from collections.abc import Callable
 import pytest
 from pydantic import ValidationError
 
-from kai_mind.core.models.mapping import (
+from systograph.core.models.mapping import (
     ManualMappingCreate,
     ManualMappingDecision,
     ManualMappingType,
@@ -18,11 +18,11 @@ from kai_mind.core.models.mapping import (
     MappingProposalDecisionResult,
     MappingProposalStatus,
 )
-from kai_mind.core.services.manual_mapping_service import (
+from systograph.core.services.manual_mapping_service import (
     InMemoryManualMappingRepository,
     ManualMappingService,
 )
-from kai_mind.core.services.mapping_proposal_service import (
+from systograph.core.services.mapping_proposal_service import (
     InMemoryMappingProposalRepository,
     MappingProposalProvider,
     MappingProposalService,

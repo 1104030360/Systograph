@@ -5,13 +5,13 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from kai_mind.core.models.profile_registry_projection import (
+from systograph.core.models.profile_registry_projection import (
     ProfileRegistryProjection,
 )
-from kai_mind.core.services.profile_registry_loader import (
+from systograph.core.services.profile_registry_loader import (
     ProfileRegistryLoader,
 )
-from kai_mind.core.services.profile_registry_projection_service import (
+from systograph.core.services.profile_registry_projection_service import (
     ProfileRegistryProjectionService,
 )
 

@@ -25,7 +25,7 @@ dependency manifests 是判斷專案是否使用 LangChain、LlamaIndex、OpenAI
 - 不做 vulnerability scan。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/providers/dependency_manifest_provider.py`。
+1. 建立 `src/systograph/core/providers/dependency_manifest_provider.py`。
 2. 實作 requirements line parser，忽略註解與空行，先處理 PEP 508 name-based requirement；`-r` include、editable install、VCS URL 先記成 unsupported / parse issue，不遞迴讀檔、不連網。
 3. 實作 pyproject dependency extraction，優先讀 `[project].dependencies` / `[project.optional-dependencies]`，並支援 Poetry 常見的 `[tool.poetry.dependencies]` / `[tool.poetry.group.*.dependencies]`。
 4. 實作 package.json dependency extraction，先讀 `dependencies` / `devDependencies`，可保留 dependency group 來源作 evidence。
@@ -34,7 +34,7 @@ dependency manifests 是判斷專案是否使用 LangChain、LlamaIndex、OpenAI
 7. 測試 Python/Node manifests、malformed manifest、unknown package、URL/editable/recursive requirements unsupported case。
 
 ## 預期輸出
-- `src/kai_mind/core/providers/dependency_manifest_provider.py`
+- `src/systograph/core/providers/dependency_manifest_provider.py`
 - `tests/unit/core/test_dependency_manifest_provider.py`
 
 ## 驗收標準
@@ -62,7 +62,7 @@ dependency manifests 是判斷專案是否使用 LangChain、LlamaIndex、OpenAI
 可借鑑：
 - 它的 Project Scanner 先做 deterministic discovery，再把結果交給後續分析。
 - 它會保留 `package.json`、`pyproject.toml`、`requirements.txt`、`go.mod`、`Cargo.toml` 等 manifest/config 作 framework detection evidence。
-- 對 KAI-Mind 來說，重點不是照抄它的 graph pipeline，而是借它「先掃 manifest / config，產生結構化 evidence，不直接讓 LLM 猜 dependency」的邊界。
+- 對 Systograph 來說，重點不是照抄它的 graph pipeline，而是借它「先掃 manifest / config，產生結構化 evidence，不直接讓 LLM 猜 dependency」的邊界。
 
 #### GitDiagram
 
@@ -73,7 +73,7 @@ dependency manifests 是判斷專案是否使用 LangChain、LlamaIndex、OpenAI
 
 可借鑑：
 - 它比較適合作 graph/path validation discipline 參考。
-- 它不適合作 dependency manifest parser 的主要參考，因為 KAI-Mind 的 release-readiness evidence 不能只靠 README / repo tree 或 AI-first diagram。
+- 它不適合作 dependency manifest parser 的主要參考，因為 Systograph 的 release-readiness evidence 不能只靠 README / repo tree 或 AI-first diagram。
 
 #### Syft
 
@@ -83,7 +83,7 @@ dependency manifests 是判斷專案是否使用 LangChain、LlamaIndex、OpenAI
 
 可借鑑：
 - Syft 把 package discovery 拆成 catalogers；directory scan 會同時看已安裝 package 與 declared dependency，例如 `requirements.txt`。
-- Syft 官方文件也提醒 declared dependency 通常不能保證實際 installed version，這符合 KAI-Mind 的判斷：dependency manifest 只能產生 candidate fact，不應單獨讓 component slot detected。
+- Syft 官方文件也提醒 declared dependency 通常不能保證實際 installed version，這符合 Systograph 的判斷：dependency manifest 只能產生 candidate fact，不應單獨讓 component slot detected。
 - Epic 1 不直接整合 Syft；只借 lightweight SBOM / dependency inventory 的 fact 邊界。
 
 ### 2. Python dependency parser 參考
@@ -116,7 +116,7 @@ dependency manifests 是判斷專案是否使用 LangChain、LlamaIndex、OpenAI
 - https://packaging.pypa.io/en/stable/requirements.html
 
 可借鑑：
-- `pip-audit` 可 audit requirements file 與 local Python project，並支援 `pyproject.toml` project files；但它是 vulnerability audit 工具，不是 KAI-Mind Epic 1 要整合的 dependency manifest provider。
+- `pip-audit` 可 audit requirements file 與 local Python project，並支援 `pyproject.toml` project files；但它是 vulnerability audit 工具，不是 Systograph Epic 1 要整合的 dependency manifest provider。
 - requirements 語法比單純 `name==version` 複雜，包含 marker、extras、direct URL、pip options、recursive include 等。
 - 實作時可優先用 `packaging.requirements.Requirement` 的語法模型解析單行 name-based requirement；遇到 pip option、`-r`、editable、VCS URL 等先輸出 parse issue / unsupported evidence，不執行、不下載、不遞迴。
 

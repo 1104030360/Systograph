@@ -91,9 +91,9 @@ zod 3 的 `.optional()` 只接受 `undefined`、不接受 `null`
 
 **現況核對（2026-07-29 追查後端程式碼後補記，修正本節原先的嚴重度描述）：**
 
-- 後端 `ScanProgressEvent`（`src/kai_mind/web/schemas.py:328-345`）六個 ID 欄位
+- 後端 `ScanProgressEvent`（`src/systograph/web/schemas.py:328-345`）六個 ID 欄位
   預設全是 `None` → 序列化成 JSON 時 key 保留、值為 `null`。
-- 全 repo **只有一個建構點**：`src/kai_mind/web/routes/scan_routes.py:360`
+- 全 repo **只有一個建構點**：`src/systograph/web/routes/scan_routes.py:360`
   的 `ScanProgressEvent()`——零參數、只 `yield` 一次，docstring 自承
   「現階段回傳一筆 completed 狀態」。**沒有任何程式碼路徑會填入真正的 `node_id`。**
 - 因此 `App.tsx:114` 的 `resolveProgressTargetId()` 今天不論修不修都回傳 null，
@@ -400,7 +400,7 @@ describe("scanCreateResponseSchema", () => {
   `.../s1-v2-cutover/13.5.md`、`.../s1-v2-cutover/13.6.md`
 - 契約：`frontend/API_CONTRACT.md:256`（pending 無 scan_id）、`:301-309`（SSE highlight）、
   `docs/API-GUIDE.md`（含 `legacy_mapping_type_read_only`）
-- Backend guard（防護，非產品入口）：`src/kai_mind/web/legacy_mapping_guards.py`
+- Backend guard（防護，非產品入口）：`src/systograph/web/legacy_mapping_guards.py`
 - 歷史 handoff（已併入本檔，勿再開新子集）：
   `../meeting_sync_2026_07_15/frontend-ai-system-map-v2-cutover.md`、
   `../meeting_sync_2026_07_07/frontend-legacy-extension-retirement.md`

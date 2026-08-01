@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/162
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/162
 
 **Goal:** 對 AI proposal provider transient failure 與 429 quota/rate-limit failure 加入 bounded retry/backoff，並清楚定義 deterministic fallback 順序。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #162, assignee Timmy.
 - Origin: Backend findings L-1.
-- Primary files: `src/kai_mind/core/providers/llm_proposal_provider.py`, `src/kai_mind/core/services/mapping_proposal_service.py`.
+- Primary files: `src/systograph/core/providers/llm_proposal_provider.py`, `src/systograph/core/services/mapping_proposal_service.py`.
 - Related plans: #145 provider config trust boundary, #156 masked observability, #161 prompt evidence isolation.
 
 ### Task 1: Add transient failure tests
@@ -40,8 +40,8 @@ Validation errors, malformed provider JSON, 400, and 401 must not loop.
 ### Task 2: Implement bounded retry policy
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/llm_proposal_provider.py`
-- Modify: `src/kai_mind/core/services/llm_proposal_config_loader.py` if config is needed
+- Modify: `src/systograph/core/providers/llm_proposal_provider.py`
+- Modify: `src/systograph/core/services/llm_proposal_config_loader.py` if config is needed
 
 - [ ] **Step 1: Add explicit max attempts and backoff bounds**
 - [ ] **Step 2: Classify retryable status/exception types**
@@ -51,7 +51,7 @@ Validation errors, malformed provider JSON, 400, and 401 must not loop.
 ### Task 3: Preserve deterministic fallback
 
 **Files:**
-- Modify: `src/kai_mind/core/services/mapping_proposal_service.py`
+- Modify: `src/systograph/core/services/mapping_proposal_service.py`
 
 - [ ] **Step 1: Surface provider unavailable reason without raw exception data**
 - [ ] **Step 2: Ensure deterministic candidates are still returned after exhausted retry**

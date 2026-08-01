@@ -34,7 +34,7 @@
 
 ### 階段 2：最小實作讓測試轉綠
 
-- [x] 建立 `src/kai_mind/core/providers/config_parse_provider.py`。
+- [x] 建立 `src/systograph/core/providers/config_parse_provider.py`。
 - [x] 規劃 provider-local result models；若現有 models 不足，再補最小支援型別。
 - [x] 先做 `.env` parse + masking。
 - [x] 再做 JSON / TOML / YAML parse。

@@ -4,8 +4,8 @@ from pathlib import Path
 
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.models.map_build import MapBuildRequest
-from kai_mind.core.services.map_build_service import MapBuildService
+from systograph.core.models.map_build import MapBuildRequest
+from systograph.core.services.map_build_service import MapBuildService
 
 # End-to-end baseline for the canonical_type -> reference node lookup
 # packaged as capability_type_node_map.toml. Scanning the Qdrant +
@@ -49,7 +49,7 @@ def test_basic_rag_fixture_pins_the_reference_capability_baseline(
 
     Durable local state is redirected by the autouse
     `isolate_default_state_root` fixture in tests/conftest.py, so this
-    build never writes to the real ~/.kai-mind.
+    build never writes to the real ~/.systograph.
     """
     # Given / When
     result = MapBuildService().build(

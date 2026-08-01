@@ -26,7 +26,7 @@ pnpm build/lint。
 ## 2026-07-05 Active Contract and Execution Gate
 
 Plan 15 是 active plan，但只能在 Gate-4 通過後開始：Plan 14 必須完成並留下通過、可回溯
-的 validation report，且 Plan 18 已完成 KAI TOML provider retirement。若 `00A`、`13`、
+的 validation report，且 Plan 18 已完成 Systograph TOML provider retirement。若 `00A`、`13`、
 `14`、`18` 任一 gate 未通過，Plan 15 必須維持 pending，不得提前清除 compatibility code。
 
 退役後的 active v2 contract 必須保留：
@@ -50,7 +50,7 @@ Legacy 三態資料只允許由 migration adapter 讀取並轉成 active 五態 
 
 Plan 15 的 legacy v1 / extension 退役不包含 UA sidecar 退役。UA 已成為 Step 3 primary
 scanner 後，Plan 15 只確認 active v2 / static execution artifacts 不依賴 legacy v1 或
-extension surface；KAI TOML scan providers 的主掃描路徑退役由 Plan 18 在 Plan 14 parity
+extension surface；Systograph TOML scan providers 的主掃描路徑退役由 Plan 18 在 Plan 14 parity
 gate 通過後處理。
 
 ## 執行摘要
@@ -99,23 +99,23 @@ Plan 13 Task 4 會先建立**過渡用** persisted mapping migration surface，�
 
 ### 相關檔案
 
-- `src/kai_mind/core/models/ai_system_map_v2.py`
-- `src/kai_mind/core/services/system_map_v1_to_v2_adapter.py`
-- `src/kai_mind/core/services/canonical_map_loader.py`
-- `src/kai_mind/core/services/system_map_normalize_service.py`
-- `src/kai_mind/core/services/system_map_materialization_service.py`
+- `src/systograph/core/models/ai_system_map_v2.py`
+- `src/systograph/core/services/system_map_v1_to_v2_adapter.py`
+- `src/systograph/core/services/canonical_map_loader.py`
+- `src/systograph/core/services/system_map_normalize_service.py`
+- `src/systograph/core/services/system_map_materialization_service.py`
   （operator-rollback-only v1 materializer。module docstring 已於 Plan 13.5 Stage D 明寫
   「Plan 15 removes it」——本清單補列，讓該承諾在計畫端有對應項目。）
-- `src/kai_mind/core/services/system_map_validation_service.py`
-- `src/kai_mind/core/services/legacy_slot_layer_map.py`
+- `src/systograph/core/services/system_map_validation_service.py`
+- `src/systograph/core/services/legacy_slot_layer_map.py`
   （Plan 13.5 Task C5 抽出的 `SLOT_LAYER_BY_ID` 單一來源。**不可**隨 v1 adapter 一起刪：
   它同時被 `system_map_v1_to_v2_adapter.py`（Plan 15 刪）與 **active** 的
   `system_map_v2_normalize_service.py`（`layer=SLOT_LAYER_BY_ID.get(slot.slot, ...)`）
   import；刪 adapter 時必須明確裁定此 module 去留——v2 側仍需要它，最小處置是保留並
   改名／搬到中立位置，不是刪除。）
-- `src/kai_mind/core/providers/output_artifact_provider.py`
-- `src/kai_mind/core/models/mapping_base.py`（確認 active enum 已無 `NEW_EXTENSION`）
-- `src/kai_mind/core/services/legacy_manual_mapping_migration_service.py`（Plan 13 建、本計畫刪）
+- `src/systograph/core/providers/output_artifact_provider.py`
+- `src/systograph/core/models/mapping_base.py`（確認 active enum 已無 `NEW_EXTENSION`）
+- `src/systograph/core/services/legacy_manual_mapping_migration_service.py`（Plan 13 建、本計畫刪）
 - Legacy DTO／`migrate-legacy-mappings` CLI 註冊處（Plan 13 建、本計畫刪）
 - `schemas/ai-system-map.v2.schema.json`
 - `tests/fixtures/ai_system_map/`
@@ -215,10 +215,10 @@ reload gate 通過，且 active `ManualMappingType` 已無 `NEW_EXTENSION`。
 
 Plan 13.5 交接的兩個前置事實（先確認再動手，可省一輪撞牆）：
 
-- **`src/kai_mind/web/legacy_mapping_guards.py` 已與 migration module 解耦。** Plan 13.5
+- **`src/systograph/web/legacy_mapping_guards.py` 已與 migration module 解耦。** Plan 13.5
   Task B1 把 `new_extension_component` 內聯成字面值、移除對
   `legacy_manual_mapping_migration_service` 的 import。刪 module 前確認
-  `rg legacy_manual_mapping_migration src/kai_mind/web/` 零命中即可，不需要再拆 web 層。
+  `rg legacy_manual_mapping_migration src/systograph/web/` 零命中即可，不需要再拆 web 層。
   **guard 本體不隨 module 刪除**——它的去留由下方 bullet 5（normal API 仍須 fail-closed）
   決定，兩者生命週期不同。
 - **census 已看得見 enum 名稱，因此刪除是 census-guarded 的。** Plan 13.5 Task B2 把
@@ -237,9 +237,9 @@ Plan 13.5 交接的兩個前置事實（先確認再動手，可省一輪撞牆�
   東西——report 只是 CLI 回傳的 `LegacyMappingMigrationReport`，不落地成檔案，別去找不存在
   的 writer）。兩個 state 目錄的保留／刪除決策點必須明確裁定並寫進文件，不得靜默留 code
   path：
-  - `<KAI_MIND_STATE_DIR>/migration-backups/<project>/` —— `<mapping>.<token>.legacy.json`
+  - `<SYSTOGRAPH_STATE_DIR>/migration-backups/<project>/` —— `<mapping>.<token>.legacy.json`
     （原 payload 的 **re-serialization**）+ `index.json`。
-  - `<KAI_MIND_STATE_DIR>/migration-quarantine/<project>/` —— 兩種檔案：
+  - `<SYSTOGRAPH_STATE_DIR>/migration-quarantine/<project>/` —— 兩種檔案：
     `<mapping>.<token>.legacy.json`（payload re-serialization，包 migration version 與
     input digest）與 `<mapping>.<token>.original.json`（**byte-exact** 原檔，Plan 13.5
     Task C6 新增，由 `_retire_original` move 進來）。
@@ -270,7 +270,7 @@ Plan 13.5 交接的兩個前置事實（先確認再動手，可省一輪撞牆�
 > scan path 共用的 DTO，直接刪檔會炸掉 v2 主路徑。
 
 - [ ] 把下列 11 個 **與 v1 契約無關、active path 仍在用**的 symbol 從
-  `src/kai_mind/core/models/system_map.py` 拆到中立 module：
+  `src/systograph/core/models/system_map.py` 拆到中立 module：
   `Evidence`、`Endpoint`、`Flow`、`Edge`、`RiskHint`、`DetailScanResult`、
   `QueryTraceEvent`、`CodePathStep`、`DetailScanFinding`、`UnmappedComponent`、
   `ScanDepth`（`Literal["system", "component", "code_path"]`）。
@@ -284,7 +284,7 @@ Plan 13.5 交接的兩個前置事實（先確認再動手，可省一輪撞牆�
   （`test_v2_cutover_consumer_allowlist.py`）只追 `LEGACY_NAMES` 內的名字，**看不見**
   這批共用 DTO——不能靠 census 綠燈判斷「v1 已無 active 依賴」。
 - [ ] `RecommendedNextCheck` **已不在**待拆清單：Plan 13.5 Task A1 已把它搬到
-  `src/kai_mind/core/models/recommended_next_check.py`。剩下 11 個。
+  `src/systograph/core/models/recommended_next_check.py`。剩下 11 個。
 
 ### Task 3d：移除 `ai_system_map_v2.py` 的 Compatibility / Generic 型別群
 
@@ -328,16 +328,16 @@ Plan 13.5 交接的兩個前置事實（先確認再動手，可省一輪撞牆�
 - [ ] `static-trace-plan/README.md` 與 `dynamic-trace-plan/README.md` 更新為
   `00A -> 13 -> Gate-1 -> 16 -> Gate-2 -> 14 -> Gate-3 -> 18 -> Gate-4 -> 15`
   的順序（與 `static-trace-plan/README.md`「建議執行順序」及 `epic1-phase2.md` §20 DAG 一致）。
-- [ ] 文件明確記載：Plan 18（KAI TOML provider 主掃描退役）為 Plan 15 的 Gate-4 前置，不可跳過。
+- [ ] 文件明確記載：Plan 18（Systograph TOML provider 主掃描退役）為 Plan 15 的 Gate-4 前置，不可跳過。
 
 ### Task 5b：Plan 13.5 交接的兩個「不要誤刪 / 不要多做」註記
 
 - [ ] **`RecommendedNextCheckService` 不在 v1 retirement 移除範圍。** 它在 Plan 13.5 Task A1
   已從 v1 normalize service 抽出、成為 active v2 service，新路徑
-  `src/kai_mind/core/services/recommended_next_check_service.py`：active 路徑由
+  `src/systograph/core/services/recommended_next_check_service.py`：active 路徑由
   `SystemMapV2MaterializationService` 持有並呼叫 `derive`，結果再傳給
   `SystemMapV2NormalizeService.assemble`；規則檔
-  `src/kai_mind/core/rules/recommended_next_check_rules.toml` 自此屬 active 資產。
+  `src/systograph/core/rules/recommended_next_check_rules.toml` 自此屬 active 資產。
   刪除 v1 `SystemMapNormalizeService`（rollback writer）時，只移除**它對這個 service 的
   import／DI 欄位**，不得連 service 或規則檔一起刪。
 - [ ] **三個無版本後綴的 legacy service 名稱不另行 rename。**

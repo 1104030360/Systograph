@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/152
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/152
 
 **Goal:** 對掃描總檔案數與總 evidence 量設上限，避免大量小檔案 repo 導致 CPU/記憶體耗盡。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #152, assignee Timmy.
 - Origin: Backend findings M-6.
-- Primary files: `src/kai_mind/core/providers/filesystem_provider.py`, `src/kai_mind/core/services/project_scan_service.py`.
+- Primary files: `src/systograph/core/providers/filesystem_provider.py`, `src/systograph/core/services/project_scan_service.py`.
 
 ### Task 1: Add large-repo synthetic tests
 
@@ -32,8 +32,8 @@
 ### Task 2: Implement caps
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/filesystem_provider.py`
-- Modify: `src/kai_mind/core/services/project_scan_service.py`
+- Modify: `src/systograph/core/providers/filesystem_provider.py`
+- Modify: `src/systograph/core/services/project_scan_service.py`
 
 - [ ] **Step 1: Add configurable defaults**
 - [ ] **Step 2: Sort before truncation for deterministic output**

@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-15（current trace 與 future sample 分界）
 
-KAI-Mind current 已有 opt-in `POST /api/trace`，回傳 `TraceRunResult`，其 `events[]` 使用 current
+Systograph current 已有 opt-in `POST /api/trace`，回傳 `TraceRunResult`，其 `events[]` 使用 current
 `QueryTraceEvent`（`id`、`sequence_index`、`component_id`、`input`／`output` 等欄位）。
 
 [`frontend-runtime-trace-event-sample.json`](frontend-runtime-trace-event-sample.json) 不是 current

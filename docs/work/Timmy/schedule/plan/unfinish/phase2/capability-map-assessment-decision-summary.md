@@ -258,13 +258,13 @@ deterministic repository/workflow scan
   -> reference-map repo overlay + readiness artifacts
 ```
 
-差異在於 KAI-Mind 不是通用 codebase knowledge-map clone：
+差異在於 Systograph 不是通用 codebase knowledge-map clone：
 
-- KAI-Mind 使用固定 10-plane / 52-node 的 AI capability reference map。
-- KAI-Mind 的輸出是 release-readiness evidence、capability status、activation、conflict 與
+- Systograph 使用固定 10-plane / 52-node 的 AI capability reference map。
+- Systograph 的輸出是 release-readiness evidence、capability status、activation、conflict 與
   next checks，不是只產生 repository symbol/import graph。
-- KAI-Mind 不把 raw source tree 整包交給 LLM，也不讓 LLM 產生 canonical facts。
-- KAI-Mind 必須保留 unknown、partial、not-detected coverage 與 environment scope，而不是
+- Systograph 不把 raw source tree 整包交給 LLM，也不讓 LLM 產生 canonical facts。
+- Systograph 必須保留 unknown、partial、not-detected coverage 與 environment scope，而不是
   為了畫出完整圖而補猜缺失節點。
 
 ## Plan Ownership

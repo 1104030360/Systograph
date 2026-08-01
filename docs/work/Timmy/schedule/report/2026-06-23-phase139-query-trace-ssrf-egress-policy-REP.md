@@ -2,7 +2,7 @@
 
 ## 結論
 
-已將 Query Trace 的 SSRF egress policy 接到共用 `EndpointCallProvider` boundary。Web `/api/trace` 與 CLI `kai-mind trace` 都透過同一路徑受到保護。
+已將 Query Trace 的 SSRF egress policy 接到共用 `EndpointCallProvider` boundary。Web `/api/trace` 與 CLI `systograph trace` 都透過同一路徑受到保護。
 
 本次採 **Track A baseline**：
 
@@ -33,7 +33,7 @@ Track A 不等於 pinned-IP transport。DNS TOCTOU 剩餘風險已寫入安全�
 RED：
 
 ```text
-ModuleNotFoundError: No module named 'kai_mind.core.security'
+ModuleNotFoundError: No module named 'systograph.core.security'
 ```
 
 建立最小 API skeleton 後：
@@ -53,7 +53,7 @@ tests/unit/core/security/test_egress_policy.py
 
 ### 實作邏輯
 
-- `src/kai_mind/core/security/egress_policy.py` 負責純安全決策。
+- `src/systograph/core/security/egress_policy.py` 負責純安全決策。
 - `SocketHostResolver` 使用 `socket.getaddrinfo(..., SOCK_STREAM)` 收集全部 IPv4/IPv6 address。
 - IP literal 不經 DNS，直接使用 `ipaddress` 分類。
 - IPv4-mapped IPv6 會再用 mapped IPv4 分類，避免 `::ffff:127.0.0.1` bypass。
@@ -98,7 +98,7 @@ tests/unit/core/security/test_egress_policy.py
   - `query_sent=false`
 - `error_reason` 固定為 `egress_policy_blocked`。
 - Web 與 CLI 不重複實作 policy，直接使用 shared provider。
-- scanned project `pyproject.toml` 仍只控制 retrieved chunk keys；即使加入 `[tool.kai-mind.trace.security]` 也不能取得 egress 控制權。
+- scanned project `pyproject.toml` 仍只控制 retrieved chunk keys；即使加入 `[tool.systograph.trace.security]` 也不能取得 egress 控制權。
 
 ### 測試方式
 
@@ -168,7 +168,7 @@ passed
 
 ## 非本次變更造成的既有問題
 
-全 repo `ruff check src tests` 仍被工作目錄中既有的 `src/kai_mind/core/services/risk_hint_service.py` 修改擋住：
+全 repo `ruff check src tests` 仍被工作目錄中既有的 `src/systograph/core/services/risk_hint_service.py` 修改擋住：
 
 ```text
 4 x E501 line-too-long

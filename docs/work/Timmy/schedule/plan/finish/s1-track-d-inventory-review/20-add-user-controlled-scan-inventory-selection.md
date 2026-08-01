@@ -25,7 +25,7 @@ Frontend implementation 仍 deferred to Meeting-Sync 2026-07-15）
 
 **Goal:** 讓使用者在每次 scan 開始前，以 project-relative exact file或directory path決定
 「這次要掃」或「這次不掃」；directory path遞迴套用到其下所有可安全掃描的regular files，
-並可對`.gitignore`／Git exclude與KAI inventory catalog的 **soft exclusion** 做單次覆寫；
+並可對`.gitignore`／Git exclude與Systograph inventory catalog的 **soft exclusion** 做單次覆寫；
 同時保留不可覆寫的filesystem safety，且不修改target repo、`.gitignore`、catalog TOML或
 durable manual mapping。
 
@@ -49,7 +49,7 @@ DoD。**）
 ## 前置前提：TOML product baseline 先完成，使用者再調配
 
 **Plan 20 不是用來補救不完整的規則檔，也不是讓使用者從空白清單自行建立inventory。**
-KAI-Mind必須先依[Plan 19](../s1-track-d-inventory/19-add-scan-inventory-rules-toml.md)完成並驗收
+Systograph必須先依[Plan 19](../s1-track-d-inventory/19-add-scan-inventory-rules-toml.md)完成並驗收
 product-owned `scan_inventory_rules.toml` baseline；使用者看到的是我們已設定好的推薦掃描範圍，
 再依自己的專案需求做本次scan的exact file／bounded directory調配。
 
@@ -60,7 +60,7 @@ contract都已成立：
   unknown field、duplicate id與unsupported version全部fail closed。
 - Product支援的dependency、build、cache、generated、model-weight等path categories已有明確default
   action、stable reason、priority與last-match precedence；unmatched path也有deterministic default。
-- `scan_inventory_rules.toml`是KAI default path policy唯一source of truth，Python不保留hidden
+- `scan_inventory_rules.toml`是Systograph default path policy唯一source of truth，Python不保留hidden
   default path list。
 - Git、recursive與Git-failure fallback共用同一catalog matcher；共同語意、刻意差異與跨平台path
   normalization已有tests。
@@ -78,14 +78,14 @@ Plan 19原本把catalog排除視為不可由當時的boundary review覆寫，並
 Plan 19 default outcome一致。
 
 ```text
-Start gate: validated KAI-Mind product-owned TOML baseline
+Start gate: validated Systograph product-owned TOML baseline
                                       |
                                       v
 candidate enumeration -> project/Git-ignore semantics
   -> non-overridable pre-content filesystem safety
   -> apply validated TOML baseline
   -> deterministic default included / soft-excluded outcome
-  -> frontend呈現「KAI推薦預設」與原因
+  -> frontend呈現「Systograph推薦預設」與原因
   -> user依本次需求調配exact file / recursive directory scope
   -> non-overridable post-decision content/resource safety
   -> one final FileInventory
@@ -93,7 +93,7 @@ candidate enumeration -> project/Git-ignore semantics
 
 因此，使用者decision的定位固定是 **adjust a prepared baseline for this run**：
 
-- 沒有decision時沿用KAI default outcome，不需要使用者逐檔重建inventory。
+- 沒有decision時沿用Systograph default outcome，不需要使用者逐檔重建inventory。
 - `scan_this_run`／`skip_this_run`只改本次effective selection，不改寫TOML或形成永久偏好。
 - Catalog缺失或無效時直接fail closed；不得降級成空白file explorer要求使用者自己補選。
 - Runtime overlay可覆寫Plan 20明確保留的`soft_excluded` outcome，但永遠不能覆寫hard safety。
@@ -217,7 +217,7 @@ Backend必須先算出Plan 19 baseline outcome，才有資格建立Plan 20 propo
 這個做法有四個原因：
 
 1. `.gitignore` 是專案來源控制規則，不是單次掃描 UI state；寫回會污染使用者 repo。
-2. `scan_inventory_rules.toml` 是 KAI-Mind default policy source of truth；寫入單一使用者的
+2. `scan_inventory_rules.toml` 是 Systograph default policy source of truth；寫入單一使用者的
    一次選擇會破壞重現性與多人協作。
 3. Existing `ScanBoundaryDecisionRequest` 已有 `target_path + fingerprint + decision`，只需
    additive增加`selection_scope`，即可讓file與directory沿用同一proposal → decision → audit
@@ -250,7 +250,7 @@ missing                       any decision                   reject / stale
 target/.gitignore                         unchanged
 target/.git/info/exclude                  unchanged
 global Git excludes                      unchanged
-kai_mind/core/rules/scan_inventory_rules.toml  unchanged
+systograph/core/rules/scan_inventory_rules.toml  unchanged
 mappings/{mapping_id}.json                not created
 project canonical map                    unchanged until normal build publish
 ```
@@ -420,7 +420,7 @@ Current runtime 已有可重用基礎，但還不能實作這個 feature：
 | 名詞 | 定義 | Owner |
 | --- | --- | --- |
 | Candidate enumeration | 觀察 repo 中可能成為 scan target 的 path metadata | `FilesystemProvider` |
-| Inventory selection policy catalog | Plan 19 的 KAI default include/exclude rules | TOML loader + matcher |
+| Inventory selection policy catalog | Plan 19 的 Systograph default include/exclude rules | TOML loader + matcher |
 | Inventory preflight | 不讀候選內容的 selection review snapshot | `InventoryPreflightService` |
 | Boundary proposal | 一個可由使用者決定的exact file或recursive directory scope | `ScanBoundaryReviewService` |
 | Per-run decision | `scan_this_run` / `skip_this_run` | Frontend input，backend validate/apply |
@@ -465,7 +465,7 @@ recursive-directory one-run decision** 覆寫，hard safety不可覆寫」。
                  | DEFAULT SOURCE / CATALOG OUTCOME |
                  | Git ignore, nested .gitignore,   |
                  | .git/info/exclude, global ignore,|
-                 | KAI dependency/build/cache rules |
+                 | Systograph dependency/build/cache rules |
                  +--------------------------------+
                           lowest precedence
 ```
@@ -709,7 +709,7 @@ Git index 可能列出 tracked path，但 worktree 檔案已被刪除。這不�
 
 ### 6.1 New internal models
 
-Create `src/kai_mind/core/models/inventory_selection.py`：
+Create `src/systograph/core/models/inventory_selection.py`：
 
 ```text
 InventoryCandidateOutcome
@@ -722,7 +722,7 @@ InventorySelectionSource
   project_ignore
   git_private_exclude
   git_global_exclude
-  kai_inventory_catalog
+  systograph_inventory_catalog
   filesystem_safety
   runtime_user_decision
 
@@ -1441,7 +1441,7 @@ DO NOT create snippets                       build artifacts
 
 Plan 20 範圍內的以下 consumers 必須接到同一 ordered allowlist + same digest：
 
-- current KAI TOML providers；
+- current Systograph TOML providers；
 - `ProjectScanService`；
 - content fingerprint/snapshot writer；
 - static call graph/dataflow/execution recovery；
@@ -1466,7 +1466,7 @@ modal。Internal component name可先保留，避免一次無關 rename；使用
 
 Dialog opening copy必須先建立正確心智模型，例如：
 
-> KAI-Mind 已依預設規則準備建議的掃描範圍。你可以只針對這次掃描調整；不會修改專案或永久設定。
+> Systograph 已依預設規則準備建議的掃描範圍。你可以只針對這次掃描調整；不會修改專案或永久設定。
 
 不得使用「建立掃描清單」「從所有檔案開始選」等copy，避免把runtime delta誤解成baseline authoring。
 
@@ -1678,7 +1678,7 @@ Plan 20 的 executable path 到 `ScanSnapshot`／current build pipeline 即停�
 - 不建立 UA request；
 - 不傳送 `files[]` 給 UA；
 - 不 import 或呼叫 UA service；
-- 不新增 KAI/UA parity test；
+- 不新增 Systograph/UA parity test；
 - 不修改 Plan 16 task、adapter 或 sidecar schema。
 
 Final `FileInventory` 與 `inventory_run_digest` 是通用 scanner provenance，不是 UA 專用輸出。
@@ -1803,9 +1803,9 @@ Steps:
 
 Files:
 
-- Create: `src/kai_mind/core/models/inventory_selection.py`
-- Modify: `src/kai_mind/core/models/filesystem.py`
-- Modify: `src/kai_mind/core/models/scan_boundary.py`
+- Create: `src/systograph/core/models/inventory_selection.py`
+- Modify: `src/systograph/core/models/filesystem.py`
+- Modify: `src/systograph/core/models/scan_boundary.py`
 - Create: `tests/unit/core/test_inventory_selection_models.py`
 
 Steps:
@@ -1827,8 +1827,8 @@ Steps:
 
 Files:
 
-- Modify: `src/kai_mind/core/providers/filesystem_provider.py`
-- Modify: `src/kai_mind/core/services/path_safety_service.py`
+- Modify: `src/systograph/core/providers/filesystem_provider.py`
+- Modify: `src/systograph/core/services/path_safety_service.py`
 - Modify: `tests/unit/core/test_filesystem_provider.py`
 - Modify: `tests/integration/test_phase7_filesystem_provider_behaviors.py`
 
@@ -1858,9 +1858,9 @@ Steps:
 
 Files:
 
-- Create: `src/kai_mind/core/services/inventory_preflight_service.py`
-- Modify: `src/kai_mind/core/services/scan_boundary_review_service.py`
-- Modify: `src/kai_mind/web/dependencies.py`
+- Create: `src/systograph/core/services/inventory_preflight_service.py`
+- Modify: `src/systograph/core/services/scan_boundary_review_service.py`
+- Modify: `src/systograph/web/dependencies.py`
 - Create: `tests/unit/core/test_inventory_preflight_service.py`
 
 Interfaces:
@@ -1890,9 +1890,9 @@ Steps:
 
 Files:
 
-- Modify: `src/kai_mind/core/services/scan_boundary_review_service.py`
-- Modify: `src/kai_mind/core/providers/filesystem_provider.py`
-- Modify: `src/kai_mind/core/models/errors.py`
+- Modify: `src/systograph/core/services/scan_boundary_review_service.py`
+- Modify: `src/systograph/core/providers/filesystem_provider.py`
+- Modify: `src/systograph/core/models/errors.py`
 - Modify: `tests/unit/core/test_scan_boundary_review_service.py`
 - Create: `tests/unit/core/test_inventory_selection_safety.py`
 
@@ -1922,9 +1922,9 @@ Steps:
 
 Files:
 
-- Modify: `src/kai_mind/web/schemas.py`
-- Modify: `src/kai_mind/web/routes/scan_routes.py`
-- Modify: `src/kai_mind/web/dependencies.py`
+- Modify: `src/systograph/web/schemas.py`
+- Modify: `src/systograph/web/routes/scan_routes.py`
+- Modify: `src/systograph/web/dependencies.py`
 - Modify: `tests/web/test_project_scan_routes.py`
 - Modify: `tests/web/test_scan_boundary_routes.py`
 
@@ -1950,10 +1950,10 @@ Steps:
 
 Files:
 
-- Modify: `src/kai_mind/core/models/analysis_history.py`
-- Modify: `src/kai_mind/core/models/scan.py`
-- Modify: `src/kai_mind/core/services/scan_snapshot_service.py`
-- Modify: `src/kai_mind/core/services/project_scan_service.py`
+- Modify: `src/systograph/core/models/analysis_history.py`
+- Modify: `src/systograph/core/models/scan.py`
+- Modify: `src/systograph/core/services/scan_snapshot_service.py`
+- Modify: `src/systograph/core/services/project_scan_service.py`
 - Modify: `tests/integration/test_scan_snapshot_materialization.py`
 - Modify: `tests/unit/core/test_project_scan_service.py`
 - Modify: `tests/contracts/test_secret_snapshot_safety.py`
@@ -2124,7 +2124,7 @@ build 通過是後續 frontend task 的條件，**不是**本計畫 rollback 移
 ### 16.1 Backend DoD（本計畫必須通過）
 
 - [x] Plan 19 non-UA TOML baseline gate先通過；Plan 20不是missing/invalid/incomplete catalog的fallback。
-- [x] 沒有optional runtime decisions時沿用KAI推薦default outcome；caller只提交本次delta，不需從
+- [x] 沒有optional runtime decisions時沿用Systograph推薦default outcome；caller只提交本次delta，不需從
   空白inventory逐檔建立選擇。
 - [x] Preflight／scan HTTP 可回傳 required sensitive、soft-excluded、hard-blocked/missing 摘要
   （pytest／API 驗證即可；**不要求** React UI 已渲染）。
@@ -2162,7 +2162,7 @@ build 通過是後續 frontend task 的條件，**不是**本計畫 rollback 移
 
 以下項目 **deferred** 到 Meeting-Sync 2026-07-15 frontend work；**不得**列為 Plan 20 完成阻擋：
 
-- [ ] ~~Frontend清楚說明目前清單是KAI預先設定的建議範圍…~~
+- [ ] ~~Frontend清楚說明目前清單是Systograph預先設定的建議範圍…~~
 - [ ] ~~Frontend pending response可通過Zod parse，stale/refresh/cancel狀態有tests。~~
 - [ ] ~~Full frontend test、lint、build通過。~~
 - [ ] ~~BoundaryDecisionModal／useProjectScanFlow UI 行為。~~
@@ -2179,7 +2179,7 @@ build 通過是後續 frontend task 的條件，**不是**本計畫 rollback 移
   recursive selection／aggregate directory decisions（見 §1.5 E、§5.4）。
 - 不對 `skip_this_run` 的 directory scope 放寬 5,000／bytes／depth（scan與skip共用同一manifest
   契約）。
-- 不修改Git ignore files、global Git config或KAI catalog。
+- 不修改Git ignore files、global Git config或Systograph catalog。
 - 不把selection decision存成`ManualMapping`或送入Step 9 Apply。
 - 不讓frontend推論hard/soft outcome、risk type或final inventory（契約約束；本計畫亦不實作
   frontend）。

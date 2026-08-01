@@ -42,10 +42,10 @@ cache、feature flag、conditional routing、fallback 或 error 可能讓單次 
 
 ### 相關檔案
 
-- `src/kai_mind/core/services/query_trace_service.py`
-- `src/kai_mind/core/models/trace.py`
-- `src/kai_mind/core/providers/endpoint_call_provider.py`
-- `src/kai_mind/web/routes/trace_routes.py`
+- `src/systograph/core/services/query_trace_service.py`
+- `src/systograph/core/models/trace.py`
+- `src/systograph/core/providers/endpoint_call_provider.py`
+- `src/systograph/web/routes/trace_routes.py`
 - `frontend/src/components/ReplayTimeline.tsx`
 - `docs/security/query-trace-egress-policy.md`
 

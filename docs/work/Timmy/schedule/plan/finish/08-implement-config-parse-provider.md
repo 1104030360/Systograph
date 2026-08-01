@@ -26,7 +26,7 @@ config 是 RAG 系統中偵測 LLM provider、endpoint、secret-like keys、feat
 - 不修復 malformed config。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/providers/config_parse_provider.py`。
+1. 建立 `src/systograph/core/providers/config_parse_provider.py`。
 2. 定義 provider input：`FileInventory` + project root。
 3. 實作 `.env` parser，只記錄 key 與 masked value。
 4. 使用 Python stdlib `json` parse JSON。
@@ -36,7 +36,7 @@ config 是 RAG 系統中偵測 LLM provider、endpoint、secret-like keys、feat
 8. 測試 malformed YAML/JSON、secret masking、empty config。
 
 ## 預期輸出
-- `src/kai_mind/core/providers/config_parse_provider.py`
+- `src/systograph/core/providers/config_parse_provider.py`
 - `tests/unit/core/test_config_parse_provider.py`
 
 ## 驗收標準

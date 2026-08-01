@@ -19,7 +19,7 @@ Frontend 不在本次交付；本輪 frontend changes已全部恢復。
 
 1. 執行 Plan 05–09 focused backend matrix。
 2. 執行 full pytest、Ruff、Mypy與 diff check。
-3. 執行 `kai-mind --help`、`validate-map --help`、`map --help`。
+3. 執行 `systograph --help`、`validate-map --help`、`map --help`。
 4. 驗證 valid v1 map與 absolute evidence path invalid map exit behavior。
 5. 掃描真實 sample project並檢查十個 sibling artifacts。
 6. 啟動 local API、import project、建立 build並查詢 build-scoped response。

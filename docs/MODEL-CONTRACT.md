@@ -4,7 +4,7 @@
 **Audience:** frontend / viewer implementers
 **Last updated:** 2026-07-28
 
-HTTP endpoint 契約見 [`API-GUIDE.md`](API-GUIDE.md)。本文件定義欄位語意、artifact lifecycle、GraphViewModel 規則。實作以 `src/kai_mind/core/models/` 為準；本文件描述 **target contract**，不代表每欄位已在 current runtime 落地。
+HTTP endpoint 契約見 [`API-GUIDE.md`](API-GUIDE.md)。本文件定義欄位語意、artifact lifecycle、GraphViewModel 規則。實作以 `src/systograph/core/models/` 為準；本文件描述 **target contract**，不代表每欄位已在 current runtime 落地。
 
 ---
 
@@ -66,8 +66,8 @@ HTTP endpoint 契約見 [`API-GUIDE.md`](API-GUIDE.md)。本文件定義欄位�
 | Phase | 狀態 | 說明 |
 |-------|------|------|
 | **A** | current runtime | TOML providers 為 Step 3 主路；UA sidecar 可缺席 |
-| **B** | target after Gate-1 | UA structural 為主；KAI providers 僅 parity report |
-| **C** | target after Plan 14 | Plan 18 退役 transitional KAI path |
+| **B** | target after Gate-1 | UA structural 為主；Systograph providers 僅 parity report |
+| **C** | target after Plan 14 | Plan 18 退役 transitional Systograph path |
 
 **UA 邊界（Phase2 active path）：**
 
@@ -94,22 +94,22 @@ Step 9 `MappingProposalService` 為 Phase2 active（deterministic 為主；LLM o
 | Phase2 設計 | `docs/design/epic1-phase2.md` |
 | 執行計畫 | `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/README.md` |
 | JSON 範例 | `docs/work/Timmy/design/EPIC1/frontend-json-handoff/` |
-| UA 邊界 | `ref-opensource/kai-mind-understand-anything-integration-boundary.md` |
+| UA 邊界 | `ref-opensource/systograph-understand-anything-integration-boundary.md` |
 | Pipeline 對照 | `docs/work/Timmy/schedule/plan/unfinish/phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md` |
 | Runtime trace（deferred） | `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/deferred/12-add-runtime-component-trace-contract.md` |
 
 **Current implementation source of truth：**
 
-- `src/kai_mind/core/models/system_map.py`、`ai_system_map_v2.py`、`viewer.py`、`mapping.py`
-- `src/kai_mind/core/models/profile_signal.py`、`readiness_report.py`、`analysis_history.py`
-- `src/kai_mind/core/services/component_bridge_registry.py`、`profile_inference_service.py`
-- `src/kai_mind/core/services/map_build_pipeline.py`、`apply_confirmations_service.py`
-- `src/kai_mind/core/rules/capability_reference_map.toml`
-- `src/kai_mind/core/templates/rag-core-v1.json`
+- `src/systograph/core/models/system_map.py`、`ai_system_map_v2.py`、`viewer.py`、`mapping.py`
+- `src/systograph/core/models/profile_signal.py`、`readiness_report.py`、`analysis_history.py`
+- `src/systograph/core/services/component_bridge_registry.py`、`profile_inference_service.py`
+- `src/systograph/core/services/map_build_pipeline.py`、`apply_confirmations_service.py`
+- `src/systograph/core/rules/capability_reference_map.toml`
+- `src/systograph/core/templates/rag-core-v1.json`
 
 **Later target module（尚未存在）：**
 
-- `src/kai_mind/core/services/graph_projection_service.py`（Step 7）
+- `src/systograph/core/services/graph_projection_service.py`（Step 7）
 
 ---
 
@@ -177,7 +177,7 @@ Render（3）— export / report；不參與 scoring；Viewer 主畫布不依賴
 
 ### 3.1 Step 2 inventory provenance
 
-`scan_inventory_rules.toml` 是 KAI-owned default path policy 的唯一 executable source of
+`scan_inventory_rules.toml` 是 Systograph-owned default path policy 的唯一 executable source of
 truth。Git、recursive 與 Git-error fallback 共用 ordered last-match-wins matcher；Python只保留
 outside-root symlink、binary、size、unreadable與Git metadata等不可覆寫 safety。
 
@@ -474,7 +474,7 @@ Current contract 不輸出 `release_verdict`、`severity` 或 `finding_registry_
 ### 7.0 Build output vs project state
 
 ```text
-State store（${KAI_MIND_STATE_DIR}/projects/{project_id}/）
+State store（${SYSTOGRAPH_STATE_DIR}/projects/{project_id}/）
   project.json
   mappings/{mapping_id}.json     ← ManualMapping（Step 9 決策）
   scans/{scan_id}/snapshot.json  ← ScanSnapshot（Step 3，含 inventory provenance）
@@ -482,7 +482,7 @@ State store（${KAI_MIND_STATE_DIR}/projects/{project_id}/）
   builds/{build_id}/manifest.json
   latest.json
 
-Legacy mapping migration 側車目錄（${KAI_MIND_STATE_DIR}/，與 projects/ 同層）
+Legacy mapping migration 側車目錄（${SYSTOGRAPH_STATE_DIR}/，與 projects/ 同層）
   migration-backups/{project_id}/{mapping_id}.{token}.legacy.json
   migration-backups/{project_id}/index.json
   migration-quarantine/{project_id}/{mapping_id}.{token}.legacy.json
@@ -679,7 +679,7 @@ frontend 只做 highlight/dim，不得從 label / topology / filename 推 member
 
 Unsupported lens：`supported=false` + `unavailable_reason` — frontend 顯示 disabled，不猜原因。
 
-完整 TS 定義見 `src/kai_mind/core/models/viewer.py` 與 [附錄 A](#14-附錄-a--型別速查)。
+完整 TS 定義見 `src/systograph/core/models/viewer.py` 與 [附錄 A](#14-附錄-a--型別速查)。
 
 ---
 
@@ -712,7 +712,7 @@ Phase2 **無** profile-level manual mapping UI。Reject/skip 須 durable audit�
 
 ### rag-core-v1 template
 
-- 檔案：`src/kai_mind/core/templates/rag-core-v1.json`
+- 檔案：`src/systograph/core/templates/rag-core-v1.json`
 - Shipped：`rag-core-v1@1.0.0`，13 slots，2 flows（`indexing`, `query_answer`）
 - Optional slots：`query_processing`, `guardrails`, `observability`
 - Phase2 **凍結**；擴充需 separate approved migration
@@ -771,7 +771,7 @@ JSON 範例與 step-by-step handoff：`docs/work/Timmy/design/EPIC1/frontend-jso
 
 ## 14. 附錄 A · 型別速查
 
-完整定義以 `src/kai_mind/core/models/` 為準。以下為 frontend 常用速查。
+完整定義以 `src/systograph/core/models/` 為準。以下為 frontend 常用速查。
 
 ```ts
 type ReferenceCapabilityAssessment = {

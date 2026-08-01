@@ -77,7 +77,7 @@ scope triple。
 
 `ScanSnapshot` 的持久化內容必須包含 UA deterministic structural facts /
 evidence；`ua-analysis-result` 是同 snapshot 的 reserved nullable internal sidecar slot。Apply 的重新 materialize 不讀 target
-repo filesystem、不呼叫 UA subprocess、不重新執行 KAI parity providers；它只使用
+repo filesystem、不呼叫 UA subprocess、不重新執行 Systograph parity providers；它只使用
 `ScanSnapshot.scan_result` 的 deterministic structural facts / evidence 重新 materialize 與
 assessment。Semantic sidecar 在 Phase2 active path 不產生、不消費。Explicit rescan 才會走
 Step 2 inventory enrichment、重跑 UA structural extraction 並產生新的 `scan_id`；該 `scan_id` 即識別新的
@@ -244,7 +244,7 @@ Decision type effects：
 Default state root：
 
 ```text
-${KAI_MIND_STATE_DIR:-~/.kai-mind}/projects/{project_id}/
+${SYSTOGRAPH_STATE_DIR:-~/.systograph}/projects/{project_id}/
 ├── project.json
 ├── mappings/
 │   └── {mapping_id}.json
@@ -357,9 +357,9 @@ sidecar degraded load 與 deterministic history ordering。
 ### Task 1: Define Scan and Build Identity Models
 
 **Files:**
-- Create: `src/kai_mind/core/models/analysis_history.py`
-- Modify: `src/kai_mind/core/models/map_build.py`
-- Modify: `src/kai_mind/core/models/scan.py`
+- Create: `src/systograph/core/models/analysis_history.py`
+- Modify: `src/systograph/core/models/map_build.py`
+- Modify: `src/systograph/core/models/scan.py`
 - Test: `tests/unit/core/test_analysis_history_models.py`
 
 - [ ] **Step 1: Write failing model tests**
@@ -435,7 +435,7 @@ Use a nested `lineage: MapBuildLineage | None` during compatibility migration ra
 
 ```bash
 .venv/bin/pytest tests/unit/core/test_analysis_history_models.py -q
-.venv/bin/mypy src/kai_mind/core/models
+.venv/bin/mypy src/systograph/core/models
 ```
 
 Expected: PASS.
@@ -443,9 +443,9 @@ Expected: PASS.
 ### Task 2: Introduce Repository Ports and Atomic Local JSON Adapter
 
 **Files:**
-- Create: `src/kai_mind/core/repositories/__init__.py`
-- Create: `src/kai_mind/core/repositories/analysis_history.py`
-- Create: `src/kai_mind/core/providers/local_json_state_provider.py`
+- Create: `src/systograph/core/repositories/__init__.py`
+- Create: `src/systograph/core/repositories/analysis_history.py`
+- Create: `src/systograph/core/providers/local_json_state_provider.py`
 - Modify: `pyproject.toml`
 - Modify: `uv.lock`
 - Test: `tests/unit/core/test_local_json_state_provider.py`
@@ -523,9 +523,9 @@ Expected: PASS.
 ### Task 3: Separate Filesystem Scan from Snapshot Materialization
 
 **Files:**
-- Create: `src/kai_mind/core/services/scan_snapshot_service.py`
-- Modify: `src/kai_mind/core/services/map_build_service.py`
-- Modify: `src/kai_mind/web/routes/scan_routes.py`
+- Create: `src/systograph/core/services/scan_snapshot_service.py`
+- Modify: `src/systograph/core/services/map_build_service.py`
+- Modify: `src/systograph/web/routes/scan_routes.py`
 - Test: `tests/integration/test_scan_snapshot_materialization.py`
 
 - [ ] **Step 1: Write a characterization test proving current `POST /api/scans` performs provider collection once**
@@ -600,10 +600,10 @@ Expected: PASS and provider collection count remains one per completed scan.
 ### Task 4: Implement Apply Command over the Shared Build Pipeline
 
 **Files:**
-- Create: `src/kai_mind/core/services/apply_confirmations_service.py`
-- Create: `src/kai_mind/web/routes/map_build_routes.py`
-- Modify: `src/kai_mind/web/schemas.py`
-- Modify: `src/kai_mind/web/app.py`
+- Create: `src/systograph/core/services/apply_confirmations_service.py`
+- Create: `src/systograph/web/routes/map_build_routes.py`
+- Modify: `src/systograph/web/schemas.py`
+- Modify: `src/systograph/web/app.py`
 - Test: `tests/unit/core/test_apply_confirmations_service.py`
 - Test: `tests/web/test_map_build_apply_routes.py`
 
@@ -665,11 +665,11 @@ Expected: PASS.
 ### Task 5: Persist Stable Project Identity and Manual Mappings
 
 **Files:**
-- Modify: `src/kai_mind/web/session_store.py`
-- Modify: `src/kai_mind/core/services/manual_mapping_service.py`
-- Modify: `src/kai_mind/web/routes/project_routes.py`
-- Modify: `src/kai_mind/web/dependencies.py`
-- Modify: `src/kai_mind/web/app.py`
+- Modify: `src/systograph/web/session_store.py`
+- Modify: `src/systograph/core/services/manual_mapping_service.py`
+- Modify: `src/systograph/web/routes/project_routes.py`
+- Modify: `src/systograph/web/dependencies.py`
+- Modify: `src/systograph/web/app.py`
 - Test: `tests/web/test_local_json_restart_recovery.py`
 
 - [ ] **Step 1: Write failing restart recovery tests**
@@ -766,10 +766,10 @@ Expected: PASS.
 ### Task 7: Bind Detail Scan and Query Trace to Build Identity
 
 **Files:**
-- Modify: `src/kai_mind/web/schemas.py`
-- Modify: `src/kai_mind/web/routes/detail_scan_routes.py`
-- Modify: `src/kai_mind/web/routes/trace_routes.py`
-- Modify: `src/kai_mind/core/models/trace.py`
+- Modify: `src/systograph/web/schemas.py`
+- Modify: `src/systograph/web/routes/detail_scan_routes.py`
+- Modify: `src/systograph/web/routes/trace_routes.py`
+- Modify: `src/systograph/core/models/trace.py`
 - Test: `tests/web/test_detail_scan_build_binding.py`
 - Test: `tests/web/test_trace_build_binding.py`
 

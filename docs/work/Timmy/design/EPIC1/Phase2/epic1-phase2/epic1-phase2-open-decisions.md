@@ -34,7 +34,7 @@ importer、MCP handoff 或企業級資安差異化。
 
 1. code、schemas、tests 與 generated artifacts。
 2. `docs/MODEL-CONTRACT.md`、`docs/API-GUIDE.md`。
-3. `ref-opensource/kai-mind-understand-anything-integration-boundary.md`（2026-07-07 Accepted UA 整合邊界）。
+3. `ref-opensource/systograph-understand-anything-integration-boundary.md`（2026-07-07 Accepted UA 整合邊界）。
 4. `static-trace-plan/README.md` 與 `00`～`18`。
 5. `epic1-phase2-design.md`。
 6. 本 decision queue。
@@ -81,7 +81,7 @@ importer、MCP handoff 或企業級資安差異化。
 | DeepResearch | 只作研究與視覺參考，不修改或直接複製其 HTML/CSS/JS 到 production frontend |
 | Step 3 scanner | 2026-07-07 late superseding：Phase A TOML-primary → Gate-1 → Phase B UA-primary + TOML parity → Plan 14 / 18 → Phase C UA-only |
 | UA sidecar scope | 2026-07-07 superseded：Phase2 active path 只採 deterministic structural extraction：`extract-import-map` → `compute-batches` → `extract-structure`；不執行 `scan-project.mjs`；不執行 `file-analyzer` bounded LLM，`ua-analysis-result.json` / semantic sidecar 保持 nullable deferred |
-| Step 2 enrichment | 2026-07-07 resolved：`scan-project.mjs` 的 language / fileCategory / line count enrichment 移植到 KAI Step 2 inventory |
+| Step 2 enrichment | 2026-07-07 resolved：`scan-project.mjs` 的 language / fileCategory / line count enrichment 移植到 Systograph Step 2 inventory |
 | Step 6 AI orchestration | 2026-07-07 late superseding：Phase2 不建立 `AssessmentOrchestrator`；Plan 17 / AI semantic candidate flow deferred |
 | Step 6 authority | 純 Python deterministic `ProfileInferenceService` 唯一定案五態，`detected` 必須有 direct evidence |
 | Apply / Rescan UA behavior | Apply 不重跑 Step 3 / UA，重放同 `scan_id` immutable scan 後重跑 Step 4～7；Rescan 才建立新 `scan_id`，Phase B/C 才重跑 UA |
@@ -102,11 +102,11 @@ importer、MCP handoff 或企業級資安差異化。
 - runtime query trace 是 Phase2 static MVP blocker。
 - Plan 13 extension retirement延後到不確定的 Phase3+。
 - 只輸出 map/profile/readiness 五個 artifacts。
-- KAI scan TOML providers 作為 Phase2 長期主掃描器。
+- Systograph scan TOML providers 作為 Phase2 長期主掃描器。
 - Plan 17 / AI semantic candidate flow 作為 Phase2 或 Plan 14 prerequisite。
 - 不得再把 Apply 設計成重新掃 repo 或重新執行 UA sidecar。
 - 不得將 reserved nullable semantic sidecar 作為 public artifact 或 frontend public contract 欄位。
-- UA `knowledge-graph.json` / dashboard 作為 KAI-Mind canonical truth。
+- UA `knowledge-graph.json` / dashboard 作為 Systograph canonical truth。
 
 ## Settled Implementation Policies
 
@@ -118,15 +118,15 @@ Resolved decisions:
 
 | Open decision | Resolution |
 |---|---|
-| Step 3 scanner owner | Phase A 現有 KAI providers primary；Gate-1 後 Phase B `UnderstandAnythingAnalysisService` / UA structural primary + TOML parity；Plan 14 後 Plan 18 進入 Phase C UA-only。 |
+| Step 3 scanner owner | Phase A 現有 Systograph providers primary；Gate-1 後 Phase B `UnderstandAnythingAnalysisService` / UA structural primary + TOML parity；Plan 14 後 Plan 18 進入 Phase C UA-only。 |
 | UA sidecar call chain | Phase2 active path：`extract-import-map` → `compute-batches` → `extract-structure`。`file-analyzer` bounded LLM / `ua-analysis-result.json` deferred。 |
-| `scan-project.mjs` | 不執行；其 language / fileCategory / line count enrichment 移植到 KAI Step 2 inventory。 |
+| `scan-project.mjs` | 不執行；其 language / fileCategory / line count enrichment 移植到 Systograph Step 2 inventory。 |
 | Step 6 boundary | Phase2 純 Python deterministic assessment；Plan 17 `AssessmentOrchestrator` / AI semantic candidates deferred。 |
 | Assessment authority | `ProfileInferenceService` 唯一定案五態，`detected` 必須有 direct evidence。 |
 | Apply vs Rescan | Apply 不重跑 Step 3 / UA，重放同 `scan_id` immutable scan 並重跑 Step 4～7；Rescan 才建立新 `scan_id`，Phase B/C 才重跑 UA。 |
 | semantic sidecar public status | reserved nullable scan internal sidecar，不列 public artifact、不新增 frontend public 欄位，Phase2 不產生、不消費。 |
 | UA failure handling | Phase A `sidecar=null` 可建置；Phase B/C deterministic structural extraction invalid、Node missing、required batch failed 才 fail-closed。 |
-| UA Phase 3～7 | 不採用 UA Phase 3～7、`knowledge-graph.json` 或 dashboard；KAI canonical 仍是 `ai_system_map.json` + `profile_signals.json` + `GraphViewModel`。 |
+| UA Phase 3～7 | 不採用 UA Phase 3～7、`knowledge-graph.json` 或 dashboard；Systograph canonical 仍是 `ai_system_map.json` + `profile_signals.json` + `GraphViewModel`。 |
 | Step 9 proposal | MappingProposal 流程保留不變，與 deferred Plan 17 / AI assessment experiment 相互獨立。 |
 
 ### OD-2026-07-03-01: 08/09 是否可與第一輪 14 驗證交錯
@@ -465,11 +465,11 @@ Contract boundary:
 | Apply 是否重新掃描 repo | 否；沿用同一 `scan_id` snapshot 建立新 `build_id` |
 | Apply 是否需要專用 build logic | 否；API 名稱用 apply，內部仍呼叫共用 Map Build pipeline |
 | Phase2 是否先導入 database | 否；先用 local JSON persistence，後續只替換 repository adapter |
-| Step 3 是否仍以 KAI TOML providers 為主 | Phase A 是；Gate-1 後 Phase B 才切 UA-primary + parity，Plan 18 後 Phase C UA-only |
+| Step 3 是否仍以 Systograph TOML providers 為主 | Phase A 是；Gate-1 後 Phase B 才切 UA-primary + parity，Plan 18 後 Phase C UA-only |
 | Apply 是否重跑 UA | 否；只重放同 `scan_id` 的 `ScanSnapshot.scan_result`，internal `ua-analysis-result` 保持不變且不消費；Rescan 才在 Phase B/C 重跑 UA |
 | Step 6 是否需要 AI orchestrator | Phase2 否；Plan 17 deferred，Step 6 維持純 Python deterministic |
 | semantic sidecar 是否進 public artifact/frontend contract | 否；reserved nullable scan internal slot，Phase2 active path 不產生、不消費 |
-| 是否採用 UA `knowledge-graph.json` / dashboard | 否；KAI canonical 與 projection 不變 |
+| 是否採用 UA `knowledge-graph.json` / dashboard | 否；Systograph canonical 與 projection 不變 |
 
 ## Review Triggers
 

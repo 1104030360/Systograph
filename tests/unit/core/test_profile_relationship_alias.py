@@ -6,22 +6,22 @@ from typing import Final, Never
 import pytest
 from tests.helpers.profile_inference import load_profile_map
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
     CanonicalComponent,
     CanonicalEdge,
     CanonicalEvidence,
     CanonicalEvidenceLocation,
 )
-from kai_mind.core.models.profile_signal import ProfileFinding
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.models.profile_signal import ProfileFinding
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.profile_relationship_alias_loader import (
+from systograph.core.services.profile_relationship_alias_loader import (
     ProfileRelationshipAliasError,
     ProfileRelationshipAliasLoader,
 )
-from kai_mind.core.services.profile_rule_definitions import (
+from systograph.core.services.profile_rule_definitions import (
     PROFILE_RULE_DEFINITIONS,
 )
 

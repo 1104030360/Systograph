@@ -6,26 +6,26 @@ from typing import Any, Literal
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
     CanonicalComponent,
     CanonicalProject,
 )
-from kai_mind.core.models.analysis_history import MapBuildLineage
-from kai_mind.core.models.map_build import MapBuildRequest
-from kai_mind.core.models.scan import OutputRun
-from kai_mind.core.services.build_artifact_publisher import (
+from systograph.core.models.analysis_history import MapBuildLineage
+from systograph.core.models.map_build import MapBuildRequest
+from systograph.core.models.scan import OutputRun
+from systograph.core.services.build_artifact_publisher import (
     BuildArtifactPublisher,
 )
-from kai_mind.core.services.legacy_v1_rollback_service import (
+from systograph.core.services.legacy_v1_rollback_service import (
     LegacyV1RollbackError,
     LegacyV1RollbackService,
 )
-from kai_mind.core.services.map_build_pipeline import MapBuildPipeline
-from kai_mind.core.services.system_map_materialization_service import (
+from systograph.core.services.map_build_pipeline import MapBuildPipeline
+from systograph.core.services.system_map_materialization_service import (
     SystemMapMaterializationService,
 )
-from kai_mind.core.services.system_map_v2_materialization_service import (
+from systograph.core.services.system_map_v2_materialization_service import (
     SystemMapV2MaterializationService,
 )
 

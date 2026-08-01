@@ -154,7 +154,7 @@ const isUnmapped = edge.status === "needs_confirmation";
 const strokeColor = focused ? "var(--accent)" : isRisk ? "var(--risk)" : isUnmapped ? "var(--unmapped)" : "var(--line-strong)";
 ```
 
-- **判定理由**：`src/kai_mind/core/models/viewer.py:114-126` 的 `GraphEdgeModel` 欄位是 `id / source_id / flow_id / from_id / to / relationship / label / evidence_ids / risk_hint_ids` —— **沒有 `status`**。`graph_projection_service.py:252-265` 建構 `GraphEdgeModel(...)` 時也沒傳 `status`。v2 `CanonicalEdge.status` 的 enum 是 `observed / detected / undetermined`，即使未來投影下來也不會是 `needs_confirmation`。所以這個判斷在 API mode 恆 false，只有 v1 sample JSON（edge 帶 `status: "needs_confirmation"`）能讓它成立。這是**「只有 sample 能證明功能存在」的假活路徑**，是 v1 sample 沒被換掉造成的最隱蔽副作用。
+- **判定理由**：`src/systograph/core/models/viewer.py:114-126` 的 `GraphEdgeModel` 欄位是 `id / source_id / flow_id / from_id / to / relationship / label / evidence_ids / risk_hint_ids` —— **沒有 `status`**。`graph_projection_service.py:252-265` 建構 `GraphEdgeModel(...)` 時也沒傳 `status`。v2 `CanonicalEdge.status` 的 enum 是 `observed / detected / undetermined`，即使未來投影下來也不會是 `needs_confirmation`。所以這個判斷在 API mode 恆 false，只有 v1 sample JSON（edge 帶 `status: "needs_confirmation"`）能讓它成立。這是**「只有 sample 能證明功能存在」的假活路徑**，是 v1 sample 沒被換掉造成的最隱蔽副作用。
 - **建議處置**：兩選一。(a) 若「未確認邊」概念要保留，跟 backend 談把 `CanonicalEdge.status` 投影進 `GraphEdgeModel`，frontend 改判 `edge.status === "undetermined"`；(b) 若不保留，刪掉 `isUnmapped` 與 `--unmapped` 邊色分支，連同 `FlowEdgeData.isUnmapped`。**接線後改沒有意義**——這條路徑跟 proposal 接線無關，現在就已經死了。
 - **風險**：中
 

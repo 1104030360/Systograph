@@ -6,26 +6,26 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.analysis_history import (
+from systograph.core.models.analysis_history import (
     MapBuildLineage,
     MapBuildManifest,
     ScanSnapshot,
 )
-from kai_mind.core.models.map_build import (
+from systograph.core.models.map_build import (
     MapBuildRequest,
     MapBuildResult,
     SystemMapSchemaSelection,
 )
-from kai_mind.core.models.scan import OutputRun, ProjectScanResult
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.scan import OutputRun, ProjectScanResult
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.services.build_manifest_artifacts import digest
-from kai_mind.core.services.build_manifest_service import (
+from systograph.core.services.build_manifest_artifacts import digest
+from systograph.core.services.build_manifest_service import (
     BuildArtifactLoadError,
     BuildManifestService,
 )
-from kai_mind.core.services.map_build_service import MapBuildService
+from systograph.core.services.map_build_service import MapBuildService
 
 V2_FIXTURE = Path("tests/fixtures/ai_system_map/v2/grounded_rag.v2.json")
 V1_FIXTURE = Path(
