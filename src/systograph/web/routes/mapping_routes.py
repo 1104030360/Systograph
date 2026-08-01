@@ -55,7 +55,11 @@ def create_mapping(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@router.patch("/api/mappings/{mapping_id}", response_model=ManualMapping)
+@router.patch(
+    "/api/mappings/{mapping_id}",
+    response_model=ManualMapping,
+    dependencies=[Depends(reject_legacy_mapping_type)],
+)
 def update_mapping(
     mapping_id: str,
     payload: ManualMappingUpdate,

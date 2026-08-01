@@ -1,17 +1,17 @@
 # 這個檔案負責：前端 Viewer 用的圖投影契約（nodes / edges / filters / load
 # result）。
-# 注意：這是「投影結果」，不是 canonical map 真相；真相在 AiSystemMapV2 /
-# RagSystemMap。
+# 注意：這是「投影結果」，不是 canonical map 真相；真相在 AiSystemMapV2。
 #
 # 呼叫鏈：
-#   ViewerSessionService.load_map / build / project_to_graph
-#     → GraphProjectionService.project(...) → GraphViewModel
+#   ViewerSessionService.load_map / build_canonical、BuildManifestService.load
+#     → ViewerSessionService.build_loaded（唯一投影出口）
+#     → GraphProjectionService.project(AiSystemMapV2) → GraphViewModel
 #     → 包成 ViewerLoadResult → ViewerPayload
 #   Web：POST /api/viewer/load → ViewerPayload
 #   MapBuildResult.viewer_load_result 也會帶一份
 #   Frontend：types.ts / SystemGraph / DetailPanel / viewerStore 消費同形狀
 # JSON
-"""Viewer projection models derived from ai-system-map/v1."""
+"""Viewer projection models derived from canonical ai-system-map/v2."""
 
 from __future__ import annotations
 
@@ -256,11 +256,13 @@ class GraphViewModel(ViewerModel):
 
 # 做什麼：一次「載入 map 進 Viewer」的結果（成功/失敗 + 原始 map + graph）。
 # 被誰用：
-#   - ViewerSessionService.load_map / build / empty
+#   - ViewerSessionService.load_map / build_loaded / build_canonical / empty
 #   - MapBuildResult.viewer_load_result
 #   - 再包進 ViewerPayload 給 API
 # 內含：ai_system_map（dict）+ graph_view_model；loaded=False 時有
 # error_reason。
+# 注意：graph_view_model 一律投影自 canonical v2；ai_system_map 帶的是
+# 來源文件原樣（legacy v1 讀取路徑時會是 v1 map）。
 class ViewerLoadResult(ViewerModel):
     loaded: bool
     error_reason: str | None = None

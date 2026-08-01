@@ -82,6 +82,8 @@ active default cutover 與 legacy write-path isolation；physical removal 留給
   path/symbol/classification/removal plan，未知、新增與 stale hit 皆 fail closed。
   Census SHA-256：
   `34d9f531636bef94e67db32664063af014500eb8af832586cc46ce380f457e6f`。
+  （2026-07-28 註記：此 51 筆與這個 SHA-256 是 Stage A 當時的歷史 baseline，不重算；
+  現行 census 數字與 digest 見下方「2026-07-17 backend completion」段落。）
 - `CanonicalMapLoader` 對 array/null/string/number JSON roots 回 typed error；manifest active
   badge 與 artifact schema 不一致時，v1→v2、v2→v1 兩方向都 fail closed。
 - Viewer v1 compatibility helpers 已移到 no-I/O module；recommended-next-check
@@ -105,10 +107,28 @@ Task 1B/2，不表示 cutover 已完成。
   backup、project lock、atomic replace、manual-review quarantine 與 secret redaction。
 - Initial scan、Apply 與 Detail Scan 共用 `BuildCommitService`；10 個 public sibling artifacts
   通過 same-parent staging、rename、complete manifest、latest CAS 與逐 boundary fault injection。
-- Executable consumer census 為 `35 records / 35 hits`：`migrate=5`、
-  `migration_only=22`、`operator_rollback=8`。5 筆 `migrate` 全部位於原始 frontend，
+- Executable consumer census 為 `37 records / 37 hits`：`migrate=5`、
+  `migration_only=24`、`operator_rollback=8`。5 筆 `migrate` 全部位於原始 frontend，
   SHA-256 為
-  `59fa4f066a0e37c9f73ce488e64da96cccab7c8a9e6a429b0c073a738544714b`。
+  `fa27a510c5253dc2d856ecee9d76ac1c1e5f7ab07df096893799a969e6be1c56`
+  （digest 推導方式——allowlist tuple 順序的四欄 record list →
+  `json.dumps(payload, sort_keys=True, separators=(",", ":"))` → SHA-256——記於
+  `docs/work/Timmy/schedule/report/2026-07-17-phase2-plan13-v2-cutover-REP.md`，
+  由 Plan 13.5 Task B2 寫入；本檔只記結果值。注意 digest 是**人工依該 recipe 重算**的
+  記錄值，census contract test 本身不計算也不斷言它——別去 test 裡找。）
+  （2026-07-28 更新 1：Plan 13.5 Stage B 把 `LegacyManualMappingType`／`NEW_EXTENSION`
+  補進 `LEGACY_NAMES`，封死 `Enum.MEMBER.value` 間接引用盲點，並把
+  `web/legacy_mapping_guards.py` 的內聯字面值一起登記，因此 35→38 筆、
+  `migration_only` 22→25。
+  更新 2：Plan 13.5 Stage C（C2／RA-5）刪掉 `ViewerSessionService.build()` 與
+  `project_to_graph()` 這兩個 production 零 caller 的 v1-typed 入口後，
+  `viewer_session_service.py` 的 `RagSystemMap` import 隨之消失，該筆記錄移除，
+  因此 38→37 筆、`migration_only` 25→24；同檔的 `SystemMapValidationService`
+  記錄保留（optional v1-validator DI passthrough 仍在）。2026-07-17 的
+  `35 records / 35 hits` 與 SHA-256
+  `59fa4f066a0e37c9f73ce488e64da96cccab7c8a9e6a429b0c073a738544714b`、
+  Stage B 的 `38 records / 38 hits` 與 SHA-256
+  `1b6dc56ee312122b1d25b986ac637f2280c172e1deef50501439889baac69096` 皆為歷史值。）
 - Final backend gate 為 `1031 passed`，scoped Plan 13 gate 為 `977 passed`；Ruff、Mypy、
   shell syntax與 live CLI/FastAPI restart 均通過。Frontend 已回復原始 tree，原始 Vitest為
   `3 files / 7 tests passed`，build／lint exit 0；先前對暫時 frontend cutover 的
@@ -172,6 +192,15 @@ Task 1B/2，不表示 cutover 已完成。
 - Modify: `src/systograph/web/routes/detail_scan_routes.py`
 - Modify: `src/systograph/web/routes/trace_routes.py`
 - Modify: `src/systograph/web/routes/mapping_proposal_routes.py`
+- Create: `src/systograph/web/legacy_mapping_guards.py`
+  （backend-complete。Task 4「Normal API 立即拒絕新 `new_extension_component` request」的
+  實作載體：`reject_legacy_mapping_type` 在 Pydantic enum 驗證前 fail closed，回穩定
+  `422 legacy_mapping_type_read_only`。Plan 13 當時未列入本清單，由 Plan 13.5 Task B1
+  補列並把 legacy 字面值內聯、斷開對 `legacy_manual_mapping_migration_service` 的
+  import——guard 的去留屬 Plan 15 Task 3b，**不隨 migration module 一起刪**。）
+- Modify: `src/systograph/web/routes/mapping_routes.py`
+  （backend-complete。`POST /api/mappings` 掛上該 guard；`PATCH /api/mappings/{mapping_id}`
+  由 Plan 13.5 Task C7（RB-8）補掛，兩個寫入口回同一個穩定 code。）
 - Modify: `src/systograph/web/session_store.py`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/components/proposal/EditForm.tsx`
@@ -183,6 +212,10 @@ Task 1B/2，不表示 cutover 已完成。
 - Test: `tests/integration/test_build_manifest_service.py`
 - Create: `tests/unit/core/test_build_commit_service.py`
 - Create: `tests/unit/core/test_legacy_v1_rollback_service.py`
+  （Plan 13 當時未建，由 Plan 13.5 Task C3（RA-14）補上：涵蓋
+  `require_representable` 的 v1-sourced / semantic_kind 兩個 preflight 分支，
+  以及 rollback 模式下 `materialize_existing_map` 的
+  `legacy_rollback_detail_scan_unsupported`。）
 - Test: `tests/unit/core/test_viewer_session_service.py`
 - Test: `tests/unit/core/test_detail_scan_service.py`
 - Test: `tests/unit/core/test_query_trace_service.py`
@@ -190,6 +223,11 @@ Task 1B/2，不表示 cutover 已完成。
 - Test: `tests/web/test_project_scan_routes.py`
 - Test: `tests/web/test_detail_scan_routes.py`
 - Test: `tests/web/test_trace_routes.py`
+- Create: `tests/web/test_legacy_mapping_write_rejection.py`
+  （backend-complete。涵蓋三個掛 guard 的入口：`POST /api/mappings`、
+  `PATCH /api/mappings/{mapping_id}`、`POST /api/mapping-proposals/{proposal_id}/decision`
+  ——皆回 `422 legacy_mapping_type_read_only`。Plan 13 當時未列入本清單，
+  由 Plan 13.5 Task B1／C7 補列。）
 
 ### 實作步驟
 
@@ -247,9 +285,16 @@ Plan 13 不再同時要求「刪除 v1 writer」與「可切回 v1」。目標 c
 - Rollback branch 保留目前 v1 materialization path，但只在 operator boundary 內執行；產生 v1
   artifact 後立刻經 `CanonicalMapLoader` normalize 成 v2，所有 process 內 consumer 仍只接 v2。
   禁止用 generic v2 做有損 v2→v1 downgrade。
-- Rollback preflight 只允許可由 legacy contract 完整表示的 build。若存在 v2-only component、
-  endpoint/edge 或其他無法無損表示的 fact，回傳 `legacy_rollback_not_representable` 且不寫 artifact，
-  不得靜默丟資料。
+- Rollback preflight 只允許可由 legacy contract 表示的 build，不可表示時回傳
+  `legacy_rollback_not_representable` 且不寫 artifact，不得靜默丟資料。實作
+  （`LegacyV1RollbackService.require_representable`）檢查兩個 proxy 條件，不逐欄位比對：
+  (1) `source_schema_version` 必須是 `ai-system-map/v1`——非 v1-sourced 的 map 一律拒絕；
+  (2) 每個 component 的 `metadata["semantic_kind"]` 必須落在
+  `repo_component` / `slot_placeholder` / `legacy_extension` 內。
+  endpoint、edge 與其他 v2-only fact **沒有**獨立檢查，而是靠條件 (1) 一併擋掉
+  （非 v1-sourced 的 build 根本進不了 rollback writer）。若日後 v1-sourced map 能帶入
+  新的 v2-only fact，這裡必須補檢查，不能假設現有兩條就等於「完整表示」。
+  （2026-07-28 Plan 13.5 Task C3 校正原本過度承諾的敘述。）
 - Plan 15 只有在 Plan 14 報告證明不再需要 rollback 後，才能刪除 env setting 與 v1 writer。
 
 ## Active consumer / writer census baseline（2026-07-15）
@@ -403,7 +448,7 @@ canonical schema。
 | --- | --- | --- |
 | `CONFIRMED` 且 `extension_id/name/kind` 完整 | `NON_BASELINE_CAPABILITY_CANDIDATE` + `CONFIRMED` | 對應到 `capability_candidate_id/name/kind`；保留 `mapping_id`、project/source、evidence、reason、proposal、decision source、created time；不得升格為 detected reference capability |
 | `REJECTED`、`SKIP_FOR_NOW` 或 `NOT_APPLICABLE` 且欄位完整 | 相同 active mapping type + 原 decision | 保留稽核歷史；非 `CONFIRMED` 永不 materialize capability candidate |
-| 任一 legacy row 缺少必要 extension 欄位 | `requires_manual_review`，不建立猜測值 | 原 row 只留 migration quarantine；若 decision 是 `CONFIRMED`，阻擋 v2 cutover |
+| 任一 legacy row 缺少必要 extension 欄位 | `requires_manual_review`，不建立猜測值 | 原 row 只留 migration quarantine；**任何** unresolved row 都阻擋 cutover，不分 decision |
 | `extension_edges` 非空 | 不轉成 canonical edge | 將原 payload digest、opaque `quarantine_ref` 與 warning 寫入 audit metadata；不得保存/回傳 absolute path，關係需由後續 evidence-backed mapping 重新確認 |
 
 前三列先決定 row 的 active mapping/decision；第四列是可與前三列同時套用的 modifier。也就是
@@ -423,8 +468,17 @@ canonical schema。
   `requires_manual_review`、`failed`、input/output digest 與 masked error；不得印出完整 evidence
   snippet、secret 或原始 payload。
 - [x] Normal API 立即拒絕新 `new_extension_component` request，回傳
-  `legacy_mapping_type_read_only`。所有 `CONFIRMED` legacy rows 都完成轉換後才可 flip backend v2；
-  其他 unresolved quarantined rows 可以留作 migration evidence，但會繼續阻擋 Plan 15 cleanup。
+  `legacy_mapping_type_read_only`。**任何** unresolved `requires_manual_review` row 都阻擋
+  cutover，不只 `CONFIRMED`：active repository 對 legacy shape 是 fail-closed 的——
+  `LocalJsonProjectRepository.list_for_project` 以 `projects/<p>/mappings/*.json` 逐檔 parse 成
+  active `ManualMapping`，任一殘留 legacy row 都會讓整個 project 的 mapping 列舉拋
+  `StateCorruptionError`（Plan 13.5 Task C6／RB-4 實測），與該 row 的 decision 無關。
+  因此不存在「留作 migration evidence 的 unresolved row」這種可放行狀態。
+  （2026-07-28 Plan 13.5 Task C6 補強：gate 已 durable——incomplete row 的原檔會被 move 進
+  `<SYSTOGRAPH_STATE_DIR>/migration-quarantine/<project>/`，之後的 run 掃不到它，因此
+  `cutover_blocked` 除了 per-run 計數外還檢查袋內是否仍有 `*.original.json`，跨 run 維持
+  `True`，直到操作者處理並清空袋子。`cutover_blocked` 才是 gate；report 的 `status`
+  只描述該次 run 的結果，不得拿來當放行依據。）
 - [ ] Frontend UI 仍可組出 legacy request；backend會 fail closed，但 UI contract需由前端負責人
   遷移。
 - [x] migration apply 完成且 reload gate 通過後，從 active `ManualMappingType` 移除
@@ -441,17 +495,38 @@ canonical schema。
 - [x] 未確認 component 保留為 generic unmapped/candidate fact；使用者確認 non-baseline 後只寫入
   capability candidate，不建立 extension 類別或 legacy edge。
 - [x] v1 schema/fixture、Legacy DTO、adapter 與 operator rollback serializer 明確標示
-  legacy/read-only；normal build path 不得 import。
+  legacy/read-only；normal build path 不得 import v1 **map contract**。lazy 化由 Plan 13.5
+  Task B3（RA-1）完成：`MapBuildService` / `MapBuildPipeline` 只在 operator rollback
+  （`canonical_output_version == ai-system-map/v1`）或呼叫端顯式注入時才 function-local import
+  並建 rollback 物件圖；v2 模式下 `MapBuildService()`、`create_app()` 與 CLI 都不 import
+  `legacy_v1_rollback_service`、`system_map_materialization_service`、
+  `system_map_normalize_service`（`tests/unit/core/test_map_build_service_wiring.py`
+  的 `test_active_v2_entry_points_import_no_v1_rollback_module` 以子行程 `sys.modules`
+  探針逐一把關這三個 entry point）。scan-phase 共用 DTO（`models/system_map.py` 內的
+  `Evidence`/`Endpoint`/`Flow` 等）仍被 active path import，其拆分不屬本條，歸 Plan 15
+  （見 13.5 RA-8 / RB-10）。
 - [x] Task 1 allowlist 是 executable gate；backend hit只能命中`operator_rollback`、
   `migration_only`或測試明列的legacy evidence；frontend-owned active hit分類為`migrate`：
 
 ```bash
-rg -n "RagSystemMap|ExtensionComponent|new_extension_component|ai-system-map/v1" \
+rg -n "RagSystemMap|ExtensionComponent|SystemMapValidationService|LegacyManualMappingType|NEW_EXTENSION|new_extension_component|ai-system-map/v1" \
   src tests frontend docs
 ```
 
-Current backend-only boundary：`35 records / 35 hits`，其中5筆`migrate`全在frontend；每個hit
+上面的 pattern 必須等於 `test_v2_cutover_consumer_allowlist.py` 的
+`LEGACY_NAMES ∪ LEGACY_LITERALS`（6 個 name + 2 個 literal，其中
+`new_extension_component` 兩邊都有），否則手動 boundary 檢查會比 executable gate 寬鬆。
+（2026-07-28 Plan 13.5 Task E1 補齊：原本只列 4 個 token，漏掉 Plan 13 當時就已在
+`LEGACY_NAMES` 內的 `SystemMapValidationService`，以及 Stage B 新增的
+`LegacyManualMappingType` / `NEW_EXTENSION`。）
+
+Current backend-only boundary：`37 records / 37 hits`，其中5筆`migrate`全在frontend；每個hit
 都能在allowlist找到相同path/symbol/classification，未知或stale仍fail closed。
+（2026-07-28更新：Plan 13.5 Stage B補上`LegacyManualMappingType`／`NEW_EXTENSION`與
+`web/legacy_mapping_guards.py`後由35筆增為38筆；Stage C（C2／RA-5）刪掉
+`ViewerSessionService.build()`／`project_to_graph()`後`viewer_session_service.py`的
+`RagSystemMap`記錄消失，38筆減為37筆。`35 records / 35 hits`與
+`38 records / 38 hits`皆為歷史值。）
 
 ## Task 6：以 Staging Directory + Manifest + Latest Pointer 定義 Atomic Visibility
 
@@ -556,6 +631,10 @@ cd frontend && npm run build && npm run lint
 - [x] `MapBuildResult` 只有一個 normalized v2 canonical field；active consumer 不直接接
   `RagSystemMap` 或 v1 validator。
 - [x] v2 是 generic AI system map，不預設 RAG/Agent 類別。
+  （限定：這裡的「generic」指 **schema 層**——`ai-system-map/v2` 的欄位不要求 RAG slots、
+  不以 `system_type="rag"` 綁定類別。Step-4 的 assembly blueprint 仍是 `rag-core-v1` 的
+  13 slot；把 producer 本身改成 generic 不在 Plan 13/14/15 範圍，別把本條讀成
+  「Step 4 已不用 rag-core-v1」。）
 - [x] v1 artifacts 仍可透過唯一 loader/adapter path 讀取。
 - [x] 所有 persisted `CONFIRMED` legacy extension mappings 已依轉換矩陣遷移；缺資料者會
   `requires_manual_review` 並阻擋 cutover，不會被猜測補值。

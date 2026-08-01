@@ -23,6 +23,11 @@ LEGACY_NAMES = frozenset(
         "ExtensionComponent",
         "SystemMapValidationService",
         "new_extension_component",
+        # Enum type and member of the legacy mapping value. Without these
+        # two names an `Enum.MEMBER.value` indirection reaches the legacy
+        # literal while every AST branch below stays blind to it.
+        "LegacyManualMappingType",
+        "NEW_EXTENSION",
     }
 )
 LEGACY_LITERALS = frozenset({"ai-system-map/v1", "new_extension_component"})
@@ -39,6 +44,26 @@ class ConsumerRecord(NamedTuple):
 
 
 CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
+    ConsumerRecord(
+        path=(
+            "src/systograph/core/services/"
+            "legacy_manual_mapping_migration_service.py"
+        ),
+        symbol="LegacyManualMappingType",
+        classification="migration_only",
+        removal_plan="Plan 15 Task 3b removes the legacy mapping type enum.",
+    ),
+    ConsumerRecord(
+        path=(
+            "src/systograph/core/services/"
+            "legacy_manual_mapping_migration_service.py"
+        ),
+        symbol="NEW_EXTENSION",
+        classification="migration_only",
+        removal_plan=(
+            "Plan 15 Task 3b removes the legacy mapping type enum member."
+        ),
+    ),
     ConsumerRecord(
         path=(
             "src/systograph/core/services/"
@@ -222,15 +247,21 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
     ),
     ConsumerRecord(
         path="src/systograph/core/services/viewer_session_service.py",
-        symbol="RagSystemMap",
-        classification="migration_only",
-        removal_plan="Plan 15 removes the legacy Viewer reload input.",
-    ),
-    ConsumerRecord(
-        path="src/systograph/core/services/viewer_session_service.py",
         symbol="SystemMapValidationService",
         classification="migration_only",
-        removal_plan="Plan 15 removes legacy Viewer validation injection.",
+        removal_plan=(
+            "Only the optional v1-validator DI passthrough to "
+            "CanonicalMapLoader remains; remove it with v1 read support."
+        ),
+    ),
+    ConsumerRecord(
+        path="src/systograph/web/legacy_mapping_guards.py",
+        symbol="new_extension_component",
+        classification="migration_only",
+        removal_plan=(
+            "Plan 15 Task 3b bullet 5 owns this guard; the mapping owner "
+            "decides its fate after the error code converges."
+        ),
     ),
     ConsumerRecord(
         path="src/systograph/web/schemas.py",

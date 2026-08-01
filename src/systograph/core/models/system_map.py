@@ -1,18 +1,25 @@
-# 這個檔案負責：定義 ai-system-map/v1 的 Pydantic 資料契約（舊版 / v1 map）。
-# 掃描管線各 service 產出的「系統地圖」JSON，形狀都依這裡的 model。
-# 注意：新管線正規化後的 canonical 形狀在 ai_system_map_v2.py；本檔是 v1
-# contract。
+# 這個檔案負責：定義 ai-system-map/v1 的 Pydantic 資料契約（舊版 / v1 map），
+# 外加一批還沒拆出去、版本中立的掃描 model（Evidence / Endpoint / Flow /
+# RiskHint / DetailScan* / QueryTraceEvent…），v2 主路徑也在用。
+# 注意：正常 build 產出的是 v2（canonical 形狀在 ai_system_map_v2.py）；
+# 本檔的 RagSystemMap 只剩 migration（v1 讀取）與 operator rollback 在用。
+# 待辦：把版本中立 model 拆到中立 module 是 Plan 15 的工作；拆完之後本檔才
+# 真的只剩 v1 contract。
 #
 # 呼叫鏈（誰會用到這些 model）：
-#   providers（掃檔找證據）→ Evidence / Endpoint / ComponentInstance
+#   providers（掃檔找證據）→ Evidence
 #   ComponentDetection / EndpointDetection / FlowDerivation / RiskHint
-#     → 組裝進 RagSystemMap
-#   SystemMapNormalizeService / SystemMapValidationService
-#     → 驗證、正規化 RagSystemMap
-#   MarkdownSummary / QueryTrace / DetailScan / Viewer
-#     → 讀取 RagSystemMap 各子區塊
+#     → ComponentInstance / Endpoint / Flow / RiskHint
+#     → v2 主路徑：SystemMapV2NormalizeService → AiSystemMapV2
+#     → v1 rollback writer：SystemMapNormalizeService → RagSystemMap
+#   CanonicalMapLoader / SystemMapValidationService
+#     → 驗證 v1 payload → RagSystemMap
+#   SystemMapV1ToV2Adapter / viewer_legacy_compatibility
+#     → 讀取 RagSystemMap 各子區塊（migration / legacy 投影）
 #   build_system_map_schema()
 #     → 產出 JSON Schema 給 contract / 文件用
+# RecommendedNextCheck 已搬到 models/recommended_next_check.py（版本中立
+# DTO），本檔只 re-import 綁名字，見下方 import 註解。
 """Pydantic models for the ai-system-map/v1 contract."""
 
 from __future__ import annotations
@@ -20,6 +27,11 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# RecommendedNextCheck 的 canonical home 在 models/recommended_next_check.py
+# （版本中立 DTO，v1 / v2 共用）。這裡 import 進來綁定名字，讓
+# RagSystemMap.recommended_next_checks 維持 v1 contract 不變。
+from systograph.core.models.recommended_next_check import RecommendedNextCheck
 
 SCHEMA_VERSION = "ai-system-map/v1"
 SCHEMA_ID = "https://systograph.local/schemas/ai-system-map.v1.schema.json"
@@ -275,17 +287,6 @@ class UnmappedComponent(ContractModel):
     suggested_actions: list[str] = Field(default_factory=list)
 
 
-# 做什麼：建議下一步要檢查什麼（target + reason + action）。
-# 被誰用：map build 組裝 recommended_next_checks；markdown summary / UI 顯示。
-# 內含：無巢狀 model。
-class RecommendedNextCheck(ContractModel):
-    id: str
-    target_type: str
-    target: str
-    reason: str
-    action: str
-
-
 # 做什麼：整次掃描的計數摘要（掃了幾檔、缺幾個 slot、幾個 risk…）。
 # 被誰用：map build 結尾填入 RagSystemMap.scan_summary。
 # 內含：無巢狀 model。
@@ -302,10 +303,14 @@ class ScanSummary(ContractModel):
 
 
 # 做什麼：v1 AI System Map 的根物件（整份地圖）。
-# 被誰用：MapBuildService / Normalize / Validation / Markdown / Trace / Viewer
-# 等。
+# 被誰用（只剩 migration / operator rollback 兩條路）：
+#   - migration 讀取：CanonicalMapLoader + SystemMapValidationService
+#     → SystemMapV1ToV2Adapter → AiSystemMapV2 → SystemMapIndex
+#   - legacy 投影細節：viewer_legacy_compatibility
+#   - rollback 寫入：LegacyV1RollbackService →
+#     SystemMapMaterializationService → SystemMapNormalizeService
+# 正常 v2 build 完全不碰這個 model。
 # 內含：把上面所有區塊組在一起（slots、evidence、flows、risks…）。
-# 之後若進 v2：通常經 adapter → AiSystemMapV2 → SystemMapIndex。
 class RagSystemMap(ContractModel):
     schema_version: SystemMapSchemaVersion
     system_type: SystemType

@@ -7,7 +7,7 @@ Branch: `feature/systograph-hard-cutover`
 ## Scope
 
 - Make **Systograph** the only active product and technical identity.
-- Rename the Python package from `kai_mind` to `systograph`.
+- Rename the previous Python package to the canonical `systograph` package.
 - Keep only the `systograph` CLI entry point; no legacy CLI or import alias remains.
 - Move runtime configuration to the Systograph namespace:
   - `SYSTOGRAPH_STATE_DIR`
@@ -28,6 +28,12 @@ Branch: `feature/systograph-hard-cutover`
     absent;
   - narrow `os.mkfifo` to a local callable inside the FIFO test and skip at
     runtime when unavailable.
+- Integrate `origin/main` through `cfc2198` before merge, including the Plan
+  13.5 residue cleanup, capability-gate vocabulary and relationship endpoint
+  fixes, current phase reports, and the UA sidecar 16B reference updates.
+- Carry those latest backend changes into the canonical `systograph` namespace
+  without restoring any legacy package, CLI, environment-variable, or schema
+  aliases.
 
 This is an intentional breaking cutover. It does not provide compatibility
 aliases or automatically discover state stored under the previous default
@@ -76,7 +82,8 @@ git submodule update --init --recursive
 - Python package build: passed; produced the Systograph wheel and source
   distribution.
 - Ruff format/check: passed.
-- Windows `uv run mypy src tests`: passed with no issues in 312 source files.
+- Windows `uv run mypy src tests`: passed with no issues in 328 source files
+  after integrating the latest `main`.
 - Required POSIX primitive fail-closed tests: 2 passed.
 - Secret masking regression check: passed after correcting the hard-cutover
   test expectation to the existing four-character prefix contract.
@@ -89,6 +96,10 @@ git submodule update --init --recursive
 - `git diff --check`: passed.
 - Active tracked text and path scan: no previous product identifier remains.
 - Open GitHub issue scan: no previous product identifier remains.
+- Latest-main backend conflict/focused suite: 176 passed; 3 failed only at the
+  existing Windows `chromadb` fixture setup because no
+  `unmapped_components[0]` was produced. The failures occur before the route
+  and contract assertions changed by the integrated commits.
 
 Full Windows/Python 3.14 baseline:
 

@@ -26,13 +26,30 @@ same-parent staging，通過 required-set／scope／reference／schema validatio
   canonical/readiness equivalence皆已通過。
 - Executable scope：`src/systograph/**/*.py` AST、
   `frontend/src/**/*.{ts,tsx,json}` text、`scripts/**/*.sh` operational text。
-- Records / actual hits：`35 / 35`，無 unknown、無 stale。
-- Classification：`migrate=5`、`migration_only=22`、`operator_rollback=8`。
+- Records / actual hits：`37 / 37`，無 unknown、無 stale。
+- Classification：`migrate=5`、`migration_only=24`、`operator_rollback=8`。
 - 5筆`migrate`全部位於frontend原始檔案，removal plan明確交由frontend owner；backend無
   未分類active legacy hit。
-- Digest payload：依 allowlist tuple 順序，把四欄 record 轉為 sorted-key compact JSON。
+- Digest payload：依 allowlist tuple 順序，把每筆 record 轉成 `path` / `symbol` /
+  `classification` / `removal_plan` 四個 key 的 **dict**（不是四元素 list——list-of-lists
+  會算出不同 hash），組成 list 後一次做
+  `json.dumps(payload, sort_keys=True, separators=(",", ":"))`。
 - Census SHA-256：
-  `59fa4f066a0e37c9f73ce488e64da96cccab7c8a9e6a429b0c073a738544714b`。
+  `fa27a510c5253dc2d856ecee9d76ac1c1e5f7ab07df096893799a969e6be1c56`。
+- 2026-07-28（Plan 13.5 Stage B）更新：`LEGACY_NAMES` 補上 `LegacyManualMappingType`
+  與 `NEW_EXTENSION`，封死 `Enum.MEMBER.value` 間接引用盲點；`legacy_manual_mapping_`
+  `migration_service.py` 因此新增2筆 `migration_only`，另 `web/legacy_mapping_guards.py`
+  改用內聯字面值後新增1筆 `migration_only`（`35 / 35` → `38 / 38`）。
+- 2026-07-28（Plan 13.5 Stage C，C2／RA-5）更新：刪除 `ViewerSessionService.build()`
+  與 `project_to_graph()`（v1-typed、production 零 caller）後，
+  `viewer_session_service.py` 不再 import `RagSystemMap`，該筆 `migration_only`
+  記錄移除（`38 / 38` → `37 / 37`，`migration_only` 25→24）；同檔的
+  `SystemMapValidationService` 記錄保留，因為 optional v1-validator DI passthrough
+  仍轉交給 `CanonicalMapLoader`。
+- 歷史值：本次報告當日（2026-07-17）的 `35 / 35`、`migration_only=22` 與 SHA-256
+  `59fa4f066a0e37c9f73ce488e64da96cccab7c8a9e6a429b0c073a738544714b`；Stage B 的
+  `38 / 38`、`migration_only=25` 與 SHA-256
+  `1b6dc56ee312122b1d25b986ac637f2280c172e1deef50501439889baac69096`。
 
 ## Persisted legacy mapping migration
 
@@ -140,7 +157,7 @@ Render (3)
 | Frontend TypeScript + Vite build | exit 0 |
 | Frontend ESLint | exit 0；1個既有 Fast Refresh warning |
 | `bash -n` all operational shell scripts | exit 0 |
-| Consumer allowlist | `35 records / 35 hits`；5筆frontend `migrate` |
+| Consumer allowlist | 當日`35 records / 35 hits`；5筆frontend `migrate`（2026-07-28 Stage B後為`38 / 38`、Stage C C2後為`37 / 37`，見上方census段落） |
 
 Full gate曾抓到兩個真實同步問題並修復：Pydantic model新增 `artifact_set_version` 後
 checked-in JSON Schema未同步，以及 Mermaid scope comment放在 `flowchart LR` 前破壞穩定
@@ -185,3 +202,17 @@ schema sync `1 passed`、renderer `9 passed`，全套回到1031 passed。
   allowlisted `migrate` hit；這是明確frontend handoff，不得在backend report中標成已退場。
 - Plan 15仍負責移除 operator v1 writer/env、migration DTO/command/quarantine與不再需要的 v1
   compatibility fixtures；frontend handoff不屬Plan 15 cleanup。
+
+## 2026-07-28 追記：RA-4 缺口已由 Plan 13.5 回補
+
+Cutover 當時 `recommended_next_checks` 只有 legacy v1 writer 會填，v2 build **恆為空**
+（residue audit RA-4；本報告原本未把它列進 remaining warnings）。Plan 13.5 Stage A 已把它
+當功能缺口補回：`AiSystemMapV2` 新增 additive `recommended_next_checks[]`（A2）、
+`SystemMapV2MaterializationService` 接上與 v1 共用的 `RecommendedNextCheckService.derive`
+（A3）、v1/v2 viewer projection 統一（A4）；markdown report 改為 `### Scan-fact checks` 與
+`### Capability review checks` 兩段並列，System 1 不再遮蔽 System 2 的 per-node profile
+checks（A5）。欄位語意、additive schema migration 與兩套 checks 的分工見
+`docs/MODEL-CONTRACT.md` §5.3。
+
+Plan 13 window 內產生的 v2 artifact 此欄位為空，屬**已知歷史狀態**：該欄位為 additive、不在
+schema `required`，舊 artifact 仍可正常載入，不需要 rebuild 或 migration。

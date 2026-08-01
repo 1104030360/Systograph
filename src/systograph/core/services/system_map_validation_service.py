@@ -1,7 +1,10 @@
 """Runtime validation for ai-system-map/v1 cross-reference invariants.
 
-00A keeps this service as the v1 validator. Native v2 validation lives in
-SystemMapV2ValidationService; schema branching belongs to CanonicalMapLoader.
+The v1 validator on the two remaining legacy paths: CanonicalMapLoader
+uses it to read legacy v1 payloads, and the operator-rollback v1 writer
+uses it before publishing. Native v2 validation lives in
+SystemMapV2ValidationService; schema branching belongs to
+CanonicalMapLoader. Plan 15 removes it together with v1 read support.
 """
 
 from __future__ import annotations

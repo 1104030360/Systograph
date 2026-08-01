@@ -103,7 +103,16 @@ Plan 13 Task 4 會先建立**過渡用** persisted mapping migration surface，�
 - `src/systograph/core/services/system_map_v1_to_v2_adapter.py`
 - `src/systograph/core/services/canonical_map_loader.py`
 - `src/systograph/core/services/system_map_normalize_service.py`
+- `src/systograph/core/services/system_map_materialization_service.py`
+  （operator-rollback-only v1 materializer。module docstring 已於 Plan 13.5 Stage D 明寫
+  「Plan 15 removes it」——本清單補列，讓該承諾在計畫端有對應項目。）
 - `src/systograph/core/services/system_map_validation_service.py`
+- `src/systograph/core/services/legacy_slot_layer_map.py`
+  （Plan 13.5 Task C5 抽出的 `SLOT_LAYER_BY_ID` 單一來源。**不可**隨 v1 adapter 一起刪：
+  它同時被 `system_map_v1_to_v2_adapter.py`（Plan 15 刪）與 **active** 的
+  `system_map_v2_normalize_service.py`（`layer=SLOT_LAYER_BY_ID.get(slot.slot, ...)`）
+  import；刪 adapter 時必須明確裁定此 module 去留——v2 側仍需要它，最小處置是保留並
+  改名／搬到中立位置，不是刪除。）
 - `src/systograph/core/providers/output_artifact_provider.py`
 - `src/systograph/core/models/mapping_base.py`（確認 active enum 已無 `NEW_EXTENSION`）
 - `src/systograph/core/services/legacy_manual_mapping_migration_service.py`（Plan 13 建、本計畫刪）
@@ -200,8 +209,23 @@ path、extension product surface、**Plan 13 Task 4 暫時 mapping migration DTO
 > 來源：`13-retire-legacy-extension-contract.md` Task 4。Plan 13 只負責搬家與 active 停寫；
 > **本 task 負責刪掉暫時 migration 工具**，避免 DTO／CLI／quarantine 變成永久維護面。
 
-前置：Plan 13 cutover report 證明所有 `CONFIRMED` legacy extension mappings 已 migrate，
+前置：Plan 13 cutover report 證明所有 legacy extension mappings 已 migrate（**任何**
+unresolved `requires_manual_review` row 都阻擋，不只 `CONFIRMED`——見 Plan 13 Task 4），
 reload gate 通過，且 active `ManualMappingType` 已無 `NEW_EXTENSION`。
+
+Plan 13.5 交接的兩個前置事實（先確認再動手，可省一輪撞牆）：
+
+- **`src/systograph/web/legacy_mapping_guards.py` 已與 migration module 解耦。** Plan 13.5
+  Task B1 把 `new_extension_component` 內聯成字面值、移除對
+  `legacy_manual_mapping_migration_service` 的 import。刪 module 前確認
+  `rg legacy_manual_mapping_migration src/systograph/web/` 零命中即可，不需要再拆 web 層。
+  **guard 本體不隨 module 刪除**——它的去留由下方 bullet 5（normal API 仍須 fail-closed）
+  決定，兩者生命週期不同。
+- **census 已看得見 enum 名稱，因此刪除是 census-guarded 的。** Plan 13.5 Task B2 把
+  `LegacyManualMappingType` / `NEW_EXTENSION` 加進
+  `tests/contracts/test_v2_cutover_consumer_allowlist.py` 的 `LEGACY_NAMES`。allowlist 是
+  雙向 fail-closed：刪掉 module 卻沒同步移除對應 allowlist 記錄，會以 stale record 讓
+  census contract test 失敗。這是設計行為，不是意外——**同一個 change 內必須一併移除記錄**。
 
 - [ ] 刪除 `LegacyManualMappingDTO` 與任何仍能 parse `new_extension_component` 的
   migration-only model（若仍需歷史測試，改為明確 deprecated fixture + comment，不得掛在
@@ -209,12 +233,80 @@ reload gate 通過，且 active `ManualMappingType` 已無 `NEW_EXTENSION`。
 - [ ] 刪除 `LegacyManualMappingMigrationService` 及對應 unit／integration tests 的 active
   production import；必要 characterization 改寫為「此 surface 已不存在」absence test。
 - [ ] 移除 `migrate-legacy-mappings` CLI command 註冊、help 文案與 scripts 引用。
-- [ ] 清除 quarantine／backup index helpers 與不再需要的 state-side migration report writers；
-  文件記載既有 backup 目錄是否人工保留、何時可刪（不得靜默留 code path）。
+- [ ] 清除 quarantine／backup index helpers（**沒有** state-side migration report writer 這種
+  東西——report 只是 CLI 回傳的 `LegacyMappingMigrationReport`，不落地成檔案，別去找不存在
+  的 writer）。兩個 state 目錄的保留／刪除決策點必須明確裁定並寫進文件，不得靜默留 code
+  path：
+  - `<SYSTOGRAPH_STATE_DIR>/migration-backups/<project>/` —— `<mapping>.<token>.legacy.json`
+    （原 payload 的 **re-serialization**）+ `index.json`。
+  - `<SYSTOGRAPH_STATE_DIR>/migration-quarantine/<project>/` —— 兩種檔案：
+    `<mapping>.<token>.legacy.json`（payload re-serialization，包 migration version 與
+    input digest）與 `<mapping>.<token>.original.json`（**byte-exact** 原檔，Plan 13.5
+    Task C6 新增，由 `_retire_original` move 進來）。
+  - 檔案為 owner-only `0600`；**目錄維持 `0755`**（權限只做在檔案層）。
+  - **清空 quarantine 袋 = 放行 cutover gate 的操作行為**：`cutover_blocked` 只要袋內還有
+    `*.original.json` 就維持 `True`。同一個動作也會銷毀唯一的 byte-exact 遷移前證據
+    （兩份 `*.legacy.json` 都是 re-serialization）。裁定保留策略時，這兩件事必須同時被
+    看見——它不是單純的「清暫存檔」。
+  - 語意詳述見 `docs/MODEL-CONTRACT.md` §7.0.1；`ManualMapping.audit_metadata` 的三個永久
+    key 保留為 audit provenance，不在本 task 刪除範圍。
+- [ ] 裁定 unparseable（report `status="failed"`）legacy row 的 custody（Plan 13.5 Task C6
+  交接）。這類 row 走 `_failed_item` 路徑——JSON 不可解析時 payload 直接被當成 `{}`，連
+  `project_id` 都拿不到；或 `LegacyManualMappingDTO.model_validate` 失敗——兩種都**不經**
+  `_quarantine` / `_retire_original`。結果是檔案仍留在 `projects/<p>/mappings/`，且仍會讓
+  `LocalJsonProjectRepository.list_for_project` 拋 `StateCorruptionError`、炸掉整個 project
+  的 mapping 列舉（`read_model` 對 `OSError` / `JSONDecodeError` / `ValidationError` 一律
+  fail closed）。Plan 15 必須擇一並文件化：提供人工清理指引，或建立 last-resort 隔離區
+  （無可信 project id，需以檔案路徑而非 project 分桶）。不得預設「migration 跑完就沒有殘留」。
 - [ ] 確認 normal mapping repository／API／UI：**拒絕** legacy mapping shape，回傳穩定
   error（沿用或收斂 Plan 13 的 `legacy_mapping_type_read_only`），且無 silent dual-read。
 - [ ] `rg -n "LegacyManualMapping|migrate-legacy-mappings|legacy_manual_mapping_migration|new_extension_component" src tests frontend/src`
   的 hit 全部分類為 remove／deprecated-test／docs；不得剩 active caller。
+
+### Task 3c：拆分 `models/system_map.py`（「刪 v1 model」的硬前置）
+
+> 來源：Plan 13.5 audit RA-8 / RB-10。**不先做這件事，Task 2／Task 3 的「移除 v1 model」
+> 字面上不可執行**——`models/system_map.py` 目前同時裝著純 v1 contract 與整條 active
+> scan path 共用的 DTO，直接刪檔會炸掉 v2 主路徑。
+
+- [ ] 把下列 11 個 **與 v1 契約無關、active path 仍在用**的 symbol 從
+  `src/systograph/core/models/system_map.py` 拆到中立 module：
+  `Evidence`、`Endpoint`、`Flow`、`Edge`、`RiskHint`、`DetailScanResult`、
+  `QueryTraceEvent`、`CodePathStep`、`DetailScanFinding`、`UnmappedComponent`、
+  `ScanDepth`（`Literal["system", "component", "code_path"]`）。
+- [ ] **這 11 個是 audit 當時的已知最小集，不是完整清單——動手前必須重新推導。** 至少
+  `ComponentInstance` 與 `ComponentSlot` 也仍被 active 的 `ComponentDetectionService`
+  （Step 4 detection）使用，同樣不能留在待刪的 v1 檔內。真正只剩 v1 契約的候選是
+  `Classification` / `Project` / `ReferenceArchitecture` / `ScanSummary` /
+  `RagSystemMap` / `ExtensionComponent`（加共用基底 `ContractModel`）。
+  `system_map.py` 收斂到只剩這些，才可整檔刪除。
+- [ ] 風險提示：這些 symbol 目前被 `src/` 內 37 個檔案 import（`tests/` 另計），而 census
+  （`test_v2_cutover_consumer_allowlist.py`）只追 `LEGACY_NAMES` 內的名字，**看不見**
+  這批共用 DTO——不能靠 census 綠燈判斷「v1 已無 active 依賴」。
+- [ ] `RecommendedNextCheck` **已不在**待拆清單：Plan 13.5 Task A1 已把它搬到
+  `src/systograph/core/models/recommended_next_check.py`。剩下 11 個。
+
+### Task 3d：移除 `ai_system_map_v2.py` 的 Compatibility / Generic 型別群
+
+> 來源：Plan 13.5 audit RA-9。這批型別是 00A adapter 的搬運形狀，v1 read support 一旦
+> 移除就沒有 producer。
+
+- [ ] 移除 `CompatibilityContractModel` 及其整棵子樹：`CompatibilityProject`、
+  `GenericComponent(Metadata)`、`GenericEdge(Metadata)`、`GenericEndpoint(Metadata)`、
+  `GenericRiskHint(Metadata)`、`GenericUnmappedFact`、`GenericCandidateFact(Metadata)`、
+  `AiSystemMapV2CompatibilityView`，以及只被這棵子樹使用的 `Compatibility*` 型別別名
+  （`CompatibilitySchemaVersion`、`CompatibilitySystemType`、`CompatibilityActivation`、
+  `CompatibilityComponentStatus`、`CompatibilityComponentSemanticKind`、
+  `CompatibilityEdgeStatus`、`CompatibilityEndpointType`、`CompatibilityRiskTargetType`）。
+  以刪除當時的實況重跑一次 grep，確認 producer 只剩 `SystemMapV1ToV2Adapter`。
+- [ ] **不在移除範圍：`CanonicalLayer` / `CanonicalCandidateKind`。** 這兩個型別在 Plan 13.5
+  Stage D 已由 `CompatibilityLayer` / `CompatibilityCandidateKind` **改名**並移出
+  Compatibility 群——它們是 canonical model 的欄位型別（`CanonicalComponent.layer`、
+  `CanonicalCandidateFact.candidate_kind`），改名的目的正是防止 Plan 15 連坐誤刪。
+  檔內 `:77-80` 已留下對應註解。
+- [ ] 連帶確認 `legacy_slot_layer_map.py`（`SLOT_LAYER_BY_ID`）的去留：它 import
+  `CanonicalLayer`，且同時服務 v1 adapter（刪）與 active `SystemMapV2NormalizeService`
+  （留）。見「相關檔案」該條。
 
 ### Task 4：收斂 loaders 與 consumers
 
@@ -237,6 +329,26 @@ reload gate 通過，且 active `ManualMappingType` 已無 `NEW_EXTENSION`。
   `00A -> 13 -> Gate-1 -> 16 -> Gate-2 -> 14 -> Gate-3 -> 18 -> Gate-4 -> 15`
   的順序（與 `static-trace-plan/README.md`「建議執行順序」及 `epic1-phase2.md` §20 DAG 一致）。
 - [ ] 文件明確記載：Plan 18（Systograph TOML provider 主掃描退役）為 Plan 15 的 Gate-4 前置，不可跳過。
+
+### Task 5b：Plan 13.5 交接的兩個「不要誤刪 / 不要多做」註記
+
+- [ ] **`RecommendedNextCheckService` 不在 v1 retirement 移除範圍。** 它在 Plan 13.5 Task A1
+  已從 v1 normalize service 抽出、成為 active v2 service，新路徑
+  `src/systograph/core/services/recommended_next_check_service.py`：active 路徑由
+  `SystemMapV2MaterializationService` 持有並呼叫 `derive`，結果再傳給
+  `SystemMapV2NormalizeService.assemble`；規則檔
+  `src/systograph/core/rules/recommended_next_check_rules.toml` 自此屬 active 資產。
+  刪除 v1 `SystemMapNormalizeService`（rollback writer）時，只移除**它對這個 service 的
+  import／DI 欄位**，不得連 service 或規則檔一起刪。
+- [ ] **三個無版本後綴的 legacy service 名稱不另行 rename。**
+  `SystemMapMaterializationService`、`SystemMapNormalizeService`、
+  `SystemMapValidationService` 的名字沒有 `V1` 後綴（active 對應物才是
+  `SystemMapV2MaterializationService` / `SystemMapV2NormalizeService`），是已知的命名陷阱。
+  處置已定案：Plan 13.5 Stage D 只在 module docstring 標示各自的實際定位（materialization
+  與 normalize 明寫 operator-rollback-only + 「Plan 15 removes it」；validation service 標明
+  它仍服務 `CanonicalMapLoader` 的 v1 讀取與 rollback writer 兩條路徑），**一律不改名**
+  （改名會動 census allowlist 的 symbol 欄位）；名字於 Plan 15 刪檔時自然消滅。
+  不要在 Plan 15 另開 rename task。
 
 ### Task 6：完整 regression gate
 

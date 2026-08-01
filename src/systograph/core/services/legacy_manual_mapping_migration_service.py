@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -94,6 +95,11 @@ class LegacyMappingMigrationReport(BaseModel):
     already_migrated: int
     requires_manual_review: int
     failed: int
+    # Rows retired to the quarantine bag by an earlier run and still
+    # awaiting a human decision. Defaulted rather than required so that
+    # reading back a report emitted before this field existed still
+    # parses; `_report` always supplies it.
+    unresolved_quarantined: int = 0
     cutover_blocked: bool
     items: list[LegacyMappingMigrationItem] = Field(default_factory=list)
 
@@ -144,7 +150,40 @@ class LegacyManualMappingMigrationService:
                 items.extend(
                     self._migrate_project(project_candidates, apply=False)
                 )
-        return self._report(items, apply=apply)
+        return self._report(
+            items,
+            apply=apply,
+            unresolved_quarantined=self._unresolved_quarantined(),
+        )
+
+    def _unresolved_quarantined(self) -> int:
+        """Count rows retired to the bag that still owe a human decision.
+
+        The quarantine bag IS the durable requires-manual-review record.
+        Once `_retire_original` moves a row out of `mappings/`, no later
+        run can rediscover it as a candidate, so gating on this run's item
+        counts alone would let `cutover_blocked` fall back to False while
+        a human still owes that row a decision — and the CLI exit code is
+        machine-consumed. Operators clear the gate by resolving and
+        removing the quarantined files (retention policy documented in
+        MODEL-CONTRACT, Stage E).
+
+        Only `*.original.json` counts. The sibling `*.legacy.json` payload
+        copy is also written for rows that converted *cleanly* but had
+        their `extension_edges` dropped
+        (`legacy_extension_edges_quarantined`), so counting that suffix
+        would hold the gate shut on a fully successful migration.
+
+        The whole bag is scanned, not just the projects scanned this run:
+        after a retire there are no candidates left to scope by, which is
+        exactly the case this gate exists to cover. Rows quarantined
+        before retiring existed still have their original in `mappings/`,
+        so the per-run arm catches them on the next run regardless.
+        """
+        bag = self._storage.root / "migration-quarantine"
+        if not bag.exists():
+            return 0
+        return len(list(bag.glob("*/*.original.json")))
 
     def _candidates(self) -> list[tuple[Path, dict[str, object]]]:
         if not self._storage.projects_root.exists():
@@ -228,14 +267,11 @@ class LegacyManualMappingMigrationService:
         )
         if not complete:
             if apply:
+                ref = quarantine_ref or self._quarantine_ref(input_digest)
                 try:
                     self._backup(legacy, payload, input_digest)
-                    self._quarantine(
-                        legacy,
-                        payload,
-                        input_digest,
-                        quarantine_ref or self._quarantine_ref(input_digest),
-                    )
+                    self._quarantine(legacy, payload, input_digest, ref)
+                    self._retire_original(legacy, path, ref)
                 except OSError:
                     return LegacyMappingMigrationItem(
                         mapping_id=legacy.mapping_id,
@@ -397,16 +433,7 @@ class LegacyManualMappingMigrationService:
         input_digest: str,
         quarantine_ref: str,
     ) -> None:
-        token = quarantine_ref.removeprefix("quarantine:")
-        path = (
-            self._storage.root
-            / "migration-quarantine"
-            / self._storage.segment(legacy.project_id)
-            / (
-                f"{self._storage.segment(legacy.mapping_id)}."
-                f"{token}.legacy.json"
-            )
-        )
+        path = self._quarantine_file(legacy, quarantine_ref, "legacy")
         if not path.exists():
             self._storage.write_json(
                 path,
@@ -418,6 +445,73 @@ class LegacyManualMappingMigrationService:
                 mode=0o600,
             )
 
+    def _retire_original(
+        self,
+        legacy: LegacyManualMappingDTO,
+        path: Path,
+        quarantine_ref: str,
+    ) -> None:
+        """Move an unconverted legacy row out of the active mappings glob.
+
+        A row that cannot be converted keeps its legacy shape, and
+        `projects/<p>/mappings/*.json` is the glob that
+        `LocalJsonProjectRepository.list_for_project` reads as
+        `ManualMapping`. Leaving the original in place therefore fails the
+        whole project's mapping listing closed with `StateCorruptionError`
+        — one unconverted row takes down every flow that lists mappings.
+
+        Provenance chain after this move (files owner-only `0600`; the
+        directories stay `0755`, as `_backup` / `_quarantine` already
+        leave them):
+        - `migration-backups/<project>/<mapping>.<token>.legacy.json`
+          plus an `index.json` entry — re-serialized payload (`_backup`)
+        - `migration-quarantine/<project>/<mapping>.<token>.legacy.json`
+          — re-serialized payload wrapped with migration version and
+          input digest (`_quarantine`)
+        - `migration-quarantine/<project>/<mapping>.<token>.original.json`
+          — the file moved here, byte-for-byte as the operator held it.
+
+        Both copies above are re-serializations (sorted keys, normalized
+        indent), so the moved file is the only byte-exact evidence of the
+        pre-migration state; that is why this retires the original by
+        moving it rather than unlinking it. The row is quarantined, never
+        skipped in place: a per-file skip would be the silent dual-read
+        this cutover exists to remove.
+
+        `os.chmod` only moves the read-only bit on Windows, matching the
+        pre-existing `_backup` / `_quarantine` behaviour.
+        """
+        target = self._quarantine_file(legacy, quarantine_ref, "original")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            # Same token means the same input digest, so the evidence
+            # already banked here IS this row — and it is byte-exact,
+            # while whatever is back in `mappings/` can only be a
+            # normalized restore of it. Never clobber the stronger copy;
+            # drop the source instead. (`_backup` / `_quarantine` guard
+            # their writes the same way.)
+            path.unlink()
+            return
+        os.chmod(path, 0o600)
+        os.replace(path, target)
+
+    def _quarantine_file(
+        self,
+        legacy: LegacyManualMappingDTO,
+        quarantine_ref: str,
+        suffix: str,
+    ) -> Path:
+        token = quarantine_ref.removeprefix("quarantine:")
+        return (
+            self._storage.root
+            / "migration-quarantine"
+            / self._storage.segment(legacy.project_id)
+            / (
+                f"{self._storage.segment(legacy.mapping_id)}."
+                f"{token}.{suffix}.json"
+            )
+        )
+
     @staticmethod
     def _quarantine_ref(input_digest: str) -> str:
         return "quarantine:" + input_digest.removeprefix("sha256:")[:16]
@@ -427,6 +521,18 @@ class LegacyManualMappingMigrationService:
         payload: dict[str, object],
         path: Path,
     ) -> LegacyMappingMigrationItem:
+        """Report a row that could not be read as a legacy mapping.
+
+        Unlike `requires_manual_review` rows these are deliberately NOT
+        retired out of `mappings/`: without a validated DTO there is no
+        trustworthy project/mapping id to build a provenance-bearing
+        quarantine path from, and no backup has been written, so moving
+        the file would put state where nothing can trace it back. They
+        therefore keep failing `list_for_project` closed until resolved —
+        `partial_requires_retry` means exactly "retry". Deciding custody
+        for unparseable rows is a Plan 15 hand-off, not this migration's
+        call.
+        """
         del path
         return LegacyMappingMigrationItem(
             mapping_id=str(payload.get("mapping_id", "mapping:unknown")),
@@ -449,6 +555,7 @@ class LegacyManualMappingMigrationService:
         items: list[LegacyMappingMigrationItem],
         *,
         apply: bool,
+        unresolved_quarantined: int,
     ) -> LegacyMappingMigrationReport:
         counts = {
             status: sum(item.status == status for item in items)
@@ -480,8 +587,14 @@ class LegacyManualMappingMigrationService:
             already_migrated=counts["already_migrated"],
             requires_manual_review=counts["requires_manual_review"],
             failed=counts["failed"],
+            unresolved_quarantined=unresolved_quarantined,
+            # Strict per-run rule (any requires_manual_review or failed row
+            # blocks) OR'd with the durable bag, so the gate cannot reopen
+            # on a later run while retired rows remain unresolved.
             cutover_blocked=bool(
-                counts["requires_manual_review"] or counts["failed"]
+                counts["requires_manual_review"]
+                or counts["failed"]
+                or unresolved_quarantined
             ),
             items=items,
         )

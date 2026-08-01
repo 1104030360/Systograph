@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import os
-from typing import cast
+from typing import Final, cast
 
 from systograph.core.models.map_build import SystemMapSchemaSelection
 
 CANONICAL_OUTPUT_ENV = "SYSTOGRAPH_CANONICAL_OUTPUT_VERSION"
+# Operator rollback selection. Callers compare against this constant so the
+# legacy literal stays owned by this module instead of spreading into the
+# active build path.
+LEGACY_CANONICAL_OUTPUT_VERSION: Final[SystemMapSchemaSelection] = (
+    "ai-system-map/v1"
+)
 
 
 class CanonicalOutputConfigurationError(ValueError):
@@ -29,5 +35,5 @@ def canonical_output_version_from_env() -> SystemMapSchemaSelection:
 def require_public_v2_selection(
     requested: SystemMapSchemaSelection,
 ) -> None:
-    if requested == "ai-system-map/v1":
+    if requested == LEGACY_CANONICAL_OUTPUT_VERSION:
         raise CanonicalOutputConfigurationError("legacy_output_not_selectable")

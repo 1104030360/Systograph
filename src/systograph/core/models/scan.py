@@ -1,4 +1,4 @@
-"""Scanner workflow models that are not part of ai-system-map/v1."""
+"""Scanner workflow models that are not part of ai-system-map/v2."""
 
 from __future__ import annotations
 

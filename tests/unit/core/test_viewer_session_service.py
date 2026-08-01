@@ -13,9 +13,6 @@ from systograph.core.services.graph_projection_service import (
 from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from systograph.core.services.system_map_validation_service import (
-    SystemMapValidationService,
-)
 from systograph.core.services.viewer_session_service import (
     ViewerSessionService,
 )
@@ -164,6 +161,63 @@ def test_v1_viewer_characterization_preserves_recommended_next_checks() -> (
     ]
 
 
+def test_v1_recommended_next_checks_come_from_normalized_map() -> None:
+    # Given: a v1 artifact whose checks must survive normalization
+    loaded = CanonicalMapLoader().load(
+        json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    )
+    assert loaded.legacy_source_map is not None
+
+    # When
+    graph = ViewerSessionService().build_loaded(loaded).graph_view_model
+
+    # Then: the projection reads normalized v2, not the legacy source map
+    assert graph.recommended_next_checks
+    assert [
+        check.model_dump(mode="json")
+        for check in graph.recommended_next_checks
+    ] == [
+        check.model_dump(mode="json")
+        for check in loaded.normalized.recommended_next_checks
+    ]
+
+
+def test_v2_recommended_next_checks_use_the_same_projection() -> None:
+    # Given: a native v2 artifact carrying canonical recommended next checks
+    payload = json.loads(V2_FIXTURE_PATH.read_text(encoding="utf-8"))
+    payload["recommended_next_checks"] = [
+        {
+            "id": "check:runtime_readiness:component-llm-openai",
+            "target_type": "component_instance",
+            "target": "component:llm:openai",
+            "reason": "External model endpoint needs a runtime check.",
+            "action": "review_runtime_readiness",
+        }
+    ]
+    loaded = CanonicalMapLoader().load(payload)
+    assert loaded.legacy_source_map is None
+
+    # When
+    graph = ViewerSessionService().build_loaded(loaded).graph_view_model
+
+    # Then
+    assert [
+        check.model_dump(mode="json")
+        for check in graph.recommended_next_checks
+    ] == payload["recommended_next_checks"]
+
+
+def test_v1_projection_keeps_recommended_next_check_order() -> None:
+    data = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    loaded = CanonicalMapLoader().load(data)
+
+    graph = ViewerSessionService().build_loaded(loaded).graph_view_model
+
+    assert [check.id for check in graph.recommended_next_checks] == [
+        check["id"] for check in data["recommended_next_checks"]
+    ]
+
+
 def test_load_map_projects_full_graph_without_layout_or_second_truth() -> None:
     load_result = ViewerSessionService().load_map(FIXTURE_PATH)
 
@@ -262,12 +316,8 @@ def test_native_v2_load_has_no_projection_schema_branch() -> None:
     assert "reference_capability" in semantic_kinds
 
 
-def test_project_to_graph_filters_highlight_and_dim_without_removing() -> None:
-    system_map = SystemMapValidationService().validate(
-        json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
-    )
-
-    graph = ViewerSessionService().project_to_graph(system_map)
+def test_v1_projection_filters_highlight_and_dim_without_removing() -> None:
+    graph = ViewerSessionService().load_map(FIXTURE_PATH).graph_view_model
 
     filters = {item.id: item for item in graph.filters.available}
     query_filter = filters["filter:flow:query_answer"]
@@ -296,9 +346,9 @@ def test_slot_only_edges_route_to_existing_component_nodes() -> None:
     assert target_edge["id"] == "edge:query_answer:retriever:vector_store"
     target_edge["from_component_id"] = None
     target_edge["to_component_id"] = None
-    system_map = SystemMapValidationService().validate(data)
+    loaded = CanonicalMapLoader().load(data)
 
-    graph = ViewerSessionService().project_to_graph(system_map)
+    graph = ViewerSessionService().build_loaded(loaded).graph_view_model
 
     node_ids = {node.id for node in graph.nodes}
     node_by_source = {
@@ -318,6 +368,30 @@ def test_slot_only_edges_route_to_existing_component_nodes() -> None:
     assert edge.to == node_by_source["component:vector_store:qdrant"].id
 
 
+def test_build_canonical_projects_an_already_typed_v2_map() -> None:
+    # Given: the active entry for callers that already hold a typed map
+    normalized = (
+        CanonicalMapLoader()
+        .load(json.loads(V2_FIXTURE_PATH.read_text(encoding="utf-8")))
+        .normalized
+    )
+
+    # When
+    result = ViewerSessionService().build_canonical(
+        normalized,
+        map_json_path=Path("outputs/ai_system_map.json"),
+    )
+
+    # Then
+    assert result.loaded is True
+    assert result.error_reason is None
+    assert result.ai_system_map["schema_version"] == "ai-system-map/v2"
+    assert result.graph_view_model.source_schema_version == "ai-system-map/v2"
+    assert result.graph_view_model.nodes
+    assert "viewer_load_result" not in result.ai_system_map
+    assert "graph_view_model" not in result.ai_system_map
+
+
 def test_viewer_session_service_is_pure_projection_boundary() -> None:
     source = inspect.getsource(viewer_session_module)
 
@@ -329,12 +403,14 @@ def test_viewer_session_service_is_pure_projection_boundary() -> None:
 
 
 def test_viewer_projection_indexes_canonical_evidence_and_risks() -> None:
-    system_map = SystemMapValidationService().validate(
+    loaded = CanonicalMapLoader().load(
         json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
     )
+    system_map = loaded.legacy_source_map
+    assert system_map is not None
 
-    viewer_load_result = ViewerSessionService().build(
-        system_map,
+    viewer_load_result = ViewerSessionService().build_loaded(
+        loaded,
         map_json_path=Path("outputs/ai_system_map.json"),
     )
 
@@ -367,14 +443,11 @@ def test_v1_compatibility_details_preserve_profile_projection_details() -> (
     None
 ):
     # Given
-    system_map = SystemMapValidationService().validate(
+    loaded = CanonicalMapLoader().load(
         json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
     )
-    normalized = (
-        CanonicalMapLoader()
-        .load(system_map.model_dump(mode="json"))
-        .normalized
-    )
+    assert loaded.legacy_source_map is not None
+    normalized = loaded.normalized
     profile_result = ProfileInferenceService().infer(
         normalized,
         build_id="build:viewer-details",
@@ -385,11 +458,7 @@ def test_v1_compatibility_details_preserve_profile_projection_details() -> (
     # When
     graph = (
         ViewerSessionService()
-        .build(
-            system_map,
-            normalized_system_map=normalized,
-            profile_result=profile_result,
-        )
+        .build_loaded(loaded, profile_result=profile_result)
         .graph_view_model
     )
 
@@ -406,18 +475,19 @@ def test_v1_compatibility_details_preserve_profile_projection_details() -> (
 
 
 def test_viewer_projection_does_not_mutate_canonical_map() -> None:
-    system_map = SystemMapValidationService().validate(
+    loaded = CanonicalMapLoader().load(
         json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
     )
 
-    ViewerSessionService().build(
-        system_map,
+    ViewerSessionService().build_loaded(
+        loaded,
         map_json_path=Path("outputs/ai_system_map.json"),
     )
 
-    data = system_map.model_dump(mode="json")
-    assert "viewer_load_result" not in data
-    assert "graph_view_model" not in data
+    for source in (loaded.source_map, loaded.normalized):
+        data = source.model_dump(mode="json")
+        assert "viewer_load_result" not in data
+        assert "graph_view_model" not in data
 
 
 def test_v1_viewer_keeps_public_map_with_normalized_projection() -> None:

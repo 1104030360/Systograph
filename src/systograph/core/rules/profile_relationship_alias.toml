@@ -1,0 +1,21 @@
+# Profile relationship gate aliases -- TRANSITIONAL mechanism.
+#
+# Each key is a profile card's `required_relationship`; each value
+# lists FlowDerivation relationship names that carry the same wiring
+# meaning today. The Step 6 relationship gate looks up the card's own
+# relationship name plus these aliases, and every alias-expanded edge
+# stays subject to the same endpoint constraint (>= 1 endpoint on a
+# component backing one of the card's required reference nodes).
+#
+# This table exists only because the scanner cannot yet emit the
+# relationship names the cards ask for. Once UA lands and emits real
+# `context_flow` edges with call-site evidence, entries are deleted one
+# by one: deleting a row is a data change, not a code change.
+#
+# Keys are fail-closed validated against `profile_rule_definitions.py`
+# and values against `FlowDerivationService.RELATIONSHIPS`, so a typo
+# fails the load instead of silently disabling a gate. Duplicate keys
+# are rejected by the TOML parser itself.
+
+[relationship_aliases]
+context_flow = ["provides_retrieved_context", "prompts_llm"]
