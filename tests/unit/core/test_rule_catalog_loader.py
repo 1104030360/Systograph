@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.services.rule_catalog_loader import (
+from systograph.core.services.rule_catalog_loader import (
     RuleCatalogError,
     RuleCatalogLoader,
 )

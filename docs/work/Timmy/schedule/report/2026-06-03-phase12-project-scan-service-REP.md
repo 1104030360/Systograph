@@ -29,12 +29,12 @@ FilesystemProvider
    - `basic_qdrant_ollama_rag` 可聚合 Docker / dependency / code pattern facts。
    - `malformed_config_rag` 會保留 parse issues 和 parse error evidence，不 crash。
 4. RED 階段確認兩個新測試檔都因 `ProjectScanService` 尚不存在而失敗。
-5. 擴充 `src/kai_mind/core/models/scan.py`：
+5. 擴充 `src/systograph/core/models/scan.py`：
    - `ScanFact.provider`
    - `ParseIssue.scan_stage = "project_scan"`
    - `SkippedFileSummary`
    - `ProjectScanResult`
-6. 建立 `src/kai_mind/core/services/project_scan_service.py`：
+6. 建立 `src/systograph/core/services/project_scan_service.py`：
    - default provider wiring。
    - dependency injection，方便 unit tests。
    - `collect()` exception isolation。
@@ -56,7 +56,7 @@ RED 階段：
 兩者都先失敗在：
 
 ```text
-ModuleNotFoundError: No module named 'kai_mind.core.services.project_scan_service'
+ModuleNotFoundError: No module named 'systograph.core.services.project_scan_service'
 ```
 
 GREEN 後針對 Phase 12：

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/168
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/168
 
 **Goal:** 測試不得依賴開發者本機絕對路徑或 process CWD 才能找到 fixtures。
 
@@ -56,7 +56,7 @@
 
 ```bash
 .venv/bin/pytest tests/contracts/test_secret_snapshot_safety.py tests/unit/core/test_cross_platform_paths.py tests/web/test_local_api_hardening.py tests/cli -v
-(cd /tmp && /Users/linjunting/Local_AI_Health_Doctor/.venv/bin/pytest /Users/linjunting/Local_AI_Health_Doctor/tests/cli/test_viewer_command.py -v)
+(cd /tmp && /Users/linjunting/Systograph/.venv/bin/pytest /Users/linjunting/Systograph/tests/cli/test_viewer_command.py -v)
 .venv/bin/pytest
 .venv/bin/ruff check .
 .venv/bin/mypy

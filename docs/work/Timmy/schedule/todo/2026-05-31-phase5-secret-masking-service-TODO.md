@@ -32,7 +32,7 @@ GUI detail、query trace 與 mapping proposal 後續都能走同一條遮罩路�
 
 ### 2. Green：建立最小 service
 
-- 新增 `src/kai_mind/core/services/secret_masking_service.py`。
+- 新增 `src/systograph/core/services/secret_masking_service.py`。
 - 實作 `mask_value(value: str, key: str | None = None) -> str`。
 - 實作 `mask_text(text: str) -> str`。
 - 實作 `mask_json_like(value)`。

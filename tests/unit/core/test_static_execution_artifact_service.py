@@ -3,18 +3,18 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     CanonicalEvidence,
     CanonicalEvidenceLocation,
     CanonicalUnmappedComponent,
 )
-from kai_mind.core.models.mapping import (
+from systograph.core.models.mapping import (
     ManualMapping,
     ManualMappingDecision,
     ManualMappingType,
 )
-from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
-from kai_mind.core.services.static_execution_artifact_service import (
+from systograph.core.services.canonical_map_loader import CanonicalMapLoader
+from systograph.core.services.static_execution_artifact_service import (
     StaticExecutionArtifactService,
 )
 

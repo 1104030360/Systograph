@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
     CanonicalCandidateFact,
     CanonicalComponent,
@@ -16,24 +16,25 @@ from kai_mind.core.models.ai_system_map_v2 import (
     CanonicalEndpoint,
     CanonicalEvidence,
     CanonicalProject,
+    CanonicalRecommendedNextCheck,
     CanonicalRiskHint,
     CanonicalUnmappedComponent,
 )
-from kai_mind.core.models.readiness_report import ReadinessFinding
-from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.models.readiness_report import ReadinessFinding
+from systograph.core.services.canonical_map_loader import CanonicalMapLoader
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.readiness_report_service import (
+from systograph.core.services.readiness_report_service import (
     ReadinessReportService,
 )
-from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+from systograph.core.services.system_map_v1_to_v2_adapter import (
     SystemMapV1ToV2Adapter,
 )
-from kai_mind.core.services.system_map_v2_validation_service import (
+from systograph.core.services.system_map_v2_validation_service import (
     SystemMapV2ValidationService,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 
@@ -61,6 +62,7 @@ class CanonicalFactSignature:
     risk_hints: tuple[CanonicalRiskHint, ...]
     unmapped_components: tuple[CanonicalUnmappedComponent, ...]
     candidate_facts: tuple[CanonicalCandidateFact, ...]
+    recommended_next_checks: tuple[CanonicalRecommendedNextCheck, ...]
     readiness_findings: tuple[ReadinessFinding, ...]
 
 
@@ -223,6 +225,9 @@ def _canonical_fact_signature(
                 key=lambda item: item.candidate_fact_id,
             )
         ),
+        # Order is part of the contract: checks are service-sorted at build
+        # time and the adapter must copy them without re-sorting.
+        recommended_next_checks=tuple(system_map.recommended_next_checks),
         readiness_findings=_readiness_findings(system_map),
     )
 

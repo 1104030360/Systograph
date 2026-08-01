@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from tests.web.test_map_build_apply_routes import prepare_apply
 
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def test_query_trace_binds_source_build_without_creating_child(

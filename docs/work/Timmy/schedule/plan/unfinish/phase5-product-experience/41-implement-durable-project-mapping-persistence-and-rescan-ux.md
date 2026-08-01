@@ -34,7 +34,7 @@ registry JSON」敘述：
 - **Rescan**：只有 repo內容、import source或 scan boundary改變時才呼叫
   `POST /api/scans`，建立新 `scan_id`與 initial build。
 - **Persistence**：Plan 03A已擁有 atomic local JSON repositories、project/scan/build/mapping
-  lineage與 latest-build switch。Task 41不得新增 `outputs/.kai_mind_project_registry.json`
+  lineage與 latest-build switch。Task 41不得新增 `outputs/.systograph_project_registry.json`
   或另一套 local persistence。
 - **Phase3**：Task 26增加 history/retention/query orchestration；Task 27以 PostgreSQL adapter
   替換同一組 repositories。
@@ -155,7 +155,7 @@ erDiagram
 
 ### 程式碼現況（已驗證）
 
-```38:75:src/kai_mind/core/services/manual_mapping_service.py
+```38:75:src/systograph/core/services/manual_mapping_service.py
 class ManualMappingRepository(Protocol):
     ...
     def list_for_project(self, project_id: str) -> list[ManualMapping]:
@@ -171,7 +171,7 @@ class InMemoryManualMappingRepository:
         )
 ```
 
-```246:262:src/kai_mind/core/services/map_build_service.py
+```246:262:src/systograph/core/services/map_build_service.py
     def _detect_components(..., project_id: str | None, ...) -> ComponentDetectionResult:
         result = self._component_detection_service.detect(...)
         if project_id is not None and self._manual_mapping_service is not None:
@@ -179,7 +179,7 @@ class InMemoryManualMappingRepository:
         return result
 ```
 
-```38:51:src/kai_mind/web/session_store.py
+```38:51:src/systograph/web/session_store.py
     def import_project(...):
         record = ProjectRecord(
             project_id=f"project:{uuid4()}",
@@ -414,8 +414,8 @@ scripts/trace_mapping_apply_rescan_flow.sh --project-path tests/fixtures/rag_pro
 ### Task E（可選）: Import path dedup
 
 **Files:**
-- Modify: `src/kai_mind/core/services/session_history_service.py`
-- Modify: `src/kai_mind/web/routes/project_routes.py`
+- Modify: `src/systograph/core/services/session_history_service.py`
+- Modify: `src/systograph/web/routes/project_routes.py`
 - Test: `tests/web/test_project_import_dedup.py`
 
 - [ ] **Step 1:** 計算 canonical path hash（normalize + redaction policy 一致）
@@ -479,11 +479,11 @@ scripts/trace_mapping_apply_rescan_flow.sh
 
 | 項目 | 連結 / 檔案 |
 |------|-------------|
-| Persistent session / scan history | [#126](https://github.com/1104030360/Local-AI-Health-Doctor/issues/126) → Task 26 |
-| Session store growth bound | [#150](https://github.com/1104030360/Local-AI-Health-Doctor/issues/150) |
-| Session store thread safety | [#174](https://github.com/1104030360/Local-AI-Health-Doctor/issues/174) |
-| PostgreSQL storage | [#127](https://github.com/1104030360/Local-AI-Health-Doctor/issues/127) → Task 27 |
-| Frontend project/scan flow | [#176](https://github.com/1104030360/Local-AI-Health-Doctor/issues/176)–[#181](https://github.com/1104030360/Local-AI-Health-Doctor/issues/181) |
+| Persistent session / scan history | [#126](https://github.com/1104030360/Systograph/issues/126) → Task 26 |
+| Session store growth bound | [#150](https://github.com/1104030360/Systograph/issues/150) |
+| Session store thread safety | [#174](https://github.com/1104030360/Systograph/issues/174) |
+| PostgreSQL storage | [#127](https://github.com/1104030360/Systograph/issues/127) → Task 27 |
+| Frontend project/scan flow | [#176](https://github.com/1104030360/Systograph/issues/176)–[#181](https://github.com/1104030360/Systograph/issues/181) |
 | Phase2 / downstream plan index | [`../phase2/README.md`](../phase2/README.md) |
 | Mapping 領域說明 | `docs/work/Timmy/meeting/contract-model/06-mapping-workflow.md` |
 | API 契約 | `docs/API-GUIDE.md`、`frontend/API_CONTRACT.md` |

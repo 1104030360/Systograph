@@ -9,19 +9,19 @@ from tests.helpers.profile_inference import (
     load_profile_map,
 )
 
-from kai_mind.core.models.profile_signal import (
+from systograph.core.models.profile_signal import (
     EvidenceStrength,
     ImplementationDepthLevel,
     ProfileStatus,
 )
-from kai_mind.core.services.profile_finding_service import (
+from systograph.core.services.profile_finding_service import (
     ProfileFindingService,
 )
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services.profile_inference_service import (
     MVP_CAPABILITY_PROFILE_IDS,
     ProfileInferenceService,
 )
-from kai_mind.core.services.profile_registry_loader import (
+from systograph.core.services.profile_registry_loader import (
     ProfileMetadataCoverageError,
     ProfileRegistryLoader,
 )

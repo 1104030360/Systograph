@@ -28,23 +28,23 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --max-time)
       i=$((i + 1))
-      MAX_TIME="${KAI_EXTRA_ARGS[$i]:?missing value for --max-time}"
+      MAX_TIME="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --max-time}"
       ;;
-    *) kai_die "Unknown option: $arg" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
-kai_section "訂閱掃描進度：GET /api/scan/events (SSE)"
-kai_progress "現在要訂閱 scan 進度事件串流..."
+systograph_section "訂閱掃描進度：GET /api/scan/events (SSE)"
+systograph_progress "現在要訂閱 scan 進度事件串流..."
 echo "-------------------- REQUEST --------------------"
 echo "GET $API_BASE_URL/api/scan/events"
 echo "Accept: text/event-stream"

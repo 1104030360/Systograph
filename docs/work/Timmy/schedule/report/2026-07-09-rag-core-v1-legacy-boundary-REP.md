@@ -3,7 +3,7 @@
 ## 目標
 
 執行 phase2 第一個 contract compatibility 階段：
-`/Users/linjunting/Local_AI_Health_Doctor/docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s0-contract-compatibility/00-define-rag-core-v1-legacy-template-boundary.md`。
+`/Users/linjunting/Systograph/docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s0-contract-compatibility/00-define-rag-core-v1-legacy-template-boundary.md`。
 
 本階段目標是把 `rag-core-v1` 固定成 legacy template input，補上
 characterization / regression guard，並新增 read-only deterministic 的 v1-to-v2
@@ -30,8 +30,8 @@ adapter boundary。現行 active v1 build path 不做 silent cutover。
    - `ViewerSessionService` 仍投影 v1 map 成 `GraphViewModel`。
 3. 建立 TODO：`docs/work/Timmy/schedule/todo/2026-07-09-rag-core-v1-legacy-boundary-TODO.md`。
 4. 補 `RagTemplateService.boundary_metadata()` 與 regression tests。
-5. 新增 `src/kai_mind/core/models/ai_system_map_v2.py`。
-6. 新增 `src/kai_mind/core/services/system_map_v1_to_v2_adapter.py`。
+5. 新增 `src/systograph/core/models/ai_system_map_v2.py`。
+6. 新增 `src/systograph/core/services/system_map_v1_to_v2_adapter.py`。
 7. 新增 `tests/unit/core/test_system_map_v1_to_v2_adapter.py`。
 8. 補上 evidence 全集合與同 slot multi-instance regression tests。
 9. 跑 targeted tests、全套 pytest、mypy、ruff scope、diff check。

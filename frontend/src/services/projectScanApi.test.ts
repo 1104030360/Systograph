@@ -59,6 +59,9 @@ describe("projectScanApi Inventory Preflight contract", () => {
     });
 
     expect(response.status).toBe("completed");
+    if (response.status !== "completed") {
+      throw new Error("Expected the completed scan response fixture.");
+    }
     expect(response.scan_id).toBe("scan:sample-s1");
     expect(response.inventory_selection_summary?.directory_scope_results[0]).toMatchObject({
       target_path: "node_modules/small-local-package",
@@ -81,7 +84,7 @@ describe("projectScanApi Inventory Preflight contract", () => {
     });
 
     expect(response.status).toBe("requires_boundary_decision");
-    expect(response.scan_id).toBeUndefined();
+    expect("scan_id" in response).toBe(false);
     expect(response.boundary_proposals[0].selection_context.selection_scope).toBe("exact_file");
   });
 

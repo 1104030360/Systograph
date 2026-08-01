@@ -2,7 +2,7 @@
 
 ## 目標
 
-完成 Plan 19 與 Plan 20 backend scope：先把 KAI-Mind 預設路徑規則收斂到
+完成 Plan 19 與 Plan 20 backend scope：先把 Systograph 預設路徑規則收斂到
 `scan_inventory_rules.toml`，再提供 metadata-only preflight、exact file／bounded directory
 單次選擇、不可覆寫的 filesystem safety、snapshot provenance 與實際 API trace。
 

@@ -42,9 +42,9 @@ marketplace。它只描述「用哪個 scanner preset / boundary / template vers
 ### Task 1: Define scan configuration models and registry
 
 **Files:**
-- Create: `src/kai_mind/core/models/scan_configuration.py`
-- Create: `src/kai_mind/core/services/scan_configuration_registry_service.py`
-- Create: `src/kai_mind/core/scan_configurations/default-static-readiness.toml`
+- Create: `src/systograph/core/models/scan_configuration.py`
+- Create: `src/systograph/core/services/scan_configuration_registry_service.py`
+- Create: `src/systograph/core/scan_configurations/default-static-readiness.toml`
 - Test: `tests/unit/core/test_scan_configuration_registry_service.py`
 
 - [ ] **Step 1: Write model validation tests**
@@ -55,9 +55,9 @@ marketplace。它只描述「用哪個 scanner preset / boundary / template vers
 ### Task 2: Add read-only scan configuration API
 
 **Files:**
-- Create: `src/kai_mind/web/routes/scan_configuration_routes.py`
-- Modify: `src/kai_mind/web/app.py`
-- Modify: `src/kai_mind/web/schemas.py`
+- Create: `src/systograph/web/routes/scan_configuration_routes.py`
+- Modify: `src/systograph/web/app.py`
+- Modify: `src/systograph/web/schemas.py`
 - Test: `tests/web/test_scan_configuration_routes.py`
 
 - [ ] **Step 1: Add `GET /api/scan-configurations`**

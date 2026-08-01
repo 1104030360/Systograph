@@ -6,7 +6,7 @@
 
 ## 1. 工作目標
 
-Hardy 負責建立 Epic 1 的「呈現與互動層」。也就是讓使用者可以透過 `kai-mind viewer <map_json>` 載入 Timmy 產出的 `ai_system_map.json`，用互動式 graph 看懂 RAG System Map，並能查看 node / edge evidence、risk hints、filter highlight 與 query trace replay。
+Hardy 負責建立 Epic 1 的「呈現與互動層」。也就是讓使用者可以透過 `systograph viewer <map_json>` 載入 Timmy 產出的 `ai_system_map.json`，用互動式 graph 看懂 RAG System Map，並能查看 node / edge evidence、risk hints、filter highlight 與 query trace replay。
 
 這一側的重點不是重新掃描 repo，而是把 Timmy 產出的事實層清楚呈現出來。
 
@@ -22,7 +22,7 @@ Hardy 的核心原則：
 
 ### Hardy 負責
 
-- `kai-mind viewer <map_json>`。
+- `systograph viewer <map_json>`。
 - Local RAG System Map Viewer。
 - graph view model。
 - node / edge rendering。
@@ -51,18 +51,18 @@ Hardy 的核心原則：
 
 | 類別 | 建議路徑 | 說明 |
 |---|---|---|
-| Viewer adapter | `src/kai_mind/web/` | Local Web UI / in-process viewer adapter |
-| CLI viewer command | `src/kai_mind/cli/` | `kai-mind viewer <map_json>` command wiring |
-| Graph view model | `src/kai_mind/core/services/` 或 `src/kai_mind/web/` | 將 `ai_system_map.json` 轉成 UI 可用 nodes / edges |
-| UI components | `src/kai_mind/web/components/` | graph、detail panel、filters、trace replay controls |
-| Trace UI | `src/kai_mind/web/trace/` | query form、trace event list、replay state |
+| Viewer adapter | `src/systograph/web/` | Local Web UI / in-process viewer adapter |
+| CLI viewer command | `src/systograph/cli/` | `systograph viewer <map_json>` command wiring |
+| Graph view model | `src/systograph/core/services/` 或 `src/systograph/web/` | 將 `ai_system_map.json` 轉成 UI 可用 nodes / edges |
+| UI components | `src/systograph/web/components/` | graph、detail panel、filters、trace replay controls |
+| Trace UI | `src/systograph/web/trace/` | query form、trace event list、replay state |
 | Tests | `tests/web/`, `tests/contracts/` | viewer load、invalid map、filters、trace replay |
 
 ## 4. 主要工作項目
 
 ### B1. 建立 viewer load flow
 
-- [ ] 實作 `kai-mind viewer <map_json>` 的入口。
+- [ ] 實作 `systograph viewer <map_json>` 的入口。
 - [ ] 載入 `ai_system_map.json`。
 - [ ] 驗證 map JSON 基本格式。
 - [ ] valid map 時建立 graph view model。
@@ -71,8 +71,8 @@ Hardy 的核心原則：
 
 驗收條件：
 
-- `kai-mind viewer outputs/ai_system_map.json` 能載入正常 map。
-- `kai-mind viewer outputs/broken-map.json` 顯示 `map_json` 與 `error_reason`。
+- `systograph viewer outputs/ai_system_map.json` 能載入正常 map。
+- `systograph viewer outputs/broken-map.json` 顯示 `map_json` 與 `error_reason`。
 - invalid map 不會出現空白畫面或半殘 graph。
 
 ### B2. 建立 graph view model
@@ -292,7 +292,7 @@ Timmy 需要特別檢查 Hardy 的 PR：
 
 Hardy 的 Epic 1 工作完成標準：
 
-- [ ] `kai-mind viewer <map_json>` 可載入 valid `ai_system_map.json`。
+- [ ] `systograph viewer <map_json>` 可載入 valid `ai_system_map.json`。
 - [ ] invalid map JSON 顯示 error state，不顯示 graph。
 - [ ] graph 顯示 indexing flow 與 query_answer flow。
 - [ ] node / edge 可點選並顯示 detail panel。

@@ -25,7 +25,7 @@
 | 未知欄位 | 寫入類 endpoint `extra="forbid"` |
 | 錯誤格式 | `{ "detail": string }`；422 時 `detail` 為陣列 |
 | 安全錯誤 | 413/500 不回 raw secret、exception string、absolute path |
-| State | Project workflow 使用 `${KAI_MIND_STATE_DIR:-~/.kai-mind}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復。Demo `/api/map` 仍保留 process-latest compatibility |
+| State | Project workflow 使用 `${SYSTOGRAPH_STATE_DIR:-~/.systograph}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復。Demo `/api/map` 仍保留 process-latest compatibility |
 
 ### 兩種流程
 
@@ -73,7 +73,7 @@
 
 ```bash
 # 1. 啟動後端
-.venv/bin/uvicorn kai_mind.web.app:create_app --factory --host 127.0.0.1 --port 8000
+.venv/bin/uvicorn systograph.web.app:create_app --factory --host 127.0.0.1 --port 8000
 
 # 2. 一次性掃描並取得 viewer payload（最簡單的 demo 路徑）
 curl -s -X POST http://127.0.0.1:8000/api/map/build \
@@ -137,7 +137,7 @@ Response `200`：
 ### POST /api/projects/{project_id}/scan-preflights
 
 建立可重試、無持久化副作用的 metadata-only inventory preflight。它會先套用
-`scan_inventory_rules.toml`、Git／`.gitignore` 與不可覆寫的 filesystem safety，再回傳 KAI
+`scan_inventory_rules.toml`、Git／`.gitignore` 與不可覆寫的 filesystem safety，再回傳 Systograph
 建議預設、必要敏感檔確認、可單次覆寫的 soft exclusions，以及 exact path 查詢結果。
 Preflight 不讀候選檔內容、不產 snippet，也不建立 `scan_id`、snapshot、build 或 output。
 
@@ -226,7 +226,7 @@ identity，並在同一file handle建立content SHA-256；snapshot保存前會�
 
 `scan_this_run`／`skip_this_run` 只作用於這次 scan，不改 `.gitignore`、TOML 或 Manual Mapping。
 Directory decision涵蓋所有 selectable descendants；hard-blocked child仍保持 blocked，exact child
-decision優先。沒有 optional decision 時維持 KAI default；缺 required sensitive decision 時回
+decision優先。沒有 optional decision 時維持 Systograph default；缺 required sensitive decision 時回
 `requires_boundary_decision`。
 
 Pending response 不含 `scan_id`，也沒有 snapshot/build/latest pointer：
@@ -318,7 +318,7 @@ data: {"event":"scan_progress","status":"completed","stage":"validate","message"
 All-in-one viewer / demo build：送入 path 觸發 L1 build，寫出 artifact，更新 current
 runtime 的 process-wide latest `/api/map`。
 
-Current runtime 的 Step 3 仍由現有 KAI scan providers 執行。Phase B/C target 才改由
+Current runtime 的 Step 3 仍由現有 Systograph scan providers 執行。Phase B/C target 才改由
 UA structural sidecar 主導，並在 UA 失敗時 fail closed。
 
 > **不建立 project session**——沒有 `project_id`，build result 也不會存到 project-scoped store。若要接 `detail-scans` 或 `mapping-proposals`，請改走 `import` → `scans`。
@@ -375,6 +375,10 @@ Current runtime response `200`（`MapBuildResult`）：
 
 > Current runtime 的 `output_run_dir` 與 `*_path` 可能是 server-local absolute path，
 > 僅屬 compatibility contract。Phase2 target response 不得新增或延續 absolute-path 欄位。
+
+> `ai_system_map` 帶 deterministic `recommended_next_checks[]`（scan-fact checks，欄位語意
+> 見 MODEL-CONTRACT §5.3）。此欄位為 additive，缺此欄位的舊 artifact 仍可載入；但 pin 舊
+> v2 schema copy 的 strict validator 需先更新 schema copy 才能驗證新 artifact。
 
 正式 project workflow 不使用這個 demo response 當 history contract；它透過下節的
 `MapBuildScopedResponse` 回傳 scan/build lineage，且不暴露上述 absolute paths。
@@ -624,6 +628,11 @@ GET /api/map/report?download=true   # 觸發附件下載
 
 Response `200`：`Content-Type: text/markdown; charset=utf-8`（純文字）。
 
+Report 的 `## Recommended Next Checks` 底下**並列兩段**：`### Scan-fact checks`（map 的
+`recommended_next_checks[]`）與 `### Capability review checks`（profile 評估的 per-node
+checks）。兩段各自去重、互不遮蔽；任一段為空時仍保留標題並標示 no checks（見
+MODEL-CONTRACT §5.3）。
+
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |
 | `map_markdown_not_available` | 404 | 尚無成功的 build，或檔案不存在 |
@@ -682,6 +691,12 @@ Response `200`：
 | `base_build_not_latest` | 409 | 指定 build 已不是 latest，避免 lineage fork |
 | `scan_snapshot_stale` | 409 | 目標檔案 fingerprint 已變更，需 explicit rescan |
 | `profile_sidecar_unavailable` | 409 | parent profile sidecar 缺失或 invalid；base graph 仍可讀，但不得發布語意不完整的 child build |
+| `legacy_rollback_not_representable` | 422 | 僅 operator rollback 模式；preflight 判定該 map 無法以 v1 表示。詳見〈Operator rollback 專用 error code〉 |
+| `legacy_rollback_detail_scan_unsupported` | 422 | 僅 operator rollback 模式；rollback writer 不支援 enriched map。詳見〈Operator rollback 專用 error code〉 |
+
+> **兩者的優先順序（rollback 模式下）：** preflight 先跑，因此 map 若不可表示，回的是較具體的
+> `legacy_rollback_not_representable`；只有通過 preflight 的 map 才會走到
+> `legacy_rollback_detail_scan_unsupported`。normal v2 模式下兩者都不會出現。
 
 ### GET /api/detail-scans/{detail_scan_id}
 
@@ -772,7 +787,7 @@ Response `200`：
 - `build_id` 指定 trace source；省略時使用 latest 並回 `latest_build_fallback` warning
 - 預設阻擋 non-global / private / metadata 位址；egress 被擋 → `partial` + `egress_policy_blocked`
 - 不跟隨 redirect；預設不讀 proxy env
-- `[tool.systograph.trace]` 只控制 chunk keys；舊 `[tool.kai-mind.trace]` 仍為相容 alias；
+- `[tool.systograph.trace]` 只控制 chunk keys；舊 `[tool.systograph.trace]` 仍為相容 alias；
   local-dev allowlist 由 operator 注入
 - timeout / transport error → `status:"partial"`，保留 events 供 replay
 - 完整 egress 政策見 [`docs/security/query-trace-egress-policy.md`](security/query-trace-egress-policy.md)
@@ -781,7 +796,7 @@ Response `200`：
 | --- | --- | --- |
 | `project_not_found` | 404 | `project_id` 不存在 |
 | `map_not_loaded` | 404 | 該專案尚未有掃描結果 |
-| `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.systograph.trace]`（或 legacy `[tool.kai-mind.trace]`）格式錯誤 |
+| `invalid_trace_config: ...` | 400 | `pyproject.toml` 的 `[tool.systograph.trace]`（或 legacy `[tool.systograph.trace]`）格式錯誤 |
 | `egress_policy_blocked` | 200 / `partial` | endpoint 在送出 request 前被 SSRF egress policy 阻擋 |
 
 ---
@@ -879,7 +894,7 @@ PATCH /api/mappings/{mapping_id}
 **Provider 啟用條件**（兩者缺一不可，否則走 deterministic fallback，仍可離線使用）：
 
 ```bash
-KAI_MIND_ENABLE_NVIDIA_NIM_PROPOSALS=true
+SYSTOGRAPH_ENABLE_NVIDIA_NIM_PROPOSALS=true
 NVIDIA_API_KEY=<your-key>
 ```
 
@@ -986,9 +1001,33 @@ Response `200`：
 | 404 | 目標不存在 | `resource_not_found`（malformed typed state id）、`project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
 | 409 | 狀態衝突 | `base_build_not_latest`、`latest_build_changed`、`scan_snapshot_stale`、`profile_sidecar_unavailable` |
 | 413 | request body 超過本機 API resource limit | `request_too_large` |
-| 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、validation 陣列 |
+| 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、operator rollback 的 `legacy_rollback_*`（見下表）、validation 陣列 |
 | 500 | 未預期後端錯誤，回應會遮蔽 raw path / secret | `internal_server_error` |
 | 503 | project state lock timeout | `project_state_busy` |
 
 > Project workflow 會跨重啟恢復。若重啟後出現 404，先確認啟動前後使用相同
-> `KAI_MIND_STATE_DIR`；只有 state record 不存在時才需要重新 import / scan。
+> `SYSTOGRAPH_STATE_DIR`；只有 state record 不存在時才需要重新 import / scan。
+
+### Operator rollback 專用 error code
+
+下列 code 只在 process 啟動前設定
+`SYSTOGRAPH_CANONICAL_OUTPUT_VERSION=ai-system-map/v1` 的 operator rollback 模式出現；
+normal `ai-system-map/v2` 模式不會產生。失敗時都不寫任何 artifact。
+
+| `detail` | 意義 |
+| --- | --- |
+| `legacy_rollback_not_representable` | map 無法以 v1 無損表示：不是 v1-sourced map，或含 legacy contract 表達不了的 component（`semantic_kind` 超出 `repo_component` / `slot_placeholder` / `legacy_extension`）。preflight fail closed，不靜默丟資料 |
+| `legacy_rollback_detail_scan_unsupported` | map 本身可以 v1 表示，但 rollback writer 只能從 raw scan 重建；enriched map（detail scan 子 build）這條路徑在 rollback 模式沒有 writer |
+| `legacy_rollback_writer_unavailable` | process 設成 rollback 模式，但該 build pipeline 沒有被注入 rollback writer（`MapBuildPipeline` 的 `legacy_rollback` 為 `None`）。屬 wiring/組態錯誤，不是使用者輸入問題 |
+
+- 前兩者由 `POST /api/detail-scans`（enriched map 路徑）以 `422` 回傳。
+  同一 endpoint 上 preflight 先跑，因此 `legacy_rollback_not_representable` 優先於
+  `legacy_rollback_detail_scan_unsupported`。
+- `legacy_rollback_writer_unavailable` **不限** detail-scan：normal build 路徑
+  （`MapBuildPipeline.materialize`）在 rollback 模式下同樣會拋，因此 `POST /api/scans`、
+  `POST /api/map/build` 與 CLI `map` 都可能遇到。它代表 wiring／組態問題（pipeline 沒被注入
+  rollback writer），不是使用者輸入問題，重送相同請求不會改變結果。
+  HTTP 呈現依 endpoint 而異：`POST /api/detail-scans` 與 `POST /api/scans` 走各自的 broad
+  `ValueError` handler，以 `422` + 同名 code 回傳；`POST /api/map/build` 目前只攔
+  `CanonicalOutputConfigurationError`，因此會落到 middleware 的
+  `500 internal_server_error`。

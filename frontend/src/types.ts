@@ -608,33 +608,29 @@ export const inventorySelectionSummarySchema = z.object({
   ),
 });
 
-export const scanCreateResponseSchema = z
-  .object({
-    scan_id: z.string().optional(),
-    project_id: z.string(),
-    status: z.enum(["completed", "error", "requires_boundary_decision"]),
-    build_result: z.record(z.unknown()).nullable().optional(),
-    boundary_proposals: z.array(inventoryBoundaryProposalSchema).default([]),
-    available_boundary_actions: z.array(scanBoundaryActionSchema).default(["scan_this_run", "skip_this_run"]),
-    preflight_request_id: z.string().optional(),
-    inventory_selection_summary: inventorySelectionSummarySchema.optional(),
-  })
-  .superRefine((response, context) => {
-    if (response.status === "completed" && !response.scan_id) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["scan_id"],
-        message: "Completed scan responses require scan_id.",
-      });
-    }
-    if (response.status === "requires_boundary_decision" && response.scan_id) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["scan_id"],
-        message: "Pending boundary responses must not contain scan_id.",
-      });
-    }
-  });
+const scanPendingResponseSchema = z.object({
+  status: z.literal("requires_boundary_decision"),
+  project_id: z.string(),
+  preflight_request_id: z.string().nullish(),
+  boundary_proposals: z.array(inventoryBoundaryProposalSchema).default([]),
+  available_boundary_actions: z.array(scanBoundaryActionSchema).default(["scan_this_run", "skip_this_run"]),
+});
+
+const scanSettledResponseSchema = z.object({
+  status: z.enum(["completed", "error"]),
+  scan_id: z.string(),
+  project_id: z.string(),
+  build_result: z.record(z.unknown()).nullable().optional(),
+  boundary_proposals: z.array(inventoryBoundaryProposalSchema).default([]),
+  available_boundary_actions: z.array(scanBoundaryActionSchema).default(["scan_this_run", "skip_this_run"]),
+  preflight_request_id: z.string().nullish(),
+  inventory_selection_summary: inventorySelectionSummarySchema.nullish(),
+});
+
+export const scanCreateResponseSchema = z.discriminatedUnion("status", [
+  scanPendingResponseSchema,
+  scanSettledResponseSchema,
+]);
 
 export type ApiErrorPayload = z.infer<typeof apiErrorSchema>;
 export type TypedApiErrorDetail = z.infer<typeof typedApiErrorDetailSchema>;

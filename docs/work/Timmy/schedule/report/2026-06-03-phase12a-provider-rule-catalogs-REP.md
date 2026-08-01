@@ -23,10 +23,10 @@ package TOML catalog
    - `DockerComposeProvider(image_rule_catalog_path=...)`
    - `CodePatternProvider(rule_catalog_path=...)`
 3. 建立 package-bundled catalogs：
-   - `src/kai_mind/core/rules/dependency_manifest_rules.toml`
-   - `src/kai_mind/core/rules/docker_image_rules.toml`
-   - `src/kai_mind/core/rules/code_pattern_rules.toml`
-4. 建立 `src/kai_mind/core/services/rule_catalog_loader.py`：
+   - `src/systograph/core/rules/dependency_manifest_rules.toml`
+   - `src/systograph/core/rules/docker_image_rules.toml`
+   - `src/systograph/core/rules/code_pattern_rules.toml`
+4. 建立 `src/systograph/core/services/rule_catalog_loader.py`：
    - `DependencyPackageRule`
    - `DependencyRuleCatalog`
    - `DockerImageRule`
@@ -36,7 +36,7 @@ package TOML catalog
 5. 重構 `DependencyManifestProvider`，移除 `PYTHON_RULES` / `NODE_RULES` / scoped prefix hardcoding，改由 dependency TOML catalog 載入。
 6. 重構 `DockerComposeProvider`，移除 Qdrant / Ollama / pgvector image if/else，改由 Docker image TOML catalog 載入。
 7. 重構 `CodePatternProvider`，移除 Python hardcoded regex catalog 依賴，改由 code pattern TOML catalog 載入。
-8. 移除舊的 `src/kai_mind/core/providers/code_patterns.py`，避免留下第二份 hardcoded regex source。
+8. 移除舊的 `src/systograph/core/providers/code_patterns.py`，避免留下第二份 hardcoded regex source。
 9. 將 phase plan 從 `docs/work/Timmy/schedule/plan/unfinish` 移到 `docs/work/Timmy/schedule/plan/finish`。
 
 ## 測試方式

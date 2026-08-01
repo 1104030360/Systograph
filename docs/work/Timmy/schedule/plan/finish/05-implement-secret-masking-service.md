@@ -41,7 +41,7 @@
 - 不呼叫 Trivy / gitleaks；它們只作為設計參考，不是 runtime dependency。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/services/secret_masking_service.py`。
+1. 建立 `src/systograph/core/services/secret_masking_service.py`。
 2. 定義 `mask_value(value: str, key: str | None = None) -> str`。
 3. 定義 `mask_text(text: str) -> str`，用保守 token-like pattern 遮罩。
 4. 定義 `mask_json_like(value)`，遞迴處理 dict/list/string。
@@ -54,7 +54,7 @@
 11. 寫 BDD-style integration test：Markdown/report-like payload、evidence detail、query trace 共用同一個 masking service。
 
 ## 預期輸出
-- `src/kai_mind/core/services/secret_masking_service.py`
+- `src/systograph/core/services/secret_masking_service.py`
 - `tests/unit/core/test_secret_masking_service.py`
 - `tests/integration/test_phase5_secret_masking_behaviors.py`
 - `docs/work/Timmy/schedule/todo/2026-05-31-phase5-secret-masking-service-TODO.md`

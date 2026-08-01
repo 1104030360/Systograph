@@ -183,12 +183,12 @@ graph TD
 
 建議未來實作路徑：
 
-- `src/kai_mind/core/models/`: domain models and DTOs。
-- `src/kai_mind/core/providers/`: filesystem、parser、endpoint providers。
-- `src/kai_mind/core/services/`: map build、normalization、validation、report、trace services。
-- `src/kai_mind/core/templates/`: `rag-core-v1` reference architecture template。
-- `src/kai_mind/cli/`: CLI commands，只做 argument parsing 與 use-case invocation。
-- `src/kai_mind/web/`: Local Web UI / viewer adapter。
+- `src/systograph/core/models/`: domain models and DTOs。
+- `src/systograph/core/providers/`: filesystem、parser、endpoint providers。
+- `src/systograph/core/services/`: map build、normalization、validation、report、trace services。
+- `src/systograph/core/templates/`: `rag-core-v1` reference architecture template。
+- `src/systograph/cli/`: CLI commands，只做 argument parsing 與 use-case invocation。
+- `src/systograph/web/`: Local Web UI / viewer adapter。
 - `tests/fixtures/rag_projects/`: sample RAG projects。
 - `tests/contracts/`: JSON schema / snapshot contract tests。
 

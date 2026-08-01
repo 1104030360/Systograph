@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kai_mind.core.models.errors import (
+from systograph.core.models.errors import (
     PreconditionError,
     PreconditionFailureReason,
 )
-from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
-from kai_mind.core.models.scan import PreconditionResult
-from kai_mind.core.providers.output_artifact_provider import (
+from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
+from systograph.core.models.scan import PreconditionResult
+from systograph.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
-from kai_mind.core.services.map_build_service import MapBuildService
+from systograph.core.services.map_build_service import MapBuildService
 
 
 def test_map_build_request_defaults_to_v2_active_schema() -> None:

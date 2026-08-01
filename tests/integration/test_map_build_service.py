@@ -10,34 +10,34 @@ import pytest
 from pydantic import BaseModel
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
-from kai_mind.core.models.errors import PreconditionFailureReason
-from kai_mind.core.models.map_build import MapBuildRequest
-from kai_mind.core.models.scan import OutputRun, ProjectScanResult, ScanFact
-from kai_mind.core.models.system_map import (
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.models.errors import PreconditionFailureReason
+from systograph.core.models.map_build import MapBuildRequest
+from systograph.core.models.scan import OutputRun, ProjectScanResult, ScanFact
+from systograph.core.models.system_map import (
     ComponentInstance,
     ComponentSlot,
     Evidence,
 )
-from kai_mind.core.models.template import RagTemplate
-from kai_mind.core.providers.output_artifact_provider import (
+from systograph.core.models.template import RagTemplate
+from systograph.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
-from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.services.canonical_map_loader import CanonicalMapLoader
+from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
     ComponentDetectionService,
 )
-from kai_mind.core.services.manual_mapping_service import (
+from systograph.core.services.manual_mapping_service import (
     InMemoryManualMappingRepository,
     ManualMappingService,
 )
-from kai_mind.core.services.map_build_service import MapBuildService
-from kai_mind.core.services.project_scan_service import (
+from systograph.core.services.map_build_service import MapBuildService
+from systograph.core.services.project_scan_service import (
     InventoryPolicyOverlay,
     ProjectScanService,
 )
-from kai_mind.core.services.system_map_v2_validation_service import (
+from systograph.core.services.system_map_v2_validation_service import (
     SystemMapV2ValidationService,
 )
 

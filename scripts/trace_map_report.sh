@@ -35,19 +35,19 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
-for arg in ${KAI_EXTRA_ARGS[@]+"${KAI_EXTRA_ARGS[@]}"}; do
+systograph_parse_common_args "$@"
+for arg in ${SYSTOGRAPH_EXTRA_ARGS[@]+"${SYSTOGRAPH_EXTRA_ARGS[@]}"}; do
   case "$arg" in
     --download) DOWNLOAD=1 ;;
     --no-setup) NO_SETUP=1 ;;
-    *) kai_die "Unknown option: $arg" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
 if [[ "$NO_SETUP" -eq 0 ]]; then
-  kai_section "準備：先建圖，讓 markdown report 存在"
-  kai_progress "現在要先呼叫 map/build 產生報告..."
+  systograph_section "準備：先建圖，讓 markdown report 存在"
+  systograph_progress "現在要先呼叫 map/build 產生報告..."
   setup_post "/api/map/build" \
     "$(jq -n --arg p "$PROJECT_PATH" --arg out "$OUTPUT_DIR" \
       '{project_path:$p, output:$out, redact_root_path:true, no_snippets:false}')" \
@@ -57,20 +57,20 @@ fi
 ENDPOINT="/api/map/report"
 [[ "$DOWNLOAD" -eq 1 ]] && ENDPOINT="/api/map/report?download=true"
 
-kai_section "讀取報告：GET $ENDPOINT"
-kai_progress "現在要下載 / 讀取 map markdown 報告..."
+systograph_section "讀取報告：GET $ENDPOINT"
+systograph_progress "現在要下載 / 讀取 map markdown 報告..."
 echo "-------------------- REQUEST --------------------"
 echo "GET $API_BASE_URL$ENDPOINT"
 echo "-------------------- RESPONSE -------------------"
 TMP_HEADERS="$(mktemp)"
-STATUS="$(curl -sS -D "$TMP_HEADERS" -o /tmp/kai-report-body.$$ -w '%{http_code}' \
+STATUS="$(curl -sS -D "$TMP_HEADERS" -o /tmp/systograph-report-body.$$ -w '%{http_code}' \
   "$API_BASE_URL$ENDPOINT" -H 'Accept: text/markdown')"
 echo "HTTP $STATUS"
 echo "Headers:"
 grep -iE '^(content-type|content-disposition):' "$TMP_HEADERS" || true
 echo "Body (first 40 lines):"
-head -n 40 /tmp/kai-report-body.$$
-rm -f "$TMP_HEADERS" /tmp/kai-report-body.$$
+head -n 40 /tmp/systograph-report-body.$$
+rm -f "$TMP_HEADERS" /tmp/systograph-report-body.$$
 
 [[ "$STATUS" == "200" || "$NO_SETUP" -eq 1 ]] \
-  || kai_die "Unexpected status: $STATUS"
+  || systograph_die "Unexpected status: $STATUS"

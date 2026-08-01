@@ -89,8 +89,8 @@ Code pattern match 的同一行或上下文可能包含 API key、Authorization 
 - 測試要覆蓋 quoted secret、Bearer token、OpenAI key-like token 出現在 match 附近時仍被遮罩。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/providers/code_pattern_provider.py`。
-2. 建立 `src/kai_mind/core/providers/code_patterns.py`，定義保守 pattern rule catalog。
+1. 建立 `src/systograph/core/providers/code_pattern_provider.py`。
+2. 建立 `src/systograph/core/providers/code_patterns.py`，定義保守 pattern rule catalog。
 3. 定義 pattern rule model：`rule_id`、language / file extensions、`regex`、fact kind。
 4. 只讀 FileInventory 中的 source files。
 5. 讀檔前先檢查 `FileRecord.size_bytes`，超過 provider max file size 時 skip with reason，不要讀入內容。
@@ -101,8 +101,8 @@ Code pattern match 的同一行或上下文可能包含 API key、Authorization 
 10. 測試 import-only 不足以產生 detected component；component detection 留到 Task 13。
 
 ## 預期輸出
-- `src/kai_mind/core/providers/code_pattern_provider.py`
-- `src/kai_mind/core/providers/code_patterns.py`
+- `src/systograph/core/providers/code_pattern_provider.py`
+- `src/systograph/core/providers/code_patterns.py`
 - `tests/unit/core/test_code_pattern_provider.py`
 
 ## 驗收標準
@@ -116,7 +116,7 @@ Code pattern match 的同一行或上下文可能包含 API key、Authorization 
 - 不要把 import package 當成 detected component 的唯一 evidence。
 - route detection 要保守處理 decorator / method chain，不要把任意字串中的 `/api` 當 route endpoint。
 - Python / TypeScript / JavaScript 的多行 call 可能造成 regex 漏判；初版接受漏判，優先避免誤判與 secret exposure。
-- 若需要新增 `ParseIssue.scan_stage`，要同步更新 `src/kai_mind/core/models/scan.py` 的 Literal 與相關測試。
+- 若需要新增 `ParseIssue.scan_stage`，要同步更新 `src/systograph/core/models/scan.py` 的 Literal 與相關測試。
 - 參考依據：Semgrep 官方 rule docs 支援可版本化 rule-based matching；Tree-sitter、ast-grep、Griffe 放入 future plan，不阻塞 Task 11。
 
 ## 新手提示

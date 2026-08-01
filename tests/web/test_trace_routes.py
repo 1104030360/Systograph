@@ -9,12 +9,12 @@ from tests.unit.core.test_detail_scan_service import (
     build_router_project,
 )
 
-from kai_mind.core.models.ai_system_map_v2 import CanonicalEndpoint
-from kai_mind.core.models.map_build import MapBuildResult
-from kai_mind.core.providers.endpoint_call_provider import EndpointCallResult
-from kai_mind.core.services.query_trace_service import QueryTraceService
-from kai_mind.web.app import create_app
-from kai_mind.web.session_store import InMemorySessionStore
+from systograph.core.models.ai_system_map_v2 import CanonicalEndpoint
+from systograph.core.models.map_build import MapBuildResult
+from systograph.core.providers.endpoint_call_provider import EndpointCallResult
+from systograph.core.services.query_trace_service import QueryTraceService
+from systograph.web.app import create_app
+from systograph.web.session_store import InMemorySessionStore
 
 
 @dataclass
@@ -144,7 +144,7 @@ def test_trace_route_uses_project_pyproject_chunk_keys(
             },
         ),
         pyproject_text="""
-[tool.kai-mind.trace]
+[tool.systograph.trace]
 retrieved_chunks_keys = ["docs", "retrieved_docs"]
 """,
     )

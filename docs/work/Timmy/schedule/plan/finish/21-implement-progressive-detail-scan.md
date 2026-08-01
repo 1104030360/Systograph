@@ -12,8 +12,8 @@ Task 20 已完成下列可重用基礎，本任務需要知道以下邊界才能
 
 ### 已完成可重用的部分
 
-- `src/kai_mind/core/models/system_map.py` 已定義 `DetailScanResult`、`DetailScanFinding`、`CodePathStep`。不需要另建 `detail_scan.py`。
-- `src/kai_mind/core/services/mapping_evidence_packet_builder.py` 已建立，由 Task 20 完成。本任務需擴充它，讓它能讀 detail scan 發現的 evidence，不要重複建立一個新的 builder。
+- `src/systograph/core/models/system_map.py` 已定義 `DetailScanResult`、`DetailScanFinding`、`CodePathStep`。不需要另建 `detail_scan.py`。
+- `src/systograph/core/services/mapping_evidence_packet_builder.py` 已建立，由 Task 20 完成。本任務需擴充它，讓它能讀 detail scan 發現的 evidence，不要重複建立一個新的 builder。
 - `SystemMapNormalizeService.normalize()` 已接受 `detail_scans: Sequence[DetailScanResult] | None` 參數，`SystemMapValidationService` 也已驗證 `detail_scans[]` 的 target 是否存在、findings 的 evidence id 是否合法。Schema 端已準備好。
 
 ### 目前的缺口（本任務要補的）
@@ -74,7 +74,7 @@ Task 20 可以把這份 packet 餵給 deterministic fallback 或 optional local 
 本任務不能改成「讓 local AI 自己掃整個 repo」。即使模型在本機執行，whole-repo prompt scanning 仍不適合 release-readiness gate：
 
 - 不可重現：同一份 repo 需要穩定產生相同 target-scoped evidence，否則無法回歸測試、無法在 CI 或 demo 前當 gate。
-- Evidence chain 會斷：KAI-Mind 需要 file、line range、rule id、evidence id、masked snippet。LLM 直接讀 repo 容易輸出不可追溯摘要或 hallucinated path。
+- Evidence chain 會斷：Systograph 需要 file、line range、rule id、evidence id、masked snippet。LLM 直接讀 repo 容易輸出不可追溯摘要或 hallucinated path。
 - 長上下文不可靠：大 context 不代表模型會穩定注意到中間檔案或深層 call；lost-in-the-middle 類問題會讓全 repo prompt 掃描漏看高價值片段。
 - prompt injection 風險：source code、README、註解、fixture 都是 untrusted input。detail scan 應把它們視為資料，不可讓這些內容控制 scanner 或 LLM 行為。
 - 效能與資源成本：用 deterministic parser 先抽 imports / signatures / call-like hints，通常能用很小 packet 表達關鍵訊號；直接餵整個 repo 給地端模型會慢且容易 OOM。
@@ -132,8 +132,8 @@ Task 20 可以把這份 packet 餵給 deterministic fallback 或 optional local 
 
 > `DetailScanResult`、`DetailScanFinding`、`CodePathStep` 已在 `system_map.py` 定義，步驟 1 改為確認而非新建。
 
-1. 確認 `src/kai_mind/core/models/system_map.py` 中 `DetailScanResult`、`DetailScanFinding`、`CodePathStep` 已符合本任務需要，必要時補充欄位（例如 `best_effort`、`context_budget_metadata`）。若有欄位需求超出現有 contract，記得同步更新 `SystemMapValidationService`。
-2. 建立 `src/kai_mind/core/services/detail_scan_service.py` 作為 L2/L3 入口 dispatcher；它接收 target type 與 target id，決定走 `ComponentDetailScanService` 或 `CodePathScanService`。
+1. 確認 `src/systograph/core/models/system_map.py` 中 `DetailScanResult`、`DetailScanFinding`、`CodePathStep` 已符合本任務需要，必要時補充欄位（例如 `best_effort`、`context_budget_metadata`）。若有欄位需求超出現有 contract，記得同步更新 `SystemMapValidationService`。
+2. 建立 `src/systograph/core/services/detail_scan_service.py` 作為 L2/L3 入口 dispatcher；它接收 target type 與 target id，決定走 `ComponentDetailScanService` 或 `CodePathScanService`。
 3. 建立 `component_detail_scan_service.py` 做 L2 bounded scan：只看 target component 關聯的 source files，用 Python `ast` 抽取 imports、class/function signatures、decorators，並用 `SecretMaskingService` 遮蔽 snippet value。
 4. 建立 `code_path_scan_service.py` 做 L3 bounded call-like extraction：從 L2 找到的 function 往下抽 call-like hints；所有 call-like signal 必須帶 source file、line range；標示 `best_effort`，不可宣稱 runtime execution 已確認。
 5. **實作 evidence 連接機制（最關鍵步驟）**：L2/L3 找到的新 signal 必須同時：
@@ -153,14 +153,14 @@ Task 20 可以把這份 packet 餵給 deterministic fallback 或 optional local 
 
 ## 預期輸出
 
-> `DetailScanResult`、`DetailScanFinding`、`CodePathStep` 已在 `src/kai_mind/core/models/system_map.py` 定義，不需要另建 `detail_scan.py`。
+> `DetailScanResult`、`DetailScanFinding`、`CodePathStep` 已在 `src/systograph/core/models/system_map.py` 定義，不需要另建 `detail_scan.py`。
 
-- 更新 `src/kai_mind/core/models/system_map.py`（若需補充 `best_effort`、`context_budget_metadata` 欄位）
-- `src/kai_mind/core/services/detail_scan_service.py`
-- `src/kai_mind/core/services/component_detail_scan_service.py`
-- `src/kai_mind/core/services/code_path_scan_service.py`
-- 更新 `src/kai_mind/core/services/mapping_evidence_packet_builder.py`（Task 20 已建立；本任務確認 builder 可正確消費 detail scan 追加的新 evidence，必要時補充 test coverage）
-- `src/kai_mind/web/routes/detail_scan_routes.py`
+- 更新 `src/systograph/core/models/system_map.py`（若需補充 `best_effort`、`context_budget_metadata` 欄位）
+- `src/systograph/core/services/detail_scan_service.py`
+- `src/systograph/core/services/component_detail_scan_service.py`
+- `src/systograph/core/services/code_path_scan_service.py`
+- 更新 `src/systograph/core/services/mapping_evidence_packet_builder.py`（Task 20 已建立；本任務確認 builder 可正確消費 detail scan 追加的新 evidence，必要時補充 test coverage）
+- `src/systograph/web/routes/detail_scan_routes.py`
 - 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
 - `tests/unit/core/test_detail_scan_service.py`
 - 更新 `tests/unit/core/test_mapping_evidence_packet_builder.py`（補 detail scan evidence 場景）
@@ -186,7 +186,7 @@ Task 20 可以把這份 packet 餵給 deterministic fallback 或 optional local 
 - 單純 AST/import/call-like signal 仍可能不足以證明 runtime path，因此 response 要保留 uncertainty，不要把它包裝成已確認事實。
 - 如果使用者需要 runtime 證據，應導到 Task 22 opt-in query trace，而不是在 detail scan 偷偷執行目標程式。
 - 參考依據：Tree-sitter 官方 docs 可支援 bounded AST extraction；設計文件明確要求 L3 != whole-repo call graph。
-- 不要把 Semgrep / CodeQL 當成本任務必要依賴；本任務只採用其 traceable finding / query-first 思路。未來若整合外部 scanner，必須透過 adapter 轉成 KAI-Mind evidence model，再經 validation。
+- 不要把 Semgrep / CodeQL 當成本任務必要依賴；本任務只採用其 traceable finding / query-first 思路。未來若整合外部 scanner，必須透過 adapter 轉成 Systograph evidence model，再經 validation。
 
 ## 參考資料
 - Semgrep rules / pattern syntax: https://semgrep.dev/docs/running-rules/ , https://semgrep.dev/docs/writing-rules/pattern-syntax

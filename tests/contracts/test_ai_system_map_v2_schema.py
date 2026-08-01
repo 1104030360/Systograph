@@ -8,9 +8,10 @@ from typing import Any, cast, get_args
 
 import pytest
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError as SchemaValidationError
 from pydantic import ValidationError
 
-from kai_mind.core.models.ai_system_map_v2 import (
+from systograph.core.models.ai_system_map_v2 import (
     REFERENCE_NODE_COUNT,
     AiSystemMapV2,
     AssessmentStatus,
@@ -20,10 +21,10 @@ from kai_mind.core.models.ai_system_map_v2 import (
     ReferenceMapCatalog,
     build_ai_system_map_v2_schema,
 )
-from kai_mind.core.services.capability_reference_map_loader import (
+from systograph.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapLoader,
 )
-from kai_mind.core.services.system_map_v2_validation_service import (
+from systograph.core.services.system_map_v2_validation_service import (
     SystemMapV2ValidationError,
     SystemMapV2ValidationService,
 )
@@ -46,6 +47,16 @@ def load_schema() -> dict[str, Any]:
         "dict[str, Any]",
         json.loads(SCHEMA_PATH.read_text(encoding="utf-8")),
     )
+
+
+def make_recommended_next_check() -> dict[str, Any]:
+    return {
+        "id": "check:retrieval:citation-mapper",
+        "target_type": "component",
+        "target": "component:retriever:qdrant",
+        "reason": "retrieval component has no citation mapper edge",
+        "action": "confirm whether answers cite retrieved chunks",
+    }
 
 
 def assert_valid_v2_contract(data: dict[str, Any]) -> AiSystemMapV2:
@@ -156,6 +167,75 @@ def test_v2_schema_forbids_extra_and_rejects_confidence() -> None:
     data["confidence"] = 0.9
 
     with pytest.raises((ValidationError, SystemMapV2ValidationError)):
+        SystemMapV2ValidationService().validate(data)
+
+
+def test_v2_contract_accepts_map_without_recommended_next_checks() -> None:
+    data = load_fixture("grounded_rag.v2.json")
+    assert "recommended_next_checks" not in data
+
+    system_map = assert_valid_v2_contract(data)
+
+    assert system_map.schema_version == "ai-system-map/v2"
+
+
+def test_v2_recommended_next_checks_default_to_empty_list() -> None:
+    system_map = assert_valid_v2_contract(load_fixture("grounded_rag.v2.json"))
+
+    assert system_map.recommended_next_checks == []
+
+
+def test_v2_contract_accepts_recommended_next_checks() -> None:
+    data = load_fixture("grounded_rag.v2.json")
+    data["recommended_next_checks"] = [make_recommended_next_check()]
+
+    system_map = assert_valid_v2_contract(data)
+
+    assert len(system_map.recommended_next_checks) == 1
+    check = system_map.recommended_next_checks[0]
+    assert check.id == "check:retrieval:citation-mapper"
+    assert check.target_type == "component"
+    assert check.target == "component:retriever:qdrant"
+    assert check.reason == "retrieval component has no citation mapper edge"
+    assert check.action == "confirm whether answers cite retrieved chunks"
+
+
+def test_v2_schema_keeps_recommended_next_checks_optional() -> None:
+    schema = load_schema()
+
+    assert schema["additionalProperties"] is False
+    assert "recommended_next_checks" in schema["properties"]
+    assert "recommended_next_checks" not in set(schema["required"])
+
+
+def test_v2_contract_rejects_recommended_next_check_missing_action() -> None:
+    data = load_fixture("grounded_rag.v2.json")
+    check = make_recommended_next_check()
+    del check["action"]
+    data["recommended_next_checks"] = [check]
+
+    with pytest.raises(
+        SchemaValidationError,
+        match="'action' is a required property",
+    ):
+        Draft202012Validator(load_schema()).validate(data)
+    with pytest.raises(
+        SystemMapV2ValidationError,
+        match=r"recommended_next_checks\.0\.action",
+    ):
+        SystemMapV2ValidationService().validate(data)
+
+
+def test_v2_contract_rejects_non_list_recommended_next_checks() -> None:
+    data = load_fixture("grounded_rag.v2.json")
+    data["recommended_next_checks"] = "check:retrieval:citation-mapper"
+
+    with pytest.raises(SchemaValidationError, match="is not of type 'array'"):
+        Draft202012Validator(load_schema()).validate(data)
+    with pytest.raises(
+        SystemMapV2ValidationError,
+        match="recommended_next_checks",
+    ):
         SystemMapV2ValidationService().validate(data)
 
 

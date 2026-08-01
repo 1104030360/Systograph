@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.providers.config_parse_provider import ConfigParseProvider
-from kai_mind.core.providers.filesystem_provider import FilesystemProvider
-from kai_mind.core.services.secret_masking_service import SecretMaskingService
+from systograph.core.providers.config_parse_provider import ConfigParseProvider
+from systograph.core.providers.filesystem_provider import FilesystemProvider
+from systograph.core.services.secret_masking_service import (
+    SecretMaskingService,
+)
 
 
 def test_openai_fixture_exposes_masked_config_signals() -> None:

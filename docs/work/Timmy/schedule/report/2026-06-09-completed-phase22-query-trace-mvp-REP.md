@@ -2,7 +2,7 @@
 
 ## 實作邏輯
 
-- 新增明確 opt-in 的 Query Trace runtime 路徑：`POST /api/trace` 與 `kai-mind trace`。靜態 `map` / `scan` / `viewer` 路徑不會自動呼叫 endpoint。
+- 新增明確 opt-in 的 Query Trace runtime 路徑：`POST /api/trace` 與 `systograph trace`。靜態 `map` / `scan` / `viewer` 路徑不會自動呼叫 endpoint。
 - `EndpointCallProvider` 只負責 bounded HTTP call，並把 timeout / transport / HTTP error 包成 typed result，不讓例外直接炸穿 replay。
 - `QueryTraceService` 只回傳 transient `TraceRunResult`，不寫回 canonical `ai_system_map.json`、不修改 `flows`、`extensions`、manual mappings 或 proposal state。
 - Trace event payload 在進入 response 前會走 shared `SecretMaskingService.mask_json_like()`，並進一步摘要化 query、output、retrieved chunks，避免 raw sensitive query / raw response 出現在 API、CLI 或 report。
@@ -13,11 +13,11 @@
 ## 步驟
 
 1. 先補 RED tests：core provider/service、web route、CLI command、static map boundary。
-2. 實作 `src/kai_mind/core/providers/endpoint_call_provider.py`。
-3. 實作 `src/kai_mind/core/models/trace.py` 與 `src/kai_mind/core/services/query_trace_service.py`。
+2. 實作 `src/systograph/core/providers/endpoint_call_provider.py`。
+3. 實作 `src/systograph/core/models/trace.py` 與 `src/systograph/core/services/query_trace_service.py`。
 4. 擴充 `QueryTraceEvent` 欄位，並重新產生 `schemas/ai-system-map.v1.schema.json`。
-5. 新增 `src/kai_mind/web/routes/trace_routes.py`，更新 `web/app.py`、`web/dependencies.py`、`web/schemas.py`。
-6. 新增 `src/kai_mind/cli/trace_command.py` 並註冊到 `kai-mind trace`。
+5. 新增 `src/systograph/web/routes/trace_routes.py`，更新 `web/app.py`、`web/dependencies.py`、`web/schemas.py`。
+6. 新增 `src/systograph/cli/trace_command.py` 並註冊到 `systograph trace`。
 7. 更新 `docs/API-GUIDE.md`、`docs/work/Timmy/design/epic1-local-api-guide.md`、新增 `scripts/trace_query_trace.sh`，並把它加入 `scripts/trace_all.sh`。
 8. Phase 完成後，將 `22-implement-query-trace-mvp.md` 從 `plan/unfinish` 移到 `plan/finish`。
 

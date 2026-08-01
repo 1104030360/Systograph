@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/155
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/155
 
 **Goal:** 恢復 thin-adapter 邊界，把 inventory、boundary preflight 與 build 編排從 `scan_routes.py` 下沉到 core service。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #155, assignee Timmy.
 - Origin: Backend findings M-9.
-- Primary file: `src/kai_mind/web/routes/scan_routes.py`.
+- Primary file: `src/systograph/web/routes/scan_routes.py`.
 
 ### Task 1: Lock route thin-adapter regression
 
@@ -29,7 +29,7 @@
 ### Task 2: Create orchestration service
 
 **Files:**
-- Create: `src/kai_mind/core/services/scan_orchestration_service.py`
+- Create: `src/systograph/core/services/scan_orchestration_service.py`
 - Test: `tests/unit/core/test_scan_orchestration_service.py`
 
 - [ ] **Step 1: Move inventory creation into service**
@@ -40,9 +40,9 @@
 ### Task 3: Wire route and dependencies
 
 **Files:**
-- Modify: `src/kai_mind/web/routes/scan_routes.py`
-- Modify: `src/kai_mind/web/dependencies.py`
-- Modify: `src/kai_mind/web/app.py`
+- Modify: `src/systograph/web/routes/scan_routes.py`
+- Modify: `src/systograph/web/dependencies.py`
+- Modify: `src/systograph/web/app.py`
 
 - [ ] **Step 1: Route depends on orchestration service**
 - [ ] **Step 2: Preserve `requires_boundary_decision` behavior**

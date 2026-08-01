@@ -10,8 +10,8 @@ env_file、volume、depends_on facts 與 evidence。
 
 本次新增與修改：
 
-- `src/kai_mind/core/providers/docker_compose_provider.py`
-- `src/kai_mind/core/models/scan.py`
+- `src/systograph/core/providers/docker_compose_provider.py`
+- `src/systograph/core/models/scan.py`
 - `tests/unit/core/test_docker_compose_provider.py`
 - `tests/integration/test_phase9_docker_compose_provider_behaviors.py`
 - `docs/work/Timmy/schedule/todo/2026-06-02-phase9-docker-compose-provider-TODO.md`
@@ -106,14 +106,14 @@ RED 驗證結果：
 ```
 
 在正常 temp/cache 權限下，測試因
-`ModuleNotFoundError: No module named 'kai_mind.core.providers.docker_compose_provider'`
+`ModuleNotFoundError: No module named 'systograph.core.providers.docker_compose_provider'`
 失敗，確認測試先抓到尚未實作的 Task 9 缺口。
 
 ### 3. GREEN：實作 provider 與 scan stage
 
 修改：
 
-- `src/kai_mind/core/models/scan.py`
+- `src/systograph/core/models/scan.py`
 
 調整：
 
@@ -122,7 +122,7 @@ RED 驗證結果：
 
 新增：
 
-- `src/kai_mind/core/providers/docker_compose_provider.py`
+- `src/systograph/core/providers/docker_compose_provider.py`
 
 主要行為：
 
@@ -179,8 +179,8 @@ Targeted verification：
 
 ```bash
 .venv/bin/python -m pytest tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
-.venv/bin/ruff check src/kai_mind/core/models/scan.py src/kai_mind/core/providers/docker_compose_provider.py tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
-.venv/bin/mypy src/kai_mind/core/models/scan.py src/kai_mind/core/providers/docker_compose_provider.py tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
+.venv/bin/ruff check src/systograph/core/models/scan.py src/systograph/core/providers/docker_compose_provider.py tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
+.venv/bin/mypy src/systograph/core/models/scan.py src/systograph/core/providers/docker_compose_provider.py tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
 ```
 
 Full verification：

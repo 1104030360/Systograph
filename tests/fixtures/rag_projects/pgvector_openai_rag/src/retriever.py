@@ -9,7 +9,7 @@ def retrieve(question: str) -> list[str]:
         input=question,
     )
     with connect(
-        "postgresql://kai_mind:kai_mind_test@localhost:5432/kai_mind"
+        "postgresql://systograph:systograph_test@localhost:5432/systograph"
     ) as conn:
         register_vector(conn)
         rows = conn.execute(

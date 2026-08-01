@@ -159,7 +159,7 @@ export const profileInferenceResultSchema = z
 export type ProfileInferenceResult = z.infer<typeof profileInferenceResultSchema>;
 export type ProfileFinding = z.infer<typeof profileFindingSchema>;
 
-/* Mirrors kai_mind.core.models.readiness_report — the backend owns this shape;
+/* Mirrors systograph.core.models.readiness_report — the backend owns this shape;
    the frontend renders it and degrades when parsing fails. */
 const readinessFindingSchema = z
   .object({
@@ -254,7 +254,7 @@ export const phase2ViewerLoadResultSchema = frontendViewerLoadResultSchema
       if (!artifact) continue;
       for (const identity of ["project_id", "scan_id", "build_id", "environment_id"] as const) {
         // The profile/readiness sidecars are build-scoped only; they carry no
-        // project_id (kai_mind.core.models.profile_signal / readiness_report).
+        // project_id (systograph.core.models.profile_signal / readiness_report).
         if (
           identity === "project_id" &&
           (label === "profile_inference_result" || label === "readiness_report")
@@ -283,7 +283,7 @@ export const phase2ViewerLoadResultSchema = frontendViewerLoadResultSchema
     }
   });
 
-/* Mirrors kai_mind.web.schemas.MapBuildScopedResponse: phase2 lineage and
+/* Mirrors systograph.web.schemas.MapBuildScopedResponse: phase2 lineage and
    validated sidecars around the current v1 base graph projection. */
 const phase2MapBuildResultSchema = z
   .object({
@@ -389,7 +389,7 @@ export const mapBuildScopedResponseSchema = z
     }
   });
 
-/* Mirrors kai_mind.web.schemas.MapBuildHistorySummary / MapBuildHistoryResponse.
+/* Mirrors systograph.web.schemas.MapBuildHistorySummary / MapBuildHistoryResponse.
    The API returns builds sorted generated_at ASC (lineage order). */
 export const mapBuildHistorySummarySchema = z
   .object({

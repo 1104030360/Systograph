@@ -4,16 +4,18 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from kai_mind.core.models.mapping import (
+from systograph.core.models.mapping import (
     ManualMappingType,
     MappingCandidateType,
 )
-from kai_mind.core.services.manual_mapping_service import ManualMappingService
-from kai_mind.core.services.mapping_proposal_service import (
+from systograph.core.services.manual_mapping_service import (
+    ManualMappingService,
+)
+from systograph.core.services.mapping_proposal_service import (
     InMemoryMappingProposalRepository,
     MappingProposalService,
 )
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def test_active_mapping_enums_do_not_contain_legacy_extension() -> None:
@@ -43,6 +45,34 @@ def test_mapping_api_rejects_legacy_type_with_stable_code(
             "extension_id": "extension:router",
             "extension_name": "Router",
             "extension_kind": "routing",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "legacy_mapping_type_read_only"
+
+
+def test_mapping_patch_rejects_legacy_type_with_stable_code(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(create_app(state_dir=tmp_path / "state"))
+    created = client.post(
+        "/api/mappings",
+        json={
+            "project_id": "project:demo",
+            "mapping_type": "existing_slot_mapping",
+            "decision": "skip_for_now",
+            "source_file": "src/router.py",
+            "evidence_ids": ["evidence:router"],
+            "reason": "Need more context.",
+        },
+    ).json()
+
+    response = client.patch(
+        f"/api/mappings/{created['mapping_id']}",
+        json={
+            "mapping_type": "new_extension_component",
+            "decision": "confirmed",
         },
     )
 

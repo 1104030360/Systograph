@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.system_map import Evidence, RagSystemMap
-from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+from systograph.core.models.system_map import Evidence, RagSystemMap
+from systograph.core.services.system_map_v1_to_v2_adapter import (
     LegacySystemMapAdaptError,
     SystemMapV1ToV2Adapter,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 
@@ -367,6 +367,47 @@ def test_adapter_keeps_confirmed_by_user_on_canonical_candidates() -> None:
     )
     assert extension.status == "confirmed"
     assert extension.activation == "enabled"
+
+
+def test_adapt_to_canonical_preserves_recommended_next_checks() -> None:
+    # Given: a v1 map whose checks were already sorted at build time
+    system_map = _validated_rag_system_map()
+    assert system_map.recommended_next_checks
+
+    # When
+    adapter = SystemMapV1ToV2Adapter()
+    compatibility_view = adapter.adapt(system_map)
+    canonical = adapter.to_canonical(compatibility_view)
+
+    # Then: straight field copy, v1 order preserved end to end
+    expected = [
+        check.model_dump(mode="json")
+        for check in system_map.recommended_next_checks
+    ]
+    assert [
+        check.model_dump(mode="json")
+        for check in compatibility_view.recommended_next_checks
+    ] == expected
+    assert [
+        check.model_dump(mode="json")
+        for check in canonical.recommended_next_checks
+    ] == expected
+    assert [
+        check.model_dump(mode="json")
+        for check in adapter.adapt_to_canonical(
+            system_map
+        ).recommended_next_checks
+    ] == expected
+
+
+def test_adapt_to_canonical_keeps_empty_recommended_next_checks() -> None:
+    data = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    data["recommended_next_checks"] = []
+    system_map = SystemMapValidationService().validate(data)
+
+    canonical = SystemMapV1ToV2Adapter().adapt_to_canonical(system_map)
+
+    assert canonical.recommended_next_checks == []
 
 
 def test_adapter_redacts_absolute_root_path_for_canonical_v2() -> None:

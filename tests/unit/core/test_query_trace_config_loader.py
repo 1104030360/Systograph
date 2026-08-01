@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.services.query_trace_config_loader import (
+from systograph.core.services.query_trace_config_loader import (
     DEFAULT_RETRIEVED_CHUNKS_KEYS,
     QueryTraceConfigError,
     QueryTraceConfigLoader,
@@ -31,22 +31,6 @@ retrieved_chunks_keys = ["docs", "retrieved_docs", "context"]
     )
 
 
-def test_query_trace_config_loader_supports_legacy_tool_alias(
-    tmp_path: Path,
-) -> None:
-    (tmp_path / "pyproject.toml").write_text(
-        """
-[tool.kai-mind.trace]
-retrieved_chunks_keys = ["legacy_docs"]
-""",
-        encoding="utf-8",
-    )
-
-    config = QueryTraceConfigLoader().load_project_config(tmp_path)
-
-    assert config.retrieved_chunks_keys == ("legacy_docs",)
-
-
 def test_query_trace_config_loader_defaults_when_pyproject_is_missing(
     tmp_path: Path,
 ) -> None:
@@ -60,9 +44,9 @@ def test_query_trace_config_loader_defaults_when_pyproject_is_missing(
     [
         "",
         "[tool]\nother = 'value'\n",
-        "[tool]\n'kai-mind' = 'disabled'\n",
-        "[tool.kai-mind]\nname = 'project'\n",
-        "[tool.kai-mind.trace]\nenabled = true\n",
+        "[tool]\n'systograph' = 'disabled'\n",
+        "[tool.systograph]\nname = 'project'\n",
+        "[tool.systograph.trace]\nenabled = true\n",
     ],
 )
 def test_query_trace_config_loader_defaults_when_optional_keys_are_absent(

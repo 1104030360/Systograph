@@ -8,13 +8,13 @@ import pytest
 from tests.helpers.fixtures import rag_project_fixture_path
 from typer.testing import CliRunner
 
-from kai_mind.cli import main as cli_main
-from kai_mind.cli import map_command
-from kai_mind.core.models.errors import (
+from systograph.cli import main as cli_main
+from systograph.cli import map_command
+from systograph.core.models.errors import (
     ScanInventoryRulesError,
     ScanInventoryRulesErrorCode,
 )
-from kai_mind.core.services.canonical_map_loader import (
+from systograph.core.services.canonical_map_loader import (
     CanonicalMapLoader,
 )
 

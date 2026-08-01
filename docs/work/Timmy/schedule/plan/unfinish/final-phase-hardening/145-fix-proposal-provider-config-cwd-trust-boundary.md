@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/145
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/145
 
-**Goal:** 避免 KAI-Mind 以被掃描 repo 為 CWD 時，自動讀取該 repo 的 `.env` 並改變 AI proposal provider 或資料外送邊界。
+**Goal:** 避免 Systograph 以被掃描 repo 為 CWD 時，自動讀取該 repo 的 `.env` 並改變 AI proposal provider 或資料外送邊界。
 
 **Architecture:** Provider config source must be explicit and trusted. Scanned project files are untrusted input and must never silently configure outbound AI provider behavior.
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #145, assignee Timmy.
 - Origin: Backend findings H-7.
-- Primary files: `src/kai_mind/web/app.py`, `src/kai_mind/core/providers/llm_proposal_provider.py`.
+- Primary files: `src/systograph/web/app.py`, `src/systograph/core/providers/llm_proposal_provider.py`.
 
 ### Task 1: Reproduce malicious project dotenv behavior
 
@@ -30,8 +30,8 @@
 ### Task 2: Require explicit trusted config source
 
 **Files:**
-- Modify: `src/kai_mind/web/app.py`
-- Modify: `src/kai_mind/core/providers/llm_proposal_provider.py`
+- Modify: `src/systograph/web/app.py`
+- Modify: `src/systograph/core/providers/llm_proposal_provider.py`
 
 - [ ] **Step 1: Stop defaulting provider dotenv to process CWD**
 - [ ] **Step 2: Use explicit `env_file` or trusted user config path**

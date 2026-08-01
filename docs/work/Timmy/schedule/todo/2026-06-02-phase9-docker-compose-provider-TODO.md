@@ -53,7 +53,7 @@ env_file、volume、depends_on facts 與 evidence。
 
 ### 2. GREEN：實作最小 provider
 
-- 新增 `src/kai_mind/core/providers/docker_compose_provider.py`。
+- 新增 `src/systograph/core/providers/docker_compose_provider.py`。
 - 若 `ParseIssue.scan_stage` 仍只接受 `config_parse`，擴充為
   `docker_compose_parse`。
 - 實作 candidate compose path 判斷。
@@ -72,8 +72,8 @@ Targeted verification：
 
 ```bash
 .venv/bin/python -m pytest tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
-.venv/bin/ruff check src/kai_mind/core/models/scan.py src/kai_mind/core/providers/docker_compose_provider.py tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
-.venv/bin/mypy src/kai_mind/core/models/scan.py src/kai_mind/core/providers/docker_compose_provider.py tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
+.venv/bin/ruff check src/systograph/core/models/scan.py src/systograph/core/providers/docker_compose_provider.py tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
+.venv/bin/mypy src/systograph/core/models/scan.py src/systograph/core/providers/docker_compose_provider.py tests/unit/core/test_docker_compose_provider.py tests/integration/test_phase9_docker_compose_provider_behaviors.py
 ```
 
 Full verification：

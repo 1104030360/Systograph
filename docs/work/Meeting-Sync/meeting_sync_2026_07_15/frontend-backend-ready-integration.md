@@ -83,7 +83,7 @@ Frontend 如果把 Apply 當成 Scan，會失去正確的 `scan_id` / `build_id`
 
 ## 3. 串接 Detail Scan
 
-對應舊 PR [#198](https://github.com/1104030360/Local-AI-Health-Doctor/pull/198)。此 PR 仍為 OPEN，
+對應舊 PR [#198](https://github.com/1104030360/Systograph/pull/198)。此 PR 仍為 OPEN，
 目前與 `main` 有衝突，不能直接視為已完成。
 
 ### 要做什麼
@@ -110,7 +110,7 @@ frontend PR；若仍有 backend gap，另外交由 backend owner 判定。
 
 ## 4. 串接 Mapping Proposal、Manual Mapping 與 Apply
 
-對應舊 draft PR [#199](https://github.com/1104030360/Local-AI-Health-Doctor/pull/199)。它仍疊在
+對應舊 draft PR [#199](https://github.com/1104030360/Systograph/pull/199)。它仍疊在
 #198 上，而且使用舊的 extension contract，不能直接合併。
 
 ### 要做什麼
@@ -134,7 +134,7 @@ Proposal 是建議，Manual Mapping 是已儲存的使用者決策，Apply 才�
 
 ## 5. 串接 Query Trace
 
-對應舊 draft PR [#218](https://github.com/1104030360/Local-AI-Health-Doctor/pull/218)。Backend
+對應舊 draft PR [#218](https://github.com/1104030360/Systograph/pull/218)。Backend
 endpoint 仍可用，但 PR 需要依 current v2 / build-scoped contract 更新。
 
 ### 要做什麼
@@ -152,7 +152,7 @@ query 真的經過該節點，也不能因 trace 失敗破壞 base graph。
 
 ## 6. Report 與其他 Artifacts
 
-對應舊 PR [#227](https://github.com/1104030360/Local-AI-Health-Doctor/pull/227)。Report action 仍可用，
+對應舊 PR [#227](https://github.com/1104030360/Systograph/pull/227)。Report action 仍可用，
 但「由使用者輸入 server-local map path」不應成為正常 project flow。
 
 ### 現在可以做

@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
-from kai_mind.core.models.system_map import RagSystemMap
-from kai_mind.core.services.system_map_index import SystemMapIndex
-from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.models.system_map import RagSystemMap
+from systograph.core.services.system_map_index import SystemMapIndex
+from systograph.core.services.system_map_v1_to_v2_adapter import (
     SystemMapV1ToV2Adapter,
 )
-from kai_mind.core.services.system_map_v2_validation_service import (
+from systograph.core.services.system_map_v2_validation_service import (
     SystemMapV2ValidationError,
     SystemMapV2ValidationService,
 )
@@ -65,7 +65,7 @@ def workflow_map() -> AiSystemMapV2:
 # ---------------------------------------------------------------------------
 def test_system_map_index_contract_is_available() -> None:
     # Given：要檢查的模組路徑
-    module_name = "kai_mind.core.services.system_map_index"
+    module_name = "systograph.core.services.system_map_index"
 
     # When：嘗試 import；找不到就直接判定失敗
     try:
@@ -247,7 +247,7 @@ def test_index_has_no_domain_actions_or_forbidden_dependencies() -> None:
         "filesystem",
         "validation",
     }
-    module = import_module("kai_mind.core.services.system_map_index")
+    module = import_module("systograph.core.services.system_map_index")
     module_path = Path(module.__file__ or "")
 
     # When：用 AST 解析原始碼，收集 from xxx import ... 的模組路徑
@@ -389,9 +389,10 @@ def test_normalized_consumers_have_no_legacy_models_or_schema_branch() -> None:
     # parents[3]：從此測試檔往上到專案根目錄
     root = Path(__file__).parents[3]
     selected = [
-        root / "src/kai_mind/core/services/detail_scan_target_resolver.py",
-        root / "src/kai_mind/core/services/mapping_evidence_packet_builder.py",
-        root / "src/kai_mind/web/routes/mapping_proposal_routes.py",
+        root / "src/systograph/core/services/detail_scan_target_resolver.py",
+        root
+        / "src/systograph/core/services/mapping_evidence_packet_builder.py",
+        root / "src/systograph/web/routes/mapping_proposal_routes.py",
     ]
 
     for path in selected:

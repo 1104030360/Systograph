@@ -220,7 +220,7 @@
           "override_allowed": true,
           "exclusion_sources": [
             "project_ignore",
-            "kai_inventory_catalog"
+            "systograph_inventory_catalog"
           ],
           "matched_inventory_policy_ids": [
             "dependency-directory-default-skip"

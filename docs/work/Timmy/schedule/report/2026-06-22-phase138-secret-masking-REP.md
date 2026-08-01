@@ -30,7 +30,7 @@
   - https://github.com/Yelp/detect-secrets/blob/master/detect_secrets/plugins/keyword.py
   - https://github.com/Yelp/detect-secrets/blob/master/detect_secrets/plugins/basic_auth.py
 - Gitleaks 支援 TOML config，但 custom config 可以 replace / extend /
-  disable default rules；因此不適合拿來當不可繞過的 KAI-Mind output-safety
+  disable default rules；因此不適合拿來當不可繞過的 Systograph output-safety
   baseline。
   - https://github.com/gitleaks/gitleaks#configuration
 
@@ -61,7 +61,7 @@ JSON / Markdown / API / Viewer / proposal / log / snapshot 可能都外洩
 
 ### Production code
 
-- `src/kai_mind/core/services/secret_masking_service.py`
+- `src/systograph/core/services/secret_masking_service.py`
   - 將 key 判斷正規化為 uppercase 後移除非英數字元。
   - 補齊 `APIKEY`、`PASSWD`、`PWD`、`PRIVATEKEY`、`ACCESSKEY`、
     `CREDENTIAL` 等 marker。
@@ -69,16 +69,16 @@ JSON / Markdown / API / Viewer / proposal / log / snapshot 可能都外洩
     結構化遮罩 URL userinfo。
   - 支援 `user:password@host`、`:password@host`、`token@host`、
     percent-encoded password、IPv6 host、embedded URL text。
-- `src/kai_mind/core/services/secret_validation_service.py`
+- `src/systograph/core/services/secret_validation_service.py`
   - 新增獨立 URL credential validator，不呼叫 masking service。
   - canonical validation 可在 masker blind spot 時仍拒絕 raw URL userinfo。
-- `src/kai_mind/core/services/system_map_validation_service.py`
+- `src/systograph/core/services/system_map_validation_service.py`
   - validation 先用 independent validator 檢查 URL credentials，再跑既有
     key/token-based secret check。
   - error message 維持 path-only，不回顯 raw credential。
-- `src/kai_mind/core/services/query_trace_service.py`
+- `src/systograph/core/services/query_trace_service.py`
   - provider error type / message 進 trace event 與 error reason 前先遮罩。
-- `src/kai_mind/core/services/path_safety_service.py`
+- `src/systograph/core/services/path_safety_service.py`
   - 修正 Windows path regex，避免把 `postgresql://...` 這類 URL scheme
     誤判成 Windows drive path，造成 URL 被 path redaction 打壞。
 

@@ -20,7 +20,7 @@ class GraphRAGRetriever:
         RETURN neighbor.summary AS summary
         LIMIT 5
         """
-        with self.graph.session(database="kai_mind_graph") as session:
+        with self.graph.session(database="systograph_graph") as session:
             records = session.run(query, entities=entities)
             return [record["summary"] for record in records]
 

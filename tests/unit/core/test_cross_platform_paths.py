@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.services.path_safety_service import (
+from systograph.core.services.path_safety_service import (
     PathSafetyError,
     is_project_relative_posix_path,
     normalize_project_relative_path,
@@ -67,16 +67,16 @@ def test_project_relative_posix_validation(
 
 def test_redacts_local_paths_without_removing_file_names() -> None:
     text = (
-        "Failed at /Users/linjunting/Local_AI_Health_Doctor/src/app.py "
+        "Failed at /Users/linjunting/Systograph/src/app.py "
         "and C:\\Users\\alice\\project\\src\\api.py"
     )
 
     redacted = redact_local_paths(
         text,
-        workspace_root=Path("/Users/linjunting/Local_AI_Health_Doctor"),
+        workspace_root=Path("/Users/linjunting/Systograph"),
     )
 
-    assert "/Users/linjunting/Local_AI_Health_Doctor" not in redacted
+    assert "/Users/linjunting/Systograph" not in redacted
     assert "C:\\Users\\alice" not in redacted
     assert "<LOCAL_PATH>/src/app.py" in redacted
     assert "<LOCAL_PATH>/src/api.py" in redacted

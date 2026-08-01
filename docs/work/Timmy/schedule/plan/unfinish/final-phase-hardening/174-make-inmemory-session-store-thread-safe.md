@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/174
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/174
 
 **Goal:** 避免 FastAPI threadpool 中 `InMemorySessionStore` 多步讀寫 race。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #174, assignee Timmy.
 - Origin: Backend findings L-6.
-- Primary file: `src/kai_mind/web/session_store.py`.
+- Primary file: `src/systograph/web/session_store.py`.
 - Related plans: #150 store growth bound, #164 proposal create dedup, Task 26 persistent session store.
 
 ### Task 1: Add concurrent store tests
@@ -32,7 +32,7 @@
 ### Task 2: Add minimal locking
 
 **Files:**
-- Modify: `src/kai_mind/web/session_store.py`
+- Modify: `src/systograph/web/session_store.py`
 
 - [ ] **Step 1: Add private `RLock`**
 - [ ] **Step 2: Lock multi-step writes and dependent reads**

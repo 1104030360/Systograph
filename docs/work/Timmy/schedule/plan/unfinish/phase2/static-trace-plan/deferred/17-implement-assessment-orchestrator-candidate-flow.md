@@ -47,7 +47,7 @@ ScanSnapshot.ua_analysis_result.semantic
 
 **Files**
 
-- Create: `src/kai_mind/core/models/assessment_candidate.py`
+- Create: `src/systograph/core/models/assessment_candidate.py`
 - Test: `tests/unit/core/test_assessment_candidate_models.py`
 
 **Steps**
@@ -63,7 +63,7 @@ ScanSnapshot.ua_analysis_result.semantic
 
 **Files**
 
-- Create: `src/kai_mind/core/services/semantic_candidate_adapter.py`
+- Create: `src/systograph/core/services/semantic_candidate_adapter.py`
 - Test: `tests/unit/core/test_semantic_candidate_adapter.py`
 
 **Steps**
@@ -79,8 +79,8 @@ ScanSnapshot.ua_analysis_result.semantic
 
 **Files**
 
-- Create: `src/kai_mind/core/rules/assessment_orchestrator_workflow.toml`
-- Create: `src/kai_mind/core/services/assessment_workflow_loader.py`
+- Create: `src/systograph/core/rules/assessment_orchestrator_workflow.toml`
+- Create: `src/systograph/core/services/assessment_workflow_loader.py`
 - Test: `tests/unit/core/test_assessment_workflow_loader.py`
 
 **Steps**
@@ -96,8 +96,8 @@ ScanSnapshot.ua_analysis_result.semantic
 
 **Files**
 
-- Create: `src/kai_mind/core/services/assessment_candidate_agent.py`
-- Modify: `src/kai_mind/core/configs/llm_proposal.toml`（只有必要時新增共用 provider note）
+- Create: `src/systograph/core/services/assessment_candidate_agent.py`
+- Modify: `src/systograph/core/configs/llm_proposal.toml`（只有必要時新增共用 provider note）
 - Test: `tests/unit/core/test_assessment_candidate_agent.py`
 
 **Steps**
@@ -113,7 +113,7 @@ ScanSnapshot.ua_analysis_result.semantic
 
 **Files**
 
-- Create: `src/kai_mind/core/services/candidate_contract_validator.py`
+- Create: `src/systograph/core/services/candidate_contract_validator.py`
 - Test: `tests/unit/core/test_candidate_contract_validator.py`
 
 **Steps**
@@ -131,8 +131,8 @@ ScanSnapshot.ua_analysis_result.semantic
 
 **Files**
 
-- Create: `src/kai_mind/core/services/assessment_orchestrator.py`
-- Modify: `src/kai_mind/core/services/map_build_service.py`
+- Create: `src/systograph/core/services/assessment_orchestrator.py`
+- Modify: `src/systograph/core/services/map_build_service.py`
 - Test: `tests/unit/core/test_assessment_orchestrator.py`
 - Test: `tests/integration/test_map_build_service.py`
 

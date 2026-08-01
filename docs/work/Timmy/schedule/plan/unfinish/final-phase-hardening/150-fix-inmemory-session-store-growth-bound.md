@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/150
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/150
 
 **Goal:** 避免 project 與完整 `MapBuildResult` 在 `InMemorySessionStore` 無上限累積造成記憶體 DoS。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #150, assignee Timmy.
 - Origin: Backend findings M-5.
-- Primary file: `src/kai_mind/web/session_store.py`.
+- Primary file: `src/systograph/web/session_store.py`.
 
 ### Task 1: Add growth regression tests
 
@@ -31,7 +31,7 @@
 ### Task 2: Implement bounded store
 
 **Files:**
-- Modify: `src/kai_mind/web/session_store.py`
+- Modify: `src/systograph/web/session_store.py`
 
 - [ ] **Step 1: Add configurable `max_projects` and `max_build_results`**
 - [ ] **Step 2: Use deterministic insertion/LRU order**

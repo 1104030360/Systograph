@@ -9,7 +9,7 @@ from tests.unit.core.test_legacy_manual_mapping_migration_service import (
 )
 from typer.testing import CliRunner
 
-from kai_mind.cli import main as cli_main
+from systograph.cli import main as cli_main
 
 
 def test_migration_cli_defaults_to_zero_write_dry_run(

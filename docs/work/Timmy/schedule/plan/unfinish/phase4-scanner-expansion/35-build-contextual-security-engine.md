@@ -23,7 +23,7 @@
   dataflow與 execution path artifacts。本計畫只消費，不重建兩者。
 - Task 39A擁有 target repo governance/observability capability detection與 profile/projection
   evidence。本計畫只判斷這些 facts放在特定 flow/context中可能造成的 security risk。
-- Final Hardening #156擁有 KAI-Mind mapping proposal provider本身的 masked telemetry與
+- Final Hardening #156擁有 Systograph mapping proposal provider本身的 masked telemetry與
   safe logs。本計畫不觀測 proposal runtime，也不保存 provider prompt/output。
 
 ## Scope
@@ -40,13 +40,13 @@
 - 不做 runtime attack simulation。
 - 不做 CVE vulnerability scanner。
 - 不讓 LLM 決定 severity。
-- 不重做 governance/observability capability detection或 KAI-Mind proposal observability。
+- 不重做 governance/observability capability detection或 Systograph proposal observability。
 
 ### Task 1: Define contextual rule catalog
 
 **Files:**
-- Create: `src/kai_mind/core/rules/contextual_security_rules.toml`
-- Create: `src/kai_mind/core/services/contextual_security_rule_loader.py`
+- Create: `src/systograph/core/rules/contextual_security_rules.toml`
+- Create: `src/systograph/core/services/contextual_security_rule_loader.py`
 - Test: `tests/unit/core/test_contextual_security_rule_loader.py`
 
 - [ ] **Step 1: Write schema validation tests**
@@ -83,7 +83,7 @@ unbounded_consumption
 ### Task 2: Build evidence graph inputs
 
 **Files:**
-- Create: `src/kai_mind/core/services/security_evidence_graph_service.py`
+- Create: `src/systograph/core/services/security_evidence_graph_service.py`
 - Test: `tests/unit/core/test_security_evidence_graph_service.py`
 
 - [ ] **Step 1: Normalize components, endpoints, flows, evidence, AST observations into a read-only graph**
@@ -95,8 +95,8 @@ unbounded_consumption
 ### Task 3: Evaluate contextual risk hints
 
 **Files:**
-- Create: `src/kai_mind/core/services/contextual_security_engine.py`
-- Modify: `src/kai_mind/core/services/risk_hint_service.py`
+- Create: `src/systograph/core/services/contextual_security_engine.py`
+- Modify: `src/systograph/core/services/risk_hint_service.py`
 - Test: `tests/unit/core/test_contextual_security_engine.py`
 - Test: `tests/integration/test_phase14_endpoints_risk_hints_flows_behaviors.py`
 
@@ -150,5 +150,5 @@ git diff --check
 - 依賴 Phase2 active v2/evidence contract與 dynamic `00` static execution semantics。
 - Task 34提供 optional AST observations；Task 39A提供 governance/observability capability
   evidence。兩者缺失時只能降級/標 limitation，不能猜測。
-- #156是 KAI-Mind自身 proposal telemetry hardening，與 target repo security engine分離。
+- #156是 Systograph自身 proposal telemetry hardening，與 target repo security engine分離。
 - Phase5 Task 42只 render backend risk/readiness projection，不在 frontend重算 security rules。

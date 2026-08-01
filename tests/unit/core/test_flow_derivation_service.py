@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from kai_mind.core.models.system_map import (
+from systograph.core.models.system_map import (
     ComponentInstance,
     ComponentSlot,
     Flow,
 )
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
 )
-from kai_mind.core.services.flow_derivation_service import (
+from systograph.core.services.flow_derivation_service import (
     FlowDerivationService,
 )
-from kai_mind.core.services.rag_template_service import RagTemplateService
+from systograph.core.services.rag_template_service import RagTemplateService
 
 
 def component(

@@ -11,7 +11,7 @@ sample 明確區分 current runtime、current backend model 與 planned target�
 - [x] 讀取並遵守 repo `AGENTS.md`；本次沒有專案結構或長期規則變更，因此不修改它。
 - [x] 對照 `src/`、`frontend/src/`、`docs/spec/`、`API-GUIDE.md`、
   `MODEL-CONTRACT.md`、Plan 13 與已完成 Plan 05～09 reports。
-- [x] 修正 Step 3：current Phase A 是 KAI deterministic providers，UA-primary 是 future
+- [x] 修正 Step 3：current Phase A 是 Systograph deterministic providers，UA-primary 是 future
   Phase B。
 - [x] 修正 Step 4 sample，使其通過 current `AiSystemMapV2`，並標明 public runtime 仍是
   v1、Plan 13 仍 blocked。

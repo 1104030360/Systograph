@@ -37,40 +37,40 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --mapping-id)
-      i=$((i + 1)); MAPPING_ID="${KAI_EXTRA_ARGS[$i]:?missing value for --mapping-id}" ;;
+      i=$((i + 1)); MAPPING_ID="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --mapping-id}" ;;
     --reason)
-      i=$((i + 1)); NEW_REASON="${KAI_EXTRA_ARGS[$i]:?missing value for --reason}" ;;
-    *) kai_die "Unknown option: $arg" ;;
+      i=$((i + 1)); NEW_REASON="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --reason}" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
 if [[ -z "$MAPPING_ID" ]]; then
-  kai_section "準備：匯入 + 掃描 + 先建一筆 mapping"
-  PROJECT_ID="$(kai_import_project)"
-  SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
-  CREATED="$(kai_create_demo_mapping "$PROJECT_ID" "$SCAN_JSON")"
+  systograph_section "準備：匯入 + 掃描 + 先建一筆 mapping"
+  PROJECT_ID="$(systograph_import_project)"
+  SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
+  CREATED="$(systograph_create_demo_mapping "$PROJECT_ID" "$SCAN_JSON")"
   MAPPING_ID="$(echo "$CREATED" | jq -r '.mapping_id')"
   [[ -n "$MAPPING_ID" && "$MAPPING_ID" != "null" ]] \
-    || kai_die "Failed to create a mapping to update"
-  kai_progress "已建立 mapping_id=$MAPPING_ID"
+    || systograph_die "Failed to create a mapping to update"
+  systograph_progress "已建立 mapping_id=$MAPPING_ID"
 fi
 
-ENCODED_ID="$(kai_urlencode "$MAPPING_ID")"
-kai_section "更新 mapping：PATCH /api/mappings/{id}"
+ENCODED_ID="$(systograph_urlencode "$MAPPING_ID")"
+systograph_section "更新 mapping：PATCH /api/mappings/{id}"
 REQUEST_BODY="$(jq -n --arg reason "$NEW_REASON" '{reason:$reason}')"
-kai_progress "現在要更新 mapping 的 reason..."
+systograph_progress "現在要更新 mapping 的 reason..."
 api_call PATCH "/api/mappings/$ENCODED_ID" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Updated mapping summary"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Updated mapping summary"
 echo "$LAST_BODY" | jq '{
   mapping_id, decision, reason, mapping_digest, created_at, updated_at
 }'

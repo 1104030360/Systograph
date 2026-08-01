@@ -44,16 +44,16 @@ evidence-backed inferred execution map。但 P0 也不承諾 runtime 100% 正確
 
 ### 相關檔案
 
-- Create: `src/kai_mind/core/models/static_execution.py`
-- Create: `src/kai_mind/core/services/static_call_graph_service.py`
-- Create: `src/kai_mind/core/services/shallow_dataflow_service.py`
-- Create: `src/kai_mind/core/services/execution_path_recovery_service.py`
-- Create: `src/kai_mind/core/renderers/execution_mermaid_renderer.py`
-- Modify: `src/kai_mind/core/services/code_path_scan_service.py`
-- Modify: `src/kai_mind/core/services/endpoint_detection_service.py`
-- Modify: `src/kai_mind/core/services/flow_derivation_service.py`
-- Modify: `src/kai_mind/core/providers/output_artifact_provider.py`
-- Modify: `src/kai_mind/core/services/map_build_service.py`
+- Create: `src/systograph/core/models/static_execution.py`
+- Create: `src/systograph/core/services/static_call_graph_service.py`
+- Create: `src/systograph/core/services/shallow_dataflow_service.py`
+- Create: `src/systograph/core/services/execution_path_recovery_service.py`
+- Create: `src/systograph/core/renderers/execution_mermaid_renderer.py`
+- Modify: `src/systograph/core/services/code_path_scan_service.py`
+- Modify: `src/systograph/core/services/endpoint_detection_service.py`
+- Modify: `src/systograph/core/services/flow_derivation_service.py`
+- Modify: `src/systograph/core/providers/output_artifact_provider.py`
+- Modify: `src/systograph/core/services/map_build_service.py`
 - Test: `tests/unit/core/test_static_call_graph_service.py`
 - Test: `tests/unit/core/test_shallow_dataflow_service.py`
 - Test: `tests/unit/core/test_execution_path_recovery_service.py`
@@ -209,7 +209,7 @@ flattened evidence artifact。
 .venv/bin/pytest tests/unit/core/test_execution_path_recovery_service.py -q
 .venv/bin/pytest tests/unit/core/test_execution_mermaid_renderer.py -q
 .venv/bin/pytest tests/integration/test_static_execution_artifacts.py -q
-.venv/bin/ruff check src/kai_mind/core/services src/kai_mind/core/models src/kai_mind/core/renderers
+.venv/bin/ruff check src/systograph/core/services src/systograph/core/models src/systograph/core/renderers
 .venv/bin/mypy src
 ```
 

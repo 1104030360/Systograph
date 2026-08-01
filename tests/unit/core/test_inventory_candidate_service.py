@@ -8,14 +8,14 @@ from typing import IO, Any, cast
 
 import pytest
 
-from kai_mind.core.models.errors import InventorySelectionError
-from kai_mind.core.models.inventory_selection import (
+from systograph.core.models.errors import InventorySelectionError
+from systograph.core.models.inventory_selection import (
     InventoryCandidateOutcome,
     InventoryDirectoryLimitKind,
     InventoryRequestedTargetStatus,
     InventorySelectionSource,
 )
-from kai_mind.core.services.inventory_candidate_service import (
+from systograph.core.services.inventory_candidate_service import (
     InventoryCandidateService,
 )
 
@@ -356,10 +356,13 @@ def test_directory_with_only_hard_blocked_children_is_empty(
     assert result.reason_code == "inventory_selection_directory_empty"
 
 
-@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="FIFO is unavailable")
 def test_special_file_is_hard_blocked_for_exact_and_directory_selection(
     tmp_path: Path,
 ) -> None:
+    mkfifo = getattr(os, "mkfifo", None)
+    if not callable(mkfifo):
+        pytest.skip("FIFO is unavailable")
+
     project_root = tmp_path / "project"
     target = project_root / "ignored"
     target.mkdir(parents=True)
@@ -368,7 +371,7 @@ def test_special_file_is_hard_blocked_for_exact_and_directory_selection(
         encoding="utf-8",
     )
     fifo = target / "events.pipe"
-    os.mkfifo(fifo)
+    mkfifo(fifo)
     service = InventoryCandidateService()
     candidate_set = service.build_candidate_set(project_root)
 

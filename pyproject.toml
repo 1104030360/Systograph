@@ -32,11 +32,10 @@ dev = [
 ]
 
 [project.scripts]
-systograph = "kai_mind.cli.main:main"
-kai-mind = "kai_mind.cli.main:main"
+systograph = "systograph.cli.main:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kai_mind"]
+packages = ["src/systograph"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -54,7 +53,7 @@ markers = [
 
 [tool.coverage.run]
 branch = true
-source = ["kai_mind"]
+source = ["systograph"]
 
 [tool.coverage.report]
 fail_under = 85

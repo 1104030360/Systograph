@@ -121,7 +121,7 @@ GREEN：所有 hit 明確分類後，同一 command exit 0，`1 passed in 0.19s`
 - `migration_only`：15
 - `remove`：1
 - `operator_rollback`：0（Stage A 未實作 rollback，沒有虛構紀錄）
-- Executable scope：`src/kai_mind/**/*.py` AST、`frontend/src/**/*.{ts,tsx,json}` text、
+- Executable scope：`src/systograph/**/*.py` AST、`frontend/src/**/*.{ts,tsx,json}` text、
   `scripts/**/*.sh` operational text。
 - Digest payload：依 allowlist tuple 順序，把四欄 record 轉成 sorted-key compact JSON。
 - SHA-256：`34d9f531636bef94e67db32664063af014500eb8af832586cc46ce380f457e6f`

@@ -31,32 +31,32 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --detail-scan-id)
       i=$((i + 1))
-      DETAIL_SCAN_ID="${KAI_EXTRA_ARGS[$i]:?missing value for --detail-scan-id}"
+      DETAIL_SCAN_ID="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --detail-scan-id}"
       ;;
-    *) kai_die "Unknown option: $arg" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
 if [[ -z "$DETAIL_SCAN_ID" ]]; then
-  kai_section "準備：匯入 + 掃描 + 建立 detail scan"
-  PROJECT_ID="$(kai_import_project)"
-  SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
+  systograph_section "準備：匯入 + 掃描 + 建立 detail scan"
+  PROJECT_ID="$(systograph_import_project)"
+  SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
   BUILD_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.lineage.build_id')"
   TARGET="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
   [[ -n "$BUILD_ID" && "$BUILD_ID" != "null" ]] \
-    || kai_die "Scan response missing build_result.lineage.build_id"
+    || systograph_die "Scan response missing build_result.lineage.build_id"
   [[ -n "$TARGET" && "$TARGET" != "null" ]] \
-    || kai_die "Could not derive a default target slot from the scan"
-  kai_progress "現在要建立 detail scan（之後再依 id 讀回）..."
+    || systograph_die "Could not derive a default target slot from the scan"
+  systograph_progress "現在要建立 detail scan（之後再依 id 讀回）..."
   DETAIL_BODY="$(setup_post "/api/detail-scans" \
     "$(jq -n --arg id "$PROJECT_ID" --arg build "$BUILD_ID" \
       --arg tt "$TARGET_TYPE" --arg t "$TARGET" \
@@ -64,17 +64,17 @@ if [[ -z "$DETAIL_SCAN_ID" ]]; then
         scan_depth:"component"}')")"
   DETAIL_SCAN_ID="$(echo "$DETAIL_BODY" | jq -r '.detail_scan.id')"
   [[ -n "$DETAIL_SCAN_ID" && "$DETAIL_SCAN_ID" != "null" ]] \
-    || kai_die "Failed to create a detail scan"
-  kai_progress "已建立 detail_scan_id=$DETAIL_SCAN_ID"
+    || systograph_die "Failed to create a detail scan"
+  systograph_progress "已建立 detail_scan_id=$DETAIL_SCAN_ID"
 fi
 
-ENCODED_ID="$(kai_urlencode "$DETAIL_SCAN_ID")"
-kai_section "讀取 detail scan：GET /api/detail-scans/{id}"
-kai_progress "現在要依 id 讀回 detail scan..."
+ENCODED_ID="$(systograph_urlencode "$DETAIL_SCAN_ID")"
+systograph_section "讀取 detail scan：GET /api/detail-scans/{id}"
+systograph_progress "現在要依 id 讀回 detail scan..."
 api_call GET "/api/detail-scans/$ENCODED_ID"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Detail scan 摘要（含 Track A child graph）"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Detail scan 摘要（含 Track A child graph）"
 echo "$LAST_BODY" | jq '{
   project_id,
   detail_scan_id: .detail_scan.id,

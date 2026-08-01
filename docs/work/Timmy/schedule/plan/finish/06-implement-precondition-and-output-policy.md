@@ -28,8 +28,8 @@
 - 不在本任務輸出 `map-error.json`；若未來 CLI/CI 需要 machine-readable failure contract，再新增 `outputs/map-error.json`。
 
 ## 建議實作步驟
-1. 建立 `src/kai_mind/core/models/errors.py`。
-2. 建立 `src/kai_mind/core/models/scan.py` 的 `PreconditionResult`。
+1. 建立 `src/systograph/core/models/errors.py`。
+2. 建立 `src/systograph/core/models/scan.py` 的 `PreconditionResult`。
 3. 建立 `OutputRun`，保存 `root_dir`、`map_error_path`、`map_json_path`、`map_markdown_path`。
 4. 建立 `OutputArtifactProvider` 的最小 output directory preparation。
 5. 定義 `PreconditionError` 欄位與 `failure_reason` enum，例如 `project_path_not_found`、`project_path_not_directory`、`project_path_not_readable`、`output_directory_not_writable`。
@@ -39,9 +39,9 @@
 9. 測試 project path readable 成功時回傳 normalized root 與 `OutputRun`。
 
 ## 預期輸出
-- `src/kai_mind/core/models/errors.py`
-- `src/kai_mind/core/models/scan.py`
-- `src/kai_mind/core/providers/output_artifact_provider.py`
+- `src/systograph/core/models/errors.py`
+- `src/systograph/core/models/scan.py`
+- `src/systograph/core/providers/output_artifact_provider.py`
 - `tests/unit/core/test_precondition_output_policy.py`
 
 ## 驗收標準

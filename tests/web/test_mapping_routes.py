@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def test_mapping_routes_create_and_list_confirmed_mapping() -> None:

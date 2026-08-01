@@ -38,7 +38,7 @@ contextual **risk hints**。Task 35 不重做 capability detection；本計畫�
 
 ### 與 GitHub #156 / Final Hardening 156 的分工
 
-`156-add-masked-ai-proposal-observability.md` 觀測的是 **KAI-Mind 自己的 mapping proposal
+`156-add-masked-ai-proposal-observability.md` 觀測的是 **Systograph 自己的 mapping proposal
 provider**：masked request lifecycle、provider outcome、latency與 safe logs。本計畫掃描的是
 **target repo 是否具有 observability/governance architecture**。兩者不得共用 raw prompt、
 provider payload 或 secret-bearing telemetry。
@@ -61,7 +61,7 @@ provider payload 或 secret-bearing telemetry。
 - 不做 runtime trace、OpenTelemetry collector、eval execution 或 cost billing。
 - 不做完整 SAST、DLP、policy engine、compliance certification 或漏洞 exploit proof。
 - 不建立 active `ExtensionComponent`；extension subsystems 使用 v2 facts/profile overlay。
-- 不更改 KAI-Mind 自身 proposal-provider logging；該工作屬 #156。
+- 不更改 Systograph 自身 proposal-provider logging；該工作屬 #156。
 
 ## Implementation Tasks
 
@@ -82,9 +82,9 @@ provider payload 或 secret-bearing telemetry。
 ### Task 2: Add bounded provider and AST rules
 
 **Files:**
-- Modify: `src/kai_mind/core/rules/code_pattern_rules.toml`
-- Modify: `src/kai_mind/core/rules/dependency_manifest_rules.toml`
-- Modify: `src/kai_mind/core/providers/code_pattern_provider.py`
+- Modify: `src/systograph/core/rules/code_pattern_rules.toml`
+- Modify: `src/systograph/core/rules/dependency_manifest_rules.toml`
+- Modify: `src/systograph/core/providers/code_pattern_provider.py`
 - Test: `tests/unit/core/test_rule_catalog_loader.py`
 - Test: `tests/integration/test_governance_observability_capabilities.py`
 
@@ -95,8 +95,8 @@ provider payload 或 secret-bearing telemetry。
 ### Task 3: Add Python-owned inference
 
 **Files:**
-- Modify: `src/kai_mind/core/services/profile_inference_service.py`
-- Modify: `src/kai_mind/core/rules/profile_registry.toml`
+- Modify: `src/systograph/core/services/profile_inference_service.py`
+- Modify: `src/systograph/core/rules/profile_registry.toml`
 - Test: `tests/unit/core/test_profile_inference_service.py`
 
 - [ ] Python實作 trigger、negative evidence、depth與統一五態 status判定。
@@ -111,8 +111,8 @@ provider payload 或 secret-bearing telemetry。
 ### Task 4: Project backend-owned overlays and details
 
 **Files:**
-- Modify: `src/kai_mind/core/services/graph_projection_service.py`
-- Modify: `src/kai_mind/core/models/viewer.py`
+- Modify: `src/systograph/core/services/graph_projection_service.py`
+- Modify: `src/systograph/core/models/viewer.py`
 - Test: `tests/unit/core/test_graph_projection_service.py`
 
 - [ ] 提供 governance/observability lens filter memberships、evidence refs與 limitations。

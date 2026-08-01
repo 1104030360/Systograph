@@ -6,19 +6,27 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.services.graph_markdown_renderer import (
+from systograph.core.models.viewer import (
+    GraphDetailsModel,
+    GraphEndpointModel,
+    GraphFiltersModel,
+    GraphNodeModel,
+    GraphRecommendedNextCheckModel,
+    GraphViewModel,
+)
+from systograph.core.services.graph_markdown_renderer import (
     GraphMarkdownRenderer,
 )
-from kai_mind.core.services.graph_mermaid_renderer import (
+from systograph.core.services.graph_mermaid_renderer import (
     GraphMermaidRenderer,
 )
-from kai_mind.core.services.graph_projection_service import (
+from systograph.core.services.graph_projection_service import (
     GraphProjectionService,
 )
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.system_map_v2_validation_service import (
+from systograph.core.services.system_map_v2_validation_service import (
     SystemMapV2ValidationService,
 )
 
@@ -30,11 +38,11 @@ V2_FIXTURE_DIR = V2_FIXTURE.parent
     ("module_name", "type_name"),
     [
         (
-            "kai_mind.core.services.graph_mermaid_renderer",
+            "systograph.core.services.graph_mermaid_renderer",
             "GraphMermaidRenderer",
         ),
         (
-            "kai_mind.core.services.graph_markdown_renderer",
+            "systograph.core.services.graph_markdown_renderer",
             "GraphMarkdownRenderer",
         ),
     ],
@@ -91,15 +99,6 @@ def test_renderers_share_graph_ids_without_semantic_topology_edges() -> None:
 
 def test_markdown_renders_graph_endpoints_and_canonical_next_checks() -> None:
     # Given
-    from kai_mind.core.models.viewer import (
-        GraphDetailsModel,
-        GraphEndpointModel,
-        GraphFiltersModel,
-        GraphNodeModel,
-        GraphRecommendedNextCheckModel,
-        GraphViewModel,
-    )
-
     graph = GraphViewModel(
         schema_version="graph-view-model/v1",
         nodes=[
@@ -157,7 +156,135 @@ def test_markdown_renders_graph_endpoints_and_canonical_next_checks() -> None:
         "- [ ] review_published_port: Confirm whether the published port "
         "is intentional. (target: endpoint:docker:qdrant:6333)"
     ) in markdown
-    assert "No backend-provided next checks" not in markdown
+    assert "- No scan-fact checks." not in markdown
+
+
+def _next_check(
+    *,
+    check_id: str = "check:1",
+    target: str = "component:vector_store:qdrant",
+) -> GraphRecommendedNextCheckModel:
+    return GraphRecommendedNextCheckModel(
+        id=check_id,
+        target_type="component_instance",
+        target=target,
+        reason="Confirm whether the published port is intentional.",
+        action="review_published_port",
+    )
+
+
+def _graph_with_next_checks(
+    *,
+    graph_checks: list[GraphRecommendedNextCheckModel] | None = None,
+    node_checks: list[str] | None = None,
+) -> GraphViewModel:
+    return GraphViewModel(
+        schema_version="graph-view-model/v1",
+        nodes=[
+            GraphNodeModel(
+                id="node:reference:grounding",
+                label="Grounding",
+                semantic_kind="reference_capability",
+                recommended_next_checks=list(node_checks or []),
+            )
+        ],
+        edges=[],
+        recommended_next_checks=list(graph_checks or []),
+        details=GraphDetailsModel(),
+        filters=GraphFiltersModel(),
+    )
+
+
+def test_markdown_renders_both_next_check_sections() -> None:
+    # Given
+    graph = _graph_with_next_checks(
+        graph_checks=[_next_check()],
+        node_checks=["Review the retrieval grounding evidence."],
+    )
+
+    # When
+    markdown = GraphMarkdownRenderer().render(graph)
+
+    # Then
+    assert "## Recommended Next Checks" in markdown
+    assert "### Scan-fact checks" in markdown
+    assert "### Capability review checks" in markdown
+    assert markdown.index("### Scan-fact checks") < markdown.index(
+        "### Capability review checks"
+    )
+    assert (
+        "- [ ] review_published_port: Confirm whether the published port "
+        "is intentional. (target: component:vector_store:qdrant)"
+    ) in markdown
+    assert (
+        "- [ ] `node:reference:grounding`: "
+        "Review the retrieval grounding evidence."
+    ) in markdown
+
+
+def test_markdown_marks_capability_section_empty_when_scan_only() -> None:
+    # Given
+    graph = _graph_with_next_checks(graph_checks=[_next_check()])
+
+    # When
+    markdown = GraphMarkdownRenderer().render(graph)
+
+    # Then
+    assert "### Scan-fact checks" in markdown
+    assert "### Capability review checks" in markdown
+    assert "- [ ] review_published_port: " in markdown
+    assert "- No scan-fact checks." not in markdown
+    assert "- No capability review checks." in markdown
+
+
+def test_markdown_marks_scan_fact_section_empty_when_profile_only() -> None:
+    # Given
+    graph = _graph_with_next_checks(
+        node_checks=["Review the retrieval grounding evidence."]
+    )
+
+    # When
+    markdown = GraphMarkdownRenderer().render(graph)
+
+    # Then
+    assert "### Scan-fact checks" in markdown
+    assert "### Capability review checks" in markdown
+    assert "- No scan-fact checks." in markdown
+    assert "- No capability review checks." not in markdown
+    assert (
+        "- [ ] `node:reference:grounding`: "
+        "Review the retrieval grounding evidence."
+    ) in markdown
+
+
+def test_markdown_reports_both_next_check_sections_as_empty() -> None:
+    # Given
+    graph = _graph_with_next_checks()
+
+    # When
+    markdown = GraphMarkdownRenderer().render(graph)
+
+    # Then
+    assert "- No scan-fact checks." in markdown
+    assert "- No capability review checks." in markdown
+    assert "- [ ]" not in markdown
+
+
+def test_markdown_deduplicates_next_checks_within_each_section() -> None:
+    # Given
+    duplicate_check = "Review the retrieval grounding evidence."
+    graph = _graph_with_next_checks(
+        graph_checks=[_next_check(), _next_check(check_id="check:2")],
+        node_checks=[duplicate_check, duplicate_check],
+    )
+
+    # When
+    markdown = GraphMarkdownRenderer().render(graph)
+
+    # Then
+    duplicate_line = f"- [ ] `node:reference:grounding`: {duplicate_check}"
+    assert markdown.count("- [ ] review_published_port: ") == 1
+    assert markdown.count(duplicate_line) == 1
 
 
 @pytest.mark.parametrize(

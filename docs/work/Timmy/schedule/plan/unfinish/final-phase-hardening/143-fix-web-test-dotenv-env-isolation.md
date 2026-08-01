@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/143
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/143
 
 **Goal:** 避免 `tests/web` 自動載入開發者真實 `.env`、API key 或 process environment，確保測試可重現且不會意外 wire 真實 AI provider。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #143, assignee Timmy.
 - Origin: Backend findings H-5.
-- Primary files: `tests/conftest.py`, `src/kai_mind/web/app.py`, `src/kai_mind/core/providers/llm_proposal_provider.py`.
+- Primary files: `tests/conftest.py`, `src/systograph/web/app.py`, `src/systograph/core/providers/llm_proposal_provider.py`.
 
 ### Task 1: Add failing isolation test
 
@@ -40,7 +40,7 @@
 ### Task 3: Keep production behavior explicit
 
 **Files:**
-- Modify: `src/kai_mind/web/app.py`
+- Modify: `src/systograph/web/app.py`
 - Modify: `docs/API-GUIDE.md`
 
 - [ ] **Step 1: Ensure app factory accepts explicit `env_file`**

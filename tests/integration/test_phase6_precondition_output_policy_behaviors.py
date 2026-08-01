@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
-from kai_mind.core.providers.output_artifact_provider import (
+from systograph.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
 

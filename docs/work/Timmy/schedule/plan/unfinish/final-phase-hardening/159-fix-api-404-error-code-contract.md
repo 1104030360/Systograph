@@ -1,12 +1,12 @@
 # GitHub #159 API 404 Error Code Contract Implementation Plan
 
 > **Current verified state（2026-07-05）：部分完成。** 多數 routes 已使用
-> `project_not_found`，但 `src/kai_mind/web/routes/scan_routes.py` 仍回傳字串
+> `project_not_found`，但 `src/systograph/web/routes/scan_routes.py` 仍回傳字串
 > `Project not found`。本 plan 保留在 unfinish，剩餘工作必須聚焦此 route 與一致性測試。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/159
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/159
 
 **Goal:** 統一 API 404 detail 格式，避免 `Project not found` 與 `project_not_found` 混用破壞前端 mapping。
 
@@ -20,7 +20,7 @@
 
 - GitHub issue #159, assignee Timmy.
 - Origin: Backend findings M-13.
-- Primary files: `src/kai_mind/web/routes/scan_routes.py`, trace/detail/mapping routes, `docs/API-GUIDE.md`.
+- Primary files: `src/systograph/web/routes/scan_routes.py`, trace/detail/mapping routes, `docs/API-GUIDE.md`.
 
 ### Task 1: Choose canonical error codes
 
@@ -46,7 +46,7 @@
 ### Task 3: Update route details
 
 **Files:**
-- Modify: `src/kai_mind/web/routes/scan_routes.py`
+- Modify: `src/systograph/web/routes/scan_routes.py`
 - Modify: related route modules if inconsistent
 
 - [ ] **Step 1: Replace human sentence with stable code**

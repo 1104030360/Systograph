@@ -6,22 +6,22 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
-from kai_mind.core.models.capability_candidate import (
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.models.capability_candidate import (
     CapabilityCandidateComponent,
 )
-from kai_mind.core.models.system_map import RagSystemMap
-from kai_mind.core.services.capability_reference_map_loader import (
+from systograph.core.models.system_map import RagSystemMap
+from systograph.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapLoader,
 )
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.reference_map_overlay_projector import (
+from systograph.core.services.reference_map_overlay_projector import (
     ReferenceMapOverlayProjector,
 )
-from kai_mind.core.services.system_map_index import SystemMapIndex
-from kai_mind.core.services.system_map_v1_to_v2_adapter import (
+from systograph.core.services.system_map_index import SystemMapIndex
+from systograph.core.services.system_map_v1_to_v2_adapter import (
     SystemMapV1ToV2Adapter,
 )
 
@@ -43,7 +43,7 @@ def canonical_map() -> AiSystemMapV2:
 
 def test_reference_overlay_projector_contract_is_available() -> None:
     # Given
-    module_name = "kai_mind.core.services.reference_map_overlay_projector"
+    module_name = "systograph.core.services.reference_map_overlay_projector"
 
     # When
     try:
@@ -63,7 +63,7 @@ def test_reference_overlay_projector_exposes_narrow_project_interface() -> (
 ):
     # Given
     module = import_module(
-        "kai_mind.core.services.reference_map_overlay_projector"
+        "systograph.core.services.reference_map_overlay_projector"
     )
     projector_type = module.ReferenceMapOverlayProjector
 

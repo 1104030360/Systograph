@@ -1,12 +1,12 @@
 /* ============================================================================
-   Kai-Mind Viewer — additive UI for:
+   Systograph Viewer — additive UI for:
      1. Scan Template / Mapping Profile management page  (.st-*)
      2. Mapping Proposal modal / center sheet            (.mp-*)
    Built on the existing token system in styles.css. No token redefinition,
    no override of existing component classes. Naming mirrors the BEM-ish
    convention already in the codebase.
 
-   Ported from the design handoff bundle (Kai-Mind Scan Template & Mapping
+   Ported from the design handoff bundle (Systograph Scan Template & Mapping
    Proposal). The prototype-only demo shell + dev state panel are intentionally
    omitted — the real viewer hosts these surfaces instead.
    ========================================================================== */

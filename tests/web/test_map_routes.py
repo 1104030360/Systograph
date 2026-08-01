@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def test_map_build_route_updates_api_map_payload(tmp_path: Path) -> None:
@@ -57,7 +57,9 @@ def test_map_report_route_returns_latest_markdown_report(
     assert "## External Endpoints" in report_response.text
     assert "## Network Exposure" in report_response.text
     assert "## Recommended Next Checks" in report_response.text
-    assert "No backend-provided next checks" not in report_response.text
+    assert "### Scan-fact checks" in report_response.text
+    assert "### Capability review checks" in report_response.text
+    assert "- No scan-fact checks." not in report_response.text
     assert "- [ ]" in report_response.text
     assert (
         "localhost:6333" in report_response.text

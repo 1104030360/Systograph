@@ -6,7 +6,7 @@
 
 Project：
 
-- GitHub Project #6：`Local-AI-Health-Doctor Execution`
+- GitHub Project #6：`Systograph Execution`
 - URL：https://github.com/users/1104030360/projects/6
 
 ## 1. 目前 Board 狀態

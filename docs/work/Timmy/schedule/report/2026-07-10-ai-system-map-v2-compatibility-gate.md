@@ -26,7 +26,7 @@ Record the 00A compatibility gate outcome before any active output cutover to
 
 | Consumer | Status | Notes |
 |----------|--------|-------|
-| CLI `kai-mind map` | equivalent (v1 active) | Emits `active_schema_version` + migration warnings; v2 opt-in does not rewrite artifact |
+| CLI `systograph map` | equivalent (v1 active) | Emits `active_schema_version` + migration warnings; v2 opt-in does not rewrite artifact |
 | Web `/api/scans` | equivalent (v1 active) | Accepts optional `system_map_schema_version`; build artifact remains v1 |
 | ViewerSessionService / GraphViewModel | deferred migration | Still consumes `RagSystemMap`; must switch via loader in Plan 13 |
 | Markdown summary | deferred migration | Still renders v1 map |

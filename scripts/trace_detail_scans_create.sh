@@ -38,38 +38,38 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --target-type)
-      i=$((i + 1)); TARGET_TYPE="${KAI_EXTRA_ARGS[$i]:?missing value for --target-type}" ;;
+      i=$((i + 1)); TARGET_TYPE="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --target-type}" ;;
     --target)
-      i=$((i + 1)); TARGET="${KAI_EXTRA_ARGS[$i]:?missing value for --target}" ;;
+      i=$((i + 1)); TARGET="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --target}" ;;
     --scan-depth)
-      i=$((i + 1)); SCAN_DEPTH="${KAI_EXTRA_ARGS[$i]:?missing value for --scan-depth}" ;;
-    *) kai_die "Unknown option: $arg" ;;
+      i=$((i + 1)); SCAN_DEPTH="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --scan-depth}" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
-kai_section "準備：匯入專案並掃描，取得 build_id"
-PROJECT_ID="$(kai_import_project)"
-SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
+systograph_section "準備：匯入專案並掃描，取得 build_id"
+PROJECT_ID="$(systograph_import_project)"
+SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
 BUILD_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.lineage.build_id')"
 [[ -n "$BUILD_ID" && "$BUILD_ID" != "null" ]] \
-  || kai_die "Scan response missing build_result.lineage.build_id"
+  || systograph_die "Scan response missing build_result.lineage.build_id"
 
 if [[ -z "$TARGET" ]]; then
   TARGET="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
   [[ -n "$TARGET" && "$TARGET" != "null" ]] \
-    || kai_die "Could not derive a default target slot from the scan"
-  kai_progress "預設目標 ($TARGET_TYPE) = $TARGET"
+    || systograph_die "Could not derive a default target slot from the scan"
+  systograph_progress "預設目標 ($TARGET_TYPE) = $TARGET"
 fi
 
-kai_section "執行 detail scan：POST /api/detail-scans"
+systograph_section "執行 detail scan：POST /api/detail-scans"
 REQUEST_BODY="$(jq -n \
   --arg id "$PROJECT_ID" \
   --arg build "$BUILD_ID" \
@@ -77,11 +77,11 @@ REQUEST_BODY="$(jq -n \
   --arg t "$TARGET" \
   --arg sd "$SCAN_DEPTH" \
   '{project_id:$id, build_id:$build, target_type:$tt, target:$t, scan_depth:$sd}')"
-kai_progress "現在要對指定 build 做 detail scan（target=${TARGET}）..."
+systograph_progress "現在要對指定 build 做 detail scan（target=${TARGET}）..."
 api_call POST "/api/detail-scans" "$REQUEST_BODY"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Detail scan 摘要（含 Track A child graph）"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Detail scan 摘要（含 Track A child graph）"
 echo "$LAST_BODY" | jq '{
   detail_scan_id: .detail_scan.id,
   target_type: .detail_scan.target_type,

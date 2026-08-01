@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/151
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/151
 
 **Goal:** 修正 trace script 使用 `--start-server` 搭配自訂 `--api-base-url` 時，uvicorn 仍硬編碼 port 8000 而 timeout。
 

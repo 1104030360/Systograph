@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/156
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/156
 
 **Goal:** 為 mapping proposal AI 呼叫增加可除錯且不洩漏機密的結構化 observability。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #156, assignee Timmy.
 - Origin: Backend findings M-10.
-- Primary files: `src/kai_mind/core/providers/llm_proposal_provider.py`, `src/kai_mind/core/services/mapping_proposal_service.py`.
+- Primary files: `src/systograph/core/providers/llm_proposal_provider.py`, `src/systograph/core/services/mapping_proposal_service.py`.
 
 ### Task 1: Add observability tests
 
@@ -31,9 +31,9 @@
 ### Task 2: Implement masked log events
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/llm_proposal_provider.py`
-- Modify: `src/kai_mind/core/services/mapping_proposal_service.py`
-- Modify: `src/kai_mind/core/services/logging_service.py` if needed
+- Modify: `src/systograph/core/providers/llm_proposal_provider.py`
+- Modify: `src/systograph/core/services/mapping_proposal_service.py`
+- Modify: `src/systograph/core/services/logging_service.py` if needed
 
 - [ ] **Step 1: Emit start/finish/failure events**
 - [ ] **Step 2: Include masked prompt/evidence summary only**

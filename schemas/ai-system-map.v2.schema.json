@@ -468,6 +468,40 @@
       "title": "CanonicalProject",
       "type": "object"
     },
+    "CanonicalRecommendedNextCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "target_type": {
+          "title": "Target Type",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "target_type",
+        "target",
+        "reason",
+        "action"
+      ],
+      "title": "CanonicalRecommendedNextCheck",
+      "type": "object"
+    },
     "CanonicalRiskHint": {
       "additionalProperties": false,
       "properties": {
@@ -731,6 +765,13 @@
       },
       "title": "Candidate Facts",
       "type": "array"
+    },
+    "recommended_next_checks": {
+      "items": {
+        "$ref": "#/$defs/CanonicalRecommendedNextCheck"
+      },
+      "title": "Recommended Next Checks",
+      "type": "array"
     }
   },
   "required": [
@@ -741,5 +782,5 @@
   "title": "AiSystemMapV2",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kai-mind.local/schemas/ai-system-map.v2.schema.json"
+  "$id": "https://systograph.local/schemas/ai-system-map.v2.schema.json"
 }

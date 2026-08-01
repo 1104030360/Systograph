@@ -31,16 +31,16 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
-for arg in ${KAI_EXTRA_ARGS[@]+"${KAI_EXTRA_ARGS[@]}"}; do
+systograph_parse_common_args "$@"
+for arg in ${SYSTOGRAPH_EXTRA_ARGS[@]+"${SYSTOGRAPH_EXTRA_ARGS[@]}"}; do
   case "$arg" in
     --verbose) VERBOSE=1 ;;
-    *) kai_die "Unknown option: $arg" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
 done
 
 # Boot one shared server (if requested) and wait until it is reachable.
-kai_bootstrap_server
+systograph_bootstrap_server
 
 # Each entry: "<label>|<script> <extra args>". Children inherit the shared
 # base URL / project / output but never start their own server.
@@ -77,13 +77,13 @@ SCRIPTS=(
 RESULTS=()
 FAIL_COUNT=0
 
-kai_progress "開始依序跑全部 endpoint smoke tests..."
+systograph_progress "開始依序跑全部 endpoint smoke tests..."
 
 for entry in "${SCRIPTS[@]}"; do
   label="${entry%%|*}"
   script="${entry##*|}"
-  kai_section "執行 $label  ($script)"
-  kai_progress "接著跑 $script ..."
+  systograph_section "執行 $label  ($script)"
+  systograph_progress "接著跑 $script ..."
 
   log="$(mktemp)"
   if bash "$SCRIPT_DIR/$script" "${COMMON_CHILD_ARGS[@]}" >"$log" 2>&1; then
@@ -103,7 +103,7 @@ for entry in "${SCRIPTS[@]}"; do
   RESULTS+=("$status  $label")
 done
 
-kai_section "SUMMARY"
+systograph_section "SUMMARY"
 for line in "${RESULTS[@]}"; do
   echo "$line"
 done

@@ -5,7 +5,7 @@ from ipaddress import ip_address
 
 import pytest
 
-from kai_mind.core.security.egress_policy import (
+from systograph.core.security.egress_policy import (
     EgressPolicy,
     EgressPolicyConfig,
     IPAddress,

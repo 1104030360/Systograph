@@ -32,38 +32,38 @@ USAGE
 }
 
 require_tools
-kai_parse_common_args "$@"
+systograph_parse_common_args "$@"
 i=0
-while [[ $i -lt ${#KAI_EXTRA_ARGS[@]} ]]; do
-  arg="${KAI_EXTRA_ARGS[$i]}"
+while [[ $i -lt ${#SYSTOGRAPH_EXTRA_ARGS[@]} ]]; do
+  arg="${SYSTOGRAPH_EXTRA_ARGS[$i]}"
   case "$arg" in
     --project-id)
       i=$((i + 1))
-      PROJECT_ID="${KAI_EXTRA_ARGS[$i]:?missing value for --project-id}"
+      PROJECT_ID="${SYSTOGRAPH_EXTRA_ARGS[$i]:?missing value for --project-id}"
       ;;
-    *) kai_die "Unknown option: $arg" ;;
+    *) systograph_die "Unknown option: $arg" ;;
   esac
   i=$((i + 1))
 done
-kai_bootstrap_server
+systograph_bootstrap_server
 
 if [[ -z "$PROJECT_ID" ]]; then
-  kai_section "準備：匯入 + 掃描 + 先建一筆 proposal"
-  PROJECT_ID="$(kai_import_project)"
-  SCAN_JSON="$(kai_run_scan "$PROJECT_ID")"
-  UNMAPPED_ID="$(kai_first_unmapped_id "$SCAN_JSON")"
+  systograph_section "準備：匯入 + 掃描 + 先建一筆 proposal"
+  PROJECT_ID="$(systograph_import_project)"
+  SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
+  UNMAPPED_ID="$(systograph_first_unmapped_id "$SCAN_JSON")"
   [[ -n "$UNMAPPED_ID" ]] \
-    || kai_die "Scan produced no unmapped component; try --project-path with one"
-  kai_create_proposal "$PROJECT_ID" "$UNMAPPED_ID" >/dev/null
+    || systograph_die "Scan produced no unmapped component; try --project-path with one"
+  systograph_create_proposal "$PROJECT_ID" "$UNMAPPED_ID" >/dev/null
 fi
 
-ENCODED_ID="$(kai_urlencode "$PROJECT_ID")"
-kai_section "列出 proposals：GET /api/mapping-proposals"
-kai_progress "現在要列出此專案的 mapping proposals..."
+ENCODED_ID="$(systograph_urlencode "$PROJECT_ID")"
+systograph_section "列出 proposals：GET /api/mapping-proposals"
+systograph_progress "現在要列出此專案的 mapping proposals..."
 api_call GET "/api/mapping-proposals?project_id=$ENCODED_ID"
 
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected status: $LAST_STATUS"
-kai_section "Proposals summary"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected status: $LAST_STATUS"
+systograph_section "Proposals summary"
 echo "$LAST_BODY" | jq '{
   project_id,
   proposal_count: (.proposals | length),

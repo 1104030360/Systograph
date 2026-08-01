@@ -33,7 +33,7 @@
 ### Task 1: Define the error artifact model
 
 **Files:**
-- Create: `src/kai_mind/core/models/map_error.py`
+- Create: `src/systograph/core/models/map_error.py`
 - Test: `tests/unit/core/test_map_error_model.py`
 
 - [ ] **Step 1: Write failing model tests**
@@ -67,7 +67,7 @@ The model or serializer must reject values containing `/Users/`, `/home/`, `sk-`
 ### Task 2: Write JSON and Markdown from one structured object
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/output_artifact_provider.py`
+- Modify: `src/systograph/core/providers/output_artifact_provider.py`
 - Test: `tests/unit/core/test_output_artifact_provider.py`
 
 - [ ] **Step 1: Add failing test that both files are written**
@@ -100,8 +100,8 @@ Do not let markdown build a second independent interpretation.
 ### Task 3: Integrate with build failure paths
 
 **Files:**
-- Modify: `src/kai_mind/core/services/map_build_service.py`
-- Modify: `src/kai_mind/cli/map_command.py`
+- Modify: `src/systograph/core/services/map_build_service.py`
+- Modify: `src/systograph/cli/map_command.py`
 - Test: `tests/integration/test_map_build_service.py`
 - Test: `tests/cli/test_map_command.py`
 

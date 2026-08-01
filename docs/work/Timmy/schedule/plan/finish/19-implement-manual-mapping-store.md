@@ -1,7 +1,7 @@
 # Task 19: Implement Manual Mapping Store
 
 ## 目標
-實作 KAI-Mind-managed manual mapping store，讓使用者確認過的 mapping 可以在下次 scan 重現。此任務處理 manual selection，不處理 AI proposal。
+實作 Systograph-managed manual mapping store，讓使用者確認過的 mapping 可以在下次 scan 重現。此任務處理 manual selection，不處理 AI proposal。
 
 ## 最新狀態校正（2026-06-07）
 Phase 19 已完成第一版 core / local API implementation：
@@ -14,10 +14,10 @@ Phase 19 已完成第一版 core / local API implementation：
 
 前端目前可顯示 `unmapped / needs_confirmation` 狀態，且 `frontend/src/types.ts` 已保留 graph edge `status`；但 `frontend/src/services/viewerApi.ts` 仍只呼叫 `/api/map`、`/map`、`/api/scan/events`，尚未有 `/api/mappings` client、confirm/edit/reject/save buttons 或 persistence flow。Task 19 目前提供 backend/API 落點，不包含 GUI form。
 
-Storage 決策已被 Task 27 更新：default manual mapping persistence 目標是 shared PostgreSQL-backed storage layer。Phase 19 目前先建立 repository boundary，local app / tests 使用可注入的 in-memory repository；具體 PostgreSQL repository、Alembic migration、DB URL 設定仍由 Task 27 storage layer 落地。Import/export YAML 或 repo-local `kai-mind.mapping.yaml` 只保留為 future exchange format，不是 Task 19 的預設 source of truth。
+Storage 決策已被 Task 27 更新：default manual mapping persistence 目標是 shared PostgreSQL-backed storage layer。Phase 19 目前先建立 repository boundary，local app / tests 使用可注入的 in-memory repository；具體 PostgreSQL repository、Alembic migration、DB URL 設定仍由 Task 27 storage layer 落地。Import/export YAML 或 repo-local `systograph.mapping.yaml` 只保留為 future exchange format，不是 Task 19 的預設 source of truth。
 
 ## 為什麼要先做這個
-unmapped components 不能永遠停在 needs_confirmation。設計文件要求 user-confirmed mapping 寫入 KAI-Mind-managed store，而不是修改被掃描 repo 或只改 output JSON。
+unmapped components 不能永遠停在 needs_confirmation。設計文件要求 user-confirmed mapping 寫入 Systograph-managed store，而不是修改被掃描 repo 或只改 output JSON。
 
 外部工具的 repo-local policy file pattern（例如 `.snyk`）只能作為未來 team sharing / import-export 的參考，不改變 Epic 1 預設決策：Task 19 不把 confirmed mapping 寫入被掃描 project root，也不讓 output artifact 變成下一次 scan 的設定來源。
 
@@ -67,7 +67,7 @@ Task 24a 處理的是 Project Mapping Profile / Template Overlay：把 Task 19 c
 
 ## 實作範圍
 - 建立 `ManualMapping` model。
-- 建立 DB-backed KAI-Mind-managed mapping store，預設使用 Task 27 的 PostgreSQL-backed storage layer 與 repository abstraction。
+- 建立 DB-backed Systograph-managed mapping store，預設使用 Task 27 的 PostgreSQL-backed storage layer 與 repository abstraction。
 - 以 project_id 分區儲存，project_id 由 resolved root path + git remote/git root hash 產生。
 - 支援 existing slot mapping 與 new extension mapping。
 - 支援 manual decisions：confirm existing slot、confirm extension、edit mapping draft、reject、skip_for_now、mark_not_applicable。
@@ -87,12 +87,12 @@ Task 24a 處理的是 Project Mapping Profile / Template Overlay：把 Task 19 c
 - 不在本任務推論 unmapped component 應該放哪裡；若使用者不知道怎麼選，交給 Task 20 的 `MappingProposalService` 產生 pending proposal。
 - 不做 runtime replay unknown step；trace/replay 呈現交給 Task 22。
 - 不建立可選 scan profile / template version 頁面；project profile / derived version 管理交給 Task 24a。
-- 不提供 repo-local `kai-mind.mapping.yaml` 作為 Epic 1 預設寫入路徑；該格式只保留給 future import/export 或 explicit `--mapping-file`。
+- 不提供 repo-local `systograph.mapping.yaml` 作為 Epic 1 預設寫入路徑；該格式只保留給 future import/export 或 explicit `--mapping-file`。
 
 ## 建議實作步驟
-1. [x] 確認 Task 27 storage foundation 狀態；Phase 19 先建立 `src/kai_mind/storage/repositories.py` repository boundary，具體 PostgreSQL implementation 留 Task 27。
-2. [x] 建立 `src/kai_mind/core/models/mapping.py`。
-3. [x] 建立 `src/kai_mind/core/services/manual_mapping_service.py`。
+1. [x] 確認 Task 27 storage foundation 狀態；Phase 19 先建立 `src/systograph/storage/repositories.py` repository boundary，具體 PostgreSQL implementation 留 Task 27。
+2. [x] 建立 `src/systograph/core/models/mapping.py`。
+3. [x] 建立 `src/systograph/core/services/manual_mapping_service.py`。
 4. [x] 透過 repository protocol 實作 mapping create/update/list；測試中可注入 in-memory repository。
 5. [x] 實作 repository-backed persistence boundary，底層不依賴 output artifact 或 repo-local YAML 作為 source of truth。
 6. [x] 實作 manual decision model，至少可表達 confirmed mapping、rejected、skip_for_now、not_applicable。
@@ -107,10 +107,10 @@ Task 24a 處理的是 Project Mapping Profile / Template Overlay：把 Task 19 c
 15. [x] 寫測試：confirmed mapping 下次 scan 穩定重現；invalid slot 被拒絕；未確認 / rejected unmapped 不會進 slot；confirmed extension edge 不可有 dangling refs；reject / skip 不改 canonical map；web route 不直接改 canonical JSON。
 
 ## 預期輸出
-- `src/kai_mind/core/models/mapping.py`
-- `src/kai_mind/core/services/manual_mapping_service.py`
-- 更新 `src/kai_mind/storage/repositories.py` 或等價 repository module
-- `src/kai_mind/web/routes/mapping_routes.py`
+- `src/systograph/core/models/mapping.py`
+- `src/systograph/core/services/manual_mapping_service.py`
+- 更新 `src/systograph/storage/repositories.py` 或等價 repository module
+- `src/systograph/web/routes/mapping_routes.py`
 - 更新 `docs/work/Timmy/design/epic1-local-api-guide.md`
 - `tests/unit/core/test_manual_mapping_service.py`
 - `tests/integration/test_manual_mapping_component_detection.py`
@@ -133,7 +133,7 @@ Task 24a 處理的是 Project Mapping Profile / Template Overlay：把 Task 19 c
 
 ## 可能風險與注意事項
 - mapping store / DB URL 在測試中要可注入，不能寫 developer 真實 DB 或 user home。
-- 不要直接 hard-code `~/.kai-mind` 或 repo-local YAML 作為預設；可保留為 future explicit import/export override。
+- 不要直接 hard-code `~/.systograph` 或 repo-local YAML 作為預設；可保留為 future explicit import/export override。
 - 舊版 file-based 方案若使用 OS App Data Directory，性質上也是持久性儲存；但最新預設已改為 Task 27 PostgreSQL-backed storage，不應再把 OS App Data Directory 寫成 Task 19 default。
 - mapping 不可覆蓋 secret masking。
 - 手動 mapping 比 AI proposal 可信，但仍需 validation。
@@ -158,7 +158,7 @@ Manual mapping 是使用者說「這個檔案其實是 reranker」後，系統�
 └──────────┬───────────┘
            ↓
 ┌──────────────────────┐
-│ KAI-Mind mapping      │
+│ Systograph mapping      │
 │ store                 │
 └──────────┬───────────┘
            ↓

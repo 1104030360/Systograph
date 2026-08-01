@@ -1,4 +1,4 @@
-# KAI-Mind 前端交接文件（2026-06-12）
+# Systograph 前端交接文件（2026-06-12）
 
 這份文件是給前端工程師開工用的版本。
 
@@ -313,12 +313,12 @@ GET /api/map
 
 - `frontend/API_CONTRACT.md`
 - `docs/API-GUIDE.md`
-- `src/kai_mind/web/routes/project_routes.py`
-- `src/kai_mind/web/routes/scan_routes.py`
-- `src/kai_mind/web/routes/map_routes.py`
-- `src/kai_mind/web/routes/detail_scan_routes.py`
-- `src/kai_mind/web/routes/mapping_proposal_routes.py`
-- `src/kai_mind/web/routes/mapping_routes.py`
-- `src/kai_mind/web/routes/trace_routes.py`
-- `src/kai_mind/web/schemas.py`
+- `src/systograph/web/routes/project_routes.py`
+- `src/systograph/web/routes/scan_routes.py`
+- `src/systograph/web/routes/map_routes.py`
+- `src/systograph/web/routes/detail_scan_routes.py`
+- `src/systograph/web/routes/mapping_proposal_routes.py`
+- `src/systograph/web/routes/mapping_routes.py`
+- `src/systograph/web/routes/trace_routes.py`
+- `src/systograph/web/schemas.py`
 - `frontend/src/components/ChatPanel.tsx`

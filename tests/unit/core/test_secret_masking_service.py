@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from kai_mind.core.services.secret_masking_service import SecretMaskingService
+from systograph.core.services.secret_masking_service import (
+    SecretMaskingService,
+)
 
 
 def test_short_secret_value_is_fully_masked() -> None:
@@ -15,11 +17,11 @@ def test_short_secret_value_is_fully_masked() -> None:
 
 def test_long_secret_value_keeps_small_prefix_and_suffix() -> None:
     service = SecretMaskingService()
-    secret = "kai-test-secret-value-1234567890"
+    secret = "systograph-test-secret-value-1234567890"
 
     masked = service.mask_value(secret, key="CLIENT_SECRET")
 
-    assert masked == "kai-...7890"
+    assert masked == "syst...7890"
     assert secret not in masked
 
 

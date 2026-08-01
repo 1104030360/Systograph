@@ -9,7 +9,7 @@ from typing import Any, cast
 
 import pytest
 
-from kai_mind.core.services.system_map_v2_validation_service import (
+from systograph.core.services.system_map_v2_validation_service import (
     SystemMapV2ValidationError,
     SystemMapV2ValidationService,
 )

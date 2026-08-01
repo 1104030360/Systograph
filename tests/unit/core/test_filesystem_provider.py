@@ -8,18 +8,18 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.errors import InventoryEnumerationError
-from kai_mind.core.models.filesystem import (
+from systograph.core.models.errors import InventoryEnumerationError
+from systograph.core.models.filesystem import (
     FileInventorySource,
     SkippedFile,
     SkipReason,
 )
-from kai_mind.core.models.inventory_policy import ScanInventoryPolicyCatalog
-from kai_mind.core.providers.filesystem_provider import FilesystemProvider
-from kai_mind.core.services.inventory_policy_matcher import (
+from systograph.core.models.inventory_policy import ScanInventoryPolicyCatalog
+from systograph.core.providers.filesystem_provider import FilesystemProvider
+from systograph.core.services.inventory_policy_matcher import (
     InventoryPolicyMatcher,
 )
-from kai_mind.core.services.scan_inventory_rule_loader import (
+from systograph.core.services.scan_inventory_rule_loader import (
     ScanInventoryRuleLoader,
     ScanInventoryRulesError,
     ScanInventoryRulesErrorCode,

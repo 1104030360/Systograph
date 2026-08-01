@@ -21,7 +21,7 @@ Task 14 的 MVP 應先用 deterministic Python rules 打通 endpoint / risk / fl
 - `RiskHint` canonical contract 已由 `SystemMapValidationService` 驗證。
 
 ## 實作範圍
-- 新增 `src/kai_mind/core/rules/risk_hint_rules.toml`。
+- 新增 `src/systograph/core/rules/risk_hint_rules.toml`。
 - 擴充 `RuleCatalogLoader`，新增 `load_risk_hint_rules()`。
 - 定義 `RiskHintRuleMetadata` model / dataclass。
 - 讓 `RiskHintService` 透過 `rule_id` 讀取 metadata。

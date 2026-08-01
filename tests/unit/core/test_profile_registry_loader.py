@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.services.profile_registry_loader import (
+from systograph.core.services.profile_registry_loader import (
     PROFILE_REGISTRY_RESOURCE,
     RULES_PACKAGE,
     ProfileMetadataCoverageError,
     ProfileRegistryError,
     ProfileRegistryLoader,
 )
-from kai_mind.core.services.profile_rule_definitions import (
+from systograph.core.services.profile_rule_definitions import (
     MVP_CAPABILITY_PROFILE_IDS,
 )
 

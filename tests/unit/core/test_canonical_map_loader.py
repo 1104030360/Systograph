@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
-from kai_mind.core.services.canonical_map_loader import (
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.services.canonical_map_loader import (
     CanonicalMapLoader,
     CanonicalMapLoadError,
     CanonicalMapLoadResult,

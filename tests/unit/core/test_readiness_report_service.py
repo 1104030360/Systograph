@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services.canonical_map_loader import CanonicalMapLoader
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.readiness_report_service import (
+from systograph.core.services.readiness_report_service import (
     ReadinessReportService,
 )
 

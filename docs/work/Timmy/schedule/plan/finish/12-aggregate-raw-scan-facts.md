@@ -62,9 +62,9 @@ Task 12 Aggregate Raw Scan Facts（本任務）
 
 ## 建議實作步驟
 1. **確認 Task 12a 已完成**：providers 已從 TOML rule catalogs 載入 rules，原有 provider tests 全部通過。
-2. 補齊 `src/kai_mind/core/models/scan.py`。
+2. 補齊 `src/systograph/core/models/scan.py`。
 3. 建立 provider result interface。
-4. 建立 `src/kai_mind/core/services/project_scan_service.py`。
+4. 建立 `src/systograph/core/services/project_scan_service.py`。
 5. 將 provider outputs normalize 成統一 facts/evidence/issues。
 6. 加入 deterministic ordering，讓 snapshot 穩定。
 7. 寫 integration test：basic fixture 產生 Docker/config/dependency/code facts。
@@ -72,15 +72,15 @@ Task 12 Aggregate Raw Scan Facts（本任務）
 9. 寫 rule catalog 載入失敗 test：TOML catalog 損壞時 `ProjectScanService` 應明確報錯，不靜默跳過。
 
 ## 預期輸出
-- `src/kai_mind/core/models/scan.py`
-- `src/kai_mind/core/services/project_scan_service.py`
+- `src/systograph/core/models/scan.py`
+- `src/systograph/core/services/project_scan_service.py`
 - `tests/unit/core/test_project_scan_service.py`
 
 ### 前置產出（由 Task 12a 提供）
-- `src/kai_mind/core/rules/dependency_manifest_rules.toml`
-- `src/kai_mind/core/rules/docker_image_rules.toml`
-- `src/kai_mind/core/rules/code_pattern_rules.toml`
-- `src/kai_mind/core/services/rule_catalog_loader.py`
+- `src/systograph/core/rules/dependency_manifest_rules.toml`
+- `src/systograph/core/rules/docker_image_rules.toml`
+- `src/systograph/core/rules/code_pattern_rules.toml`
+- `src/systograph/core/services/rule_catalog_loader.py`
 - `tests/unit/core/test_rule_catalog_loader.py`
 
 ## 驗收標準
@@ -103,7 +103,7 @@ Task 12 Aggregate Raw Scan Facts（本任務）
 - **Understand-Anything `merge-batch-graphs.py`：normalize + dedupe + recover 的思路可借鑑。**
   - 查證來源：`merge-batch-graphs.py` 會 normalize node id、重寫 edge references、dedupe nodes / edges、drop dangling edges，並從 `scan-result.json#importMap` recover 遺漏的 `imports` edges。
   - 對 Task 12 的啟發：`ProjectScanService` 應明確定義 facts/evidence/issues 的 canonical key，遇到跨 provider 重複訊號時合併 evidence，而不是覆蓋或產生兩份互相矛盾的 fact。
-  - 但要注意：KAI-Mind 目前掃描的是 RAG release-readiness facts，不是 code knowledge graph；所以只採「穩定 ID、deterministic merge、來源補證據」原則，不搬 Understand-Anything 的 node / edge schema。
+  - 但要注意：Systograph 目前掃描的是 RAG release-readiness facts，不是 code knowledge graph；所以只採「穩定 ID、deterministic merge、來源補證據」原則，不搬 Understand-Anything 的 node / edge schema。
 
 - **GitDiagram：schema / path validation 的防呆思路可借鑑。**
   - 查證來源：GitDiagram README 說明它會抓 GitHub file tree / README，產生 structured graph 後，對照實際 file tree 驗證 path，發現 bad paths 或 invalid connections 會 retry，之後 Mermaid 還會再 validate。
@@ -121,7 +121,7 @@ Task 12 Aggregate Raw Scan Facts（本任務）
 - **Trivy：標準化 output 與 secret-safe reporting 可作為輸出契約參考。**
   - 查證來源：Trivy README 說明它可掃 container image、filesystem、git repository、Kubernetes 等 targets，scanner 類型包含 vulnerabilities、misconfigurations、secrets、licenses；官方 reporting docs 支援 JSON 與 SARIF 2.1.0，secret scanner 也會在報表中顯示 path / line / masked match。
   - 對 Task 12 的啟發：Task 12 的 aggregation output 應穩定、machine-readable、可做 snapshot test，且 secret-like value 必須延續 Task 5 masking，不可把完整 `.env` value 放進 facts/evidence。
-  - 修正原說法：Trivy 的 SARIF 支援是 output/reporting 層參考，不代表 KAI-Mind Task 12 要採 SARIF schema；`ai-system-map/v1` 仍是本專案 canonical contract。
+  - 修正原說法：Trivy 的 SARIF 支援是 output/reporting 層參考，不代表 Systograph Task 12 要採 SARIF schema；`ai-system-map/v1` 仍是本專案 canonical contract。
 
 ### Task 12 實作時應新增或強化的測試
 

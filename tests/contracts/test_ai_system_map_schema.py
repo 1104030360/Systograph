@@ -4,11 +4,11 @@ from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 
-from kai_mind.core.models.system_map import (
+from systograph.core.models.system_map import (
     RagSystemMap,
     build_system_map_schema,
 )
-from kai_mind.core.services.system_map_validation_service import (
+from systograph.core.services.system_map_validation_service import (
     SystemMapValidationError,
     SystemMapValidationService,
 )

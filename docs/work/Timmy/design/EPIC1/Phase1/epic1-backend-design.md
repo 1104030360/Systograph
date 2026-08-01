@@ -12,11 +12,11 @@
 
 ### 一、核心概念總覽
 
-> 白話：KAI-Mind backend 的本質是「把一個 RAG repo 轉成可信的系統地圖」，不是直接做聊天機器人，也不是把 GUI 畫圖邏輯塞進 scanner。
+> 白話：Systograph backend 的本質是「把一個 RAG repo 轉成可信的系統地圖」，不是直接做聊天機器人，也不是把 GUI 畫圖邏輯塞進 scanner。
 
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
-│                         KAI-Mind Backend                            │
+│                         Systograph Backend                            │
 │             project_path -> evidence-based ai_system_map.json        │
 └────────────────────────────────────────────────────────────────────┘
 
@@ -24,7 +24,7 @@
   │
   ├── GUI / Local Web UI: 選擇 project folder，呼叫 local HTTP API
   │
-  └── CLI: kai-mind map <project_path>，供 CI/debug/headless 使用
+  └── CLI: systograph map <project_path>，供 CI/debug/headless 使用
         │
         ↓
 ┌──────────────────────────────┐
@@ -343,8 +343,8 @@ GUI/local web UI 和 CLI 都應該呼叫同一個 core backend service。差別�
 │ User entry                                                        │
 ├───────────────────────────────┬──────────────────────────────────┤
 │ GUI / Local Web UI            │ CLI / CI / Debug                 │
-│ 使用者選 project folder       │ kai-mind map <project_path>      │
-│ 顯示 map / graph / proposals  │ kai-mind trace <map_json>        │
+│ 使用者選 project folder       │ systograph map <project_path>      │
+│ 顯示 map / graph / proposals  │ systograph trace <map_json>        │
 └───────────────┬───────────────┴──────────────────┬───────────────┘
                 │                                  │
                 ↓                                  ↓
@@ -621,7 +621,7 @@ Replay UI / API 必須標示目前 replay depth：
 目前 repo 尚未有 implementation scaffold。以下用 Python-like path 表示，若最後採 TypeScript，仍應保留相同邊界。
 
 ```text
-src/kai_mind/
+src/systograph/
   core/
     models/
       system_map.py
@@ -1073,16 +1073,16 @@ Epic 1 至少需要：
 
 > 白話：manual mapping 是使用者確認過的架構知識，讓下次 scan 可以重現同一個判斷。
 
-代表使用者確認後的可重跑 mapping config。這個設定不應只存在輸出的 JSON，應保存到 KAI-Mind-managed user mapping store，讓下一次 scan 可重現。
+代表使用者確認後的可重跑 mapping config。這個設定不應只存在輸出的 JSON，應保存到 Systograph-managed user mapping store，讓下一次 scan 可重現。
 
-預設儲存位置由 KAI-Mind 管理，不寫入被掃描 repo。可採 app data store 或檔案型 store：
+預設儲存位置由 Systograph 管理，不寫入被掃描 repo。可採 app data store 或檔案型 store：
 
 ```text
-~/Library/Application Support/KAI-Mind/mappings.db
-~/.kai-mind/mappings/<project_id>/kai-mind.mapping.yaml
+~/Library/Application Support/Systograph/mappings.db
+~/.systograph/mappings/<project_id>/systograph.mapping.yaml
 ```
 
-`kai-mind.mapping.yaml` 可作為後續 import/export 或 `--mapping-file` 的交換格式，但不是 Epic 1 預設寫入 project root 的檔案。
+`systograph.mapping.yaml` 可作為後續 import/export 或 `--mapping-file` 的交換格式，但不是 Epic 1 預設寫入 project root 的檔案。
 
 例子：
 
@@ -1147,7 +1147,7 @@ manual_mappings:
 - proposal 必須顯示給使用者確認。
 - proposal 不可直接寫入 canonical JSON。
 - 使用者可接受、修改或拒絕。
-- 接受後寫入 KAI-Mind user mapping store，再重新 normalize 成 canonical JSON。
+- 接受後寫入 Systograph user mapping store，再重新 normalize 成 canonical JSON。
 
 ## 9. Provider Design
 
@@ -1310,7 +1310,7 @@ fatal precondition error
 
 ### `MapBuildService`
 
-> 白話：它是整個 `kai-mind map` 的總指揮，從 validate path 到寫出 artifacts 都由它串起來。
+> 白話：它是整個 `systograph map` 的總指揮，從 validate path 到寫出 artifacts 都由它串起來。
 
 最高層 use case。
 
@@ -1509,15 +1509,15 @@ status 判斷：
 
 ### `ManualMappingService`
 
-> 白話：它負責讀 KAI-Mind user mapping store，把使用者確認過的 mapping 套回本次 scan。
+> 白話：它負責讀 Systograph user mapping store，把使用者確認過的 mapping 套回本次 scan。
 
-負責讀取、驗證與套用使用者確認過的 mapping config。Epic 1 預設來源是 KAI-Mind-managed user mapping store；`kai-mind.mapping.yaml` 僅作為後續 import/export 或 explicit mapping file 的交換格式。
+負責讀取、驗證與套用使用者確認過的 mapping config。Epic 1 預設來源是 Systograph-managed user mapping store；`systograph.mapping.yaml` 僅作為後續 import/export 或 explicit mapping file 的交換格式。
 
 輸入：
 
 - `ScanFact[]`
 - `Evidence[]`
-- effective manual mappings from KAI-Mind user mapping store
+- effective manual mappings from Systograph user mapping store
 
 輸出：
 
@@ -1723,7 +1723,7 @@ scanner evidence
   -> AI generates mapping proposal
   -> user confirms / edits / rejects
   -> backend validates proposal
-  -> write KAI-Mind user mapping store
+  -> write Systograph user mapping store
   -> regenerate ai_system_map.json
 ```
 
@@ -1751,7 +1751,7 @@ backend:
 
 結果：
 
-- 寫入 KAI-Mind user mapping store。
+- 寫入 Systograph user mapping store。
 - 下次 scan 可重現。
 - `components_by_slot.retriever` 可引用這個 confirmed mapping。
 
@@ -1817,13 +1817,13 @@ second scan without correction -> JSON B
 保存 mapping config 後：
 
 ```text
-scanner evidence + KAI-Mind user mapping store
+scanner evidence + Systograph user mapping store
   -> stable ai_system_map.json
 ```
 
 這對 release-readiness、CI/CD、code review 都比較安全。
 
-Epic 1 預設不是把 `kai-mind.mapping.yaml` 寫進被掃描 repo，而是使用 KAI-Mind-managed user mapping store。`kai-mind.mapping.yaml` 只作為後續 import/export 或 explicit `--mapping-file` 的交換格式。
+Epic 1 預設不是把 `systograph.mapping.yaml` 寫進被掃描 repo，而是使用 Systograph-managed user mapping store。`systograph.mapping.yaml` 只作為後續 import/export 或 explicit `--mapping-file` 的交換格式。
 
 ### Reducing user friction
 
@@ -1846,7 +1846,7 @@ Epic 1 預設不是把 `kai-mind.mapping.yaml` 寫進被掃描 repo，而是使�
 建議 UI 文案概念：
 
 ```text
-KAI-Mind 掃到 3 個尚未分類的模組。
+Systograph 掃到 3 個尚未分類的模組。
 你可以先略過，map 仍會產生；之後再補充會讓 replay 和風險提示更準。
 ```
 
@@ -2067,7 +2067,7 @@ Log 要能 debug scanner stage，但不能洩漏敏感內容。
 
 > 白話：integration tests 用 sample projects 驗證完整 map build 流程。
 
-- `kai-mind map ./fixtures/basic_qdrant_ollama_rag` writes JSON and Markdown。
+- `systograph map ./fixtures/basic_qdrant_ollama_rag` writes JSON and Markdown。
 - missing project writes `map-error.md` and no normal map。
 - existing outputs create timestamped run directory。
 - malformed compose produces partial map + parse_error evidence/risk hint。
@@ -2212,15 +2212,15 @@ tests/fixtures/rag_projects/
 
 交付：
 
-- `kai-mind map`
-- `kai-mind viewer` 或等價 map validate command。
-- `kai-mind trace` command shell，trace 實際 runtime 呼叫仍在 M8 完成。
+- `systograph map`
+- `systograph viewer` 或等價 map validate command。
+- `systograph trace` command shell，trace 實際 runtime 呼叫仍在 M8 完成。
 
 Schedule 對應：
 
-- Task 16 先做 local web API，再補 `kai-mind map` thin adapter。
+- Task 16 先做 local web API，再補 `systograph map` thin adapter。
 - Task 18 先做 viewer local API，CLI viewer 可作為同 service 的簡單 validate/load adapter。
-- Task 22 先做 trace local API，再補 `kai-mind trace` thin adapter。
+- Task 22 先做 trace local API，再補 `systograph trace` thin adapter。
 
 完成條件：
 
@@ -2258,7 +2258,7 @@ Schedule 對應：
 - `endpoint_not_found` behavior。
 - confirmed extension / unmapped trace mapping rules。
 - local API trace route。
-- `kai-mind trace` thin CLI adapter。
+- `systograph trace` thin CLI adapter。
 
 完成條件：
 
@@ -2336,12 +2336,12 @@ Local API guide 維護規則：
 | 1 | 實作語言 | Python |
 | 2 | JSON schema 檔案位置 | `schemas/ai-system-map.v1.schema.json` |
 | 3 | `GraphViewModel` 轉換責任 | backend `ViewerSessionService` 轉，frontend 只渲染 |
-| 4 | Query trace 入口 | GUI/local API + CLI 都支援，但預設關閉，CLI 採獨立 `kai-mind trace`，必須明確 opt-in |
+| 4 | Query trace 入口 | GUI/local API + CLI 都支援，但預設關閉，CLI 採獨立 `systograph trace`，必須明確 opt-in |
 | 5 | 預設 scan scope | 掃完整 eligible project files，排除明顯不相關或高成本檔案 |
 | 6 | Evidence snippets | 支援 safe short snippets，必須 masking、限長、標行號，且可關閉 |
 | 7 | `Project.root_path` | CI / report artifact 支援 redacted mode；local interactive 可保留 absolute path |
 | 8 | `extensions` / `unmapped_components` | 正式納入 `ai-system-map/v1` top-level fields |
-| 9 | Manual mapping store | 預設存於 KAI-Mind-managed user mapping store，不寫入被掃描 repo |
+| 9 | Manual mapping store | 預設存於 Systograph-managed user mapping store，不寫入被掃描 repo |
 | 10 | AI mapping proposal | Epic 1 中後半段實作；必須 user confirmation 後才生效 |
 | 11 | replay extension / unknown step | manual selection 前顯示 `Unknown / Needs confirmation`；確認後顯示正式 extension |
 | 12 | L2 / L3 結果保存 | Epic 1 先寫回同一份 `ai_system_map.json`，之後再評估拆 artifact |
@@ -2385,7 +2385,7 @@ schema 應包含穩定 dialect / id：
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kai-mind.local/schemas/ai-system-map.v1.schema.json"
+  "$id": "https://systograph.local/schemas/ai-system-map.v1.schema.json"
 }
 ```
 
@@ -2420,7 +2420,7 @@ frontend 不負責：
 
 > 白話：這裡記錄 trace 可以用 GUI/local API 或 CLI 觸發，但預設不會呼叫任何 endpoint。
 
-Epic 1 支援 GUI/local API 與 CLI query trace，但預設關閉，必須明確 opt-in。已決策 CLI 介面採獨立 `kai-mind trace`，不可掛在 `kai-mind map` 預設流程上。
+Epic 1 支援 GUI/local API 與 CLI query trace，但預設關閉，必須明確 opt-in。已決策 CLI 介面採獨立 `systograph trace`，不可掛在 `systograph map` 預設流程上。
 
 理由：
 
@@ -2437,14 +2437,14 @@ body: { "map_json": "...", "endpoint_id": "query_api", "query": "..." }
 CLI thin adapter：
 
 ```text
-kai-mind trace <map_json> --endpoint-id query_api --query "..."
+systograph trace <map_json> --endpoint-id query_api --query "..."
 ```
 
 規則：
 
 - trace 預設關閉。
 - 使用者必須明確指定 endpoint / endpoint id。
-- `kai-mind map` 不接受會呼叫 runtime endpoint 的 trace option。
+- `systograph map` 不接受會呼叫 runtime endpoint 的 trace option。
 - trace input / output / retrieved chunks 必須經過 secret masking。
 - timeout / error 必須回傳 partial replay event，不得讓 viewer 空白。
 - query / model runtime timeout 與 static scan limits 分開設定。
@@ -2591,11 +2591,11 @@ local interactive 可使用：
 - `unmapped_components` 不可計入 detected standard slot。
 - AI proposal 未經使用者確認不可進入 canonical facts。
 
-### 19.10 Manual mapping：KAI-Mind-managed user mapping store
+### 19.10 Manual mapping：Systograph-managed user mapping store
 
-> 白話：這裡記錄 manual mapping 預設存在 KAI-Mind 自己的 store，不污染被掃描 repo。
+> 白話：這裡記錄 manual mapping 預設存在 Systograph 自己的 store，不污染被掃描 repo。
 
-Manual mapping 預設存於 KAI-Mind-managed user mapping store，不寫入被掃描 repo。
+Manual mapping 預設存於 Systograph-managed user mapping store，不寫入被掃描 repo。
 
 決策理由：
 
@@ -2603,18 +2603,18 @@ Manual mapping 預設存於 KAI-Mind-managed user mapping store，不寫入被�
 - 不應污染客戶 repo、第三方 repo、demo repo。
 - output directory 是 report artifact，不應成為下一次 scan 的設定來源。
 - project root mapping 容易產生「是否要 commit」和權限問題。
-- 使用者在 GUI 確認 mapping 後，應由 KAI-Mind 自己管理這份使用者設定。
+- 使用者在 GUI 確認 mapping 後，應由 Systograph 自己管理這份使用者設定。
 
 建議儲存位置可以是 app data store，例如：
 
 ```text
-~/Library/Application Support/KAI-Mind/mappings.db
+~/Library/Application Support/Systograph/mappings.db
 ```
 
 或檔案型 store：
 
 ```text
-~/.kai-mind/mappings/<project_id>/kai-mind.mapping.yaml
+~/.systograph/mappings/<project_id>/systograph.mapping.yaml
 ```
 
 `project_id` 應避免只用 project name，建議由以下資訊組合產生 hash：
@@ -2626,7 +2626,7 @@ resolved_root_path + git_remote_url + optional git_root
 規則：
 
 - default scan read-only，不寫被掃描 repo。
-- GUI manual selection 後寫入 KAI-Mind user mapping store。
+- GUI manual selection 後寫入 Systograph user mapping store。
 - report 只記錄 mapping source / digest，不把 output artifact 當 source of truth。
 - CI / team sharing 的 import/export 或 `--mapping-file` 留到後續功能。
 
@@ -2635,7 +2635,7 @@ resolved_root_path + git_remote_url + optional git_root
 ```json
 {
   "mapping_config": {
-    "source": "kai_mind_user_store",
+    "source": "systograph_user_store",
     "digest": "sha256:..."
   }
 }
@@ -2657,7 +2657,7 @@ Epic 1 later milestone:
   AI mapping proposal suggests mappings
   proposal status = pending_user_confirmation
   user must accept / edit / reject
-  accepted mapping enters KAI-Mind user mapping store
+  accepted mapping enters Systograph user mapping store
 ```
 
 硬性規則：
@@ -2698,7 +2698,7 @@ Proposal 需要包含：
 - Boundary proposal 不可直接改 canonical `ai_system_map.json`。
 - AI 不可讀完整 secret，也不可在 logs、reports、snapshots、PR comments 顯示完整 secret。
 - GUI 可顯示 modal / review queue；CLI / CI 模式不可彈窗，只能輸出 pending decision 與 machine-readable result。
-- Decision 只存在本次 `POST /api/scans` request，不寫入被掃描 repo，也不保存成 KAI-Mind 長期偏好。
+- Decision 只存在本次 `POST /api/scans` request，不寫入被掃描 repo，也不保存成 Systograph 長期偏好。
 - Decision 必須 match `target_path + fingerprint`；內容或 metadata 改變時，舊 decision 不得套用。
 - 若有 unresolved proposal，`POST /api/scans` 不寫 artifact、不更新 `/api/map`。
 
@@ -2716,7 +2716,7 @@ Epic 1 baseline 只需要內建 `rag-core-v1`。Template store、local archive/m
 TemplateImportService
   input: local .zip / .tar / mock template folder
   -> load into isolated cache
-  -> validate kai-mind-template.yaml
+  -> validate systograph-template.yaml
   -> scan template as data, never execute code
   -> record provenance: local source path + digest + license
   -> publish into TemplateStore
@@ -2780,7 +2780,7 @@ User query
 
 - manual selection 前，不可把 ambiguous evidence 顯示成 confirmed extension。
 - manual selection 前，也不可把 unknown step 藏起來，否則使用者會誤以為 flow 已完整確認。
-- manual selection 後，KAI-Mind 重新 normalize / regenerate `ai_system_map.json`。
+- manual selection 後，Systograph 重新 normalize / regenerate `ai_system_map.json`。
 - 新版 map 才顯示正式 extension step。
 
 ### 19.15 L2 / L3 結果保存
@@ -3112,7 +3112,7 @@ FastAPI 落地規則：
 > 白話：這是完成 Epic 1 backend 前的驗收清單，每一項都應能被測試或人工驗證。
 
 - [ ] Local web API 可呼叫 `MapBuildService` 並產生 `ai_system_map.json`。
-- [ ] `kai-mind map <project_path>` 作為 thin adapter 可以產生同 contract 的 `ai_system_map.json`。
+- [ ] `systograph map <project_path>` 作為 thin adapter 可以產生同 contract 的 `ai_system_map.json`。
 - [ ] `ai_system_map.json` 通過 `ai-system-map/v1` schema validation。
 - [ ] `ai_system_map.json` 不包含 `confidence`。
 - [ ] 每個 `detected` component 都有 evidence。
@@ -3128,7 +3128,7 @@ FastAPI 落地規則：
 - [ ] query trace timeout/error 保留 partial replay。
 - [ ] unmapped component 不會被硬塞成 detected standard slot。
 - [ ] AI mapping proposal 未經使用者確認不會進入 canonical JSON。
-- [ ] confirmed manual mapping 可寫入 KAI-Mind user mapping store 並在下次 scan 重現。
+- [ ] confirmed manual mapping 可寫入 Systograph user mapping store 並在下次 scan 重現。
 - [ ] replay 遇到 extension component 可顯示 extension step。
 - [ ] replay 遇到 unmapped component 可顯示 unknown/needs_confirmation step，不會失敗。
 - [ ] L1 coarse scan 可以先產生 base `ai_system_map.json`。

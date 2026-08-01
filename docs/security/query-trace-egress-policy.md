@@ -2,7 +2,7 @@
 
 ## 安全目標
 
-Query Trace 是使用者明確觸發的 runtime 功能，但 endpoint value 來自被掃描的 system map，因此仍必須視為不可信輸入。Systograph 在 `EndpointCallProvider` 這個共用 boundary 套用 egress policy，讓 Web `/api/trace` 與 CLI `systograph trace`（legacy alias：`kai-mind trace`）使用相同保護。
+Query Trace 是使用者明確觸發的 runtime 功能，但 endpoint value 來自被掃描的 system map，因此仍必須視為不可信輸入。Systograph 在 `EndpointCallProvider` 這個共用 boundary 套用 egress policy，讓 Web `/api/trace` 與 CLI `systograph trace` 使用相同保護。
 
 本實作採用 **Track A SSRF baseline**：
 
@@ -64,13 +64,13 @@ Local-dev 不是「允許所有 private network」。它只允許 operator 明�
 目前 Web app 可由可信任的 app startup 程式注入；被掃描專案的 `pyproject.toml` 沒有權限控制 egress policy：
 
 ```python
-from kai_mind.core.providers.endpoint_call_provider import EndpointCallProvider
-from kai_mind.core.security.egress_policy import (
+from systograph.core.providers.endpoint_call_provider import EndpointCallProvider
+from systograph.core.security.egress_policy import (
     EgressPolicy,
     EgressPolicyConfig,
 )
-from kai_mind.core.services.query_trace_service import QueryTraceService
-from kai_mind.web.app import create_app
+from systograph.core.services.query_trace_service import QueryTraceService
+from systograph.web.app import create_app
 
 policy = EgressPolicy(
     config=EgressPolicyConfig(

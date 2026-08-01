@@ -52,7 +52,7 @@
 ### Task 1: Extend masking rules with RED tests
 
 **Files:**
-- Modify: `src/kai_mind/core/services/secret_masking_service.py`
+- Modify: `src/systograph/core/services/secret_masking_service.py`
 - Test: `tests/unit/core/test_secret_masking_service.py`
 
 - [ ] **Step 1: Add failing parametrized tests for missed key markers**
@@ -120,7 +120,7 @@ never include full original value in parse errors or repr output
 ### Task 2: Fix short secret masking policy
 
 **Files:**
-- Modify: `src/kai_mind/core/services/secret_masking_service.py`
+- Modify: `src/systograph/core/services/secret_masking_service.py`
 - Test: `tests/unit/core/test_secret_masking_service.py`
 
 - [ ] **Step 1: Add failing tests for 9-16 character secrets**
@@ -153,8 +153,8 @@ masked middle must never be shorter than 3 mask characters
 ### Task 3: Add independent validation defense
 
 **Files:**
-- Modify: `src/kai_mind/core/services/system_map_validation_service.py`
-- Create: `src/kai_mind/core/services/secret_validation_service.py`
+- Modify: `src/systograph/core/services/system_map_validation_service.py`
+- Create: `src/systograph/core/services/secret_validation_service.py`
 - Test: `tests/unit/core/test_system_map_validation.py`
 
 - [ ] **Step 1: Write failing validator tests for masking blind spots**

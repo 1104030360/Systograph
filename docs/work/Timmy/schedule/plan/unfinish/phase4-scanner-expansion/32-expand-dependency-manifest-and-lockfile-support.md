@@ -35,7 +35,7 @@
 ### Task 1: Add lockfile parser tests
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/dependency_manifest_provider.py`
+- Modify: `src/systograph/core/providers/dependency_manifest_provider.py`
 - Test: `tests/unit/core/test_dependency_manifest_provider.py`
 - Fixture: `tests/fixtures/rag_projects/dependency_lockfiles_rag/`
 
@@ -71,7 +71,7 @@ Parse only fields needed for scanner evidence. On malformed lockfile, emit parse
 ### Task 2: Support requirements include and VCS syntax safely
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/dependency_manifest_provider.py`
+- Modify: `src/systograph/core/providers/dependency_manifest_provider.py`
 - Test: `tests/unit/core/test_dependency_manifest_provider.py`
 
 - [ ] **Step 1: Add failing tests for `-r`, `-c`, `-e`, and VCS URL**
@@ -82,8 +82,8 @@ Parse only fields needed for scanner evidence. On malformed lockfile, emit parse
 ### Task 3: Add ecosystem manifests behind fixtures
 
 **Files:**
-- Modify: `src/kai_mind/core/rules/dependency_manifest_rules.toml`
-- Modify: `src/kai_mind/core/providers/dependency_manifest_provider.py`
+- Modify: `src/systograph/core/rules/dependency_manifest_rules.toml`
+- Modify: `src/systograph/core/providers/dependency_manifest_provider.py`
 - Test: `tests/integration/test_phase10_dependency_manifest_provider_behaviors.py`
 
 - [ ] **Step 1: Add `go.mod` and `Cargo.toml` synthetic fixture files**
@@ -93,8 +93,8 @@ Parse only fields needed for scanner evidence. On malformed lockfile, emit parse
 ### Task 4: Add optional declared-dependency summary
 
 **Files:**
-- Modify: `src/kai_mind/core/models/scan.py`
-- Modify: `src/kai_mind/core/services/project_scan_service.py`
+- Modify: `src/systograph/core/models/scan.py`
+- Modify: `src/systograph/core/services/project_scan_service.py`
 - Test: `tests/unit/core/test_project_scan_service.py`
 
 - [ ] **Step 1: Define a lightweight summary built from existing facts**

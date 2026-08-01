@@ -133,7 +133,7 @@ writer / CLI config contract，先把 internal masking foundation 做穩，避�
 
 新增：
 
-- `src/kai_mind/core/services/secret_masking_service.py`
+- `src/systograph/core/services/secret_masking_service.py`
 
 提供：
 

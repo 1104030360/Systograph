@@ -7,7 +7,7 @@
 - `docs/work/Timmy/schedule/explain/rag-repo-reference-criteria.md`
 - `.cursor/rules/explain_visualize.mdc`
 
-搜尋並整理 GitHub 上可作為 **Local AI Health Doctor / KAI-Mind Task 4 fixtures 參考來源** 的 RAG repositories。
+搜尋並整理 GitHub 上可作為 **Systograph / Systograph Task 4 fixtures 參考來源** 的 RAG repositories。
 
 本報告的重點不是找「最大」或「star 最高」的 repo，而是找：
 
@@ -763,7 +763,7 @@ PrivateGPT 強調 100% private document interaction。它非常貼近本專案�
 | 與 RAG 直接相關 | 是 | document interaction + retrieval-based QA |
 | GitHub repo 可存取 | 是 | repo 可存取 |
 | 文件足夠理解架構 | 是 | 目標與架構方向明確 |
-| 適合本專案參考 | 是 | 高度貼近 local AI Health Doctor |
+| 適合本專案參考 | 是 | 高度貼近 Systograph |
 
 #### 5.5.2 AllAboutAI-YT/easy-local-rag
 

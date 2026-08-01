@@ -52,9 +52,9 @@ precondition error render 成 `map-error.md`。
 
 ### 3. Green：建立最小 implementation
 
-- 新增 `src/kai_mind/core/models/errors.py`。
-- 新增 `src/kai_mind/core/models/scan.py`。
-- 新增 `src/kai_mind/core/providers/output_artifact_provider.py`。
+- 新增 `src/systograph/core/models/errors.py`。
+- 新增 `src/systograph/core/models/scan.py`。
+- 新增 `src/systograph/core/providers/output_artifact_provider.py`。
 - `PreconditionError` 欄位包含 `project_path`、`failure_reason`、
   `scan_stage`。
 - `PreconditionResult` 欄位包含 `ok`、`project_root`、`output_run_dir`、

@@ -59,69 +59,69 @@ run_scan_body() {
 }
 
 require_tools
-kai_parse_common_args "$@"
-if [[ ${#KAI_EXTRA_ARGS[@]} -gt 0 ]]; then
-  kai_die "Unknown option: ${KAI_EXTRA_ARGS[*]}"
+systograph_parse_common_args "$@"
+if [[ ${#SYSTOGRAPH_EXTRA_ARGS[@]} -gt 0 ]]; then
+  systograph_die "Unknown option: ${SYSTOGRAPH_EXTRA_ARGS[*]}"
 fi
-kai_bootstrap_server
+systograph_bootstrap_server
 
-kai_section "準備：匯入含 .env 的 demo 專案"
-PROJECT_ID="$(kai_import_project "$(make_demo_project)")"
+systograph_section "準備：匯入含 .env 的 demo 專案"
+PROJECT_ID="$(systograph_import_project "$(make_demo_project)")"
 
-kai_section "第一次掃描：未確認 .env，應要求 boundary decision"
+systograph_section "第一次掃描：未確認 .env，應要求 boundary decision"
 FIRST_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
-kai_progress "現在要建立 scan（預期回 requires_boundary_decision）..."
+systograph_progress "現在要建立 scan（預期回 requires_boundary_decision）..."
 api_call POST "/api/scans" "$FIRST_BODY"
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected first scan HTTP: $LAST_STATUS"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected first scan HTTP: $LAST_STATUS"
 FIRST_SCAN="$LAST_BODY"
 FIRST_STATUS="$(jq_get "$FIRST_SCAN" '.status')"
 [[ "$FIRST_STATUS" == "requires_boundary_decision" ]] \
-  || kai_die "Expected requires_boundary_decision, got $FIRST_STATUS"
+  || systograph_die "Expected requires_boundary_decision, got $FIRST_STATUS"
 PROPOSAL_ID="$(jq_get "$FIRST_SCAN" '.boundary_proposals[0].proposal_id // empty')"
 TARGET_PATH="$(jq_get "$FIRST_SCAN" '.boundary_proposals[0].target.path // empty')"
 FINGERPRINT="$(jq_get "$FIRST_SCAN" '.boundary_proposals[0].target.fingerprint // empty')"
 [[ -n "$PROPOSAL_ID" && "$TARGET_PATH" == ".env" && -n "$FINGERPRINT" ]] \
-  || kai_die "Expected one .env boundary proposal"
+  || systograph_die "Expected one .env boundary proposal"
 if grep -q 'sk-live-secret-value' <<<"$FIRST_SCAN"; then
-  kai_die "Raw secret leaked in first scan response"
+  systograph_die "Raw secret leaked in first scan response"
 fi
 
-kai_section "第二次掃描：送出 scan_this_run 完成本次掃描"
+systograph_section "第二次掃描：送出 scan_this_run 完成本次掃描"
 DECISIONS="$(jq -n \
   --arg path "$TARGET_PATH" \
   --arg fingerprint "$FINGERPRINT" \
   '[{target_path:$path, fingerprint:$fingerprint, decision:"scan_this_run"}]')"
 SECOND_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR" "$DECISIONS")"
-kai_progress "接著帶 boundary_decisions 再呼叫 scan..."
+systograph_progress "接著帶 boundary_decisions 再呼叫 scan..."
 api_call POST "/api/scans" "$SECOND_BODY"
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected second scan HTTP: $LAST_STATUS"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected second scan HTTP: $LAST_STATUS"
 SECOND_SCAN="$LAST_BODY"
 SECOND_STATUS="$(jq_get "$SECOND_SCAN" '.status')"
 SECOND_SCANNED="$(jq_get "$SECOND_SCAN" '.build_result.ai_system_map.scan_summary.files_scanned')"
 SECOND_MAP_JSON_PATH="$(jq_get "$SECOND_SCAN" '.build_result.map_json_path // empty')"
 [[ "$SECOND_STATUS" == "completed" ]] \
-  || kai_die "Expected completed second scan, got $SECOND_STATUS"
+  || systograph_die "Expected completed second scan, got $SECOND_STATUS"
 [[ "$SECOND_SCANNED" == "2" ]] \
-  || kai_die "Expected second scan files_scanned=2, got $SECOND_SCANNED"
+  || systograph_die "Expected second scan files_scanned=2, got $SECOND_SCANNED"
 [[ -f "$SECOND_MAP_JSON_PATH" ]] \
-  || kai_die "Expected map_json_path to exist: $SECOND_MAP_JSON_PATH"
+  || systograph_die "Expected map_json_path to exist: $SECOND_MAP_JSON_PATH"
 [[ "$(jq_get "$(cat "$SECOND_MAP_JSON_PATH")" '.scan_summary.files_scanned')" == "2" ]] \
-  || kai_die "Stored ai_system_map.json scan_summary did not match response"
+  || systograph_die "Stored ai_system_map.json scan_summary did not match response"
 if grep -q 'sk-live-secret-value' <<<"$SECOND_SCAN"; then
-  kai_die "Raw secret leaked in second scan response"
+  systograph_die "Raw secret leaked in second scan response"
 fi
 if grep -q 'sk-live-secret-value' "$SECOND_MAP_JSON_PATH"; then
-  kai_die "Raw secret leaked in stored ai_system_map.json"
+  systograph_die "Raw secret leaked in stored ai_system_map.json"
 fi
 
-kai_section "第三次掃描：確認 decision 不會被記住"
+systograph_section "第三次掃描：確認 decision 不會被記住"
 THIRD_BODY="$(run_scan_body "$PROJECT_ID" "$OUTPUT_DIR")"
-kai_progress "再次建立 scan（預期又要求 boundary decision）..."
+systograph_progress "再次建立 scan（預期又要求 boundary decision）..."
 api_call POST "/api/scans" "$THIRD_BODY"
-[[ "$LAST_STATUS" == "200" ]] || kai_die "Unexpected third scan HTTP: $LAST_STATUS"
+[[ "$LAST_STATUS" == "200" ]] || systograph_die "Unexpected third scan HTTP: $LAST_STATUS"
 THIRD_STATUS="$(jq_get "$LAST_BODY" '.status')"
 [[ "$THIRD_STATUS" == "requires_boundary_decision" ]] \
-  || kai_die "Expected requires_boundary_decision third scan, got $THIRD_STATUS"
+  || systograph_die "Expected requires_boundary_decision third scan, got $THIRD_STATUS"
 
-kai_section "PASS"
+systograph_section "PASS"
 echo "scan boundary same-run gate behavior is correct"

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/144
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/144
 
 **Goal:** 為 release-readiness gate 本身建立不可只靠本機 hook 的 GitHub Actions 品質閘門。
 

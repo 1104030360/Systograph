@@ -7,33 +7,37 @@ from threading import Barrier
 
 import pytest
 
-from kai_mind.core.models.analysis_history import (
+from systograph.core.models.analysis_history import (
     BuildReason,
     ProjectState,
     ScanSnapshot,
 )
-from kai_mind.core.models.map_build import MapBuildRequest, MapBuildResult
-from kai_mind.core.models.mapping import (
+from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
+from systograph.core.models.mapping import (
     ManualMapping,
     ManualMappingCreate,
     ManualMappingDecision,
     ManualMappingType,
 )
-from kai_mind.core.models.scan import OutputRun, ProjectScanResult
-from kai_mind.core.models.system_map import Evidence
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.scan import OutputRun, ProjectScanResult
+from systograph.core.models.system_map import Evidence
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.services.apply_confirmations_service import (
+from systograph.core.services.apply_confirmations_service import (
     ApplyConfirmationsService,
     ApplyValidationError,
     BaseBuildNotLatestError,
     BuildNotFoundError,
     MappingNotFoundError,
 )
-from kai_mind.core.services.build_manifest_service import BuildManifestService
-from kai_mind.core.services.manual_mapping_service import ManualMappingService
-from kai_mind.core.services.map_build_service import MapBuildService
+from systograph.core.services.build_manifest_service import (
+    BuildManifestService,
+)
+from systograph.core.services.manual_mapping_service import (
+    ManualMappingService,
+)
+from systograph.core.services.map_build_service import MapBuildService
 
 
 class BarrierMapBuildService(MapBuildService):

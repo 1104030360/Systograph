@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.errors import PreconditionFailureReason
-from kai_mind.core.providers.output_artifact_provider import (
+from systograph.core.models.errors import PreconditionFailureReason
+from systograph.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
 )
 

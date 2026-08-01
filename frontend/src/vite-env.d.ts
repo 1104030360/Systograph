@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** Base URL of the local Kai-Mind backend API, e.g. http://127.0.0.1:8000. */
+  /** Base URL of the local Systograph backend API, e.g. http://127.0.0.1:8000. */
   readonly VITE_API_BASE_URL?: string;
 }
 

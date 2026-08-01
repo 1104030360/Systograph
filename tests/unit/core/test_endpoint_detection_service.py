@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from kai_mind.core.models.scan import ScanFact
-from kai_mind.core.models.system_map import Endpoint, Evidence
-from kai_mind.core.services.component_detection_service import (
+from systograph.core.models.scan import ScanFact
+from systograph.core.models.system_map import Endpoint, Evidence
+from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
     ComponentDetectionService,
 )
-from kai_mind.core.services.endpoint_detection_service import (
+from systograph.core.services.endpoint_detection_service import (
     EndpointDetectionService,
 )
-from kai_mind.core.services.rag_template_service import RagTemplateService
+from systograph.core.services.rag_template_service import RagTemplateService
 
 
 def fact_with_evidence(

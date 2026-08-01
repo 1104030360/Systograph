@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/141
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/141
 
 **Goal:** 避免合法 docker-compose volume 造成 validation crash，並讓 volumes、env_file、image 等非 environment evidence 經一致遮罩與路徑安全處理。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #141, assignee Timmy.
 - Origin: Backend findings H-3.
-- Primary files: `src/kai_mind/core/providers/docker_compose_provider.py`, `src/kai_mind/core/services/map_build_service.py`.
+- Primary files: `src/systograph/core/providers/docker_compose_provider.py`, `src/systograph/core/services/map_build_service.py`.
 
 ### Task 1: Reproduce compose crash
 
@@ -31,7 +31,7 @@
 ### Task 2: Mask non-env compose fields
 
 **Files:**
-- Modify: `src/kai_mind/core/providers/docker_compose_provider.py`
+- Modify: `src/systograph/core/providers/docker_compose_provider.py`
 
 - [ ] **Step 1: Apply masking to volumes, env_file, image, networks, and parse messages**
 - [ ] **Step 2: Apply path redaction to host-like paths**
@@ -40,8 +40,8 @@
 ### Task 3: Isolate validation failures
 
 **Files:**
-- Modify: `src/kai_mind/core/services/map_build_service.py`
-- Modify: `src/kai_mind/core/providers/output_artifact_provider.py`
+- Modify: `src/systograph/core/services/map_build_service.py`
+- Modify: `src/systograph/core/providers/output_artifact_provider.py`
 - Test: `tests/unit/core/test_output_artifact_provider.py`
 
 - [ ] **Step 1: Catch validation failures at build boundary**

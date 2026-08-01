@@ -77,8 +77,8 @@ flow:indexing
 ```
 
 ## 實作範圍
-- 建立 `src/kai_mind/core/templates/rag-core-v1.json`。
-- 建立 `src/kai_mind/core/models/template.py`。
+- 建立 `src/systograph/core/templates/rag-core-v1.json`。
+- 建立 `src/systograph/core/models/template.py`。
 - 建立 `RagTemplateService` 載入與驗證 template。
 - 測試 template slots、flows、allowed statuses。
 
@@ -99,9 +99,9 @@ flow:indexing
 7. 建立測試確認 template 可載入且 selected template 固定為 `rag-core-v1`。
 
 ## 預期輸出
-- `src/kai_mind/core/templates/rag-core-v1.json`
-- `src/kai_mind/core/models/template.py`
-- `src/kai_mind/core/services/rag_template_service.py`
+- `src/systograph/core/templates/rag-core-v1.json`
+- `src/systograph/core/models/template.py`
+- `src/systograph/core/services/rag_template_service.py`
 - `tests/core/test_rag_template_service.py`
 
 ## 驗收標準

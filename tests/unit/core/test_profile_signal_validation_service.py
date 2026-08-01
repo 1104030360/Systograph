@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from kai_mind.core.models.ai_system_map_v2 import AiSystemMapV2
-from kai_mind.core.models.profile_signal import ProfileInferenceResult
-from kai_mind.core.services.canonical_map_loader import CanonicalMapLoader
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.models.profile_signal import ProfileInferenceResult
+from systograph.core.services.canonical_map_loader import CanonicalMapLoader
+from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
 )
-from kai_mind.core.services.profile_signal_validation_service import (
+from systograph.core.services.profile_signal_validation_service import (
     ProfileSignalValidationError,
     ProfileSignalValidationService,
 )

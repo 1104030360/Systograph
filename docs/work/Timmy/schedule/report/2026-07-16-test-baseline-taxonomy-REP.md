@@ -38,7 +38,7 @@ strict marker/config gate 與可重現的 coverage gate。現有目錄責任大�
   - web：66
   - cli：11
   - smoke：1
-- `uv run --frozen --with pytest-cov python -m pytest -q --cov=src/kai_mind
+- `uv run --frozen --with pytest-cov python -m pytest -q --cov=src/systograph
   --cov-branch --cov-report=term-missing:skip-covered --cov-report=json:coverage.json`
   - 結果：`819 passed in 25.44s`
   - production coverage：`89%`（9,420 statements、2,410 branches）。

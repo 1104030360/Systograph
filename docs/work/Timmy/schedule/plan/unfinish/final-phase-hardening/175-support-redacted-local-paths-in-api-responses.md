@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/175
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/175
 
 **Goal:** 成功回應中的 `MapBuildResult` / `PreconditionError.project_path` 支援 redacted local path 模式，降低本機絕對路徑外洩。
 
@@ -16,14 +16,14 @@
 
 - GitHub issue #175, assignee Timmy.
 - Origin: Backend findings L-7.
-- Primary files: `src/kai_mind/core/models/map_build.py`, `src/kai_mind/core/models/errors.py`, `src/kai_mind/web/schemas.py`, `docs/API-GUIDE.md`.
+- Primary files: `src/systograph/core/models/map_build.py`, `src/systograph/core/models/errors.py`, `src/systograph/web/schemas.py`, `docs/API-GUIDE.md`.
 - Related plans: #149 local path redaction, #158 MapBuildResult docs, #168 path-independent tests.
 
 ### Task 1: Define compatibility policy
 
 **Files:**
-- Inspect/Modify: `src/kai_mind/core/models/map_build.py`
-- Inspect/Modify: `src/kai_mind/core/models/errors.py`
+- Inspect/Modify: `src/systograph/core/models/map_build.py`
+- Inspect/Modify: `src/systograph/core/models/errors.py`
 - Modify: `docs/API-GUIDE.md`
 
 - [ ] **Step 1: Decide default vs opt-in redacted mode**
@@ -45,9 +45,9 @@
 ### Task 3: Implement response redaction
 
 **Files:**
-- Modify: `src/kai_mind/web/routes/map_routes.py`
-- Modify: `src/kai_mind/web/routes/scan_routes.py`
-- Modify: `src/kai_mind/core/services/path_safety_service.py` if shared redaction helper needs extension
+- Modify: `src/systograph/web/routes/map_routes.py`
+- Modify: `src/systograph/web/routes/scan_routes.py`
+- Modify: `src/systograph/core/services/path_safety_service.py` if shared redaction helper needs extension
 
 - [ ] **Step 1: Use existing `redact_local_paths` behavior where possible**
 - [ ] **Step 2: Keep redaction after map build validation, before API serialization**

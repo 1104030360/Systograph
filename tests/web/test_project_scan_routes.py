@@ -5,21 +5,21 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from tests.helpers.fixtures import rag_project_fixture_path
 
-from kai_mind.core.models.errors import (
+from systograph.core.models.errors import (
     ScanInventoryRulesError,
     ScanInventoryRulesErrorCode,
 )
-from kai_mind.core.models.inventory_policy import ScanInventoryPolicyCatalog
-from kai_mind.core.providers.filesystem_provider import FilesystemProvider
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.models.inventory_policy import ScanInventoryPolicyCatalog
+from systograph.core.providers.filesystem_provider import FilesystemProvider
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.core.services.project_scan_service import ProjectScanService
-from kai_mind.core.services.scan_inventory_rule_loader import (
+from systograph.core.services.project_scan_service import ProjectScanService
+from systograph.core.services.scan_inventory_rule_loader import (
     ScanInventoryRuleLoader,
 )
-from kai_mind.core.services.scan_snapshot_service import ScanSnapshotService
-from kai_mind.web.app import create_app
+from systograph.core.services.scan_snapshot_service import ScanSnapshotService
+from systograph.web.app import create_app
 
 
 class MissingInventoryRuleLoader(ScanInventoryRuleLoader):
@@ -87,6 +87,78 @@ def test_scan_create_builds_imported_project(tmp_path: Path) -> None:
     assert payload["project_id"] == project_id
     assert payload["status"] == "completed"
     assert payload["build_result"]["status"] == "ok"
+
+
+def _state_dir_entries(state_dir: Path) -> set[str]:
+    return {
+        path.relative_to(state_dir).as_posix() for path in state_dir.rglob("*")
+    }
+
+
+def test_scan_create_rejects_public_v1_selection_before_scanning(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / "state"
+    output_dir = tmp_path / "outputs"
+    client = TestClient(create_app(state_dir=state_dir))
+    project_id = client.post(
+        "/api/projects/import",
+        json={
+            "source_type": "local_path",
+            "project_path": str(
+                rag_project_fixture_path("basic_qdrant_ollama_rag")
+            ),
+        },
+    ).json()["project_id"]
+    before = _state_dir_entries(state_dir)
+
+    response = client.post(
+        "/api/scans",
+        json={
+            "project_id": project_id,
+            "scan_depth": "system",
+            "output": str(output_dir),
+            "system_map_schema_version": "ai-system-map/v1",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "legacy_output_not_selectable"
+    assert _state_dir_entries(state_dir) == before
+    assert not any(state_dir.rglob("snapshot.json"))
+    assert not output_dir.exists()
+
+
+def test_scan_create_with_explicit_v2_selection_persists_snapshot(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / "state"
+    client = TestClient(create_app(state_dir=state_dir))
+    project_id = client.post(
+        "/api/projects/import",
+        json={
+            "source_type": "local_path",
+            "project_path": str(
+                rag_project_fixture_path("basic_qdrant_ollama_rag")
+            ),
+        },
+    ).json()["project_id"]
+    before = _state_dir_entries(state_dir)
+
+    response = client.post(
+        "/api/scans",
+        json={
+            "project_id": project_id,
+            "scan_depth": "system",
+            "output": str(tmp_path / "outputs"),
+            "system_map_schema_version": "ai-system-map/v2",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "completed"
+    assert _state_dir_entries(state_dir) != before
+    assert any(state_dir.rglob("snapshot.json"))
 
 
 def test_scan_create_rejects_unknown_project() -> None:

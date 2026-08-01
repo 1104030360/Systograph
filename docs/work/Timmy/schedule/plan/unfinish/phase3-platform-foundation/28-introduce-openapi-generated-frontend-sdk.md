@@ -15,16 +15,16 @@
 - FastAPI runtime 已能產生 OpenAPI，但 repo 無 export script、versioned artifact 或 drift test。
 - routes 尚未設定 stable `operation_id`。
 - frontend 仍手寫 `fetch` 與 Zod schemas。
-- GitHub issues：[#124](https://github.com/1104030360/Local-AI-Health-Doctor/issues/124)、[#158](https://github.com/1104030360/Local-AI-Health-Doctor/issues/158)、[#159](https://github.com/1104030360/Local-AI-Health-Doctor/issues/159)、[#179](https://github.com/1104030360/Local-AI-Health-Doctor/issues/179)。
+- GitHub issues：[#124](https://github.com/1104030360/Systograph/issues/124)、[#158](https://github.com/1104030360/Systograph/issues/158)、[#159](https://github.com/1104030360/Systograph/issues/159)、[#179](https://github.com/1104030360/Systograph/issues/179)。
 - 本計畫在 #159 完成後執行；Task 25–27 未完成 endpoints 不得提前塞進 Epic 1 contract。
 - 官方文件查證（2026-06-18）：FastAPI generated clients 依賴 OpenAPI `operationId`；若自訂 `operation_id` 或 `generate_unique_id_function`，必須保證每個 operation id 全域唯一。
 
 ### Task 1: Stabilize route operation IDs and response schemas
 
 **Files:**
-- Modify: `src/kai_mind/web/app.py`
-- Modify: `src/kai_mind/web/routes/*.py`
-- Modify: `src/kai_mind/web/schemas.py`
+- Modify: `src/systograph/web/app.py`
+- Modify: `src/systograph/web/routes/*.py`
+- Modify: `src/systograph/web/schemas.py`
 - Test: `tests/contracts/test_openapi_schema.py`
 
 - [ ] **Step 1: Write red test asserting unique stable operation IDs**

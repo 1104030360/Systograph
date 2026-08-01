@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** https://github.com/1104030360/Local-AI-Health-Doctor/issues/140
+**GitHub Issue:** https://github.com/1104030360/Systograph/issues/140
 
 **Goal:** 限制 `POST /api/viewer/load` 只能讀取受控 map，並避免回應洩漏 exception、errno 或本機絕對路徑。
 
@@ -16,7 +16,7 @@
 
 - GitHub issue #140, assignee Timmy.
 - Origin: Backend findings H-2.
-- Primary files: `src/kai_mind/web/routes/viewer_routes.py`, `src/kai_mind/core/services/viewer_session_service.py`, `src/kai_mind/web/session_store.py`.
+- Primary files: `src/systograph/web/routes/viewer_routes.py`, `src/systograph/core/services/viewer_session_service.py`, `src/systograph/web/session_store.py`.
 
 ### Task 1: Add path oracle regression tests
 
@@ -32,9 +32,9 @@
 ### Task 2: Restrict load source
 
 **Files:**
-- Modify: `src/kai_mind/web/session_store.py`
-- Modify: `src/kai_mind/web/routes/viewer_routes.py`
-- Modify: `src/kai_mind/core/services/viewer_session_service.py`
+- Modify: `src/systograph/web/session_store.py`
+- Modify: `src/systograph/web/routes/viewer_routes.py`
+- Modify: `src/systograph/core/services/viewer_session_service.py`
 
 - [ ] **Step 1: Store allowlisted map artifact paths after successful build/load**
 - [ ] **Step 2: Require `project_id` or allowlisted artifact reference where possible**
@@ -44,7 +44,7 @@
 ### Task 3: Stabilize error contract
 
 **Files:**
-- Modify: `src/kai_mind/web/schemas.py`
+- Modify: `src/systograph/web/schemas.py`
 - Modify: `docs/API-GUIDE.md`
 
 - [ ] **Step 1: Use stable codes such as `map_load_not_allowed`, `map_read_failed`, `invalid_json`, `invalid_map`**

@@ -7,11 +7,11 @@ from tests.helpers.profile_inference import (
     load_profile_map,
 )
 
-from kai_mind.core.models.capability_candidate import (
+from systograph.core.models.capability_candidate import (
     CapabilityCandidateComponent,
 )
-from kai_mind.core.services import profile_inference_service
-from kai_mind.core.services.profile_inference_service import (
+from systograph.core.services import profile_inference_service
+from systograph.core.services.profile_inference_service import (
     MVP_CAPABILITY_PROFILE_IDS,
     ProfileInferenceService,
 )

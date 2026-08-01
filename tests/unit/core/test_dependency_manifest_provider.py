@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kai_mind.core.models.filesystem import (
+from systograph.core.models.filesystem import (
     FileInventory,
     FileInventorySource,
     FileRecord,
 )
-from kai_mind.core.providers.dependency_manifest_provider import (
+from systograph.core.providers.dependency_manifest_provider import (
     DependencyManifestProvider,
 )
 

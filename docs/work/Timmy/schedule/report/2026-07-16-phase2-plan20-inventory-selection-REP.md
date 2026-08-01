@@ -2,7 +2,7 @@
 
 ## 結論
 
-Plan 20 Backend scope 已完成。KAI-Mind 現在會先建立 metadata-only inventory preflight，
+Plan 20 Backend scope 已完成。Systograph 現在會先建立 metadata-only inventory preflight，
 讓 caller 以 project-relative exact file 或 bounded recursive directory 送出當次 delta；backend
 重新枚舉並驗證 fingerprint 後，依 hard safety、exact file、deepest directory、ancestor
 directory、default policy 的固定優先序建立唯一 final `FileInventory`。
@@ -90,8 +90,8 @@ runtime。
 三個可推翻實作的 runtime hypotheses：
 
 1. **H1：wheel 安裝後 catalog resource 遺失。** 直接 build wheel、檢查
-   `kai_mind/core/rules/scan_inventory_rules.toml`，再從 `/tmp` 使用隔離 venv 載入安裝版
-   `kai_mind`；觀察 `wheel_resource=ok`、17 rules。H1 refuted。
+   `systograph/core/rules/scan_inventory_rules.toml`，再從 `/tmp` 使用隔離 venv 載入安裝版
+   `systograph`；觀察 `wheel_resource=ok`、17 rules。H1 refuted。
 2. **H2：preflight 後的 metadata／content 漂移仍可混入 snapshot。** 執行 safe-open `fstat`
    change、snapshot content change 與 stale E2E；`7 passed`，changed target 回 409 且沒有
    snapshot/build。H2 refuted。
@@ -132,7 +132,7 @@ budget。解法是在 preflight 與 submit 都以 canonical child path 去重後
 ### 5. Final wheel smoke 的第一次 probe 用錯 resource 名稱
 
 第一次 probe 誤查不存在的 JSON 名稱；真實契約是 packaged TOML。確認 loader source 後改查
-`kai_mind/core/rules/scan_inventory_rules.toml`，wheel build 與隔離安裝載入均成功，未做不必要的
+`systograph/core/rules/scan_inventory_rules.toml`，wheel build 與隔離安裝載入均成功，未做不必要的
 packaging 修改。專案 `.venv` 沒有 `build`／`pip`，因此只在 temp venv 安裝 build tool，沒有污染
 repo environment。
 
@@ -158,7 +158,7 @@ full backend pytest                     972 passed in 62.15s
 ruff check src tests                    All checks passed
 mypy src                                181 source files, no issues
 git diff --check                        passed
-wheel build                             successfully built kai_mind-0.1.0 wheel
+wheel build                             successfully built systograph-0.1.0 wheel
 wheel installed loader smoke            17 rules loaded from installed package
 live invalid preflight                  HTTP 422 inventory_selection_path_invalid
 live happy path trace                   HTTP 200 preflight + HTTP 200 completed scan

@@ -9,10 +9,10 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from kai_mind.core.providers.local_json_state_provider import (
+from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
-from kai_mind.web.app import create_app
+from systograph.web.app import create_app
 
 
 def _git(root: Path, *args: str) -> str:

@@ -29,12 +29,12 @@ RiskHintService
    - missing `rationale` / `uncertainty` raises `RuleCatalogError`。
    - bundled catalog covers Task 14 rule ids。
 3. RED 確認：`RuleCatalogLoader` 尚無 `load_risk_hint_rules()` / `load_default_risk_hint_rules()`。
-4. 擴充 `src/kai_mind/core/services/rule_catalog_loader.py`：
+4. 擴充 `src/systograph/core/services/rule_catalog_loader.py`：
    - `RISK_HINT_RULE_CATALOG`
    - `RiskHintRuleMetadata`
    - `load_default_risk_hint_rules()`
    - `load_risk_hint_rules(path)`
-5. 新增 `src/kai_mind/core/rules/risk_hint_rules.toml`，覆蓋：
+5. 新增 `src/systograph/core/rules/risk_hint_rules.toml`，覆蓋：
    - `docker_published_port_exposure`
    - `external_provider_detected`
    - `config_parse_error`
@@ -48,7 +48,7 @@ RiskHintService
    - unknown emitted `rule_id` fails loudly。
    - existing target / evidence behavior remains unchanged。
 7. RED 確認：`RiskHintService` 尚無 `RiskHintMetadataError` 與 `rule_catalog_path` injection。
-8. 重構 `src/kai_mind/core/services/risk_hint_service.py`：
+8. 重構 `src/systograph/core/services/risk_hint_service.py`：
    - 初始化時載入 risk metadata catalog。
    - 用 `rule_id` 取得 metadata 建立 `RiskHint`。
    - loopback published port 保留 Python override，維持 lower-risk wording。
