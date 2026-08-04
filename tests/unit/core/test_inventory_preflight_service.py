@@ -461,6 +461,8 @@ def test_preflight_summary_counts_tracked_but_missing_candidate(
         check=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="surrogateescape",
     )
     tracked = root / "tracked.py"
     tracked.write_text("tracked\n", encoding="utf-8")
@@ -470,6 +472,8 @@ def test_preflight_summary_counts_tracked_but_missing_candidate(
         check=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="surrogateescape",
     )
     tracked.unlink()
     service = InventoryPreflightService()

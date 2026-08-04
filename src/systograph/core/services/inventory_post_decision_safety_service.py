@@ -93,14 +93,17 @@ class InventoryPostDecisionSafetyService:
                 allowed=False,
                 reason_code="unsupported_file_type",
             )
-        open_flags = self._open_flags()
-        if open_flags is None:
-            return InventoryPostDecisionSafetyResult(
-                allowed=False,
-                reason_code="safe_open_unavailable",
-            )
         try:
-            handle = self._open_relative(root, path, open_flags)
+            if os.name == "nt":
+                handle = self._open_windows(local_path)
+            else:
+                open_flags = self._open_flags()
+                if open_flags is None:
+                    return InventoryPostDecisionSafetyResult(
+                        allowed=False,
+                        reason_code="safe_open_unavailable",
+                    )
+                handle = self._open_relative(root, path, open_flags)
         except OSError:
             return InventoryPostDecisionSafetyResult(
                 allowed=False,
@@ -161,6 +164,22 @@ class InventoryPostDecisionSafetyService:
                 | directory
                 | getattr(os, "O_CLOEXEC", 0)
             ),
+        )
+
+    def _open_windows(self, path: Path) -> int:
+        """Open a Windows file for handle-identity validation.
+
+        Windows does not expose POSIX ``openat``/``O_NOFOLLOW`` through
+        Python. The caller has already rejected a non-regular final path and
+        resolved it inside the project root. After this open, ``fstat`` is
+        compared with that pre-open ``lstat`` before any bytes are consumed,
+        so a path or reparse-point swap fails closed.
+        """
+        return os.open(
+            path,
+            os.O_RDONLY
+            | getattr(os, "O_BINARY", 0)
+            | getattr(os, "O_NOINHERIT", 0),
         )
 
     def _open_relative(

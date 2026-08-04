@@ -186,6 +186,8 @@ class FilesystemProvider:
             input=input_text,
             check=check,
             text=True,
+            encoding="utf-8",
+            errors="surrogateescape",
             capture_output=True,
         )
 

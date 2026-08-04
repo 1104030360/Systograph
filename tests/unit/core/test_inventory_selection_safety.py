@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from errno import EACCES, EPERM
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -40,6 +41,18 @@ from systograph.core.services.inventory_selection_service import (
 from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
+
+
+def symlink_or_skip(link_path: Path, target_path: Path) -> None:
+    try:
+        link_path.symlink_to(target_path)
+    except OSError as exc:
+        if (
+            exc.errno in {EACCES, EPERM}
+            or getattr(exc, "winerror", None) == 1314
+        ):
+            pytest.skip("symlink privilege is unavailable on this platform")
+        raise
 
 
 def _decision(
@@ -363,7 +376,7 @@ def test_directory_skip_keeps_precontent_hard_block_authoritative(
     outside.write_text("outside\n", encoding="utf-8")
     (root / ".gitignore").write_text("ignored/\n", encoding="utf-8")
     (target / "safe.py").write_text("safe\n", encoding="utf-8")
-    (target / "outside-link.py").symlink_to(outside)
+    symlink_or_skip(target / "outside-link.py", outside)
     preflight_service = InventoryPreflightService()
     state = preflight_service.create(
         "project:demo",
@@ -704,6 +717,10 @@ def test_skipped_candidate_is_never_opened_by_post_decision_safety(
     "primitive",
     ("O_NOFOLLOW", "O_DIRECTORY"),
 )
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="POSIX safe-open primitives are not used by the Windows adapter",
+)
 def test_safe_open_fails_closed_without_required_primitive(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -725,6 +742,36 @@ def test_safe_open_fails_closed_without_required_primitive(
 
     assert result.allowed is False
     assert result.reason_code == "safe_open_unavailable"
+
+
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="Windows handle-identity adapter only",
+)
+def test_windows_safe_open_does_not_require_posix_primitives(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    content = b"windows validated content\n"
+    (root / "app.py").write_bytes(content)
+    state = InventoryPreflightService().create(
+        "project:demo",
+        root,
+        InventoryPreflightRequest(requested_paths=("app.py",)),
+    )
+    candidate = state.requested_target_results[0].file_candidate
+    assert candidate is not None
+    monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+    monkeypatch.delattr(os, "O_DIRECTORY", raising=False)
+
+    result = InventoryPostDecisionSafetyService().check(root, candidate)
+
+    assert result.allowed is True
+    assert result.content_fingerprint == (
+        "sha256:" + hashlib.sha256(content).hexdigest()
+    )
 
 
 def test_safe_open_detects_fstat_change_after_open(
