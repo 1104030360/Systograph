@@ -167,10 +167,14 @@ export default function App() {
   });
 
   const completeScanFlow = useCallback(
-    async (projectId: string) => {
+    async (projectId: string, isCurrent: () => boolean) => {
       // Inventory Scan success is project/build scoped. Do not fall through to
       // the process-wide /api/map compatibility route.
       const latest = await loadLatestMapBuild(apiBaseUrl, projectId);
+      // A cancel or a newly started scan during the fetch above owns the
+      // session now; publishing this build would point the viewer at the
+      // previous project.
+      if (!isCurrent()) return;
       queryClient.setQueryData(["viewer-load-result", "api", apiBaseUrl, projectId, null], latest.payload);
       void queryClient.invalidateQueries({ queryKey: ["map-builds", apiBaseUrl, projectId] });
       setActiveProjectId(projectId);
@@ -204,8 +208,8 @@ export default function App() {
 
   const scanFlow = useProjectScanFlow({
     apiBaseUrl,
-    onCompleted: async (projectId) => {
-      await completeScanFlow(projectId);
+    onCompleted: async (projectId, _response, isCurrent) => {
+      await completeScanFlow(projectId, isCurrent);
     },
     onProgress: handleProjectScanProgress,
   });
@@ -525,12 +529,14 @@ export default function App() {
           status={scanFlow.status}
           preflight={scanFlow.preflight}
           decisions={scanFlow.decisionsByIdentity}
+          requestedPaths={scanFlow.requestedPaths}
           missingRequiredCount={scanFlow.missingRequiredCount}
           error={scanFlow.error}
           notice={scanFlow.notice}
           isBusy={scanFlow.isBusy}
           onDecisionChange={scanFlow.setDecision}
           onCheckPath={(path) => void scanFlow.checkPath(path)}
+          onRemoveRequestedPath={(path) => void scanFlow.removeRequestedPath(path)}
           onLoadMore={() => void scanFlow.loadMore()}
           onRetryPreflight={() => void scanFlow.retryPreflight()}
           onSubmit={() => void scanFlow.submit()}

@@ -873,6 +873,33 @@ h1, h2, h3 { margin: 0; }
   font-family: var(--mono);
   font-size: 12px;
 }
+.inventory-requested-paths {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.inventory-requested-paths li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.inventory-requested-paths code {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.inventory-requested-paths .icon-btn { flex: none; }
+.inventory-reason-code { color: var(--text-3); font-family: var(--mono); font-size: 10px; }
 .inventory-result-list { display: grid; gap: var(--space-2); }
 .inventory-result {
   display: grid;

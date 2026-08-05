@@ -14,6 +14,7 @@ import {
 import {
   decisionsForInventory,
   proposalIdentity,
+  type InventoryDecisionSerialization,
   type ProjectScanFlowError,
   type ProjectScanFlowStatus,
 } from "../hooks/useProjectScanFlow";
@@ -28,12 +29,14 @@ type Props = {
   status: ProjectScanFlowStatus;
   preflight: ScanInventoryPreflightResponse | null;
   decisions: Record<string, ScanBoundaryAction>;
+  requestedPaths: string[];
   missingRequiredCount: number;
   error: ProjectScanFlowError | null;
   notice: string | null;
   isBusy: boolean;
   onDecisionChange: (proposal: InventoryBoundaryProposal, decision: ScanBoundaryAction) => void;
   onCheckPath: (path: string) => void;
+  onRemoveRequestedPath: (path: string) => void;
   onLoadMore: () => void;
   onRetryPreflight: () => void;
   onSubmit: () => void;
@@ -44,12 +47,14 @@ export function BoundaryDecisionModal({
   status,
   preflight,
   decisions,
+  requestedPaths,
   missingRequiredCount,
   error,
   notice,
   isBusy,
   onDecisionChange,
   onCheckPath,
+  onRemoveRequestedPath,
   onLoadMore,
   onRetryPreflight,
   onSubmit,
@@ -59,10 +64,17 @@ export function BoundaryDecisionModal({
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [pathInput, setPathInput] = useState("");
 
+  // Initial focus and focus restore run once per dialog lifetime. Re-running
+  // them on every status change would yank a keyboard user back to the title
+  // after each path check, and the cleanup would move focus outside a dialog
+  // that is still open.
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     titleRef.current?.focus();
+    return () => previouslyFocused?.focus();
+  }, []);
 
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && status !== "submitting") {
         event.preventDefault();
@@ -78,6 +90,14 @@ export function BoundaryDecisionModal({
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+      // The title holds initial focus but is tabindex="-1", so it is not in the
+      // list above. Without this branch Shift+Tab from it — or from anywhere
+      // focus has escaped to — would leave an aria-modal dialog.
+      if (!focusable.includes(document.activeElement as HTMLElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -88,20 +108,14 @@ export function BoundaryDecisionModal({
     }
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      previouslyFocused?.focus();
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onCancel, status]);
 
-  const explicitDecisionCount = useMemo(() => {
-    if (!preflight) return 0;
-    try {
-      return decisionsForInventory(preflight, decisions).length;
-    } catch {
-      return 0;
-    }
-  }, [decisions, preflight]);
+  const serialized = useMemo<InventoryDecisionSerialization>(
+    () => (preflight ? decisionsForInventory(preflight, decisions) : { ok: true, decisions: [] }),
+    [decisions, preflight],
+  );
+  const explicitDecisionCount = serialized.ok ? serialized.decisions.length : 0;
 
   function handlePathSubmit(event: FormEvent) {
     event.preventDefault();
@@ -200,10 +214,12 @@ export function BoundaryDecisionModal({
               <RequestedPathSection
                 preflight={preflight}
                 pathInput={pathInput}
+                requestedPaths={requestedPaths}
                 decisions={decisions}
                 isBusy={isBusy}
                 onPathInputChange={setPathInput}
                 onPathSubmit={handlePathSubmit}
+                onRemoveRequestedPath={onRemoveRequestedPath}
                 onDecisionChange={onDecisionChange}
               />
 
@@ -231,12 +247,18 @@ export function BoundaryDecisionModal({
             <div className="inventory-confirmation" aria-live="polite">
               <div>
                 <strong>Confirmation summary</strong>
-                <span>{explicitDecisionCount} one-run decision{explicitDecisionCount === 1 ? "" : "s"} will be sent.</span>
+                {serialized.ok ? (
+                  <span>{explicitDecisionCount} one-run decision{explicitDecisionCount === 1 ? "" : "s"} will be sent.</span>
+                ) : (
+                  <span className="is-pending">{serialized.reason}</span>
+                )}
               </div>
-              <div className={missingRequiredCount > 0 ? "is-pending" : "is-ready"}>
+              <div className={missingRequiredCount > 0 || !serialized.ok ? "is-pending" : "is-ready"}>
                 {missingRequiredCount > 0
                   ? `${missingRequiredCount} required decision${missingRequiredCount === 1 ? "" : "s"} remaining`
-                  : "All required decisions are confirmed"}
+                  : serialized.ok
+                    ? "All required decisions are confirmed"
+                    : "Conflicting decisions block this scan"}
               </div>
             </div>
 
@@ -248,7 +270,7 @@ export function BoundaryDecisionModal({
                 className="btn primary"
                 type="button"
                 onClick={onSubmit}
-                disabled={missingRequiredCount > 0 || isBusy}
+                disabled={missingRequiredCount > 0 || isBusy || !serialized.ok}
               >
                 {status === "submitting" ? <LoaderCircle className="spin" size={14} /> : <Check size={14} />}
                 {status === "submitting" ? "Starting scan..." : "Confirm and start scan"}
@@ -437,18 +459,22 @@ function ExcludedSection({
 function RequestedPathSection({
   preflight,
   pathInput,
+  requestedPaths,
   decisions,
   isBusy,
   onPathInputChange,
   onPathSubmit,
+  onRemoveRequestedPath,
   onDecisionChange,
 }: {
   preflight: ScanInventoryPreflightResponse;
   pathInput: string;
+  requestedPaths: string[];
   decisions: Record<string, ScanBoundaryAction>;
   isBusy: boolean;
   onPathInputChange: (value: string) => void;
   onPathSubmit: (event: FormEvent) => void;
+  onRemoveRequestedPath: (path: string) => void;
   onDecisionChange: Props["onDecisionChange"];
 }) {
   const alreadyShown = new Set([
@@ -486,6 +512,24 @@ function RequestedPathSection({
           <FileSearch size={14} /> Check path
         </button>
       </form>
+      {requestedPaths.length > 0 ? (
+        <ul className="inventory-requested-paths" aria-label="Paths sent with this preflight">
+          {requestedPaths.map((path) => (
+            <li key={path}>
+              <code>{path}</code>
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label={`Remove ${path} from this preflight`}
+                disabled={isBusy}
+                onClick={() => onRemoveRequestedPath(path)}
+              >
+                <X size={13} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {reviewable.length > 0 ? (
         <div className="boundary-list">
           {reviewable.map((result) => {
@@ -516,8 +560,14 @@ function BlockedSection({
   isBusy: boolean;
   onExpand: (path: string) => void;
 }) {
-  const nonReviewable = preflight.requested_target_results.filter((result) => result.status !== "reviewable");
-  const count = nonReviewable.length + preflight.blocked_summaries.length;
+  const nonReviewable = preflight.requested_target_results.filter(
+    (result): result is BlockedTargetView => result.status !== "reviewable",
+  );
+  // A requested path that is hard blocked is also a hard-blocked candidate in
+  // the whole-repo enumeration, so it arrives on both lists.
+  const resultPaths = new Set(nonReviewable.map((result) => result.target_path));
+  const summaries = preflight.blocked_summaries.filter((summary) => !resultPaths.has(summary.path));
+  const count = nonReviewable.length + summaries.length;
   return (
     <section className="inventory-section" aria-labelledby="inventory-blocked-title">
       <div className="inventory-section-heading">
@@ -530,15 +580,20 @@ function BlockedSection({
       {count > 0 ? (
         <div className="inventory-result-list">
           {nonReviewable.map((result) => <BlockedResult key={`${result.target_path}:${result.status}`} result={result} />)}
-          {preflight.blocked_summaries.map((summary) => (
+          {summaries.map((summary) => (
             <article className="inventory-result" key={`${summary.path}:${summary.reason_code}`}>
               <ShieldAlert size={16} />
               <div>
                 <code>{summary.path}</code>
-                <p>{summary.reason_code.replace(/_/g, " ")}</p>
+                <p>
+                  {summary.outcome === "collapsed_directory"
+                    ? "Excluded by default; not expanded for this preflight."
+                    : "Blocked by backend safety rules. This cannot be overridden."}
+                </p>
                 {summary.outcome === "collapsed_directory" ? (
                   <span>Excluded by default. Expand only if you need this folder this run.</span>
                 ) : null}
+                <span className="inventory-reason-code">Backend reason: {summary.reason_code}</span>
               </div>
               {summary.can_expand ? (
                 <button className="btn" type="button" onClick={() => onExpand(summary.path)} disabled={isBusy}>
@@ -555,24 +610,35 @@ function BlockedSection({
   );
 }
 
-function BlockedResult({ result }: { result: InventoryRequestedTargetView }) {
+type BlockedTargetView = InventoryRequestedTargetView & {
+  status: Exclude<InventoryRequestedTargetView["status"], "reviewable">;
+};
+
+// Keyed on the closed status enum from the contract rather than on backend
+// reason codes, so the copy cannot drift out of sync with new codes.
+const BLOCKED_RESULT_COPY: Record<BlockedTargetView["status"], string> = {
+  hard_blocked: "Blocked by backend safety rules. This cannot be overridden.",
+  missing: "Not found in the project.",
+  empty_directory: "This folder has no files to review.",
+  directory_limit_exceeded: "Too large to select as one folder; choose a smaller folder.",
+};
+
+function BlockedResult({ result }: { result: BlockedTargetView }) {
   const limit = result.limit_context;
   return (
     <article className="inventory-result">
       <ShieldAlert size={16} />
       <div>
         <code>{result.target_path}</code>
-        <p>{result.reason_code?.replace(/_/g, " ") ?? result.status.replace(/_/g, " ")}</p>
-        {result.status === "directory_limit_exceeded" ? (
-          <>
-            <span>Too large to select as one folder; choose a smaller folder.</span>
-            {limit ? (
-              <span>
-                Backend observed at least {limit.observed_at_least.toLocaleString()} for the {limit.limit_kind} limit
-                of {limit.limit.toLocaleString()}.
-              </span>
-            ) : null}
-          </>
+        <p>{BLOCKED_RESULT_COPY[result.status]}</p>
+        {result.status === "directory_limit_exceeded" && limit ? (
+          <span>
+            Backend observed at least {limit.observed_at_least.toLocaleString()} for the {limit.limit_kind} limit
+            of {limit.limit.toLocaleString()}.
+          </span>
+        ) : null}
+        {result.reason_code ? (
+          <span className="inventory-reason-code">Backend reason: {result.reason_code}</span>
         ) : null}
       </div>
     </article>

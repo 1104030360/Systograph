@@ -521,13 +521,13 @@ export const scanBoundaryDecisionSchema = z.object({
   reason: z.string().optional(),
 });
 
+// Exactly the fields the frontend sends. Backend-owned inputs it must never
+// select (output dir, redaction, snippets, system_map_schema_version) are
+// deliberately absent so no code path can start assembling them.
 export const scanCreateRequestSchema = z.object({
-  project_id: z.string(),
+  project_id: z.string().min(1),
   scan_depth: z.literal("system").default("system"),
-  output: z.string().default("outputs"),
-  redact_root_path: z.boolean().default(true),
-  no_snippets: z.boolean().default(false),
-  preflight_request_id: z.string().optional(),
+  preflight_request_id: z.string().min(1),
   boundary_decisions: z.array(scanBoundaryDecisionSchema).default([]),
 });
 

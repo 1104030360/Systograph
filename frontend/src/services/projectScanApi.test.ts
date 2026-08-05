@@ -85,6 +85,13 @@ describe("projectScanApi Inventory Preflight contract", () => {
 
     expect(response.status).toBe("requires_boundary_decision");
     expect("scan_id" in response).toBe(false);
+    if (response.status !== "requires_boundary_decision") {
+      throw new Error("Expected the pending scan response fixture.");
+    }
+    // Narrowing, not just the runtime shape: the pending branch of the union
+    // must make `scan_id` unreachable so no caller can treat it as completed.
+    // @ts-expect-error `scan_id` is absent from the pending response contract.
+    void response.scan_id;
     expect(response.boundary_proposals[0].selection_context.selection_scope).toBe("exact_file");
   });
 

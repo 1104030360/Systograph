@@ -1,6 +1,6 @@
 import {
   projectImportResponseSchema,
-  scanBoundaryDecisionSchema,
+  scanCreateRequestSchema,
   scanCreateResponseSchema,
   scanInventoryPreflightRequestSchema,
   scanInventoryPreflightResponseSchema,
@@ -58,16 +58,16 @@ export async function createScanPreflight(
 }
 
 export async function startProjectScan(baseUrl: string, options: StartScanOptions): Promise<ScanCreateResponse> {
-  const boundaryDecisions = options.boundaryDecisions?.map((decision) => scanBoundaryDecisionSchema.parse(decision)) ?? [];
+  const request = scanCreateRequestSchema.parse({
+    project_id: options.projectId,
+    scan_depth: "system",
+    preflight_request_id: options.preflightRequestId,
+    boundary_decisions: options.boundaryDecisions ?? [],
+  });
   const payload = await fetchJson(`${normalizeBaseUrl(baseUrl)}/api/scans`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      project_id: options.projectId,
-      scan_depth: "system",
-      preflight_request_id: options.preflightRequestId,
-      boundary_decisions: boundaryDecisions,
-    }),
+    body: JSON.stringify(request),
   });
   return scanCreateResponseSchema.parse(payload);
 }

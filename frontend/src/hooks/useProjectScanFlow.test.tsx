@@ -116,7 +116,11 @@ describe("useProjectScanFlow", () => {
         },
       ],
     });
-    expect(onCompleted).toHaveBeenCalledWith(session.project_id, completedResponse);
+    expect(onCompleted).toHaveBeenCalledWith(
+      session.project_id,
+      completedResponse,
+      expect.any(Function),
+    );
     expect(result.current.status).toBe("completed");
     expect(result.current.preflight).toBeNull();
     expect(result.current.requestedPaths).toEqual([]);
@@ -228,5 +232,195 @@ describe("useProjectScanFlow", () => {
 
     await waitFor(() => expect(onCompleted).toHaveBeenCalledOnce());
     expect(result.current.status).toBe("completed");
+  });
+
+  it("drops a path the backend rejects so later preflights are not poisoned", async () => {
+    const { result } = setupHook();
+    await act(async () => result.current.start(session.project_path));
+
+    vi.mocked(createScanPreflight).mockRejectedValueOnce(
+      new ApiRequestError("Choose a project-relative path without glob syntax.", 422, {
+        code: "inventory_selection_path_invalid",
+        retryable: false,
+        context: null,
+      }),
+    );
+    await act(async () => result.current.checkPath("src/*.py"));
+
+    expect(vi.mocked(createScanPreflight).mock.lastCall?.[1].requestedPaths).toEqual(["src/*.py"]);
+    expect(result.current.requestedPaths).toEqual([]);
+    expect(result.current.status).toBe("reviewing");
+
+    // The next lookup must not resend the rejected entry, otherwise every
+    // later preflight fails identically and only Cancel escapes the dialog.
+    await act(async () => result.current.checkPath("src/experimental.py"));
+    expect(vi.mocked(createScanPreflight).mock.lastCall?.[1].requestedPaths).toEqual([
+      "src/experimental.py",
+    ]);
+    expect(result.current.requestedPaths).toEqual(["src/experimental.py"]);
+  });
+
+  it("removes a requested path on demand and re-preflights without it", async () => {
+    const { result } = setupHook();
+    await act(async () => result.current.start(session.project_path));
+    await act(async () => result.current.checkPath("src/experimental.py"));
+    expect(result.current.requestedPaths).toEqual(["src/experimental.py"]);
+
+    await act(async () => result.current.removeRequestedPath("src/experimental.py"));
+    expect(result.current.requestedPaths).toEqual([]);
+    expect(vi.mocked(createScanPreflight).mock.lastCall?.[1].requestedPaths).toEqual([]);
+  });
+
+  it("keeps earlier excluded pages and their choices across an exact-path lookup", async () => {
+    const secondPage = {
+      ...samplePreflight,
+      reviewable_excluded_page: {
+        items: [
+          {
+            ...samplePreflight.reviewable_excluded_page.items[0],
+            proposal_id: "proposal:ignored-page-2",
+            target: {
+              ...samplePreflight.reviewable_excluded_page.items[0].target,
+              path: "ignored/page-two.py",
+              fingerprint: "sha256:metadata-page-two",
+            },
+          },
+        ],
+        next_cursor: null,
+        total: 12,
+      },
+    };
+    const { result } = setupHook();
+    await act(async () => result.current.start(session.project_path));
+
+    vi.mocked(createScanPreflight).mockResolvedValueOnce(secondPage);
+    await act(async () => result.current.loadMore());
+    expect(vi.mocked(createScanPreflight).mock.lastCall?.[1].reviewableExcludedCursor).toBe(
+      "cursor:reviewable-excluded-page-2-sample",
+    );
+    const pageTwoProposal = result.current.preflight!.reviewable_excluded_page.items.find(
+      (item) => item.proposal_id === "proposal:ignored-page-2",
+    )!;
+    act(() => result.current.setDecision(pageTwoProposal, "scan_this_run"));
+
+    // A page-1 refresh must not silently discard pages 2..N or the choices on
+    // them; the baseline is unchanged, so both stay valid.
+    await act(async () => result.current.checkPath("src/experimental.py"));
+
+    const identities = result.current.preflight!.reviewable_excluded_page.items.map(
+      (item) => item.proposal_id,
+    );
+    expect(identities).toContain("proposal:ignored-page-2");
+    expect(result.current.decisionsByIdentity[proposalIdentity(pageTwoProposal)]).toBe(
+      "scan_this_run",
+    );
+    expect(result.current.notice).toBeNull();
+  });
+
+  it("discards superseded pages and choices when the backend baseline changes", async () => {
+    const { result } = setupHook();
+    await act(async () => result.current.start(session.project_path));
+    const excluded = samplePreflight.reviewable_excluded_page.items[0];
+    act(() => result.current.setDecision(excluded, "scan_this_run"));
+
+    vi.mocked(createScanPreflight).mockResolvedValueOnce({
+      ...samplePreflight,
+      preflight_request_id: "preflight:rotated",
+      candidate_set_digest: "sha256:candidates-rotated",
+      reviewable_excluded_page: { items: [], next_cursor: null, total: 0 },
+    });
+    await act(async () => result.current.checkPath("src/experimental.py"));
+
+    expect(result.current.preflight!.reviewable_excluded_page.items).toEqual([]);
+    expect(result.current.decisionsByIdentity).toEqual({});
+    expect(result.current.notice).toMatch(/dropped because the backend inventory changed/);
+  });
+
+  it("does not restore superseded review controls when a stale reload fails", async () => {
+    vi.mocked(startProjectScan).mockRejectedValue(
+      new ApiRequestError("Scan selection changed. Refresh the file review.", 409, {
+        code: "inventory_preflight_stale",
+        retryable: true,
+        context: null,
+      }),
+    );
+    const { result } = setupHook();
+    await act(async () => result.current.start(session.project_path));
+    const required = samplePreflight.required_boundary_proposals[0];
+    const directory = samplePreflight.requested_target_results[1].proposal!;
+    act(() => {
+      result.current.setDecision(required, "skip_this_run");
+      result.current.setDecision(directory, "skip_this_run");
+    });
+    await act(async () => result.current.submit());
+    expect(result.current.status).toBe("stale");
+
+    vi.mocked(createScanPreflight).mockRejectedValueOnce(new ApiRequestError("Network request failed."));
+    await act(async () => result.current.retryPreflight());
+
+    // A failed reload must stay on the blocking screen. Keeping the old
+    // preflight would let the user submit a known-superseded request id.
+    expect(result.current.status).toBe("error");
+    expect(result.current.preflight).toBeNull();
+    expect(startProjectScan).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a schema mismatch without surfacing the raw parser exception", async () => {
+    vi.mocked(createScanPreflight).mockRejectedValue(
+      scanInventoryPreflightResponseSchema.safeParse({ source_mode: "frontend_inferred" })
+        .error as unknown as Error,
+    );
+    const { result } = setupHook();
+
+    await act(async () => result.current.start(session.project_path));
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.error?.message).toBe(
+      "The backend response did not match the expected inventory contract. Reload the preflight, or check that the API server matches this build.",
+    );
+    expect(result.current.error?.message).not.toMatch(/invalid_|"code"|received/);
+  });
+
+  it("never starts two scans from a double confirm", async () => {
+    vi.mocked(createScanPreflight).mockResolvedValue(emptyPreflight());
+    const { result } = setupHook();
+    await act(async () => result.current.start(session.project_path));
+
+    await act(async () => {
+      // POST /api/scans materializes a snapshot and a build, so a second
+      // in-flight call would create a duplicate run.
+      await Promise.all([result.current.submit(), result.current.submit()]);
+    });
+
+    expect(startProjectScan).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels without calling the scan API and clears one-run state", async () => {
+    const { result } = setupHook();
+    await act(async () => result.current.start(session.project_path));
+    act(() =>
+      result.current.setDecision(samplePreflight.required_boundary_proposals[0], "skip_this_run"),
+    );
+
+    act(() => result.current.cancel());
+
+    expect(startProjectScan).not.toHaveBeenCalled();
+    expect(result.current.status).toBe("idle");
+    expect(result.current.preflight).toBeNull();
+    expect(result.current.decisionsByIdentity).toEqual({});
+    expect(result.current.requestedPaths).toEqual([]);
+    expect(result.current.dialogOpen).toBe(false);
+  });
+
+  it("lets a superseded viewer refresh opt out through isCurrent", async () => {
+    const { result, onCompleted } = setupHook();
+    vi.mocked(createScanPreflight).mockResolvedValue(emptyPreflight());
+    await act(async () => result.current.start(session.project_path));
+    await act(async () => result.current.submit());
+
+    const isCurrent = vi.mocked(onCompleted).mock.calls[0][2] as () => boolean;
+    expect(isCurrent()).toBe(true);
+    act(() => result.current.cancel());
+    expect(isCurrent()).toBe(false);
   });
 });

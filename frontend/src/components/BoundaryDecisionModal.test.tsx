@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import preflightResponseSample from "../../../docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-02-boundary-gate/frontend-inventory-preflight-response-sample.json";
+import { proposalIdentity } from "../hooks/useProjectScanFlow";
 import { scanInventoryPreflightResponseSchema, type ScanInventoryPreflightResponse } from "../types";
 import { BoundaryDecisionModal } from "./BoundaryDecisionModal";
 
@@ -30,12 +31,14 @@ function renderModal(overrides: Partial<React.ComponentProps<typeof BoundaryDeci
     status: "reviewing",
     preflight: samplePreflight,
     decisions: {},
+    requestedPaths: [],
     missingRequiredCount: 2,
     error: null,
     notice: null,
     isBusy: false,
     onDecisionChange: vi.fn(),
     onCheckPath: vi.fn(),
+    onRemoveRequestedPath: vi.fn(),
     onLoadMore: vi.fn(),
     onRetryPreflight: vi.fn(),
     onSubmit: vi.fn(),
@@ -172,5 +175,92 @@ describe("BoundaryDecisionModal Inventory Preflight UI", () => {
     unmount();
     expect(trigger).toHaveFocus();
     trigger.remove();
+  });
+
+  it("keeps Shift+Tab inside the dialog when focus sits on the tabindex=-1 title", () => {
+    const trigger = document.createElement("button");
+    document.body.appendChild(trigger);
+    trigger.focus();
+    renderModal({ preflight: emptyPreflight(), missingRequiredCount: 0 });
+
+    // The title holds initial focus but is not itself tabbable, so the trap has
+    // to take over instead of letting the browser step out of the dialog.
+    expect(screen.getByRole("heading", { name: "Review scan scope" })).toHaveFocus();
+    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+    expect(screen.getByRole("button", { name: "Confirm and start scan" })).toHaveFocus();
+    trigger.remove();
+  });
+
+  it("does not steal focus back to the title when only the flow status changes", () => {
+    const { rerender, props } = renderModal({ preflight: emptyPreflight(), missingRequiredCount: 0 });
+
+    const pathInput = screen.getByPlaceholderText("src/experimental.py or packages/local-tool");
+    pathInput.focus();
+    rerender(<BoundaryDecisionModal {...props} preflight={emptyPreflight()} status="submitting" />);
+
+    expect(pathInput).toHaveFocus();
+  });
+
+  it("blocks the scan and explains why when decisions conflict", () => {
+    // Two proposals for the same path+scope with different fingerprints: only
+    // reachable through a superseded page, and it must never be submitted.
+    const conflicting = structuredClone(samplePreflight);
+    const [first] = conflicting.required_boundary_proposals;
+    const second = structuredClone(first);
+    second.proposal_id = "proposal:required-env-sample-stale";
+    second.target.fingerprint = "sha256:metadata-env-sample-stale";
+    conflicting.reviewable_excluded_page.items = [second];
+
+    renderModal({
+      preflight: conflicting,
+      missingRequiredCount: 0,
+      decisions: {
+        [proposalIdentity(first)]: "scan_this_run",
+        [proposalIdentity(second)]: "skip_this_run",
+      },
+    });
+
+    expect(screen.getByText(/has conflicting one-run decisions/)).toBeInTheDocument();
+    expect(screen.getByText("Conflicting decisions block this scan")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm and start scan" })).toBeDisabled();
+  });
+
+  it("lists requested paths with a remove control so a rejected path is recoverable", () => {
+    const onRemoveRequestedPath = vi.fn();
+    renderModal({ requestedPaths: ["src/experimental.py"], onRemoveRequestedPath });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove src/experimental.py from this preflight" }),
+    );
+    expect(onRemoveRequestedPath).toHaveBeenCalledWith("src/experimental.py");
+  });
+
+  it("uses fail-closed copy for an over-limit directory and never offers a partial scan", () => {
+    const overLimit = structuredClone(samplePreflight);
+    overLimit.requested_target_results = [
+      {
+        target_path: "node_modules",
+        target_kind: "directory",
+        status: "directory_limit_exceeded",
+        proposal: null,
+        reason_code: "inventory_selection_directory_limit_exceeded",
+        limit_context: { limit_kind: "files", limit: 5000, observed_at_least: 5001 },
+      },
+    ];
+    renderModal({ preflight: overLimit, missingRequiredCount: 1 });
+
+    expect(
+      screen.getByText("Too large to select as one folder; choose a smaller folder."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/observed at least 5,001 for the files limit of 5,000/)).toBeInTheDocument();
+    expect(screen.queryByText(/first 5,?000|partial|Continue anyway/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /node_modules/ })).not.toBeInTheDocument();
+  });
+
+  it("explains non-reviewable results without leaking backend codes as the headline", () => {
+    renderModal();
+
+    expect(screen.getByText("Not found in the project.")).toBeInTheDocument();
+    expect(screen.getByText("Backend reason: inventory_selection_target_missing")).toBeInTheDocument();
   });
 });

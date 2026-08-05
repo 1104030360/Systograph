@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { ZodError } from "zod";
 import { ApiRequestError } from "../services/http";
 import {
   createScanPreflight,
@@ -33,6 +34,11 @@ export type ProjectScanFlowError = {
   retryable: boolean;
 };
 
+/** Serializing one-run decisions can fail closed, so callers get a result. */
+export type InventoryDecisionSerialization =
+  | { ok: true; decisions: ScanBoundaryDecision[] }
+  | { ok: false; reason: string };
+
 type ProgressUpdate = {
   running: boolean;
   stage: string;
@@ -43,9 +49,17 @@ type ProgressUpdate = {
 
 type Options = {
   apiBaseUrl: string;
-  onCompleted: (projectId: string, response: ScanCreateResponse) => Promise<void>;
+  onCompleted: (
+    projectId: string,
+    response: ScanCreateResponse,
+    // The viewer refresh awaits the network, so it must be able to check that
+    // this scan run still owns the session before it mutates shared state.
+    isCurrent: () => boolean,
+  ) => Promise<void>;
   onProgress: (progress: ProgressUpdate) => void;
 };
+
+type PreflightOutcome = "accepted" | "failed" | "superseded";
 
 const BASELINE_ERROR_CODES = new Set(["inventory_rules_unavailable", "inventory_rules_invalid"]);
 const STALE_ERROR_CODES = new Set([
@@ -53,6 +67,11 @@ const STALE_ERROR_CODES = new Set([
   "inventory_selection_target_changed",
   "inventory_selection_target_missing",
 ]);
+
+// Raw parser output must never reach the dialog (step-02 §7 forbids rendering
+// raw exceptions), so schema drift gets one fixed, safe sentence instead.
+const CONTRACT_MISMATCH_MESSAGE =
+  "The backend response did not match the expected inventory contract. Reload the preflight, or check that the API server matches this build.";
 
 export function proposalIdentity(proposal: InventoryBoundaryProposal) {
   return [
@@ -73,10 +92,27 @@ export function collectInventoryProposals(preflight: ScanInventoryPreflightRespo
   return [...new Map(proposals.map((proposal) => [proposal.proposal_id, proposal])).values()];
 }
 
+/**
+ * Two preflight responses describe the same backend enumeration. Requested
+ * paths and pagination do not affect these fields, so this is true across an
+ * exact-path lookup or a `Load more`, and false once the repo or policy moved.
+ */
+export function sameInventoryBaseline(
+  a: ScanInventoryPreflightResponse,
+  b: ScanInventoryPreflightResponse,
+) {
+  return (
+    a.preflight_request_id === b.preflight_request_id &&
+    a.candidate_set_digest === b.candidate_set_digest &&
+    a.inventory_policy_digest === b.inventory_policy_digest &&
+    a.filesystem_safety_version === b.filesystem_safety_version
+  );
+}
+
 export function decisionsForInventory(
   preflight: ScanInventoryPreflightResponse,
   decisionsByIdentity: Record<string, ScanBoundaryAction>,
-): ScanBoundaryDecision[] {
+): InventoryDecisionSerialization {
   const serialized = new Map<string, ScanBoundaryDecision>();
 
   for (const proposal of collectInventoryProposals(preflight)) {
@@ -97,12 +133,15 @@ export function decisionsForInventory(
       previous &&
       (previous.fingerprint !== decision.fingerprint || previous.decision !== decision.decision)
     ) {
-      throw new Error("Conflicting inventory decisions require a fresh preflight.");
+      return {
+        ok: false,
+        reason: `"${decision.target_path}" has conflicting one-run decisions. Reload the preflight before starting the scan.`,
+      };
     }
     serialized.set(targetScopeKey, decision);
   }
 
-  return [...serialized.values()];
+  return { ok: true, decisions: [...serialized.values()] };
 }
 
 function mergeProposalPages(
@@ -110,7 +149,10 @@ function mergeProposalPages(
   next: ScanInventoryPreflightResponse,
   appendExcluded: boolean,
 ) {
-  if (!appendExcluded || !current) return next;
+  // Pages loaded from an earlier enumeration stay valid only while the backend
+  // baseline is unchanged; a new candidate set supersedes every earlier page,
+  // including the fingerprints any kept choice is keyed to.
+  if (!current || !sameInventoryBaseline(current, next)) return next;
   const combined = [
     ...current.reviewable_excluded_page.items,
     ...next.reviewable_excluded_page.items,
@@ -120,6 +162,11 @@ function mergeProposalPages(
     reviewable_excluded_page: {
       ...next.reviewable_excluded_page,
       items: [...new Map(combined.map((proposal) => [proposal.proposal_id, proposal])).values()],
+      // A page-1 refresh (exact path lookup, folder expansion) must not rewind
+      // pagination that already advanced, or `Load more` would restart at page 2.
+      next_cursor: appendExcluded
+        ? next.reviewable_excluded_page.next_cursor
+        : current.reviewable_excluded_page.next_cursor,
     },
   };
 }
@@ -133,6 +180,9 @@ function flowError(error: unknown, kind: ProjectScanFlowError["kind"] = "api"): 
       retryable: error.retryable ?? true,
     };
   }
+  if (error instanceof ZodError) {
+    return { kind, message: CONTRACT_MISMATCH_MESSAGE, retryable: true };
+  }
   return {
     kind,
     message: error instanceof Error ? error.message : "The request could not be completed.",
@@ -144,45 +194,78 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
   const [status, setStatus] = useState<ProjectScanFlowStatus>("idle");
   const [session, setSession] = useState<ProjectImportResponse | null>(null);
   const [preflight, setPreflightState] = useState<ScanInventoryPreflightResponse | null>(null);
-  const [decisionsByIdentity, setDecisionsByIdentity] = useState<Record<string, ScanBoundaryAction>>({});
-  const [requestedPaths, setRequestedPaths] = useState<string[]>([]);
+  const [decisionsByIdentity, setDecisionsState] = useState<Record<string, ScanBoundaryAction>>({});
+  const [requestedPaths, setRequestedPathsState] = useState<string[]>([]);
   const [error, setError] = useState<ProjectScanFlowError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [lastSelectionSummary, setLastSelectionSummary] = useState<InventorySelectionSummary | null>(null);
   const preflightRef = useRef<ScanInventoryPreflightResponse | null>(null);
+  const decisionsRef = useRef<Record<string, ScanBoundaryAction>>({});
+  const requestedPathsRef = useRef<string[]>([]);
   const operationEpoch = useRef(0);
+  // POST /api/scans is not idempotent — each accepted call materializes a
+  // snapshot and a build — so the double-submit guard lives here, not only on
+  // the disabled state of the confirm button.
+  const submitInFlight = useRef(false);
 
   const setPreflight = useCallback((value: ScanInventoryPreflightResponse | null) => {
     preflightRef.current = value;
     setPreflightState(value);
   }, []);
 
+  const setDecisions = useCallback((value: Record<string, ScanBoundaryAction>) => {
+    decisionsRef.current = value;
+    setDecisionsState(value);
+  }, []);
+
+  const setRequestedPaths = useCallback((value: string[]) => {
+    requestedPathsRef.current = value;
+    setRequestedPathsState(value);
+  }, []);
+
   const clearOneRunState = useCallback(() => {
     setPreflight(null);
-    setDecisionsByIdentity({});
+    setDecisions({});
     setRequestedPaths([]);
     setNotice(null);
-  }, [setPreflight]);
+  }, [setDecisions, setPreflight, setRequestedPaths]);
 
   const acceptPreflight = useCallback(
     (
       next: ScanInventoryPreflightResponse,
       options: { appendExcluded: boolean; preserveDecisions: boolean },
     ) => {
-      const merged = mergeProposalPages(preflightRef.current, next, options.appendExcluded);
+      const current = preflightRef.current;
+      const supersededBaseline = current != null && !sameInventoryBaseline(current, next);
+      const merged = mergeProposalPages(current, next, options.appendExcluded);
       setPreflight(merged);
-      setDecisionsByIdentity((current) => {
-        if (!options.preserveDecisions) return {};
+
+      let droppedDecisions = 0;
+      if (options.preserveDecisions) {
         const validIdentities = new Set(collectInventoryProposals(merged).map(proposalIdentity));
-        return Object.fromEntries(
-          Object.entries(current).filter(([identity]) => validIdentities.has(identity)),
+        const previous = decisionsRef.current;
+        const kept = Object.fromEntries(
+          Object.entries(previous).filter(([identity]) => validIdentities.has(identity)),
         );
-      });
+        droppedDecisions = Object.keys(previous).length - Object.keys(kept).length;
+        setDecisions(kept);
+      } else {
+        setDecisions({});
+      }
+
       setError(null);
-      setNotice(null);
+      // Losing a choice is never silent: the user has to know what is no longer
+      // part of the submission before they press confirm.
+      setNotice(
+        droppedDecisions > 0
+          ? `${droppedDecisions} earlier ${droppedDecisions === 1 ? "choice was" : "choices were"} dropped because the backend inventory changed. Review the scope again before starting the scan.`
+          : supersededBaseline
+            ? "The backend inventory changed, so this review was reloaded from a fresh preflight."
+            : null,
+      );
       setStatus("reviewing");
     },
-    [setPreflight],
+    [setDecisions, setPreflight],
   );
 
   const requestPreflight = useCallback(
@@ -196,7 +279,7 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
         keepReviewOnError?: boolean;
         epoch: number;
       },
-    ) => {
+    ): Promise<PreflightOutcome> => {
       setStatus("preflighting");
       setError(null);
       onProgress({
@@ -214,7 +297,7 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
           reviewableExcludedCursor: cursor,
           reviewableExcludedLimit: 100,
         });
-        if (options.epoch !== operationEpoch.current) return;
+        if (options.epoch !== operationEpoch.current) return "superseded";
         if (next.project_id !== currentSession.project_id) {
           throw new Error("Preflight response does not match the imported project.");
         }
@@ -226,8 +309,9 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
           percent: 15,
           status: "waiting",
         });
+        return "accepted";
       } catch (caught) {
-        if (options.epoch !== operationEpoch.current) return;
+        if (options.epoch !== operationEpoch.current) return "superseded";
         const normalized = flowError(caught);
         if (normalized.code && BASELINE_ERROR_CODES.has(normalized.code)) {
           clearOneRunState();
@@ -247,6 +331,7 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
           percent: 15,
           status: "error",
         });
+        return "failed";
       }
     },
     [acceptPreflight, apiBaseUrl, clearOneRunState, onProgress],
@@ -299,17 +384,21 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
   const retryPreflight = useCallback(async () => {
     if (!session) return;
     const epoch = ++operationEpoch.current;
-    setDecisionsByIdentity({});
-    await requestPreflight(session, requestedPaths, null, {
+    // A stale or failed baseline must not be restorable. Dropping it before the
+    // reload keeps a failed retry on the blocking screen instead of falling
+    // back to review controls bound to a superseded preflight_request_id.
+    setPreflight(null);
+    setDecisions({});
+    await requestPreflight(session, requestedPathsRef.current, null, {
       appendExcluded: false,
       preserveDecisions: false,
       epoch,
     });
-  }, [requestPreflight, requestedPaths, session]);
+  }, [requestPreflight, session, setDecisions, setPreflight]);
 
   const checkPath = useCallback(
     async (path: string) => {
-      if (!session || status === "submitting" || status === "preflighting") return;
+      if (!session || status !== "reviewing") return;
       const normalizedPath = path.trim();
       if (!normalizedPath) {
         setError({
@@ -319,48 +408,71 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
         });
         return;
       }
-      const paths = [...new Set([...requestedPaths, normalizedPath])];
+      const previousPaths = requestedPathsRef.current;
+      const paths = [...new Set([...previousPaths, normalizedPath])];
       setRequestedPaths(paths);
       const epoch = ++operationEpoch.current;
-      await requestPreflight(session, paths, null, {
+      const outcome = await requestPreflight(session, paths, null, {
         appendExcluded: false,
         preserveDecisions: true,
         keepReviewOnError: true,
         epoch,
       });
+      // The backend normalizes every requested path up front, so one rejected
+      // entry fails the whole preflight. Keeping it would make every later
+      // lookup, page load and retry fail identically with no way back.
+      if (outcome === "failed") setRequestedPaths(previousPaths);
     },
-    [requestPreflight, requestedPaths, session, status],
+    [requestPreflight, session, setRequestedPaths, status],
+  );
+
+  const removeRequestedPath = useCallback(
+    async (path: string) => {
+      if (!session || status !== "reviewing") return;
+      const previousPaths = requestedPathsRef.current;
+      if (!previousPaths.includes(path)) return;
+      const paths = previousPaths.filter((item) => item !== path);
+      setRequestedPaths(paths);
+      const epoch = ++operationEpoch.current;
+      const outcome = await requestPreflight(session, paths, null, {
+        appendExcluded: false,
+        preserveDecisions: true,
+        keepReviewOnError: true,
+        epoch,
+      });
+      if (outcome === "failed") setRequestedPaths(previousPaths);
+    },
+    [requestPreflight, session, setRequestedPaths, status],
   );
 
   const loadMore = useCallback(async () => {
     const cursor = preflightRef.current?.reviewable_excluded_page.next_cursor;
-    if (!session || !cursor || status === "submitting" || status === "preflighting") return;
+    if (!session || !cursor || status !== "reviewing") return;
     const epoch = ++operationEpoch.current;
-    await requestPreflight(session, requestedPaths, cursor, {
+    await requestPreflight(session, requestedPathsRef.current, cursor, {
       appendExcluded: true,
       preserveDecisions: true,
       keepReviewOnError: true,
       epoch,
     });
-  }, [requestPreflight, requestedPaths, session, status]);
+  }, [requestPreflight, session, status]);
 
   const setDecision = useCallback(
     (proposal: InventoryBoundaryProposal, decision: ScanBoundaryAction) => {
       const context = proposal.selection_context;
       if (!context.override_allowed || !proposal.available_actions.includes(decision)) return;
       const identity = proposalIdentity(proposal);
-      setDecisionsByIdentity((current) => {
-        if (!context.decision_required && decision === context.default_decision) {
-          const next = { ...current };
-          delete next[identity];
-          return next;
-        }
-        return { ...current, [identity]: decision };
-      });
+      const next = { ...decisionsRef.current };
+      if (!context.decision_required && decision === context.default_decision) {
+        delete next[identity];
+      } else {
+        next[identity] = decision;
+      }
+      setDecisions(next);
       setError(null);
       setNotice(null);
     },
-    [],
+    [setDecisions],
   );
 
   const missingRequiredCount = useMemo(() => {
@@ -372,8 +484,22 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
     ).length;
   }, [decisionsByIdentity, preflight]);
 
+  const serializedDecisions = useMemo<InventoryDecisionSerialization>(
+    () =>
+      preflight
+        ? decisionsForInventory(preflight, decisionsByIdentity)
+        : { ok: true, decisions: [] },
+    [decisionsByIdentity, preflight],
+  );
+
   const submit = useCallback(async () => {
     if (!session || !preflight || missingRequiredCount > 0) return;
+    if (submitInFlight.current) return;
+    if (!serializedDecisions.ok) {
+      setError({ kind: "api", message: serializedDecisions.reason, retryable: true });
+      return;
+    }
+    submitInFlight.current = true;
     const epoch = ++operationEpoch.current;
     setStatus("submitting");
     setError(null);
@@ -390,7 +516,7 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
       const response = await startProjectScan(apiBaseUrl, {
         projectId: session.project_id,
         preflightRequestId: preflight.preflight_request_id,
-        boundaryDecisions: decisionsForInventory(preflight, decisionsByIdentity),
+        boundaryDecisions: serializedDecisions.decisions,
       });
       if (epoch !== operationEpoch.current) return;
       if (response.project_id !== session.project_id) {
@@ -445,7 +571,11 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
       clearOneRunState();
       setSession(null);
       setStatus("completed");
-      await onCompleted(response.project_id, response);
+      await onCompleted(
+        response.project_id,
+        response,
+        () => epoch === operationEpoch.current,
+      );
       if (epoch !== operationEpoch.current) return;
       onProgress({
         running: false,
@@ -458,7 +588,7 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
       if (epoch !== operationEpoch.current) return;
       const normalized = flowError(caught);
       if (normalized.code && STALE_ERROR_CODES.has(normalized.code)) {
-        setDecisionsByIdentity({});
+        setDecisions({});
         setError({ ...normalized, kind: "stale" });
         setStatus("stale");
         onProgress({
@@ -490,17 +620,20 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
           status: "error",
         });
       }
+    } finally {
+      submitInFlight.current = false;
     }
   }, [
     acceptPreflight,
     apiBaseUrl,
     clearOneRunState,
-    decisionsByIdentity,
     missingRequiredCount,
     onCompleted,
     onProgress,
     preflight,
+    serializedDecisions,
     session,
+    setDecisions,
   ]);
 
   const cancel = useCallback(() => {
@@ -539,6 +672,7 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
     start,
     retryPreflight,
     checkPath,
+    removeRequestedPath,
     loadMore,
     setDecision,
     submit,
