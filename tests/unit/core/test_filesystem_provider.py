@@ -101,6 +101,8 @@ def run_git(
         cwd=project_root,
         check=True,
         text=True,
+        encoding="utf-8",
+        errors="surrogateescape",
         capture_output=True,
     )
 

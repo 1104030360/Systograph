@@ -25,6 +25,15 @@ def fixed_clock() -> datetime:
     return datetime(2026, 7, 17, 12, 0, tzinfo=UTC)
 
 
+def assert_owner_only_mode(path: Path) -> None:
+    if os.name == "nt":
+        # Windows chmod only maps the read-only attribute and cannot express
+        # a POSIX owner/group/other permission split.
+        assert path.is_file()
+        return
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
 def test_dry_run_reports_conversion_without_writing_state(
     tmp_path: Path,
 ) -> None:
@@ -93,7 +102,7 @@ def test_apply_converts_and_quarantines_edges_then_restart_is_idempotent(
     )
     assert [item.mapping_id for item in loaded] == ["mapping:legacy-router"]
     for protected in state_root.rglob("*.legacy.json"):
-        assert stat.S_IMODE(protected.stat().st_mode) == 0o600
+        assert_owner_only_mode(protected)
 
 
 def test_incomplete_confirmed_row_requires_review_without_guessing(
@@ -127,8 +136,8 @@ def test_incomplete_confirmed_row_requires_review_without_guessing(
         json.loads(original.decode("utf-8"))
     )
     assert retired.read_bytes() == original
-    assert stat.S_IMODE(banked.stat().st_mode) == 0o600
-    assert stat.S_IMODE(retired.stat().st_mode) == 0o600
+    assert_owner_only_mode(banked)
+    assert_owner_only_mode(retired)
     assert "sk-test-1234567890" not in serialized
     assert "contains" not in serialized
 
@@ -398,7 +407,7 @@ def test_backup_index_keeps_every_migrated_row(tmp_path: Path) -> None:
         "mapping:legacy-reranker",
         "mapping:legacy-router",
     ]
-    assert stat.S_IMODE(index_path.stat().st_mode) == 0o600
+    assert_owner_only_mode(index_path)
 
 
 def write_legacy_mapping(
