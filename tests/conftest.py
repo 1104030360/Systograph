@@ -38,3 +38,19 @@ def isolate_default_state_root(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setenv("SYSTOGRAPH_STATE_DIR", str(tmp_path / "default-state"))
+
+
+@pytest.fixture(autouse=True)
+def isolate_git_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep git subprocesses inside their own fixture repository.
+
+    Git exports ``GIT_DIR`` and ``GIT_INDEX_FILE`` to every hook it runs, so a
+    suite started from ``pre-commit`` inherits them. Any ``git`` a test spawns
+    then resolves against this repository instead of its ``tmp_path`` fixture:
+    ``git init`` re-initialises this repo (and marks it bare), ``ls-files``
+    reports this repo's tracked files, and ``git add`` writes this repo's
+    index. Clearing the namespace keeps a hook-run suite honest.
+    """
+
+    for name in [key for key in os.environ if key.startswith("GIT_")]:
+        monkeypatch.delenv(name, raising=False)
