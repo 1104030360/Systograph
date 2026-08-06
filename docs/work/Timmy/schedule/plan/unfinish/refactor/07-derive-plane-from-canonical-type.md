@@ -124,7 +124,11 @@ mapping 表：推導鏈全部用既有資料（`capability_type_node_map.toml` +
   審計本身也寫成常駐測試：`test_canonical_type_plane_map.py::
   test_every_bridge_component_kind_resolves_to_a_real_plane` 掃
   `COMPONENT_BRIDGE_RULES` ＋ config 路徑 kind 清單，任何一個掉進
-  `undetermined` 就紅燈，之後新增 bridge rule 也擋得住。
+  `undetermined` 就紅燈。**但書：** 只有 `COMPONENT_BRIDGE_RULES` 那半是
+  自動枚舉（新增 rule 會被自動涵蓋）；config 路徑的 kind 是測試裡的
+  **硬編碼清單** `CONFIG_PATH_COMPONENT_KINDS`——那些 kind 是
+  `_config_candidates()` 裡的字面值，沒有可枚舉的資料結構。**新增
+  `_config_candidates` 分支時必須手動同步該清單**，測試檔頭已註明。
 
   端到端驗證：12 個 fixture 專案全跑 build，15 個元件**沒有任何一個**
   落在 `undetermined`（見 Task 3 對照表）。
@@ -278,9 +282,16 @@ plane 值域不變，前端 zod 與元件無需修改；但**元件實際落帶�
   | 04 Retrieval | 8 | 6 reference ＋ Retriever ＋ **Qdrant** | 7 | 6 reference ＋ Retriever |
   | 10 Deployment Topology | 6 | 6 reference | 7 | 6 reference ＋ **Application API** |
 
-  側欄 lens 計數同步變動：Agent Control 10→9、Ingestion & Indexing 6→7、
+  側欄計數同步變動：Agent Control 10→9、Ingestion & Indexing 6→7、
   Topology 6→7；`Normalized nodes` 恆為 61、`Mapping completeness` 恆為
   6.7%（只是換帶，不是增刪元件，也不影響 Step 6 評估）。
+
+  **證據來源**：上表的節點數與側欄計數以**重跑 build 的程式化查詢**取得
+  （BASE 用 `git worktree` 檢出 `829fd75`，兩邊各跑一次
+  `MapBuildService.build` 後直接讀 `GraphViewModel`），截圖是人眼佐證而非
+  數字的來源。共 5 張截圖（after 3：總覽/ingestion、generation、deployment；
+  before 2：總覽/control、retrieval）。側欄「Agent Control 10→9」即
+  `lens:control` 成員數，詳見 fix round 1 的 I-1。
 
 - [x] **Step 3: 差異記錄進 PR 描述**（哪些元件從哪帶移到哪帶、為什麼）
   → 上兩張表即 PR 描述素材。
@@ -320,6 +331,106 @@ plane 值域不變，前端 zod 與元件無需修改；但**元件實際落帶�
   `map_build_service.py` 等既有 service 檔）。新檔
   `canonical_type_plane_map.py` 亦帶完整 docstring（責任／組合理由／
   primary-node 慣例／呼叫鏈）。
+
+---
+
+## Fix round 1（2026-08-07，review 後補強）
+
+Review 結論為 Approved with follow-ups；下列七項於 fix round 1 一次處理。
+
+### I-1 `layer` 的第二個消費者：plane-based lens 成員資格
+
+**漏看的耦合**：`graph_lens_projector.py:50-88` 用 `GraphNodeModel.plane_id`
+決定 `filters.lenses[]` membership。改 `layer` 不只換帶，也換 lens。
+實測（`basic_qdrant_ollama_rag`，BASE `829fd75` vs HEAD）：
+
+| lens | BASE 成員數 | HEAD 成員數 | api_route ∈ ? | vector_db ∈ ? |
+|---|--:|--:|---|---|
+| `lens:data` | 19 | 19 | 否 → 否 | **是 → 是（不變）** |
+| `lens:control` | **10** | **9** | **是 → 否** | 否 → 否 |
+| `lens:evidence` | 17 | 17 | 是 → 是 | 是 → 是 |
+| `lens:governance` | 8 | 8 | 否 → 否 | 否 → 否 |
+| `lens:source` | 2 | 2 | 否 → 否 | 否 → 否 |
+| `lens:risk` | 3 | 3 | 是 → 是 | 是 → 是 |
+
+- `vector_db` 的移動是**lens-neutral** 的：`lens:data` 涵蓋
+  ingestion_indexing / retrieval / memory_state 三個 plane，前後都在裡面。
+- `api_route` 則**退出 `lens:control`**。六個 lens 沒有 deployment topology
+  這一個，所以它現在不屬於任何 plane-based lens，只剩 signal-based 的
+  `lens:evidence` / `lens:risk`（因為它自己帶 evidence_ids 與 risk_hint_ids）。
+  這是帶位移動的必然結果，非 bug——但**是使用者可感知的第二個變化**，
+  先前未記錄。
+
+**(a) 契約補述**：`MODEL-CONTRACT.md` §5.1.1 加一段明寫「`layer` 有第二個
+消費者：plane-based lens membership」，並點名沒有 deployment topology lens
+這件事。
+
+**(b) regression**：`tests/integration/test_map_build_service.py` 新增兩條
+（跑真實 fixture build）：
+- `test_api_route_left_the_control_lens_with_its_plane`——斷言 plane 是
+  `deployment_topology`、**不在** `lens:control`（也不在其他兩個 plane-based
+  lens）、且仍在 evidence/risk。
+- `test_vector_db_keeps_its_data_lens_membership_across_the_move`——斷言
+  plane 是 `ingestion_indexing` 且**仍在** `lens:data`（把「這次移動刻意
+  lens-neutral」變成契約，而不是巧合）。
+
+紅燈驗證（BASE `829fd75` git worktree）：兩條皆紅。為證明**lens 斷言本身**
+（而非前置的 plane 斷言）在舊行為下會紅，另跑一份拿掉 plane 前置條件的
+探針：BASE 印出 `lens:control size=10 api_member=True` 且 assert 失敗，
+HEAD 印出 `size=9 api_member=False` 且通過。
+
+### I-2 退場索引同步
+
+`RAG-CORE-V1-RETIREMENT-INDEX.md`：C3a（:33）與 C6（:37）標為
+✅ 已完成（2026-08-07 / #277 / `fb65e27`），C3a 的位置欄更新為
+`system_map_v2_normalize_service.py:150` ＋ `canonical_type_plane_map.py`；
+:40 的「七項中只有 C3a 與 C6 現在可執行」小結改寫為「兩項已完成，剩餘五項
+沒有一項現在可執行」並標出各自的阻塞原因；§6 建議順序把 `refactor/07`
+移到「已完成」。
+
+### M-1 v1／v2 plane 分歧明示 ＋ 空斷言測試補牙
+
+- §5.1.1 增補：v1 migration 路徑（`SLOT_LAYER_BY_ID`）與 v2 active 路徑
+  （type→node→plane）**自此可能對同類元件給出不同 plane**。例：同一個
+  `vector_store` slot 的元件，讀 legacy v1 artifact 得 `retrieval`，重新掃描
+  得 `ingestion_indexing`。v1 讀取屬歷史 artifact 的忠實呈現，**不回溯對齊**。
+- `test_slot_layer_map_has_one_shared_source` 在 `CONSUMER_MODULES` 縮到
+  只剩一個 module 後已近空斷言（identity check 對任何 dict 都會過）。
+  **選擇改寫而非刪除**：合併成
+  `test_migration_path_binds_the_owned_mapping_and_frozen_keyspace`，同時斷言
+  (1) v1 adapter 綁的是本模組擁有的那個物件、(2) 鍵空間仍**恰好**是 13 個
+  legacy slot（明列 13 個字串，不只 `len == 13`）。留著才擋得住「這張表被
+  當成新 canonical type 的落腳處」。
+
+### M-2 生產 TOML 文案回寫防護
+
+`test_packaged_risk_copy_never_names_the_legacy_template`：讀**真實 packaged**
+`risk_hint_rules.toml`（`RiskHintService()` 預設路徑 ＋
+`RuleCatalogLoader().load_risk_hint_rules(None)`），斷言組出的使用者文案與
+catalog 全部 rationale/uncertainty 都不含 `rag-core-v1`。此檔其餘測試全部
+餵手寫 minimal catalog，沒有任何一條會發現字串被寫回去。
+
+### M-3 檔頭措辭收斂
+
+`system_map_v2_normalize_service.py` 檔頭原寫「純轉換、無 I/O」，但建構時
+會透過 resolver 讀兩份 packaged TOML。改為「`assemble()` 本身是純轉換、
+無 I/O；建構時讀入兩份 packaged TOML，因此建構有 I/O 且會 fail-closed」。
+
+### M-4 覆蓋審計但書
+
+「之後新增 bridge rule 也擋得住」過度樂觀：只有 `COMPONENT_BRIDGE_RULES`
+那半是自動枚舉；config 路徑的 kind 是測試裡的硬編碼清單
+（`CONFIG_PATH_COMPONENT_KINDS`），因為 `_config_candidates()` 裡是字面值、
+沒有可走訪的資料結構。**新增 config 分支需手動同步**——已寫進 Task 0 Step 3
+的審計段與測試檔頭註解。
+
+### M-5 截圖帳目更正
+
+報告原寫 4 張截圖，實際 **5 張**（after 3 張：總覽/ingestion、
+generation、deployment；before 2 張：總覽/control、retrieval）。
+另外，Task 3 的帶內節點數對照表（02 Control 7→6 等）**不是**單靠截圖判讀——
+`lens:control 10→9` 與各帶節點數都以重跑 build 的程式化查詢驗證，截圖只是
+人眼佐證。報告已更正兩處。
 
 ---
 

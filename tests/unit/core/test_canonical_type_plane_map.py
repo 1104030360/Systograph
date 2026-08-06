@@ -19,8 +19,14 @@ from systograph.core.services.component_bridge_rules import (
 
 # canonical_type values the config-path branch of ComponentBridgeRegistry
 # emits. They never pass through COMPONENT_BRIDGE_RULES, so the rule
-# sweep below cannot see them -- they are enumerated here so the Task 0
-# coverage audit stays complete when a config candidate is added.
+# sweep below cannot see them.
+#
+# MAINTENANCE: this list is hand-kept, unlike the COMPONENT_BRIDGE_RULES
+# half which enumerates itself. The kinds below are string literals
+# inside `_config_candidates()` (_vector_store_candidates /
+# _llm_candidates / _openai_config_candidates) with no data structure to
+# walk, so ADDING A CONFIG-PATH BRANCH MEANS ADDING ITS KIND HERE -- the
+# coverage audit cannot notice a new one on its own.
 CONFIG_PATH_COMPONENT_KINDS = (
     "vector_db_config",
     "local_llm_runtime",

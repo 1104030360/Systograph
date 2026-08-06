@@ -12,6 +12,24 @@ CONSUMER_MODULES = ("systograph.core.services.system_map_v1_to_v2_adapter",)
 RETIRED_CONSUMER_MODULES = (
     "systograph.core.services.system_map_v2_normalize_service",
 )
+# Frozen key space: the 13 `rag-core-v1` template slots, nothing else.
+LEGACY_THIRTEEN_SLOTS = frozenset(
+    {
+        "app_api_or_orchestrator",
+        "data_sources",
+        "document_loader",
+        "chunking",
+        "embedding_model",
+        "vector_store",
+        "query_processing",
+        "retriever",
+        "prompt_builder",
+        "llm",
+        "citation_or_response_composer",
+        "guardrails",
+        "observability",
+    }
+)
 
 
 def _bound_mapping(module_name: str) -> object:
@@ -21,12 +39,23 @@ def _bound_mapping(module_name: str) -> object:
     return vars(importlib.import_module(module_name)).get("SLOT_LAYER_BY_ID")
 
 
-def test_slot_layer_map_has_one_shared_source() -> None:
-    """The v1 adapter binds the very same mapping object this module
-    owns, so the migration path's layer values keep a single source.
+def test_migration_path_binds_the_owned_mapping_and_frozen_keyspace() -> None:
+    """Given the table is now migration-only,
+    When the v1 -> v2 adapter is imported,
+    Then it binds the very object this module owns AND that object's key
+    space is still exactly the 13 frozen `rag-core-v1` slots.
+
+    Both halves matter now that only one consumer is left: the identity
+    check alone would pass against any dict, so it says almost nothing
+    on its own. Pinning the key space is what keeps the table frozen --
+    a new canonical type belongs in `capability_type_node_map.toml`, not
+    here.
     """
+    # Given / When / Then
     for module_name in CONSUMER_MODULES:
         assert _bound_mapping(module_name) is SLOT_LAYER_BY_ID
+    assert set(SLOT_LAYER_BY_ID) == LEGACY_THIRTEEN_SLOTS
+    assert len(SLOT_LAYER_BY_ID) == 13
 
 
 def test_active_v2_path_no_longer_imports_the_slot_layer_map() -> None:
@@ -37,7 +66,3 @@ def test_active_v2_path_no_longer_imports_the_slot_layer_map() -> None:
     """
     for module_name in RETIRED_CONSUMER_MODULES:
         assert _bound_mapping(module_name) is None
-
-
-def test_slot_layer_map_covers_the_legacy_thirteen_slots() -> None:
-    assert len(SLOT_LAYER_BY_ID) == 13

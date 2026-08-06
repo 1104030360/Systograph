@@ -1,7 +1,10 @@
 # 這個檔案負責：把掃描階段的中間結果（ProjectScanResult /
 # ComponentDetectionResult / Endpoint / Flow / RiskHint /
 # RecommendedNextCheck）組裝成正規化的 AiSystemMapV2 canonical truth。
-# 純轉換、無 I/O；不做偵測也不做評估。
+# assemble() 本身是純轉換、無 I/O；不做偵測也不做評估。建構時會透過
+# CanonicalTypePlaneResolver 讀入兩份 packaged TOML
+# （capability_type_node_map.toml 與 capability_reference_map.toml），
+# 因此建構有 I/O 且會 fail-closed。
 #
 # layer 來源：`components[].layer`（投影時的 GraphViewModel.plane_id）
 # 由 CanonicalTypePlaneResolver 從 canonical_type 推導

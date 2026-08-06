@@ -316,6 +316,15 @@ Plan 13 已切換的 active public contract；正常 CLI/API build 只能產生 
 `component.layer` 當成 `GraphNodeModel.plane_id`（subtitle 同源），所以這個欄位
 決定元件畫在 viewer 的哪一帶。
 
+**`layer` 有第二個消費者：plane-based lens 成員資格。** `graph_lens_projector`
+用 `GraphNodeModel.plane_id` 決定 `filters.lenses[]` 的 membership（`lens:data`
+＝ ingestion_indexing / retrieval / memory_state；`lens:control` ＝ control；
+`lens:governance` ＝ governance_observability，見 §9.3）。改一個元件的 `layer`
+同時改它的帶位**與**它出現在哪些 lens——六個 lens 沒有 deployment topology 這
+一個，所以移進該 plane 的元件會退出所有 plane-based lens，只剩 signal-based 的
+`lens:evidence` / `lens:risk` / `lens:source`。此耦合由
+`tests/integration/test_map_build_service.py` 的兩條 lens regression 鎖住。
+
 推導鏈（`CanonicalTypePlaneResolver`，由 `SystemMapV2NormalizeService` 呼叫）：
 
 ```text
@@ -332,6 +341,13 @@ component.canonical_type
 | **fallback** | `canonical_type` 不在表裡 → `"undetermined"`。manual mapping 的 `component_kind` 是自由文字，未列出的 type 會顯性落在 undetermined 帶，**不得**改回查 slot |
 | slot 的角色 | legacy `rag-core-v1` slot **對投影平面已無任何影響**，只留在 `metadata.legacy_slot`（graph node id slug、`GraphNodeModel.slot` 標籤、detail scan `component_slot` target）|
 | `SLOT_LAYER_BY_ID` | `legacy_slot_layer_map.py` 降為 **migration-only**，唯一消費者是 v1→v2 adapter（只有 slot 詞彙的 legacy v1 map 讀入時補 layer）；active v2 路徑零 import |
+
+**兩條路徑自此可能對同類元件給出不同 plane（預期，非 bug）：** v1 migration
+路徑走 `SLOT_LAYER_BY_ID`（slot→layer），v2 active 路徑走
+type→node→plane。同一個 `vector_store` slot 的元件，讀 legacy v1 artifact 會得到
+`retrieval`，重新掃描則得到 `ingestion_indexing`。v1 讀取屬**歷史 artifact 的忠實
+呈現**——那份 map 當初就是用 slot 語意產生的——因此**不回溯對齊**；要拿到 type-driven
+的帶位，重新 build 即可。
 
 ### 5.2 Step 4 Bridge Pipeline
 
