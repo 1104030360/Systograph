@@ -1,6 +1,6 @@
 # 投影平面改由 canonical type 推導（退役 slot→layer 查表）實作計畫
 
-Status: **done**（2026-08-07 完成，commit `PLACEHOLDER_COMMIT`；2026-08-06 起草；
+Status: **done**（2026-08-07 完成，commit `fb65e27`；2026-08-06 起草；
 GitHub issue #277。**與 UA 零相依，可在 s2-ua-integration 之前執行**——這是
 「slot 殘餘職責」中目前唯一能先做的一項；有計畫承接的另一項（模板假邊）屬
 16C→16D→16G 鏈，留在 s2-ua-integration，見下方「與 16G 的邊界」）
