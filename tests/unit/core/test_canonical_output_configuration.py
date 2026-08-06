@@ -23,17 +23,28 @@ def test_operator_output_defaults_to_v2(
     assert version == "ai-system-map/v2"
 
 
-def test_operator_can_select_isolated_v1_rollback(
+def test_operator_v1_output_version_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The removed rollback writer leaves no selectable v1 output.
+
+    Given the operator env set to the legacy canonical output version,
+    When the version is resolved,
+    Then it fails with the same stable code as any other unsupported
+    value, because v1 is no longer a mode this process can produce.
+    """
     # Given
     monkeypatch.setenv(CANONICAL_OUTPUT_ENV, "ai-system-map/v1")
 
     # When
-    version = canonical_output_version_from_env()
+    raised = pytest.raises(
+        CanonicalOutputConfigurationError,
+        match="invalid_canonical_output_version",
+    )
 
     # Then
-    assert version == "ai-system-map/v1"
+    with raised:
+        canonical_output_version_from_env()
 
 
 def test_invalid_operator_output_version_fails_startup(

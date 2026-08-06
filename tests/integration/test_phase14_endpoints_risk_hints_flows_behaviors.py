@@ -1,72 +1,28 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
-from tests.helpers.fixtures import rag_project_fixture_path
-
-from systograph.core.services.component_detection_service import (
-    ComponentDetectionService,
-)
-from systograph.core.services.endpoint_detection_service import (
-    EndpointDetectionService,
-)
-from systograph.core.services.flow_derivation_service import (
-    FlowDerivationService,
-)
-from systograph.core.services.project_scan_service import ProjectScanService
-from systograph.core.services.rag_template_service import RagTemplateService
-from systograph.core.services.risk_hint_service import RiskHintService
-from systograph.core.services.system_map_normalize_service import (
-    SystemMapNormalizeService,
-)
 from systograph.core.services.system_map_validation_service import (
     SystemMapValidationService,
 )
 
+# Static ai-system-map/v1 artifacts captured from the corresponding
+# tests/fixtures/rag_projects scans. The v1 writer is gone (refactor 06),
+# so these frozen payloads are the input to the retained v1 read path;
+# the v2 derivation of the same projects is covered by the v2 build tests.
+V1_FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "ai_system_map"
 
-def derive_phase14_map(fixture_name: str) -> dict[str, Any]:
-    fixture_path = rag_project_fixture_path(fixture_name)
-    raw_scan = ProjectScanService().scan(fixture_path)
-    template = RagTemplateService.load("rag-core-v1")
-    components = ComponentDetectionService().detect(
-        template=template,
-        facts=raw_scan.facts,
-        evidence=raw_scan.evidence,
-    )
-    endpoints = EndpointDetectionService().detect(
-        facts=raw_scan.facts,
-        evidence=raw_scan.evidence,
-        components=components,
-    )
-    risk_hints = RiskHintService().derive(
-        facts=raw_scan.facts,
-        evidence=raw_scan.evidence,
-        issues=raw_scan.issues,
-        components=components,
-        endpoints=endpoints,
-    )
-    flows = FlowDerivationService().derive(
-        template=template,
-        components=components,
-    )
 
-    return (
-        SystemMapNormalizeService()
-        .assemble(
-            project_name=fixture_name,
-            raw_scan=raw_scan,
-            template=template,
-            components=components,
-            endpoints=endpoints,
-            flows=flows,
-            risk_hints=risk_hints,
-        )
-        .model_dump(mode="json")
-    )
+def load_phase14_map(fixture_name: str) -> dict[str, Any]:
+    path = V1_FIXTURE_DIR / f"{fixture_name}.v1.json"
+    payload: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return payload
 
 
 def test_basic_qdrant_fixture_derives_valid_endpoint_risk_and_flow() -> None:
-    system_map = derive_phase14_map("basic_qdrant_ollama_rag")
+    system_map = load_phase14_map("basic_qdrant_ollama_rag")
 
     validated = SystemMapValidationService().validate(system_map)
 
@@ -87,7 +43,7 @@ def test_basic_qdrant_fixture_derives_valid_endpoint_risk_and_flow() -> None:
 
 
 def test_openai_fixture_derives_external_endpoint_no_secret_leak() -> None:
-    system_map = derive_phase14_map("openai_external_provider_rag")
+    system_map = load_phase14_map("openai_external_provider_rag")
 
     validated = SystemMapValidationService().validate(system_map)
 

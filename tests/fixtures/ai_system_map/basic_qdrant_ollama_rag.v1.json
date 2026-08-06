@@ -1,0 +1,603 @@
+{
+  "schema_version": "ai-system-map/v1",
+  "system_type": "rag",
+  "classification": {
+    "mode": "user_selected_or_default",
+    "selected_template": "rag-core-v1",
+    "future_layer": null
+  },
+  "project": {
+    "name": "basic_qdrant_ollama_rag",
+    "root_path": "<project_root>",
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted",
+    "system_map_schema_version": "ai-system-map/v1"
+  },
+  "reference_architecture": {
+    "id": "rag-core-v1",
+    "version": "1.0.0",
+    "slots": [
+      "data_sources",
+      "document_loader",
+      "chunking",
+      "embedding_model",
+      "vector_store",
+      "app_api_or_orchestrator",
+      "query_processing",
+      "retriever",
+      "prompt_builder",
+      "llm",
+      "citation_or_response_composer",
+      "guardrails",
+      "observability"
+    ],
+    "flows": [
+      "indexing",
+      "query_answer"
+    ]
+  },
+  "scan_depth": "system",
+  "scan_summary": {
+    "status": "ok",
+    "files_scanned": 7,
+    "files_skipped": 0,
+    "detected_slots": 4,
+    "missing_slots": 6,
+    "not_configured_slots": 0,
+    "unmapped_components": 2,
+    "risk_hints": 8,
+    "secret_masking_applied": false
+  },
+  "components_by_slot": {
+    "data_sources": {
+      "slot": "data_sources",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "document_loader": {
+      "slot": "document_loader",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "chunking": {
+      "slot": "chunking",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "embedding_model": {
+      "slot": "embedding_model",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "vector_store": {
+      "slot": "vector_store",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:vector_store:qdrant",
+          "slot": "vector_store",
+          "kind": "vector_db",
+          "name": "Qdrant",
+          "description": null,
+          "provider": "qdrant",
+          "evidence_ids": [
+            "evidence:code_pattern_vector_store_qdrant:src/ingest.py:81d488df5583",
+            "evidence:code_pattern_vector_store_qdrant:src/retriever.py:792b69744da3",
+            "evidence:docker_qdrant_image_detected:docker-compose.yml:00a6fd0619cb"
+          ]
+        }
+      ]
+    },
+    "app_api_or_orchestrator": {
+      "slot": "app_api_or_orchestrator",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:app_api_or_orchestrator:application_api",
+          "slot": "app_api_or_orchestrator",
+          "kind": "api_route",
+          "name": "Application API",
+          "description": null,
+          "provider": null,
+          "evidence_ids": [
+            "evidence:code_pattern_route_fastapi:src/app.py:853f3122c746"
+          ]
+        }
+      ]
+    },
+    "query_processing": {
+      "slot": "query_processing",
+      "required_for_rag": false,
+      "status": "not_applicable",
+      "instances": []
+    },
+    "retriever": {
+      "slot": "retriever",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:retriever:retriever",
+          "slot": "retriever",
+          "kind": "retriever",
+          "name": "Retriever",
+          "description": null,
+          "provider": null,
+          "evidence_ids": [
+            "evidence:code_pattern_vector_store_qdrant:src/retriever.py:792b69744da3"
+          ]
+        }
+      ]
+    },
+    "prompt_builder": {
+      "slot": "prompt_builder",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "llm": {
+      "slot": "llm",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:llm:ollama",
+          "slot": "llm",
+          "kind": "local_llm_runtime",
+          "name": "Ollama",
+          "description": null,
+          "provider": "ollama",
+          "evidence_ids": [
+            "evidence:docker_ollama_image_detected:docker-compose.yml:4e1e5d4dd515"
+          ]
+        }
+      ]
+    },
+    "citation_or_response_composer": {
+      "slot": "citation_or_response_composer",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "guardrails": {
+      "slot": "guardrails",
+      "required_for_rag": false,
+      "status": "not_applicable",
+      "instances": []
+    },
+    "observability": {
+      "slot": "observability",
+      "required_for_rag": false,
+      "status": "not_applicable",
+      "instances": []
+    }
+  },
+  "evidence": [
+    {
+      "id": "evidence:code_pattern_route_fastapi:src/app.py:853f3122c746",
+      "kind": "route_endpoint",
+      "file": "src/app.py",
+      "path": "line[7]",
+      "value": "@app.post(\"/query\"",
+      "rule_id": "code_pattern_route_fastapi",
+      "line_start": 7,
+      "line_end": 7,
+      "snippet": "@app.post(\"/query\")"
+    },
+    {
+      "id": "evidence:code_pattern_vector_store_qdrant:src/ingest.py:81d488df5583",
+      "kind": "vector_store_client",
+      "file": "src/ingest.py",
+      "path": "line[7]",
+      "value": "QdrantClient(",
+      "rule_id": "code_pattern_vector_store_qdrant",
+      "line_start": 7,
+      "line_end": 7,
+      "snippet": "    client = QdrantClient(url=\"http://localhost:6333\")"
+    },
+    {
+      "id": "evidence:code_pattern_vector_store_qdrant:src/retriever.py:792b69744da3",
+      "kind": "vector_store_client",
+      "file": "src/retriever.py",
+      "path": "line[13]",
+      "value": "QdrantClient(",
+      "rule_id": "code_pattern_vector_store_qdrant",
+      "line_start": 13,
+      "line_end": 13,
+      "snippet": "    client = QdrantClient(url=\"http://localhost:6333\")"
+    },
+    {
+      "id": "evidence:config_env_value_detected:.env.example:1dda54b2a9c2",
+      "kind": "config_value",
+      "file": ".env.example",
+      "path": "OLLAMA_CHAT_MODEL",
+      "value": "llama3",
+      "rule_id": "config_env_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_env_value_detected:.env.example:1e91ca93b8e1",
+      "kind": "config_value",
+      "file": ".env.example",
+      "path": "OLLAMA_EMBED_MODEL",
+      "value": "nomic-embed-text",
+      "rule_id": "config_env_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_env_value_detected:.env.example:4a3851e59371",
+      "kind": "config_value",
+      "file": ".env.example",
+      "path": "OLLAMA_BASE_URL",
+      "value": "http://localhost:11434",
+      "rule_id": "config_env_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_env_value_detected:.env.example:77ce1d996100",
+      "kind": "config_value",
+      "file": ".env.example",
+      "path": "QDRANT_COLLECTION",
+      "value": "health_notes",
+      "rule_id": "config_env_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_env_value_detected:.env.example:9ed3e53e1d24",
+      "kind": "config_value",
+      "file": ".env.example",
+      "path": "QDRANT_URL",
+      "value": "http://localhost:6333",
+      "rule_id": "config_env_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:dependency_local_llm_provider_ollama:requirements.txt:23f3584daf61",
+      "kind": "dependency_candidate",
+      "file": "requirements.txt",
+      "path": "line[3]",
+      "value": "ollama",
+      "rule_id": "dependency_local_llm_provider_ollama",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:dependency_vector_store_client_qdrant:requirements.txt:e653c525e5be",
+      "kind": "dependency_candidate",
+      "file": "requirements.txt",
+      "path": "line[2]",
+      "value": "qdrant-client",
+      "rule_id": "dependency_vector_store_client_qdrant",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:docker_ollama_image_detected:docker-compose.yml:4e1e5d4dd515",
+      "kind": "docker_service",
+      "file": "docker-compose.yml",
+      "path": "services.ollama.image",
+      "value": "ollama/ollama:0.5.1",
+      "rule_id": "docker_ollama_image_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:docker_published_port_detected:docker-compose.yml:511cda69543f",
+      "kind": "published_port",
+      "file": "docker-compose.yml",
+      "path": "services.qdrant.ports[0]",
+      "value": "6333:6333",
+      "rule_id": "docker_published_port_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:docker_published_port_detected:docker-compose.yml:ea888c53f93d",
+      "kind": "published_port",
+      "file": "docker-compose.yml",
+      "path": "services.ollama.ports[0]",
+      "value": "11434:11434",
+      "rule_id": "docker_published_port_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:docker_qdrant_image_detected:docker-compose.yml:00a6fd0619cb",
+      "kind": "docker_service",
+      "file": "docker-compose.yml",
+      "path": "services.qdrant.image",
+      "value": "qdrant/qdrant:v1.12.1",
+      "rule_id": "docker_qdrant_image_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:docker_volume_detected:docker-compose.yml:4d1b68a48a0c",
+      "kind": "docker_volume",
+      "file": "docker-compose.yml",
+      "path": "services.qdrant.volumes[0]",
+      "value": "qdrant_data:/qdrant/storage",
+      "rule_id": "docker_volume_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:docker_volume_detected:docker-compose.yml:81ad9d261271",
+      "kind": "docker_volume",
+      "file": "docker-compose.yml",
+      "path": "services.ollama.volumes[0]",
+      "value": "ollama_models:/root/.ollama",
+      "rule_id": "docker_volume_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "endpoint:docker:ollama:11434",
+      "value": "http://localhost:11434",
+      "endpoint_type": "local",
+      "method": null,
+      "slot": "llm",
+      "component_instance_id": "component:llm:ollama",
+      "evidence_id": "evidence:docker_published_port_detected:docker-compose.yml:ea888c53f93d"
+    },
+    {
+      "id": "endpoint:docker:qdrant:6333",
+      "value": "http://localhost:6333",
+      "endpoint_type": "local",
+      "method": null,
+      "slot": "vector_store",
+      "component_instance_id": "component:vector_store:qdrant",
+      "evidence_id": "evidence:docker_published_port_detected:docker-compose.yml:511cda69543f"
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow:indexing",
+      "name": "Indexing",
+      "flow_type": "indexing",
+      "edges": []
+    },
+    {
+      "id": "flow:query_answer",
+      "name": "Query Answer",
+      "flow_type": "query_answer",
+      "edges": [
+        {
+          "id": "edge:query_answer:retriever:vector_store",
+          "flow_id": "flow:query_answer",
+          "from_slot": "retriever",
+          "to_slot": "vector_store",
+          "from_component_id": "component:retriever:retriever",
+          "to_component_id": "component:vector_store:qdrant",
+          "relationship": "queries_vector_store",
+          "evidence_ids": [
+            "evidence:code_pattern_vector_store_qdrant:src/ingest.py:81d488df5583",
+            "evidence:code_pattern_vector_store_qdrant:src/retriever.py:792b69744da3",
+            "evidence:docker_qdrant_image_detected:docker-compose.yml:00a6fd0619cb"
+          ]
+        }
+      ]
+    }
+  ],
+  "extensions": [],
+  "unmapped_components": [
+    {
+      "id": "unmapped:requirements_txt:line_2:dependency_vector_store_client_qdrant",
+      "source_file": "requirements.txt",
+      "observed_kind": "dependency_candidate",
+      "status": "needs_confirmation",
+      "reason": "Detected dependency_candidate, but no safe canonical component mapping exists yet.",
+      "evidence_ids": [
+        "evidence:dependency_vector_store_client_qdrant:requirements.txt:e653c525e5be"
+      ],
+      "suggested_actions": [
+        "confirm_mapping",
+        "mark_not_applicable"
+      ]
+    },
+    {
+      "id": "unmapped:requirements_txt:line_3:dependency_local_llm_provider_ollama",
+      "source_file": "requirements.txt",
+      "observed_kind": "dependency_candidate",
+      "status": "needs_confirmation",
+      "reason": "Detected dependency_candidate, but no safe canonical component mapping exists yet.",
+      "evidence_ids": [
+        "evidence:dependency_local_llm_provider_ollama:requirements.txt:23f3584daf61"
+      ],
+      "suggested_actions": [
+        "confirm_mapping",
+        "mark_not_applicable"
+      ]
+    }
+  ],
+  "detail_scans": [],
+  "risk_hints": [
+    {
+      "id": "risk:docker_published_port_exposure:endpoint_docker_ollama_11434",
+      "type": "network_exposure",
+      "target": "endpoint:docker:ollama:11434",
+      "target_type": "endpoint",
+      "evidence_id": "evidence:docker_published_port_detected:docker-compose.yml:ea888c53f93d",
+      "rule_id": "docker_published_port_exposure",
+      "rationale": "Docker published port may expose a service endpoint beyond the container network.",
+      "uncertainty": "Compose port binding does not prove firewall, runtime reachability, or public network exposure.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:docker_published_port_exposure:endpoint_docker_qdrant_6333",
+      "type": "network_exposure",
+      "target": "endpoint:docker:qdrant:6333",
+      "target_type": "endpoint",
+      "evidence_id": "evidence:docker_published_port_detected:docker-compose.yml:511cda69543f",
+      "rule_id": "docker_published_port_exposure",
+      "rationale": "Docker published port may expose a service endpoint beyond the container network.",
+      "uncertainty": "Compose port binding does not prove firewall, runtime reachability, or public network exposure.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:chunking",
+      "type": "missing_component",
+      "target": "chunking",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_route_fastapi:src/app.py:853f3122c746",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'chunking'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:citation_or_response_composer",
+      "type": "missing_component",
+      "target": "citation_or_response_composer",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_route_fastapi:src/app.py:853f3122c746",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'citation_or_response_composer'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:data_sources",
+      "type": "missing_component",
+      "target": "data_sources",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_route_fastapi:src/app.py:853f3122c746",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'data_sources'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:document_loader",
+      "type": "missing_component",
+      "target": "document_loader",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_route_fastapi:src/app.py:853f3122c746",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'document_loader'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:embedding_model",
+      "type": "missing_component",
+      "target": "embedding_model",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_route_fastapi:src/app.py:853f3122c746",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'embedding_model'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:prompt_builder",
+      "type": "missing_component",
+      "target": "prompt_builder",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_route_fastapi:src/app.py:853f3122c746",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'prompt_builder'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    }
+  ],
+  "recommended_next_checks": [
+    {
+      "id": "check:privacy_exposure:component-instance:component-llm-ollama",
+      "target_type": "component_instance",
+      "target": "component:llm:ollama",
+      "reason": "Static scan found potential data egress, published port, secret-like config, or local persistence evidence.",
+      "action": "Review data flow, access control, retention, and whether sensitive data can leave the local environment."
+    },
+    {
+      "id": "check:privacy_exposure:component-instance:component-vector-store-qdrant",
+      "target_type": "component_instance",
+      "target": "component:vector_store:qdrant",
+      "reason": "Static scan found potential data egress, published port, secret-like config, or local persistence evidence.",
+      "action": "Review data flow, access control, retention, and whether sensitive data can leave the local environment."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:chunking",
+      "target_type": "component_slot",
+      "target": "chunking",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:citation-or-response-composer",
+      "target_type": "component_slot",
+      "target": "citation_or_response_composer",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:data-sources",
+      "target_type": "component_slot",
+      "target": "data_sources",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:document-loader",
+      "target_type": "component_slot",
+      "target": "document_loader",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:embedding-model",
+      "target_type": "component_slot",
+      "target": "embedding_model",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:prompt-builder",
+      "target_type": "component_slot",
+      "target": "prompt_builder",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:runtime_readiness:component-instance:component-llm-ollama",
+      "target_type": "component_instance",
+      "target": "component:llm:ollama",
+      "reason": "Static scan found runtime-dependent services, endpoints, or missing runtime-critical RAG slots.",
+      "action": "Verify required services start successfully and configured endpoints are reachable in the intended runtime environment."
+    },
+    {
+      "id": "check:runtime_readiness:component-instance:component-vector-store-qdrant",
+      "target_type": "component_instance",
+      "target": "component:vector_store:qdrant",
+      "reason": "Static scan found runtime-dependent services, endpoints, or missing runtime-critical RAG slots.",
+      "action": "Verify required services start successfully and configured endpoints are reachable in the intended runtime environment."
+    }
+  ],
+  "query_trace_events": []
+}

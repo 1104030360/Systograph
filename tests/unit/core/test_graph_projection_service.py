@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import inspect
+import json
 from importlib import import_module
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from tests.helpers.fixtures import rag_project_fixture_path
 
 from systograph.core.models.ai_system_map_v2 import (
     AiSystemMapV2,
@@ -22,15 +22,6 @@ from systograph.core.models.viewer import GraphNodeModel
 from systograph.core.services.capability_reference_map_loader import (
     CapabilityReferenceMapLoader,
 )
-from systograph.core.services.component_detection_service import (
-    ComponentDetectionService,
-)
-from systograph.core.services.endpoint_detection_service import (
-    EndpointDetectionService,
-)
-from systograph.core.services.flow_derivation_service import (
-    FlowDerivationService,
-)
 from systograph.core.services.graph_projection_service import (
     GraphProjectionService,
     _assert_unique_graph_node_ids,
@@ -38,12 +29,6 @@ from systograph.core.services.graph_projection_service import (
 )
 from systograph.core.services.profile_inference_service import (
     ProfileInferenceService,
-)
-from systograph.core.services.project_scan_service import ProjectScanService
-from systograph.core.services.rag_template_service import RagTemplateService
-from systograph.core.services.risk_hint_service import RiskHintService
-from systograph.core.services.system_map_normalize_service import (
-    SystemMapNormalizeService,
 )
 from systograph.core.services.system_map_v1_to_v2_adapter import (
     SystemMapV1ToV2Adapter,
@@ -338,42 +323,18 @@ def test_projection_models_reject_field_reassignment(
         graph.nodes[0].label = "Caller mutation"
 
 
-def _canonical_map_from_rag_fixture(fixture_name: str) -> AiSystemMapV2:
-    fixture_path = rag_project_fixture_path(fixture_name)
-    raw_scan = ProjectScanService().scan(fixture_path)
-    template = RagTemplateService.load("rag-core-v1")
-    components = ComponentDetectionService().detect(
-        template=template,
-        facts=raw_scan.facts,
-        evidence=raw_scan.evidence,
-    )
-    endpoints = EndpointDetectionService().detect(
-        facts=raw_scan.facts,
-        evidence=raw_scan.evidence,
-        components=components,
-    )
-    risk_hints = RiskHintService().derive(
-        facts=raw_scan.facts,
-        evidence=raw_scan.evidence,
-        issues=raw_scan.issues,
-        components=components,
-        endpoints=endpoints,
-    )
-    flows = FlowDerivationService().derive(
-        template=template,
-        components=components,
-    )
-    legacy = SystemMapNormalizeService().assemble(
-        project_name=fixture_name,
-        raw_scan=raw_scan,
-        template=template,
-        components=components,
-        endpoints=endpoints,
-        flows=flows,
-        risk_hints=risk_hints,
+# Reads a frozen ai-system-map/v1 artifact through the retained v1 read
+# path (validator → migration adapter). The v1 writer that used to build
+# this input from a live scan was removed with the rollback write path.
+def _canonical_map_from_v1_fixture(fixture_name: str) -> AiSystemMapV2:
+    fixture_path = (
+        Path(__file__).parents[2]
+        / "fixtures"
+        / "ai_system_map"
+        / f"{fixture_name}.v1.json"
     )
     validated = SystemMapValidationService().validate(
-        legacy.model_dump(mode="json")
+        json.loads(fixture_path.read_text(encoding="utf-8"))
     )
     return SystemMapV1ToV2Adapter().adapt_to_canonical(validated)
 
@@ -551,8 +512,8 @@ def test_graph_node_ids_are_stable_across_repeated_projections(
 
 
 def test_endpoint_risks_attach_to_component_from_qdrant_fixture() -> None:
-    # Given: real fixture produces endpoint-targeted docker port risks
-    canonical_map = _canonical_map_from_rag_fixture("basic_qdrant_ollama_rag")
+    # Given: fixture carries endpoint-targeted docker port risks
+    canonical_map = _canonical_map_from_v1_fixture("basic_qdrant_ollama_rag")
     endpoint_risks = [
         risk
         for risk in canonical_map.risk_hints

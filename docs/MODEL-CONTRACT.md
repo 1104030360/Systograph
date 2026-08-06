@@ -34,7 +34,7 @@ HTTP endpoint 契約見 [`API-GUIDE.md`](API-GUIDE.md)。本文件定義欄位�
 | 項目 | 規則 |
 |------|------|
 | 輸入 | AI system repo / workflow artifact；**不**假設一定是 RAG |
-| Active public schema | `ai-system-map/v2`；v1 僅保留 historical read/migration 與預設關閉的 operator rollback writer |
+| Active public schema | `ai-system-map/v2`（唯一 writer）；v1 僅保留 historical read/migration，已無任何寫入路徑 |
 | Build scope | `scan_id`（immutable snapshot）+ `build_id`（一次 materialization）+ `environment_id` + `artifact_set_version` |
 | `environment_id` | Phase2 固定 `environment:default-static` |
 | **禁止** | 獨立 `snapshot_id`；數值 `confidence` |
@@ -328,7 +328,7 @@ Canonical map 只含 evidence-backed facts。Grounding readiness、profiles、`p
 
 ### 5.3 `recommended_next_checks[]`（System 1 · scan-fact checks）
 
-由 `RecommendedNextCheckService` 從 normalized scan signals（components / endpoints / risk hints）deterministic 推導；reason / action 文案來自 `recommended_next_check_rules.toml`，v1（rollback writer）與 v2（active writer）兩條 build 路徑共用同一個 derive。
+由 `RecommendedNextCheckService` 從 normalized scan signals（components / endpoints / risk hints）deterministic 推導；reason / action 文案來自 `recommended_next_check_rules.toml`；derive 本身版本中立，由唯一的 v2 build 路徑呼叫。
 
 | 欄位 | 說明 |
 |------|------|
@@ -590,9 +590,10 @@ type MapBuildScopedResponse = {
 Plan 06 後續 safe lazy-load contract，尚未放進 current response。Viewer **不得**在 load
 時重算 profile inference。Sidecar 缺/invalid → base graph + `build_result.warnings`。
 成功的 public build 之 `requested_schema_version` 固定為 v2；要求 v1 會先回
-`legacy_output_not_selectable`。Operator rollback 只能由 process env 啟用，並以
-`active_schema_version`、`source_schema_version`、`operator_rollback_active` 與 migration
-warnings 稽核。Detail Scan 若讀不到 parent profile sidecar，
+`legacy_output_not_selectable`。build 只有一條 v2 產出路徑，因此
+`active_schema_version` 恆為 v2、`operator_rollback_active` 恆為 `false`（欄位為契約
+相容保留）；`source_schema_version` 仍可為 v1，用來記錄該 map 由 historical v1
+artifact migrate 而來。Detail Scan 若讀不到 parent profile sidecar，
 回 `409 profile_sidecar_unavailable`，不可把未知 candidates 靜默當成空集合發布 child。
 
 `evidence_table.json` 與 `ai_system_map.json.evidence[]` 目的不同：前者為 flattened query-friendly table。
@@ -754,7 +755,7 @@ Planned `TraceComponentRef` / `QueryTraceEvent` 擴充見 deferred Plan 12。Cur
 
 | # | 規則 |
 |---|------|
-| 1 | canonical `ai_system_map.json` 預設是 v2；v1 只可 historical read 或 operator rollback |
+| 1 | canonical `ai_system_map.json` 一律是 v2；v1 只可 historical read |
 | 2 | `profile_signals.json` = read-only enrichment；缺 sidecar 仍可 render base graph |
 | 3 | Canvas 來自 `GraphViewModel`；**禁止** frontend 推 topology / 五態 |
 | 4 | 顯示 backend 提供的五態 + 六 activation + evidence kind legend |

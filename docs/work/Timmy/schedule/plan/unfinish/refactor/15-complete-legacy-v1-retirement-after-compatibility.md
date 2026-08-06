@@ -354,7 +354,12 @@ rollback service → canonical_map_loader 的 v1 分支 → v1→v2 adapter → 
 > `require_public_v2_selection()`（deprecated 輸入的穩定 422 仍依賴它們），
 > 那組的收斂仍屬本計畫，見上方「新增前置事實 (1)」的原子性約束。
 
-- [ ] 確認 `refactor/06-remove-v1-rollback-write-path.md` 已完成（三個服務檔已刪、
+> **已由 `refactor/06` 於 2026-08-07 完成（#277）——本 Task 勿重複執行。**
+> 三個服務檔已刪、`MapBuildService` / `MapBuildPipeline` 無 v1 分支、env 不再接受
+> `ai-system-map/v1`、census 已同步（`operator_rollback` 分類本身已移除）。
+> 本 Task 僅剩下方第二項的 `LEGACY_CANONICAL_OUTPUT_VERSION` 收斂。
+
+- [x] 確認 `refactor/06-remove-v1-rollback-write-path.md` 已完成（三個服務檔已刪、
   pipeline 無 v1 分支、census 無 stale record）。
 - [ ] 本計畫僅接手 Plan 06 明列的「不得更動」項：`LEGACY_CANONICAL_OUTPUT_VERSION`
   與 `require_public_v2_selection()` 的原子性收斂（連同 `SystemMapSchemaSelection`、

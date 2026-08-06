@@ -1,17 +1,14 @@
 # 這個檔案負責：從正規化後的掃描訊號（raw scan facts / components /
 # endpoints / risk hints）推導出 deterministic 的 recommended_next_checks。
-# 版本中立：不綁 ai-system-map/v1 或 v2，兩條 build 路徑都可以直接使用。
+# 版本中立：不綁 ai-system-map/v1 或 v2，輸入是純掃描訊號。
 # reason / action 文案一律來自 recommended_next_check_rules.toml，
 # 本檔只保留觸發條件（哪些 slot / risk 會觸發哪個 check）。
 #
-# 呼叫鏈（兩條 build 路徑共用同一個 derive）：
-#   SystemMapV2MaterializationService.materialize（v2 active writer）
+# 呼叫鏈（build 只有一條路徑）：
+#   SystemMapV2MaterializationService.materialize（v2 唯一 writer）
 #     → RecommendedNextCheckService.derive(...)
 #     → SystemMapV2NormalizeService.assemble
 #     → AiSystemMapV2.recommended_next_checks
-#   SystemMapNormalizeService.assemble（v1 writer，operator rollback 用）
-#     → RecommendedNextCheckService.derive(...)
-#     → RagSystemMap.recommended_next_checks
 #   derive 內部：
 #     → RuleCatalogLoader.load_recommended_next_check_rules
 #       （讀 TOML 取得 reason / action / default_target_type）

@@ -29,24 +29,29 @@ def test_map_build_request_accepts_explicit_v2_opt_in() -> None:
     assert request.system_map_schema_version == "ai-system-map/v2"
 
 
-def test_map_build_result_exposes_operator_rollback_metadata() -> None:
+def test_map_build_result_exposes_schema_provenance_metadata() -> None:
+    """A v1-sourced map keeps its provenance without a rollback build.
+
+    Given a build that migrated a historical v1 artifact,
+    When the result reports its schema metadata,
+    Then the active output stays v2 while source_schema_version still
+    records v1, and operator_rollback_active is False because the v1
+    write path no longer exists.
+    """
+    # Given / When
     result = MapBuildResult(
         status="ok",
         project_name="sample",
-        active_schema_version="ai-system-map/v1",
+        active_schema_version="ai-system-map/v2",
         requested_schema_version="ai-system-map/v2",
         source_schema_version="ai-system-map/v1",
-        operator_rollback_active=True,
-        migration_warnings=[
-            "operator_rollback_active",
-        ],
     )
 
-    assert result.active_schema_version == "ai-system-map/v1"
+    # Then
+    assert result.active_schema_version == "ai-system-map/v2"
     assert result.requested_schema_version == "ai-system-map/v2"
     assert result.source_schema_version == "ai-system-map/v1"
-    assert result.operator_rollback_active is True
-    assert "operator_rollback_active" in result.migration_warnings
+    assert result.operator_rollback_active is False
 
 
 class _FailingPreconditionProvider(OutputArtifactProvider):

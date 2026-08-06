@@ -427,6 +427,7 @@ Readiness 對應 warning 為 `readiness_report_missing_or_invalid`。
 Manifest 會保存 `active_schema_version`、`requested_schema_version`、
 `source_schema_version`、`operator_rollback_active`、`artifact_set_version` 與
 `migration_warnings`；同一 `build_id` 在 restart 前後不得改寫這些欄位。
+`operator_rollback_active` **恆為 `false`**：v1 寫入路徑已移除，欄位僅為契約相容保留。
 
 Current build-scoped response 不包含 server-local absolute path，也尚未包含
 `artifact_refs`。Plan 06 加入 refs 後，frontend 只能依 stable artifact id/type 與受控 API
@@ -491,8 +492,8 @@ Frontend **不得**重算五態、activation、Mapping Completeness。Sidecar �
 ```
 
 Apply publish 失敗時：**不得**切換 `latest_build_id`；pending confirmations 保留。
-成功的 public child build 維持 v2 request provenance；Apply 不會自行切成 v1。Operator
-rollback 若啟用，則只由 process-level setting 決定實際 artifact version並留下稽核欄位。
+成功的 public child build 維持 v2 request provenance；Apply 不會自行切成 v1——build
+只有一條 v2 產出路徑，沒有任何 setting 能讓它寫出 v1 artifact。
 
 ### POST /api/map-builds/{build_id}/detail-scans（later alias，未實作）
 
@@ -581,12 +582,6 @@ Response `200`：
 | `base_build_not_latest` | 409 | 指定 build 已不是 latest，避免 lineage fork |
 | `scan_snapshot_stale` | 409 | 目標檔案 fingerprint 已變更，需 explicit rescan |
 | `profile_sidecar_unavailable` | 409 | parent profile sidecar 缺失或 invalid；base graph 仍可讀，但不得發布語意不完整的 child build |
-| `legacy_rollback_not_representable` | 422 | 僅 operator rollback 模式；preflight 判定該 map 無法以 v1 表示。詳見〈Operator rollback 專用 error code〉 |
-| `legacy_rollback_detail_scan_unsupported` | 422 | 僅 operator rollback 模式；rollback writer 不支援 enriched map。詳見〈Operator rollback 專用 error code〉 |
-
-> **兩者的優先順序（rollback 模式下）：** preflight 先跑，因此 map 若不可表示，回的是較具體的
-> `legacy_rollback_not_representable`；只有通過 preflight 的 map 才會走到
-> `legacy_rollback_detail_scan_unsupported`。normal v2 模式下兩者都不會出現。
 
 ### GET /api/detail-scans/{detail_scan_id}
 
@@ -915,31 +910,19 @@ Response `200`：
 | 404 | 目標不存在 | `resource_not_found`（malformed typed state id）、`project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
 | 409 | 狀態衝突 | `base_build_not_latest`、`latest_build_changed`、`scan_snapshot_stale`、`profile_sidecar_unavailable` |
 | 413 | request body 超過本機 API resource limit | `request_too_large` |
-| 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、operator rollback 的 `legacy_rollback_*`（見下表）、validation 陣列 |
+| 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、validation 陣列 |
 | 500 | 未預期後端錯誤，回應會遮蔽 raw path / secret | `internal_server_error` |
 | 503 | project state lock timeout | `project_state_busy` |
 
 > Project workflow 會跨重啟恢復。若重啟後出現 404，先確認啟動前後使用相同
 > `SYSTOGRAPH_STATE_DIR`；只有 state record 不存在時才需要重新 import / scan。
 
-### Operator rollback 專用 error code
+### Canonical output version 設定
 
-下列 code 只在 process 啟動前設定
-`SYSTOGRAPH_CANONICAL_OUTPUT_VERSION=ai-system-map/v1` 的 operator rollback 模式出現；
-normal `ai-system-map/v2` 模式不會產生。失敗時都不寫任何 artifact。
+`SYSTOGRAPH_CANONICAL_OUTPUT_VERSION` 只接受 `ai-system-map/v2`（未設定時的預設值）。
+任何其他值——包含 `ai-system-map/v1`——都會在 process 啟動時以
+`invalid_canonical_output_version` 失敗，且不寫任何 artifact。v1 只剩讀取路徑
+（historical artifact 的 load / migration），沒有任何設定能讓 build 寫出 v1。
 
-| `detail` | 意義 |
-| --- | --- |
-| `legacy_rollback_not_representable` | map 無法以 v1 無損表示：不是 v1-sourced map，或含 legacy contract 表達不了的 component（`semantic_kind` 超出 `repo_component` / `slot_placeholder` / `legacy_extension`）。preflight fail closed，不靜默丟資料 |
-| `legacy_rollback_detail_scan_unsupported` | map 本身可以 v1 表示，但 rollback writer 只能從 raw scan 重建；enriched map（detail scan 子 build）這條路徑在 rollback 模式沒有 writer |
-| `legacy_rollback_writer_unavailable` | process 設成 rollback 模式，但該 build pipeline 沒有被注入 rollback writer（`MapBuildPipeline` 的 `legacy_rollback` 為 `None`）。屬 wiring/組態錯誤，不是使用者輸入問題 |
-
-- 前兩者由 `POST /api/detail-scans`（enriched map 路徑）以 `422` 回傳。
-  同一 endpoint 上 preflight 先跑，因此 `legacy_rollback_not_representable` 優先於
-  `legacy_rollback_detail_scan_unsupported`。
-- `legacy_rollback_writer_unavailable` **不限** detail-scan：normal build 路徑
-  （`MapBuildPipeline.materialize`）在 rollback 模式下同樣會拋，因此 `POST /api/scans`
-  與 CLI `map` 都可能遇到。它代表 wiring／組態問題（pipeline 沒被注入
-  rollback writer），不是使用者輸入問題，重送相同請求不會改變結果。
-  HTTP 呈現：`POST /api/detail-scans` 與 `POST /api/scans` 走各自的 broad
-  `ValueError` handler，以 `422` + 同名 code 回傳。
+API／CLI 在 request 送 `system_map_schema_version: "ai-system-map/v1"` 仍回
+`legacy_output_not_selectable`(422)——這是**輸入**被拒，與上述啟動設定是兩件事。

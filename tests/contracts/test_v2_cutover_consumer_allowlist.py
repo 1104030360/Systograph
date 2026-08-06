@@ -7,7 +7,6 @@ from typing import Literal, NamedTuple
 
 Classification = Literal[
     "migrate",
-    "operator_rollback",
     "migration_only",
     "remove",
 ]
@@ -31,9 +30,7 @@ LEGACY_NAMES = frozenset(
     }
 )
 LEGACY_LITERALS = frozenset({"ai-system-map/v1", "new_extension_component"})
-LEGAL_CLASSIFICATIONS = frozenset(
-    {"migrate", "operator_rollback", "migration_only", "remove"}
-)
+LEGAL_CLASSIFICATIONS = frozenset({"migrate", "migration_only", "remove"})
 
 
 class ConsumerRecord(NamedTuple):
@@ -84,8 +81,12 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
             "src/systograph/core/services/canonical_output_configuration.py"
         ),
         symbol="ai-system-map/v1",
-        classification="operator_rollback",
-        removal_plan="Plan 15 removes the operator rollback setting.",
+        classification="migration_only",
+        removal_plan=(
+            "Refactor 06 removed the v1 write path; the literal now only "
+            "backs the legacy_output_not_selectable rejection. Plan 15 "
+            "removes it with the deprecated public request value."
+        ),
     ),
     ConsumerRecord(
         path="src/systograph/core/models/ai_system_map_v2.py",
@@ -158,48 +159,6 @@ CONSUMER_ALLOWLIST: tuple[ConsumerRecord, ...] = (
         symbol="ai-system-map/v1",
         classification="migration_only",
         removal_plan="Remove the v1 dispatch branch after migration support.",
-    ),
-    ConsumerRecord(
-        path="src/systograph/core/services/map_build_pipeline.py",
-        symbol="ai-system-map/v1",
-        classification="operator_rollback",
-        removal_plan="Plan 15 removes the operator rollback branch.",
-    ),
-    ConsumerRecord(
-        path=("src/systograph/core/services/legacy_v1_rollback_service.py"),
-        symbol="RagSystemMap",
-        classification="operator_rollback",
-        removal_plan="Plan 15 removes the isolated rollback writer.",
-    ),
-    ConsumerRecord(
-        path=("src/systograph/core/services/legacy_v1_rollback_service.py"),
-        symbol="ai-system-map/v1",
-        classification="operator_rollback",
-        removal_plan="Plan 15 removes the isolated rollback writer.",
-    ),
-    ConsumerRecord(
-        path="src/systograph/core/services/system_map_materialization_service.py",
-        symbol="RagSystemMap",
-        classification="operator_rollback",
-        removal_plan="Plan 15 removes the isolated rollback materializer.",
-    ),
-    ConsumerRecord(
-        path="src/systograph/core/services/system_map_materialization_service.py",
-        symbol="SystemMapValidationService",
-        classification="operator_rollback",
-        removal_plan="Plan 15 removes the isolated rollback validator.",
-    ),
-    ConsumerRecord(
-        path="src/systograph/core/services/system_map_normalize_service.py",
-        symbol="RagSystemMap",
-        classification="operator_rollback",
-        removal_plan="Plan 15 removes the isolated rollback normalizer.",
-    ),
-    ConsumerRecord(
-        path="src/systograph/core/services/system_map_normalize_service.py",
-        symbol="ai-system-map/v1",
-        classification="operator_rollback",
-        removal_plan="Plan 15 removes the isolated rollback output badge.",
     ),
     ConsumerRecord(
         path="src/systograph/core/services/system_map_v1_to_v2_adapter.py",

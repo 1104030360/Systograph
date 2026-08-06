@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
@@ -36,7 +35,6 @@ from systograph.core.services.build_artifact_publisher import (
     BuildArtifactPublisher,
 )
 from systograph.core.services.canonical_output_configuration import (
-    LEGACY_CANONICAL_OUTPUT_VERSION,
     canonical_output_version_from_env,
     require_public_v2_selection,
 )
@@ -90,42 +88,6 @@ from systograph.core.services.viewer_session_service import (
     ViewerSessionService,
 )
 
-if TYPE_CHECKING:
-    from systograph.core.services.legacy_v1_rollback_service import (
-        LegacyV1RollbackService,
-    )
-
-
-# 做什麼：只在 operator rollback 模式下 import 並建 v1 rollback 物件圖。
-# 被誰呼叫：MapBuildService.__init__。
-# 自己呼叫：LegacyV1RollbackService、SystemMapMaterializationService。
-# 用 function-local import：active v2 path 不得依賴 v1 rollback 模組，
-# 這樣 Plan 15 刪掉那些模組時不會弄壞正常 build。
-def _build_legacy_v1_rollback_service(
-    *,
-    component_detection_service: ComponentDetectionService | None,
-    endpoint_detection_service: EndpointDetectionService | None,
-    risk_hint_service: RiskHintService | None,
-    flow_derivation_service: FlowDerivationService | None,
-    manual_mapping_service: ManualMappingService | None,
-) -> LegacyV1RollbackService:
-    from systograph.core.services.legacy_v1_rollback_service import (
-        LegacyV1RollbackService,
-    )
-    from systograph.core.services.system_map_materialization_service import (
-        SystemMapMaterializationService,
-    )
-
-    return LegacyV1RollbackService(
-        materialization_service=SystemMapMaterializationService(
-            component_detection_service=component_detection_service,
-            endpoint_detection_service=endpoint_detection_service,
-            risk_hint_service=risk_hint_service,
-            flow_derivation_service=flow_derivation_service,
-            manual_mapping_service=manual_mapping_service,
-        )
-    )
-
 
 # 做什麼：對外 build facade；組 pipeline，提供三種建圖入口。
 # 被誰用：CLI、Web、ApplyConfirmations、DetailScanBuild。
@@ -159,7 +121,6 @@ class MapBuildService:
         | None = None,
         artifact_publisher: BuildArtifactPublisher | None = None,
         canonical_output_version: SystemMapSchemaSelection | None = None,
-        legacy_v1_rollback_service: LegacyV1RollbackService | None = None,
     ) -> None:
         output_provider = output_artifact_provider or OutputArtifactProvider()
         materializer = (
@@ -184,30 +145,12 @@ class MapBuildService:
         self._canonical_output_version = (
             canonical_output_version or canonical_output_version_from_env()
         )
-        rollback_service = legacy_v1_rollback_service
-        # Census contract: this comparison uses the constant, so this file
-        # carries no inline legacy literal for the AST census to find. The
-        # literal is owned by canonical_output_configuration.py, which is
-        # the module the census records for this branch.
-        if (
-            rollback_service is None
-            and self._canonical_output_version
-            == LEGACY_CANONICAL_OUTPUT_VERSION
-        ):
-            rollback_service = _build_legacy_v1_rollback_service(
-                component_detection_service=component_detection_service,
-                endpoint_detection_service=endpoint_detection_service,
-                risk_hint_service=risk_hint_service,
-                flow_derivation_service=flow_derivation_service,
-                manual_mapping_service=manual_mapping_service,
-            )
         self._scanner = project_scan_service or ProjectScanService()
         self._output_provider = publisher.output_provider
         self._pipeline = MapBuildPipeline(
             materialization_service=materializer,
             artifact_publisher=publisher,
             canonical_output_version=self._canonical_output_version,
-            legacy_v1_rollback_service=rollback_service,
             profile_inference_service=profile_inference_service,
             readiness_report_service=readiness_report_service,
             static_execution_artifact_service=static_execution_artifact_service,

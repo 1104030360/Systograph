@@ -290,7 +290,7 @@ recoverable by retrying the same payload; the frontend must stop sending the ret
 | `detail` | Endpoints | Meaning |
 | --- | --- | --- |
 | `legacy_mapping_type_read_only` | `POST /api/mappings`, `PATCH /api/mappings/{mapping_id}`, `POST /api/mapping-proposals/{proposal_id}/decision` | The request carries `mapping_type: "new_extension_component"` (checked at top level and inside `edited_mapping`). The legacy extension mapping type is read-only: migration tooling may still read it, but no API accepts it as a write. Active values are `existing_slot_mapping` and `non_baseline_capability_candidate`. |
-| `legacy_output_not_selectable` | `POST /api/scans` | The request asked for `system_map_schema_version: "ai-system-map/v1"`. Canonical output is `ai-system-map/v2`; `system_map_schema_version` is a deprecated input kept until Plan 15. Operator rollback exists but is a process-level setting, never a request-selectable option, so there is no payload the frontend can send to obtain v1. |
+| `legacy_output_not_selectable` | `POST /api/scans` | The request asked for `system_map_schema_version: "ai-system-map/v1"`. Canonical output is `ai-system-map/v2`; `system_map_schema_version` is a deprecated input kept until Plan 15. No build path writes v1 any more — not through a request, and not through a process setting — so there is no payload the frontend can send to obtain v1. |
 
 `POST /api/scans` rejects before any enumeration or scan work runs, so an invalid selection costs no
 scan time and leaves no persisted snapshot or output directory behind. The same is true of the
