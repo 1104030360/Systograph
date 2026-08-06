@@ -556,7 +556,6 @@ catalog、13 cutover、14 final validation 或 15 complete retirement。
 4. `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/README.md`。
 5. static plans `00`～`18` 與 `dynamic-trace-plan/00`。
 6. 本文件。
-7. `raw-data/` 研究快照。
 
 Review triggers：canonical schema、profile registry/status、artifact list、viewer degraded-load
 policy、manual mapping lifecycle、UA sidecar boundary、Plan 17 是否重新啟動、

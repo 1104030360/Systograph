@@ -26,7 +26,7 @@ Auto scan result is available
 
 **Proposal = 問題 + 選項（`candidates[]`）；Manual mapping = 使用者選完後存檔的決策。**
 Proposal 不會直接改 profile；`confirmed` 的 Manual mapping 在 **Apply** 時才反映進新 build。
-詳見 [`docs/spec/draft/epic1-phase2.md`](../../../spec/draft/epic1-phase2.md) §12.2。
+詳見 [`docs/design/epic1-phase2.md`](../../../design/epic1-phase2.md) §12。
 
 2026-07-07 同日修訂：Step 6 由 `ProfileInferenceService` 直接讀 validated system map 與
 TOML metadata，以純 Python 定五態。Plan 17 `AssessmentOrchestrator` / AI semantic candidate

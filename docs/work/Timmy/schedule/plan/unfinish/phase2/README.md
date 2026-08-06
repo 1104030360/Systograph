@@ -249,8 +249,7 @@ Dynamic runtime (dynamic-trace-plan/01+)
 
 ## 相關文件
 
-- 實作方向摘要：`docs/work/Timmy/design/phase2-00-14-implementation-direction-2026-07-02.md`
 - Model contract：`docs/MODEL-CONTRACT.md`
 - Capability Map 決策：[capability-map-assessment-decision-summary.md](./capability-map-assessment-decision-summary.md)
-- Frontend Graph Studio contract：`docs/work/Meeting-Sync/meeting_sync_2026_07_05/frontend-graph-studio.md`
-- Frontend runtime trace 方向（先不要動工）：`docs/work/Meeting-Sync/meeting_sync_2026_07_05/frontend-runtime-trace.md`
+- Frontend Graph Studio contract：`docs/work/Meeting-Sync/meeting_sync_2026_07_07/frontend-graph-studio.md`
+- Frontend runtime trace 方向（先不要動工）：`docs/work/Meeting-Sync/meeting_sync_2026_07_07/frontend-runtime-trace.md`

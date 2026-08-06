@@ -1,5 +1,9 @@
 # 16B — UA Sidecar 實測 I/O 與 Adapter 技術參考
 
+> 📖 **第一次看？** 先讀 [`README.md`](./README.md)（閱讀順序 + 名詞對照表）。
+> **白話一句話：** 三支 UA 腳本實際吃什麼、吐什麼，以及翻譯層有哪三條不能違反的死規則。
+> **要動手寫 code 才需要細讀**；只是 review 的話可以跳過。
+
 Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件，非獨立實作 plan。
 
 > **對象：** Plan 16 執行者（Task 1/3/4/6 的直接輸入）
@@ -34,12 +38,12 @@ Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件�
     |     | (3) SubprocessRunner (shell=False, timeout)
     |     |        |
     |     |        v
-    |     |   node systograph-analyze.mjs         <== [U0] UA 起點（新增 wrapper）
-    |     |     --project-root / --inventory / --work-dir / --output
+    |     |   Python 直接 spawn 三支 script     <== [U0] UA 起點（無 wrapper，§6 Q1）
+    |     |     work-dir = 系統暫存目錄，掃完刪除
     |     |        |
     |     |        |  [U1] extract-import-map.mjs      （原樣沿用）
-    |     |        |  [U2] 合成 scan-result.json       （wrapper 膠水）
-    |     |        |  [U3] compute-batches.mjs         （必須 fork，見 §3.2）
+    |     |        |  [U2] 合成 scan-result.json       （Python 膠水，見 §4）
+    |     |        |  [U3] compute-batches.mjs         （套 Systograph patch，見 §3.2）
     |     |        |  [U4] extract-structure.mjs       （原樣沿用，逐 batch）
     |     |        v
     |     |   systograph-ua-result/v1             <== [U5] UA 輸出點
@@ -75,7 +79,7 @@ Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件�
 `src/` 目前沒有任何模組 import `ref-opensource/`；`UnderstandAnythingAnalysisService`
 與 `UaStructuralAdapter` 皆尚未存在。
 
-### 2.2 為什麼不能只做成一個普通 provider（fail-closed 衝突）
+### 2.2 為什麼不能只做成一個普通 provider（與「失敗就停」的原則衝突）
 
 現有最窄介面是 `ScanResultProvider` Protocol（`core/services/project_scan_service.py:51-56`）：
 
@@ -102,8 +106,10 @@ provider loop 之上包住，失敗直接 raise，不得依賴 provider 例外�
 ### 2.4 CLI 路徑的缺口
 
 `systograph map`（`cli/map_command.py:63`）直接呼叫 `MapBuildService.build()`——
-**沒有 boundary gate、沒有 snapshot**。UA 接入 web 路徑後，CLI 是否也走 UA
-（以及怎麼補 gate）是 open question，見 §6。
+**沒有 boundary gate、沒有 snapshot**。
+**2026-08-05 裁定（原 §6 Q4）：CLI 立刻補非互動 gate、直接走 UA**——
+default policy 自動決策 + snapshot 落地，與 Web 共用同一條 Step 2 → 3 管線；
+`blocked` 時 fail-closed 並指向 Web review。落地為 Plan 16 Task 8。
 
 ---
 
@@ -132,8 +138,11 @@ out : { "scriptCompleted": true,
 - 解析上下文（tsconfig / go.mod / Package.swift / composer.json）**只讀 `files[]` 內
   已存在的檔**，不會自行踩出白名單。
 - stdout 恆空；警告走 stderr（`Warning: extract-import-map: ...`）。
+- **2026-08-05 native 實測驗證**：對 `basic_qdrant_ollama_rag` 副本跑通——
+  `filesScanned=6 / totalEdges=1`（`app.py → retriever.py`，與源碼一致）；
+  fastapi / qdrant_client / ollama 等外部套件正確排除（此即 16E G3 要另行撈回的那批）。
 
-### 3.2 `compute-batches.mjs`（⚠️ 唯一違反 read-only，必須 fork）
+### 3.2 `compute-batches.mjs`（⚠️ 唯一違反唯讀保證，必須套 patch）
 
 ```text
 CLI : node compute-batches.mjs <project-root> [--changed-files=<path>]
@@ -148,15 +157,22 @@ out : <project-root>/.understand-anything/intermediate/batches.json       （寫
                        "batchImportData": {...}, "neighborMap": {...} } ] }
 ```
 
-Fork 需求（boundary doc §7 已裁定「改成明確 input/output/work-dir」，實測補充）：
+Patch 需求（boundary doc §7 已裁定「改成明確 input/output/work-dir」，實測補充；
+patch 形式見 §6 Q2）：
 
 1. 輸入輸出路徑寫死在 `<target>/.understand-anything/intermediate/`——會**讀寫目標
-   repo**，違反 read-only。fork 需加 `--input` / `--output` / `--work-dir`。
+   repo**，違反 read-only。patch 需加 `--input` / `--output` / `--work-dir`。
+   **是讀寫都違規**：`:364` 規定輸入檔必須位於目標 repo 內（我們得先寫一個檔進去
+   它才讀得到），`:550` 再把 `batches.json` 寫回同一處。
+   **不能靠傳假 project-root 迴避**——`extractExports()`（`:83`）會
+   `readFile(join(projectRoot, file.path))` 真的讀原始碼跑 tree-sitter，
+   `projectRoot` 必須是真實 repo。單一參數同時承擔「去哪讀原始碼」與
+   「中間檔放哪」兩種語意，正是本問題的根因。
 2. **必須保留 source-root 參數**：`extractExports()`（L51-121）真的會
    `readFile(join(projectRoot, file.path))` 讀原始碼、跑 tree-sitter 抽 export 符號
    （供 `neighborMap[].symbols`）。所以 `projectRoot` 不只是 JSON 容器，
    單純換掉輸入輸出路徑不夠。
-3. `scan.files` 缺失時 L544 直接 TypeError crash（非優雅降級）——wrapper 合成
+3. `scan.files` 缺失時 L544 直接 TypeError crash（非優雅降級）——Python 合成
    `scan-result.json` 時 `files` 必須存在。
 4. 環境變數 `UA_COMPUTE_BATCHES_FORCE_LOUVAIN_THROW=1` 可強制走 count-fallback
    （測試有用；production 環境不得洩入）。
@@ -215,28 +231,33 @@ out : ua-file-extract-results-<batchIndex>.json
 
 | 項目 | 實測 |
 |------|------|
-| Node | `>= 22`（ESM、top-level await、`node:` builtins） |
-| **Build 狀態** | **submodule 目前未 build**：無 `node_modules`、無 `packages/core/dist/`。三支 script 都 `await import('@understand-anything/core')`，現在直接跑必死（top-level rejection，在 main() 的 try/catch 之前）。需先於 submodule 根目錄 `pnpm install && pnpm --filter @understand-anything/core build`（pnpm 10 workspace） |
-| `pluginRoot` 解析 | `resolve(__dirname, '../..')`——**把三支 .mjs 複製出樹外會壞掉 core 解析**；必須留在 plugin root 下兩層（或 patch 該常數） |
+| Node | `>= 22`（ESM、top-level await、`node:` builtins）。2026-08-05 於 v22.22.3 驗證通過 |
+| **Build 狀態** | 三支 script 都 `await import('@understand-anything/core')`，未 build 直接跑必死（top-level rejection，在 main() 的 try/catch 之前）。**2026-08-05 native 實測：`pnpm install` 於 submodule 根一步到位（root `prepare` hook 自動 `pnpm --filter @understand-anything/core build`；實測 install 1m52s、顯式 build 冪等可重跑 ~10s）。** pnpm 10 會依 root `packageManager` pin 自動下載並切換版本（實測 volta pnpm 10.22.0 → 自動改用 10.6.2），離線環境需預先備好 |
+| `pluginRoot` 解析 | `resolve(__dirname, '../..')`——**把三支 .mjs 複製出樹外會壞掉 core 解析**（`@understand-anything/core` 靠 workspace symlink 解析，2026-08-05 實測證實）；必須留在 plugin root 下兩層（或 patch 該常數） |
 | tree-sitter | `web-tree-sitter`（WASM，非 native）；14 種語言 grammar 來自 npm + 2 個 workspace 內建 WASM（dart/swift） |
+| **Kotlin grammar 例外** | `@tree-sitter-grammars/tree-sitter-kotlin` 的 build script 被 pnpm 預設擋下（未 approve），該 grammar 不可用；其他語言 grammar 不受影響（2026-08-05 實測）。掃 Kotlin 專案前需手動 `pnpm approve-builds`——setup script **不自動** approve（避免默許任意 postinstall 執行）。未 approve 時 Kotlin 檔走「單一 grammar 靜默降級」路徑（見下列），Validator 需可觀測 |
 | 降級模式 | 單一 grammar 載入失敗**靜默降級**（該語言無結構分析）；整體 init 失敗時 `extract-import-map` 仍 exit 0 但 importMap 全空 → **`scriptCompleted:true` 不等於成功**，Validator 必須另看 `stats.totalEdges` / stderr（BD §8.7 fail-closed） |
 | mkdir | **三支 script 都不會自建輸出目錄**——runner 每次呼叫前要先 `mkdir -p` work dir |
 | Process 紀律 | stdout 恆空；log 全走 stderr；fatal 一律 exit 1 |
 
 ---
 
-## 4. `systograph-analyze.mjs` wrapper 的膠水責任（Task 4 輸入）
+## 4. 串接責任（膠水；Task 4 輸入）
+
+> **2026-08-04（§6 Q1）：** 原規劃由 `systograph-analyze.mjs` wrapper 承擔本節責任，
+> 已裁定**不做 wrapper**——下列六項全部由 Python
+> （`UnderstandAnythingSubprocessRunner`）負責。責任內容不變，只換執行者。
 
 ```text
  [U1] extract-import-map  ->  importMap
             |
             v
  [U2] 合成 scan-result.json = { files:(inventory 含 sizeLines), importMap:(原樣) }
-      （上游這份 JSON 由 LLM agent 拼裝；Systograph 改由 wrapper 決定性拼裝，
+      （上游這份 JSON 由 LLM agent 拼裝；Systograph 改由 Python 決定性拼裝，
         files 與 importMap 必須原樣傳遞、不得增刪改）
             |
             v
- [U3] compute-batches(fork)  ->  batches.json
+ [U3] compute-batches(patched)  ->  batches.json
             |
             v  （loop：逐 batch，以 batchIndex 為 key）
  [U4] extract-structure  ->  ua-file-extract-results-<batchIndex>.json
@@ -285,7 +306,7 @@ evidence_kind = "direct" if (file is not None and
 `ManualMapping.evidence_ids` 子集檢查（§2.3）會讓已確認 mapping 全部失效。
 UA batching 全程 byte-for-byte 決定性（§3.2），穩定 id 有基礎。
 
-### 5.2 欄位映射表（BD §4.2 裁定 + rule_id 前綴）
+### 5.2 欄位對照表（BD = boundary doc 整合邊界文件 §4.2 裁定 + rule_id 前綴）
 
 ```text
  UA 欄位                          rule_id 前綴      -> Systograph 去向
@@ -305,6 +326,10 @@ UA batching 全程 byte-for-byte 決定性（§3.2），穩定 id 有基礎。
 禁止輸出：`plane_id`、reference node id、profile 五態、`confidence`、runtime 結論
 （BD §4.2；相關名不得自創，見 16A §7.2）。
 
+> **2026-08-05（§6 Q6）：** 上表的 `ua_*` 前綴已正式裁定（不沿用 legacy id）。
+> `ua_*` ↔ legacy `rule_id` 對照併入語彙目錄，每列同載兩組 id；
+> parity 的 provenance 判定即以前綴為準。
+
 ### 5.3 白名單與安全（Task 5 輸入）
 
 - UA result 每個 path 必須落在 approved inventory；拒絕 `..`、絕對路徑注入、
@@ -314,15 +339,68 @@ UA batching 全程 byte-for-byte 決定性（§3.2），穩定 id 有基礎。
 
 ---
 
-## 6. Open questions（動工前需裁定）
+## 6. 待裁定問題（Open questions）
 
-| # | 問題 | 衝突點 |
-|---|------|--------|
-| 1 | `systograph-analyze.mjs` 放哪 | Plan 16 Task 4 寫「`ref-opensource/understand-anything/` 或實際 vendored sidecar path」，但 `ref-opensource/CLAUDE.md` 規定該目錄不放 Systograph 產品碼、submodule 是 pinned 不可改。且 §3.4：script 對 `pluginRoot` 有相對位置依賴。需裁定新家（例如 repo 根 `sidecar/`）與 script 路徑解析策略 |
-| 2 | `compute-batches.mjs` fork 形式 | local fork / patch layer / 上游 PR？`ref-opensource/CLAUDE.md` 說 vendored 樹的修改應走 upstream 貢獻 |
-| 3 | `systograph-ua-result/v1` 的 `stats` / `warnings` 內部形狀 | BD 留白為開放物件；Task 1 需定案（fail-closed + unknown fields 拒絕的前提是形狀有定義） |
-| 4 | CLI `systograph map` 是否走 UA | CLI 路徑無 boundary gate 無 snapshot（§2.4）；若走 UA 需先補 gate，若不走需明文記錄行為差異 |
-| 5 | UA 未 build 的 preflight 邊界 | `pnpm install + build` 是安裝時一次性動作還是 preflight 檢查項？（preflight 只該檢查、不該現場 build） |
+### 6.1 已裁定（2026-08-04）
+
+| # | 問題 | 裁定 |
+|---|------|------|
+| 1 | `systograph-analyze.mjs` 放哪 | **不做這支 wrapper。** Python（`UnderstandAnythingSubprocessRunner`）直接依序 spawn 三支 script；§4 的膠水責任全部落在 Python |
+| 2 | `compute-batches.mjs` fork 形式 | **patch 檔 + 安裝腳本。** 改動存成 `sidecar/patches/compute-batches-workdir.patch`，由 `scripts/setup_ua_sidecar.sh` 在安裝階段 `git apply` 到 submodule 工作樹 |
+| — | work-dir 位置（原表未列，一併裁定） | **系統暫存目錄，每次掃描一個、掃完刪除。** 不落在 `src/systograph/`，也不落在 `~/.systograph/` |
+| — | 部署形態（2026-08-05 裁定） | **Native**：Python（uv）+ 本機 Node 直接跑三支 script。Docker 化 deferred 另案，非本批 scope。裁定依據：2026-08-05 本機實測 end-to-end 跑通（見 §3.4 實測列與 Q5） |
+| 5 | UA 未 build 的 preflight 邊界（2026-08-05 裁定，自 §6.2 移入） | **安裝階段一次完成、preflight 只檢查不建置。** `setup_ua_sidecar.sh` = submodule init → `pnpm install`（root `prepare` hook 自動 `--filter core build`，實測一步到位）→ `git apply` patch。preflight 只驗：Node >= 22、`packages/core/dist/` 存在、patch 已套（`git apply --check --reverse`）；任一缺失 fail-closed 並指向 setup script。setup script **不自動** `pnpm approve-builds`（Kotlin grammar 例外情況見 §3.4） |
+| 3 | `stats` / `warnings` 內部形狀（2026-08-05 裁定，自 §6.2 移入） | **定型核心 + `extra` 逃生欄。** `stats` 核心欄位定型且 required（filesScanned / filesWithImports / totalEdges / totalBatches / algorithm / filesAnalyzed / per-batch 完成清單）；`warnings` 結構化 `{stage, message}`（遮罩、限量）；`extra` 為唯一開放容器——原樣傳遞、不驗證、**不消費**，契約測試保證其內容不流入 `ScanFact` / `Evidence` / 判定。unknown 拒絕範圍 = `extra` 以外全部層級。細節見 Plan 16 Task 1 |
+| 4 | CLI `systograph map` 是否走 UA（2026-08-05 裁定，自 §6.2 移入） | **立刻補非互動 gate，CLI 直接走 UA**，不留過渡期分歧（已接受 Gate-2 關鍵路徑變重）。default policy 自動決策 + snapshot 落地；`blocked` fail-closed 指向 Web review。落地為 Plan 16 Task 8；現況缺口見 §2.4 |
+| 6 | UA rule_id 命名與 fact provenance（2026-08-05 裁定，自 §6.2 移入） | **新 `ua_*` id；`ua_*` ↔ legacy 對照併入語彙目錄**（每列同載 legacy id / kind / symbol / ua id，單一 source of truth，同 16E §2.7 / 13.7 模式）。provenance 靠 rule_id 前綴天然可分，零 model 變更；bridge 鏡射項 = 01B「支援 UA rule_id」依賴的具體化（13.7 已 done，不回頭改它）。[Plan 18](../s3-retirement/18-retire-systograph-scan-toml-providers-after-parity.md) 的 parity gate 輸入需求不變 |
+
+#### Q1 裁定理由
+
+`pluginRoot = resolve(__dirname, '../..')` +
+`createRequire(resolve(pluginRoot, 'package.json'))`（`compute-batches.mjs:28-29`，
+另兩支同構）**鎖死三支 script 的位置**——這點無可迴避。但 wrapper 本身只是 spawn
+三個子行程、不 import 任何 UA 模組，**沒有位置依賴**，所以「wrapper 該住哪」這個
+衝突其實是 Plan 16 Task 4 措辭造成的，不是技術約束。
+
+既然 wrapper 可以住任何地方，就該問它是否該存在。§4 列的膠水責任
+（合成 `scan-result.json`、命名轉換、`mkdir -p`、per-batch 收檔、stderr 收集）
+**沒有一項需要 Node**，而 fail-closed、secret masking、path safety 已經全部長在
+Python 端。多一層 `.mjs` = 多一個跨語言介面要測、要遮罩、要維護。
+
+**被否決：** 放 `ref-opensource/` 內（違反該目錄 CLAUDE.md「No Systograph product code
+lives here」）；放 repo 根 `sidecar/`（可行但無收益，只是把膠水從 Python 搬到 Node）。
+
+#### Q2 裁定理由
+
+樹外 fork 會**同時斷掉兩條依賴**，不是一條：
+
+| 斷掉的 | 原因 |
+|--------|------|
+| `@understand-anything/core` | `PLUGIN_ROOT` 由 `__dirname` 往上兩層推導 |
+| `graphology` / `graphology-communities-louvain` | `:41-42` 是**靜態 bare import**，Node 從新位置往上找不到 `node_modules`（兩者列在 plugin `package.json` dependencies） |
+
+代價是複製一支 588 行、且其決定性排序語意是 **evidence id 穩定性基礎**的檔案，
+之後上游每次修正都要手動 merge。patch 只需保存十幾行差異，且日後可整份送上游；
+上游合併後刪掉 patch、bump pin 即可。
+
+**被否決：** 樹外 fork（上述負擔）；上游 PR（最乾淨但把 Task 4 開工時程綁在外部
+review 上，無限期 blocked）。
+
+**已知副作用：** `git status` 會顯示 submodule 為 modified。`ref-opensource/CLAUDE.md`
+已預期此情況——**不得 stage gitlink**，除非 pin bump 是明確意圖。
+
+#### work-dir 裁定理由
+
+中間檔（`scan-result.json` / `batches.json` / per-batch structure 輸出）含目標 repo
+的完整檔案清單、函式名與 export 名，是使用者程式碼的衍生資訊；留在硬碟上就是多一份
+要保護的資料，與 local-first privacy 相悖。需要留存的是收攏後的
+`ua-analysis-result.json`，它已有既有的家（`ScanSnapshot`，Phase B/C 可選保存）。
+除錯時以環境變數保留現場，預設不留。
+
+### 6.2 仍待裁定
+
+**（2026-08-05 起：無。** Q1／Q2／Q5／work-dir／部署形態於 2026-08-04～05 裁定，
+Q3／Q4／Q6 於 2026-08-05 裁定，全部收錄於 §6.1。動工前不再有未拍板事項。**）**
 
 ---
 

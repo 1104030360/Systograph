@@ -9,19 +9,33 @@ The frontend can run in two modes:
 
 ## Map Loading
 
-Preferred endpoint:
+Preferred endpoint (build-scoped, requires a `project_id`):
+
+```http
+GET /api/projects/{project_id}/map-builds/latest
+Accept: application/json
+```
+
+A pinned historical build loads by id instead:
+
+```http
+GET /api/map-builds/{build_id}
+Accept: application/json
+```
+
+Deprecated fallback endpoints — **scheduled for removal**, do not build on them:
 
 ```http
 GET /api/map
-Accept: application/json
-```
-
-Temporary fallback endpoint:
-
-```http
 GET /map
 Accept: application/json
 ```
+
+`GET /api/map` and its bare alias `GET /map` return the process-wide latest
+viewer payload and carry no `project_id`. The frontend tries the build-scoped
+endpoint first and only falls back to these when it fails. Both are being
+retired together with `POST /api/map/build`; after that, loading a map always
+requires a `project_id`.
 
 Response shape must match the sample file:
 
@@ -261,7 +275,7 @@ and must not be presented as a saved preference. A stale/changed selection uses
 `Apply` reuses the saved snapshot and does not preflight or read the repo. `Rescan` starts a new preflight
 and does not carry decisions forward.
 
-After a completed scan, the frontend reloads `GET /api/map` and renders the latest `viewer_load_result.graph_view_model`.
+After a completed scan, the frontend reloads `GET /api/projects/{project_id}/map-builds/latest` and renders the latest `viewer_load_result.graph_view_model`.
 
 ## Retired Legacy Write Surfaces
 

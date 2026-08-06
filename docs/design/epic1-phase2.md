@@ -1232,7 +1232,6 @@ Repository policy and prompt rules：
 
 Spec inputs：
 
-- `docs/spec/draft/epic1-phase2.md`
 - `docs/spec/erm.dbml`
 - `docs/spec/.clarify/overview.md`
 - `docs/spec/.clarify/resolved/` 23 resolved decision files
@@ -1288,7 +1287,7 @@ Phase2 plan folder：
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/12-add-runtime-component-trace-contract.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/13-retire-legacy-extension-contract.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/14-local-project-import-and-test.md`
-- `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/15-complete-legacy-v1-retirement-after-compatibility.md`
+- `docs/work/Timmy/schedule/plan/unfinish/refactor/15-complete-legacy-v1-retirement-after-compatibility.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/16-implement-understand-anything-sidecar-service.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/17-implement-assessment-orchestrator-candidate-flow.md`（deferred）
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/18-retire-systograph-scan-toml-providers-after-parity.md`

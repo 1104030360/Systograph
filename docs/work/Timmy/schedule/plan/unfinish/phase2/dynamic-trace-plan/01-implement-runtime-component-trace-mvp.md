@@ -145,4 +145,4 @@ static 00 → 00A → 01 → 01A → 02–11 → dynamic 00 → 13 → static 14
 
 - [`../static-trace-plan/12-add-runtime-component-trace-contract.md`](../static-trace-plan/12-add-runtime-component-trace-contract.md)
 - [finished Plan 22](../../../finish/22-implement-query-trace-mvp.md)
-- [frontend-runtime-trace.md](../../../../../../Meeting-Sync/meeting_sync_2026_07_05/frontend-runtime-trace.md)
+- [frontend-runtime-trace.md](../../../../../../Meeting-Sync/meeting_sync_2026_07_07/frontend-runtime-trace.md)

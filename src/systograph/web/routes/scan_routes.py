@@ -170,10 +170,6 @@ def create_scan(
             status_code=404,
             detail=project_not_found_detail(),
         )
-    # Reject a retired public selection at the API boundary, before any
-    # preflight/scan work runs, so an invalid request never pays the scan
-    # cost nor leaves a persisted snapshot behind. MapBuildService keeps its
-    # own check as the authoritative guard for non-web callers.
     try:
         require_public_v2_selection(payload.system_map_schema_version)
     except CanonicalOutputConfigurationError as exc:

@@ -72,7 +72,7 @@ payload 一直重試，也不要在 browser 內把 legacy extension 自動轉成
 
 ## Source of truth
 
-- [Plan 13：ai-system-map/v2 Active Cutover](../../Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-v2-cutover/13-retire-legacy-extension-contract.md)
+- [Plan 13：ai-system-map/v2 Active Cutover](../../Timmy/schedule/plan/finish/s1-v2-cutover/13-retire-legacy-extension-contract.md)
 - [API Guide](../../../API-GUIDE.md)
 - [Model Contract](../../../MODEL-CONTRACT.md)
 - [v2 canonical map sample](../../Timmy/design/EPIC1/frontend-json-handoff/step-04-normalize-validate/frontend-ai-system-map-sample.json)

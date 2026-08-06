@@ -93,7 +93,7 @@ pipeline／各 Epic 子任務推進，不要把未合併的 design-only 文件�
 | Artifact／欄位語意 | [`docs/MODEL-CONTRACT.md`](docs/MODEL-CONTRACT.md) |
 | Systograph hard cutover | [`docs/SYSTOGRAPH-HARD-CUTOVER.md`](docs/SYSTOGRAPH-HARD-CUTOVER.md) |
 | Phase2 設計基線 | [`docs/design/epic1-phase2.md`](docs/design/epic1-phase2.md) |
-| Epic 1 設計 | [`docs/design/epic1.md`](docs/design/epic1.md) |
+| Epic 1 設計 | [`docs/design/epic1-phase1.md`](docs/design/epic1-phase1.md) |
 | Frontend JSON handoff | [`docs/work/Timmy/design/EPIC1/frontend-json-handoff/`](docs/work/Timmy/design/EPIC1/frontend-json-handoff/) |
 | Phase2 執行計畫 | [`docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/`](docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/) |
 | API trace scripts | [`scripts/trace_*.sh`](scripts/) |

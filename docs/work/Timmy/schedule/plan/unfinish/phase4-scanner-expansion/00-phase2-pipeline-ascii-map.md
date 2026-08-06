@@ -692,4 +692,4 @@ Step 9：`MappingProposal` → 人工確認 → `Apply` 重跑 Step 4～7（跳 
 - Python/TOML 邊界：`../phase2/static-trace-plan/10-define-profile-rule-catalog-boundary.md`
 - Proposal 與 profile 分離：`../phase2/static-trace-plan/04-separate-profile-inference-from-mapping-proposal.md`
 - Contract：`docs/MODEL-CONTRACT.md`
-- Rescan vs Apply：`docs/work/Meeting-Sync/meeting_sync_2026_07_05/rescan-vs-apply.md`
+- Rescan vs Apply：`docs/work/Meeting-Sync/meeting_sync_2026_07_07/rescan-vs-apply.md`

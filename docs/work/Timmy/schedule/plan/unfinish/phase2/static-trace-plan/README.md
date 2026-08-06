@@ -269,63 +269,67 @@ static-trace-plan/
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 00 | [00-define-rag-core-v1-legacy-template-boundary.md](./s0-contract-compatibility/00-define-rag-core-v1-legacy-template-boundary.md) | 凍結 legacy v1 template / characterization boundary | 起點 |
-| 00A | [00A-introduce-ai-system-map-v2-compatibility-migration.md](./s0-contract-compatibility/00A-introduce-ai-system-map-v2-compatibility-migration.md) | v1/v2 dual-read + adapter + compatibility gate | 依 `00`；完成後通過 Gate-0 |
+| 00 | [00-define-rag-core-v1-legacy-template-boundary.md](../../../finish/s0-contract-compatibility/00-define-rag-core-v1-legacy-template-boundary.md) | 凍結 legacy v1 template / characterization boundary | 起點 |
+| 00A | [00A-introduce-ai-system-map-v2-compatibility-migration.md](../../../finish/s0-contract-compatibility/00A-introduce-ai-system-map-v2-compatibility-migration.md) | v1/v2 dual-read + adapter + compatibility gate | 依 `00`；完成後通過 Gate-0 |
 
 ### S1 主線 — `s1-pipeline-core/`
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 01 | [01-rework-manual-mapping-capability-candidates.md](./s1-pipeline-core/01-rework-manual-mapping-capability-candidates.md) | Manual mapping；non-baseline capability candidate | 依 `00A` |
-| 01B | [01B-extract-step4-component-bridge-registry.md](./s1-pipeline-core/01B-extract-step4-component-bridge-registry.md) | Step 4 Python component bridge registry；不新增 TOML rule DSL | 依 `00A`, `01` |
-| 01A | [01A-define-ai-system-capability-map-reference-catalog.md](./s1-pipeline-core/01A-define-ai-system-capability-map-reference-catalog.md) | 固定 10-plane / 52-node reference catalog；TOML metadata boundary | 依 `00A`, `01`, `01B` |
-| 02 | [02-implement-stackable-profile-inference.md](./s1-pipeline-core/02-implement-stackable-profile-inference.md) | Step 6 Bridge 2：Stackable profile inference + 五態 assessment policy | 依 `01A`, `01B` |
-| 03 | [03-consolidate-profile-sidecar-lifecycle.md](./s1-pipeline-core/03-consolidate-profile-sidecar-lifecycle.md) | Artifact lifecycle + readiness report | 依 `02` |
-| 03A | [03A-implement-apply-build-lineage-and-local-json-persistence.md](./s1-pipeline-core/03A-implement-apply-build-lineage-and-local-json-persistence.md) | Scan/Build identity、Apply command、local JSON persistence | 依 `01`～`03` |
-| 04 | [04-separate-profile-inference-from-mapping-proposal.md](./s1-pipeline-core/04-separate-profile-inference-from-mapping-proposal.md) | Profile vs mapping 分離 | 依 `03A` |
+| 01 | [01-rework-manual-mapping-capability-candidates.md](../../../finish/s1-pipeline-core/01-rework-manual-mapping-capability-candidates.md) | Manual mapping；non-baseline capability candidate | 依 `00A` |
+| 01B | [01B-extract-step4-component-bridge-registry.md](../../../finish/s1-pipeline-core/01B-extract-step4-component-bridge-registry.md) | Step 4 Python component bridge registry；不新增 TOML rule DSL | 依 `00A`, `01` |
+| 01A | [01A-define-ai-system-capability-map-reference-catalog.md](../../../finish/s1-pipeline-core/01A-define-ai-system-capability-map-reference-catalog.md) | 固定 10-plane / 52-node reference catalog；TOML metadata boundary | 依 `00A`, `01`, `01B` |
+| 02 | [02-implement-stackable-profile-inference.md](../../../finish/s1-pipeline-core/02-implement-stackable-profile-inference.md) | Step 6 Bridge 2：Stackable profile inference + 五態 assessment policy | 依 `01A`, `01B` |
+| 03 | [03-consolidate-profile-sidecar-lifecycle.md](../../../finish/s1-pipeline-core/03-consolidate-profile-sidecar-lifecycle.md) | Artifact lifecycle + readiness report | 依 `02` |
+| 03A | [03A-implement-apply-build-lineage-and-local-json-persistence.md](../../../finish/s1-pipeline-core/03A-implement-apply-build-lineage-and-local-json-persistence.md) | Scan/Build identity、Apply command、local JSON persistence | 依 `01`～`03` |
+| 04 | [04-separate-profile-inference-from-mapping-proposal.md](../../../finish/s1-pipeline-core/04-separate-profile-inference-from-mapping-proposal.md) | Profile vs mapping 分離 | 依 `03A` |
 
 ### S1 Track-A — `s1-track-a-index-projection/`（與主線 `04` 後並行）
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 05 | [05-add-read-only-system-map-index.md](./s1-track-a-index-projection/05-add-read-only-system-map-index.md) | Step 5 read-only SystemMapIndex；不做橋接或對位 | 依 `04` |
-| 06 | [06-deepen-graph-projection-module.md](./s1-track-a-index-projection/06-deepen-graph-projection-module.md) | Step 7 fixed reference map + repo overlay projection | 依 `05`, `02` |
-| 07 | [07-expand-system-map-index-to-shared-lookup-contract.md](./s1-track-a-index-projection/07-expand-system-map-index-to-shared-lookup-contract.md) | Index shared lookup | 依 `06` |
-| 08 | [08-migrate-mapping-consumers-to-system-map-index.md](./s1-track-a-index-projection/08-migrate-mapping-consumers-to-system-map-index.md) | Consumer migration | 依 `07` |
-| 09 | [09-consolidate-legacy-system-map-lookups.md](./s1-track-a-index-projection/09-consolidate-legacy-system-map-lookups.md) | Legacy lookup 收斂 | 依 `08` |
+| 05 | [05-add-read-only-system-map-index.md](../../../finish/s1-track-a-index-projection/05-add-read-only-system-map-index.md) | Step 5 read-only SystemMapIndex；不做橋接或對位 | 依 `04` |
+| 06 | [06-deepen-graph-projection-module.md](../../../finish/s1-track-a-index-projection/06-deepen-graph-projection-module.md) | Step 7 fixed reference map + repo overlay projection | 依 `05`, `02` |
+| 07 | [07-expand-system-map-index-to-shared-lookup-contract.md](../../../finish/s1-track-a-index-projection/07-expand-system-map-index-to-shared-lookup-contract.md) | Index shared lookup | 依 `06` |
+| 08 | [08-migrate-mapping-consumers-to-system-map-index.md](../../../finish/s1-track-a-index-projection/08-migrate-mapping-consumers-to-system-map-index.md) | Consumer migration | 依 `07` |
+| 09 | [09-consolidate-legacy-system-map-lookups.md](../../../finish/s1-track-a-index-projection/09-consolidate-legacy-system-map-lookups.md) | Legacy lookup 收斂 | 依 `08` |
 
 ### S1 Track-B — `s1-track-b-profile-rules/`（與 Track-A `05+` 並行）
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 10 | [10-define-profile-rule-catalog-boundary.md](./s1-track-b-profile-rules/10-define-profile-rule-catalog-boundary.md) | Profile rule catalog 邊界 | 可與 `05`+ 並行 |
-| 11 | [11-migrate-profile-rule-metadata-to-toml-catalog.md](./s1-track-b-profile-rules/11-migrate-profile-rule-metadata-to-toml-catalog.md) | Profile rule TOML metadata | 依 `10` |
+| 10 | [10-define-profile-rule-catalog-boundary.md](../../../finish/s1-track-b-profile-rules/10-define-profile-rule-catalog-boundary.md) | Profile rule catalog 邊界 | 可與 `05`+ 並行 |
+| 11 | [11-migrate-profile-rule-metadata-to-toml-catalog.md](../../../finish/s1-track-b-profile-rules/11-migrate-profile-rule-metadata-to-toml-catalog.md) | Profile rule TOML metadata | 依 `10` |
 
 ### S1 Track-D — `s1-track-d-inventory/`（建議 Plan 16 前完成）
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 19 | [19-add-scan-inventory-rules-toml.md](./s1-track-d-inventory/19-add-scan-inventory-rules-toml.md) | Step 2 executable `scan_inventory_rules.toml`、audit/provenance/digest（已實作） | 無 hard gate |
+| 19 | [19-add-scan-inventory-rules-toml.md](../../../finish/s1-track-d-inventory/19-add-scan-inventory-rules-toml.md) | Step 2 executable `scan_inventory_rules.toml`、audit/provenance/digest（已實作） | 無 hard gate |
 
 ### S1 Track-D Review — `s1-track-d-inventory-review/`（Plan 19 後；不接 UA）
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 20 | [20-add-user-controlled-scan-inventory-selection.md](./s1-track-d-inventory-review/20-add-user-controlled-scan-inventory-selection.md) | Metadata-only preflight、exact-file／bounded recursive-directory per-run selection、frontend decision handoff、final inventory audit；UA deferred | 依 `19`；納入 Gate-1；不實作 UA integration |
+| 20 | [20-add-user-controlled-scan-inventory-selection.md](../../../finish/s1-track-d-inventory-review/20-add-user-controlled-scan-inventory-selection.md) | Metadata-only preflight、exact-file／bounded recursive-directory per-run selection、frontend decision handoff、final inventory audit；UA deferred | 依 `19`；納入 Gate-1；不實作 UA integration |
 
 ### S1 收尾 — `s1-v2-cutover/`
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 13 | [13-retire-legacy-extension-contract.md](./s1-v2-cutover/13-retire-legacy-extension-contract.md) | 00A gate 後 active v2 cutover + extension 退役（backend-complete / frontend-handoff-required） | 需 Gate-0；納入 Gate-1 E2E |
+| 13 | [13-retire-legacy-extension-contract.md](../../../finish/s1-v2-cutover/13-retire-legacy-extension-contract.md) | 00A gate 後 active v2 cutover + extension 退役（done：backend 2026-07-17、frontend handoff `25f2223` 完成，contract test 強制 `migrate` 消費者為 0） | 需 Gate-0；納入 Gate-1 E2E |
 
 ### S2 — `s2-ua-integration/`
 
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
 | 16 | [16-implement-understand-anything-sidecar-service.md](./s2-ua-integration/16-implement-understand-anything-sidecar-service.md) | UA sidecar service、request/result schema、Step 2 enrichment、parity harness | 依 `00A`, `01B`, `03A` 且需 Gate-1 |
-| 16A | [16A-q3-lv2-call-graph-flow-visualization.md](./s2-ua-integration/16A-q3-lv2-call-graph-flow-visualization.md) | Q3 決策：選 Lv2（UA call graph → flow 可視化）；一份 call 資料餵 ①context_flow ②FlowDerivation ③static execution ④frontend ⑤flow 敘事 | 決策紀錄；實作仍依 16／後續 consumer 升級 |
+| 16A | [16A-q3-lv2-call-graph-flow-visualization.md](./s2-ua-integration/16A-q3-lv2-call-graph-flow-visualization.md) | Q3 決策：選 Lv2（UA call graph → flow 可視化）；一份 call 資料餵 ①context_flow ②FlowDerivation ③static execution ④frontend ⑤flow 敘事 | 決策紀錄；實作仍依 16／16C／16D |
 | 16B | [16B-ua-sidecar-io-adapter-reference.md](./s2-ua-integration/16B-ua-sidecar-io-adapter-reference.md) | 技術參考（2026-07-29 查核）：三支 UA script 實測 I/O 與 runtime 需求、Systograph 側接縫錨點、adapter 三條硬規則（四元組對齊／direct 門檻／evidence id 穩定）、open questions | 參考附件；Plan 16 Task 1/3/4/6 實作前先讀 |
+| 16C | [16C-component-attribution-and-edge-derivation.md](./s2-ua-integration/16C-component-attribution-and-edge-derivation.md) | 檔案層→元件層：residence index、L1 call / L2 import / L3 模板降級、relationship TOML | 依 Plan 16 Task 3 + 13.7/13.8；Gate-2 後 |
+| 16D | [16D-call-priority-consumer-cutover.md](./s2-ua-integration/16D-call-priority-consumer-cutover.md) | 消費者改 call 優先：materialization 合併、static execution 同源、profile/G5c、可選關 L3、viewer 煙測 | 依 16C；建議納入 Plan 14 驗證語意 |
+| 16E | [16E-ua-coverage-gaps-and-llm-boundary.md](./s2-ua-integration/16E-ua-coverage-gaps-and-llm-boundary.md) | UA 三個覆蓋缺口（函式外建構／工廠間接／外部 import）根因與確定性解法；LLM 不得進掃描路徑之裁定；證據來源硬化 | 決策 + 參考；**G3 建議先於 Plan 16 adapter 完成**，G1 影響 Plan 18 退役準則 |
+| — | [s2-ua-integration/README.md](./s2-ua-integration/README.md) | 該資料夾的閱讀指南：六份文件索引、依目的的閱讀順序、名詞對照表、review 檢查點 | 入口文件；第一次接觸 S2 先讀 |
 
 ### S3 驗證 — `s3-validation/`
 
@@ -338,7 +342,7 @@ static-trace-plan/
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
 | 18 | [18-retire-systograph-scan-toml-providers-after-parity.md](./s3-retirement/18-retire-systograph-scan-toml-providers-after-parity.md) | Plan 14 parity gate 後退役 Systograph scan TOML providers 主掃描路徑 | 需 Gate-3 |
-| 15 | [15-complete-legacy-v1-retirement-after-compatibility.md](./s3-retirement/15-complete-legacy-v1-retirement-after-compatibility.md) | 相容驗證後完全遷移 / v1 compatibility 退役 | 需 Gate-4 |
+| 15 | [15-complete-legacy-v1-retirement-after-compatibility.md](../../refactor/15-complete-legacy-v1-retirement-after-compatibility.md) | 相容驗證後完全遷移 / v1 compatibility 退役（2026-08-06 已搬至 `refactor/`） | 需 Gate-4 |
 
 ### Deferred — `deferred/`
 
@@ -376,9 +380,11 @@ S1  TOML-primary pipeline（Step 3 = 現有 Systograph scan TOML providers）
 S2  s2-ua-integration/
     16（UA structural primary + TOML parity harness）
     ──[Gate-2: UA structural + snapshot sidecar + fail-closed + parity report]──►
+    16C（檔案→元件邊推導 L1/L2/L3）
+    16D（消費者 call 優先 cutover；可與 14 驗證重疊）
 
 S3  s3-validation/ + s3-retirement/
-    14（含 UA parity；不要求 Plan 17）
+    14（含 UA parity；建議含 16D call-priority 證據；不要求 Plan 17）
     ──[Gate-3: Plan 14 validation + UA parity report]──►
     18（退役 Systograph TOML providers 主掃描路徑）
     ──[Gate-4: Plan 18 通過 + Plan 14 report 已保存]──►
