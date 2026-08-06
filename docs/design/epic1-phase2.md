@@ -206,8 +206,10 @@ Current backend 可確認狀態：
     必須改為 immutable child build。
   - Query Trace 是 explicit runtime endpoint probe，已具備 timeout、egress guard、masking 與
     no map mutation 測試；Phase2 target 要改為 build-scoped transient session overlay。
-  - Viewer API 目前回傳 `ViewerPayload` / `GraphViewModel` for v1；frontend zod types 也以
-    current payload 為主。
+  - Viewer 讀取端已收斂為 build-scoped：回 `MapBuildScopedResponse`（內含
+    `ViewerLoadResult` / `GraphViewModel`）；`ViewerPayload` 已無 HTTP handler 回傳，
+    只剩 session store 內部槽位（清除見 Plan 08）。frontend zod types 仍以 current
+    payload 為主。
 - Current safety：
   - Tests 已覆蓋 secret masking、absolute path rejection、snapshot safety、filesystem provider
     read-only 行為、provider partial failure、cross-platform relative path。
@@ -972,12 +974,13 @@ PostgreSQL / SQLite，只換 adapter，業務層與 API 不改。
 
 ## 16. API/CLI 與 compatibility paths
 
-Current API supports two flows:
+Current API supports exactly one flow:
 
 - Project session: `POST /api/projects/import` → `POST /api/scans` → project-scoped detail scan,
   mapping proposal, manual mappings.
-- There is no second flow. The process-wide demo surface (`POST /api/map/build`,
-  `GET /api/map`, `GET /map`) is retired; every read needs a `project_id` or a `build_id`.
+
+There is no second flow. The process-wide demo surface (`POST /api/map/build`, `GET /api/map`,
+`GET /map`) is retired; every read needs a `project_id` or a `build_id`.
 
 Phase2 primary API surface:
 

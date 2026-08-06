@@ -1,6 +1,7 @@
 # 退役 process-wide `/api/map` demo surface 實作計畫
 
-Status: **Phase B 完成（2026-08-07, commit `f0b9ef5`）；Phase A（FE-2）待前端**
+Status: **Phase B 完成（2026-08-07, commit `f0b9ef5`；fix round 1 見文末註記）；
+Phase A（FE-2）待前端**
 （2026-08-06 起草；GitHub issue #277。使用者決策：整個移除 process-wide
 `/api/map` demo 讀圖路徑，正式讀圖收斂為 build-scoped 端點。
 **Step 0 文件前置已於 2026-08-06 完成**，見下方「已完成的前置」）
@@ -226,15 +227,22 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
   `tests/helpers/`）。註：`/api/map/build` 相關前置由 Plan 03 處理
   → 2026-08-07 完成。實際格局已與上表快照（2026-08-06）不同：
   - `test_map_routes.py`：`test_committed_scan_is_readable_from_process_wide_map_routes`
-    與 `test_map_payload_before_build_is_contract_compatible` 兩案整案刪除
-    （覆蓋改由 404 regression 承接）；`/api/map/report` 四個正向/負向案例全數
-    存活，模組層 `scan_fixture_project()` 前置保留（改為不回傳 payload）。
+    與 `test_map_payload_before_build_is_contract_compatible` 兩案整案刪除。
+    **覆蓋歸屬要分開講**（fix round 1 更正原本「覆蓋由 404 regression 承接」的
+    籠統說法）：兩支端點「不該再回應」由 404 regression 承接；但原測試在
+    `POST /api/scans` 回應與 HTTP 讀取面上的 `viewer_load_result.loaded is True`
+    ＋ `graph_view_model.nodes` 非空這組**正向投影斷言**，404 regression 承接不了，
+    改由下面兩個 mapping 測試的 baseline 正向斷言承接。
+    `/api/map/report` 四個正向/負向案例全數存活，模組層 `scan_fixture_project()`
+    前置保留（改為不回傳 payload）。
   - `test_mapping_proposal_routes.py`：`before`/`after` 改讀
-    `GET /api/projects/{project_id}/map-builds/latest`（該案本來就已 import+scan）。
+    `GET /api/projects/{project_id}/map-builds/latest`（該案本來就已 import+scan），
+    並在比較前補 `loaded is True` ＋ `nodes` 非空的 baseline 斷言。
   - `test_mapping_routes.py`：原 `test_mapping_route_does_not_mutate_current_map_payload`
     沒有任何 build 前置，改為 `test_mapping_route_does_not_mutate_latest_build`，
     先 import+scan 造出 build，並把 mapping 綁到**同一個** project，斷言因此更強
-    （記錄 mapping 不會重建 latest build，只有 Apply 會）。
+    （記錄 mapping 不會重建 latest build，只有 Apply 會）；同樣補上 baseline
+    正向斷言，封掉「latest 退化成 404 時兩個錯誤體相等照樣過」的 vacuity。
   - 前置一律走 `tests/helpers/web_flows.py` 的 `scan_project()`（Plan 01 起
     `POST /api/scans` 必帶 `preflight_request_id`）。
 - [x] **Step 2: 新增 regression：`GET /api/map`、`GET /map` 回 404**
@@ -348,15 +356,30 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
 ### Phase B 契約文件另掃（比照 Plan 03 前例）
 
 - `docs/design/epic1-phase2.md`：四處把 `GET /api/map` 寫成 current demo /
-  compatibility read path（Step 8 Mermaid 的 `S8compat` 節點、§「兩種流程」條目、
+  compatibility read path（Step 8 Mermaid 的 `S8compat` 節點、§16「兩種流程」條目、
   Compatibility rules、Plan regeneration rules），端點消失後全數成為錯誤敘述，
   已一併改為「process-wide 讀取路徑不存在，讀圖一律 project/build-scoped」。
+- **fix round 1 追加**：§16 導言「Current API supports two flows:」未跟上改過的
+  bullet，自相矛盾，已改為 "exactly one flow"（I1）；§7 current gaps 快照的
+  「Viewer API 目前回傳 `ViewerPayload`」已不成立，就地更正為 build-scoped
+  `MapBuildScopedResponse`（M2，其他陳年項不動）。
+- **fix round 1 追加**：`ref-opensource/arch-graph/systograph_flow.md` 的 `[V2]`
+  ASCII 框（`:194`）與 §2.1 散文（`:253`）仍把 `/api/map` → `/map` 畫成 legacy
+  fallback。後端端點已 404 是既成事實，圖上不得再畫成可用路徑，已改為「no
+  fallback，讀取失敗直接呈現錯誤」，並在散文註明 `viewerApi.ts` 尚存的死碼由
+  FE-2 清除（I2）。遵守 arch-graph house 規則：ASCII、框內 English-only、
+  行寬 ≤100（python 驗證）。
+- **fix round 1 追加**：`docs/API-GUIDE.md` Endpoint 總覽的「流程」欄新增取值說明，
+  讓 `process-wide` 這個孤值自解釋，未引入新詞彙體系（M4）。
 
 ### Phase B 未處理但已知的殘留（另案）
 
 - `docs/spec/features/套用確認對應.feature:142` 仍有
   `And 額外的 "GET /api/map" 呼叫次數為 0`。該檔無 runner（repo 沒有 pytest-bdd /
   behave），敘述本身未錯，但端點已不存在、該斷言變空轉，宜由 spec 維護者處理。
+- `docs/design/epic1-phase1.md:519` 仍列 `- \`GET /map\`: load current map graph
+  view model.`（該節寫的是 "conceptual endpoints"）。該檔標頭 `Date: 2026-05-20`，
+  是 dated design snapshot，**屬歷史設計快照，不回溯改寫**（fix round 1 裁定 M3）。
 
 ## 風險
 

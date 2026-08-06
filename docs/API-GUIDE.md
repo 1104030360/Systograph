@@ -67,6 +67,10 @@
 | POST | `/api/map-builds/{build_id}/detail-scans` | build | **[phase2-later]** | 2 |
 | POST | `/api/map-builds/{build_id}/trace` | build | **[phase2-later]** | 2 |
 
+「流程」欄的取值：`project` 需要 `project_id`、`build` 需要 `build_id`（或 project latest
+指標）、`process-wide` 不帶任何 id，讀的是本 process 最新一次成功 build。目前只有
+`GET /api/map/report` 還是 `process-wide`，接上 build-scoped 由 issue #219 處理。
+
 ## 快速開始
 
 ```bash

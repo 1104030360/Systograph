@@ -191,7 +191,7 @@ no web equivalent:  the HTTP build entry is POST /api/scans (project-scoped, com
 │ GET /api/projects/{project_id}/map-builds/latest        (primary read)                 │
 │   pinned historical build -> GET /api/map-builds/{build_id}                            │
 │   build list             -> GET /api/projects/{project_id}/map-builds                  │
-│ on failure ┄┄▶ GET /api/map ┄┄▶ GET /map      (legacy / demo fallback only)            │
+│ no fallback: GET /api/map and GET /map are retired (404); read failure is an error     │
 │ the viewer NEVER opens ai_system_map.json from disk                                    │
 └────────────────────────────────────────────────────────────────────────────────────────┘
      │
@@ -250,8 +250,10 @@ no web equivalent:  the HTTP build entry is POST /api/scans (project-scoped, com
 
 1. **前端沒有磁碟路徑**：viewer 不開啟 `ai_system_map.json`。主讀取是
    `GET /api/projects/{project_id}/map-builds/latest`，pinned 歷史 build 走
-   `GET /api/map-builds/{build_id}`，只有在專案流程不可用時才退回 `GET /api/map` → `GET /map`
-   這條 legacy / demo fallback。回應本身不含 `output_run_dir` 或任何 `*_path`。
+   `GET /api/map-builds/{build_id}`。**沒有 fallback**——process-wide 的 `GET /api/map` 與
+   `GET /map` 已退役（回 404），讀取失敗直接呈現錯誤，不再靜默降級。
+   （`frontend/src/services/viewerApi.ts` 仍留著呼叫這兩支的死碼，由 FE-2 清除。）
+   回應本身不含 `output_run_dir` 或任何 `*_path`。
 2. **契約層是硬閘口**：`contracts/viewer.ts` 用 zod 檢查 `graph-view-model/v1` /
    `ai-system-map/v2` 字面值、assessments 必須剛好 52 筆、profiles 必須剛好 15 筆，
    並用 superRefine 驗身分一致（`generated_from_build_id === build_id`、sidecar 對齊）。

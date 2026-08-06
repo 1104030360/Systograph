@@ -90,6 +90,10 @@ def test_mapping_route_does_not_mutate_latest_build(tmp_path: Path) -> None:
     scan_project(client, project_id, output=str(tmp_path / "outputs"))
     latest_url = f"/api/projects/{project_id}/map-builds/latest"
     before = client.get(latest_url).json()
+    # Pin the baseline as a real projection: without this, a latest that
+    # degraded to 404 would make both sides equal error bodies and pass.
+    assert before["viewer_load_result"]["loaded"] is True
+    assert before["viewer_load_result"]["graph_view_model"]["nodes"]
 
     response = client.post(
         "/api/mappings",

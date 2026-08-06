@@ -259,7 +259,8 @@ class GraphViewModel(ViewerModel):
 # 被誰用：
 #   - ViewerSessionService.load_map / build_loaded / build_canonical / empty
 #   - MapBuildResult.viewer_load_result
-#   - 再包進 ViewerPayload 給 API
+#   - Web API 直接回它（MapBuildScopedResponse.viewer_load_result），
+#     不再外包一層 ViewerPayload
 # 內含：ai_system_map（dict）+ graph_view_model；loaded=False 時有
 # error_reason。
 # 注意：graph_view_model 一律投影自 canonical v2；ai_system_map 帶的是
