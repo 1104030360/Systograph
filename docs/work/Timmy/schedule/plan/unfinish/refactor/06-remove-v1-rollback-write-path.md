@@ -1,6 +1,6 @@
 # 移除 legacy v1 rollback 寫入路徑實作計畫
 
-Status: **done**（2026-08-07 完成，commit `待回填`；2026-08-06 起草；umbrella
+Status: **done**（2026-08-07 完成，commit `7b091ac`；2026-08-06 起草；umbrella
 issue #277。由 Plan 15 Task 2「移除 v1 write path」抽出獨立執行——見下方
 「Gate 判定」對偏離 Plan 15 統一 gate 的說明）
 
