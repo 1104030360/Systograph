@@ -10,7 +10,6 @@ from systograph.core.models.viewer import (
     GraphNodeModel,
     GraphViewModel,
     ViewerLoadResult,
-    ViewerPayload,
 )
 
 __all__ = [
@@ -21,5 +20,4 @@ __all__ = [
     "GraphNodeModel",
     "GraphViewModel",
     "ViewerLoadResult",
-    "ViewerPayload",
 ]

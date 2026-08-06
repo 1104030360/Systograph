@@ -1,7 +1,17 @@
 # 移除 `_latest_viewer_payload` 旁路槽與 `ViewerPayload` 型別實作計畫
 
-Status: **planned**（2026-08-06 起草；GitHub issue #277。**Gate：Plan 02 與
-Plan 05 都完成後才可執行**——在那之前 `ViewerPayload` 仍有活的消費者）
+Status: **done**（2026-08-06 起草；GitHub issue #277；2026-08-07 實作完成
+@ commit `<backfill>`。Gate 已於執行前確認滿足：Plan 02 Phase B
+（commit `f0b9ef5`）與 Plan 05（commit `b31cf4e`）都已完成）
+
+> **2026-08-07 完成紀錄**：Task 0–5 全數執行。`ViewerPayload` 型別、兩個
+> re-export、`SessionStore` Protocol 與兩個實作的 `save_viewer_payload` /
+> `latest_viewer_payload` / `_latest_viewer_payload` 槽、`save_build_result`
+> 內的兩處 re-wrap 行皆已移除。驗收 grep
+> （`ViewerPayload` in `src/systograph`）零命中。
+> `uv run pytest` 1138 passed / 1 skipped（與基線一致）、ruff check +
+> format --check、`mypy src tests`（329 files）、`pnpm test`
+> （35 files / 160 tests）全綠。範圍追加見下方「2026-08-07 範圍追加」。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (recommended) or
@@ -62,17 +72,42 @@ demo 端點的 response 包裝層；Plan 02（`GET /api/map`、`GET /map`）與 
 | `ViewerLoadResult` / `graph_view_model` | 正式 build-scoped 回應主體 |
 | `MapBuildResult` / `save_build_result` 本身 | 只刪其中的 re-wrap 行，方法本體是正式路徑 |
 | `save_committed_build_projection` | 正式 scan / apply / detail scan 都在用 |
-| `ViewerSessionService` | `PersistentSessionStore` 的 `projection_service` |
+| `ViewerSessionService` 類別 | `BuildArtifactPublisher` / `BuildManifestService` / `MapBuildService` / CLI `validate-map` 仍持有（**不是**因為 session store——見下方範圍追加） |
+| `app.state.viewer_session_service` 與 `create_app(viewer_session_service=...)` | 保留 app 層 DI 槽與其注入點 |
 | 前端 `frontend/src/types.ts` 的 `ViewerPayload` TS 型別 | **同名不同物**——前端內部正規化型別，與 backend 無關，零改動 |
+
+## 2026-08-07 範圍追加：死接線清除
+
+旁路槽移除後，「兩個 store 持有 `ViewerSessionService`」這條接線的**唯一用途
+隨之消失**——它只被用來在 `__init__` 產生一份空 payload 當 seed
+（`projection_service.empty()` → `ViewerPayload(...)`）。槽位一走，該參數就是
+純死碼，故一併移除：
+
+- `InMemorySessionStore.__init__` 的 `projection_service` 參數與
+  `self._projection_service`（移除後 `__init__` 已無參數）。
+- `PersistentSessionStore.__init__` 的 `projection_service` 參數與
+  `self._projection`。
+- `session_store.py` 對 `ViewerSessionService` 的 import。
+- `web/app.py` 建構 `PersistentSessionStore` 時的
+  `projection_service=app.state.viewer_session_service` 注入。
+
+**保留**：`ViewerSessionService` 類別本身（`BuildArtifactPublisher`、
+`BuildManifestService`、`MapBuildService`、CLI `validate-map` 仍持有）、
+`app.state.viewer_session_service` 與 `create_app` 的
+`viewer_session_service` 參數（app 層 DI 槽與其唯一注入點，成對保留）。
+
+連帶的註解同步（2b review M1）：`core/services/viewer_session_service.py`
+檔頭「被誰用」原本列了 `PersistentSessionStore（projection_service）`，
+死接線移除後已改寫，反映兩個 store 不再使用它的新現實。
 
 ---
 
 ## Task 0: 前置確認
 
-- [ ] **Step 1: 確認 Plan 02 已完成**（`GET /api/map`、`GET /map` 回 404）
-- [ ] **Step 2: 確認 Plan 05 已完成**（`POST /api/viewer/load` 回 404，
+- [x] **Step 1: 確認 Plan 02 已完成**（`GET /api/map`、`GET /map` 回 404）
+- [x] **Step 2: 確認 Plan 05 已完成**（`POST /api/viewer/load` 回 404，
   `viewer_routes.py` 已刪）
-- [ ] **Step 3: `grep -rn "ViewerPayload" src/systograph --include="*.py"`
+- [x] **Step 3: `grep -rn "ViewerPayload" src/systograph --include="*.py"`
   確認殘餘只剩本計畫列出的位置**（定義、re-export、session 槽、註解）；
   若出現新的活消費者，**停止並重新評估**
 
@@ -81,14 +116,14 @@ demo 端點的 response 包裝層；Plan 02（`GET /api/map`、`GET /map`）與 
 **Files:**
 - Modify: `src/systograph/web/session_store.py`
 
-- [ ] **Step 1: `SessionStore` Protocol 移除 `save_viewer_payload`(`:46`)
+- [x] **Step 1: `SessionStore` Protocol 移除 `save_viewer_payload`(`:46`)
   與 `latest_viewer_payload`(`:48`)**
-- [ ] **Step 2: `InMemorySessionStore` 移除 `_latest_viewer_payload`
+- [x] **Step 2: `InMemorySessionStore` 移除 `_latest_viewer_payload`
   欄位(`:84`)、兩個方法(`:122,125`)，以及 `save_build_result` 內的 re-wrap
   行(`:117-120`)**
-- [ ] **Step 3: `PersistentSessionStore` 同上**——欄位(`:149`)、
+- [x] **Step 3: `PersistentSessionStore` 同上**——欄位(`:149`)、
   兩個方法(`:195,198`)、re-wrap 行(`:190-193`)
-- [ ] **Step 4: 移除該檔對 `ViewerPayload` 的 import(`:14`)**
+- [x] **Step 4: 移除該檔對 `ViewerPayload` 的 import(`:14`)**
 
 > 注意 `PersistentSessionStore.latest_viewer_payload`(`:198-202`)有一段
 > 「先從 `latest_build_result` 導出、拿不到才用記憶體槽」的 fallback 邏輯，
@@ -101,44 +136,64 @@ demo 端點的 response 包裝層；Plan 02（`GET /api/map`、`GET /map`）與 
 - Modify: `src/systograph/core/models/graph_view.py`
 - Modify: `src/systograph/web/schemas.py`
 
-- [ ] **Step 1: 刪除 `core/models/viewer.py:274-281` 的 `ViewerPayload`
+- [x] **Step 1: 刪除 `core/models/viewer.py:274-281` 的 `ViewerPayload`
   class 與其上方註解區塊**（註解區塊無 `ViewerPayload` 字面，驗收的 grep
   抓不到，留著會變孤兒）
-- [ ] **Step 2: 刪除 `core/models/graph_view.py:13` import 與 `:24` `__all__`
+- [x] **Step 2: 刪除 `core/models/graph_view.py:13` import 與 `:24` `__all__`
   條目**
-- [ ] **Step 3: `web/schemas.py:40` import 改為只留 `ViewerLoadResult`；
+- [x] **Step 3: `web/schemas.py:40` import 改為只留 `ViewerLoadResult`；
   刪除 `:431` `__all__` 條目**
-- [ ] **Step 4: `uv run mypy src tests` 確認無殘留參照**
+- [x] **Step 4: `uv run mypy src tests` 確認無殘留參照**
 
 ## Task 3: 更新檔頭呼叫鏈註解
 
 `core/models/viewer.py` 檔頭記載的鏈路在本計畫後不再成立。
 
-- [ ] **Step 1: `:9`「→ 包成 ViewerLoadResult → ViewerPayload」改為止於
+- [x] **Step 1: `:9`「→ 包成 ViewerLoadResult → ViewerPayload」改為止於
   `ViewerLoadResult`**
-- [ ] **Step 2: `:10`「Web：POST /api/viewer/load → ViewerPayload」移除**
+- [x] **Step 2: `:10`「Web：POST /api/viewer/load → ViewerPayload」移除**
   （Plan 05 Task 2 可能已處理，確認後補齊）
-- [ ] **Step 3: `:261`「再包進 ViewerPayload 給 API」改寫為 build-scoped
+- [x] **Step 3: `:261`「再包進 ViewerPayload 給 API」改寫為 build-scoped
   回應路徑**
+
+> **執行註記**：Step 2 的 `:10` 確認 Plan 05 已處理完畢（現況 `:10-11` 已是
+> 「CLI validate-map → ViewerLoadResult」／「Web: build-scoped 讀取端點回
+> ViewerLoadResult；process-wide 讀圖已退役」），本計畫零改動。
 
 ## Task 4: 測試
 
-- [ ] **Step 1: 移除或改寫引用 `save_viewer_payload` /
+- [x] **Step 1: 移除或改寫引用 `save_viewer_payload` /
   `latest_viewer_payload` / `ViewerPayload` 的測試**
   （執行時 `grep -rn` 取得清單；Plan 02/05 完成後殘餘應該很少）
-- [ ] **Step 2: `tests/web/test_trace_routes.py` 使用 `InMemorySessionStore`，
+- [x] **Step 2: `tests/web/test_trace_routes.py` 使用 `InMemorySessionStore`，
   確認移除方法後仍可建構**
-- [ ] **Step 3: `uv run pytest`、`ruff check`、`ruff format --check`、
+- [x] **Step 3: `uv run pytest`、`ruff check`、`ruff format --check`、
   `mypy src tests` 全綠**
-- [ ] **Step 4: `pnpm test`**——前端不應受影響（同名 TS 型別無關），
+- [x] **Step 4: `pnpm test`**——前端不應受影響（同名 TS 型別無關），
   跑一次確認
+
+> **執行註記**：Step 1 的 grep（`ViewerPayload|save_viewer_payload|
+> latest_viewer_payload` 於 `tests/`）**零命中**，無測試需要移除或改寫——
+> Plan 02/05 已把相關測試一併帶走。Step 2 的 `test_trace_routes.py` 三處都是
+> 無參數 `InMemorySessionStore()`，`__init__` 收斂為無參數後照常建構。
+> 本計畫是死碼清除、無新行為，安全網取「刪除前後全套測試不變」：
+> 1138 passed / 1 skipped，與基線逐項一致。
 
 ## Task 5: 契約與 census
 
-- [ ] **Step 1: 全文 grep `ViewerPayload` 於 `docs/`——
+- [x] **Step 1: 全文 grep `ViewerPayload` 於 `docs/`——
   若 `docs/MODEL-CONTRACT.md` 或 `docs/API-GUIDE.md` 有描述該包裝層，更新之**
   （現行敘述多以 `viewer_load_result` 為主，預期改動很少）
-- [ ] **Step 2: 確認 `tests/contracts/` 無因型別消失而需同步的記錄**
+- [x] **Step 2: 確認 `tests/contracts/` 無因型別消失而需同步的記錄**
+
+> **執行註記**：`docs/MODEL-CONTRACT.md`、`docs/API-GUIDE.md`、
+> `frontend/API_CONTRACT.md` 三份契約文件 grep `ViewerPayload` 皆**零命中**，
+> 無需改動。`docs/` 其餘命中全在歷史計畫／報告／handoff 快照（描述當時狀態，
+> 不是現況宣稱），保留不動；唯一例外是 `docs/design/epic1-phase2.md` 的
+> 「Current viewer」段落原本寫「`ViewerPayload` ⋯只剩 session store 內部槽位
+> （清除見 Plan 08）」——那是現況宣稱且已被本計畫作廢，改為「backend 的
+> `ViewerPayload` 包裝層與 session store 旁路槽已於 Plan 08 移除」。
+> `tests/contracts/` 無任何 `ViewerPayload` 記錄，確認無需同步。
 
 ---
 

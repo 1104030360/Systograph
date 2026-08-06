@@ -6,7 +6,7 @@
 #   ViewerSessionService.load_map / build_canonical、BuildManifestService.load
 #     → ViewerSessionService.build_loaded（唯一投影出口）
 #     → GraphProjectionService.project(AiSystemMapV2) → GraphViewModel
-#     → 包成 ViewerLoadResult（ViewerPayload 只剩 session slot 用）
+#     → 包成 ViewerLoadResult
 #   CLI: systograph validate-map → ViewerLoadResult
 #   Web: build-scoped 讀取端點回 ViewerLoadResult；process-wide 讀圖已退役
 #   MapBuildResult.viewer_load_result 也會帶一份
@@ -259,8 +259,8 @@ class GraphViewModel(ViewerModel):
 # 被誰用：
 #   - ViewerSessionService.load_map / build_loaded / build_canonical / empty
 #   - MapBuildResult.viewer_load_result
-#   - Web API 直接回它（MapBuildScopedResponse.viewer_load_result），
-#     不再外包一層 ViewerPayload
+#   - Web API build-scoped 讀取端點直接回它
+#     （MapBuildScopedResponse.viewer_load_result），沒有額外包裝層
 # 內含：ai_system_map（dict）+ graph_view_model；loaded=False 時有
 # error_reason。
 # 注意：graph_view_model 一律投影自 canonical v2；ai_system_map 帶的是
@@ -271,11 +271,3 @@ class ViewerLoadResult(ViewerModel):
     map_json: str | None = None
     ai_system_map: dict[str, Any]
     graph_view_model: GraphViewModel
-
-
-# 做什麼：session store 內部的 viewer 包裝（目前就一個 load result）。
-# 被誰用：只剩 SessionStore 的 viewer payload slot——沒有 HTTP handler 回它。
-#         槽位本身的清除見 Plan 08。
-# 內含：viewer_load_result → ViewerLoadResult。
-class ViewerPayload(ViewerModel):
-    viewer_load_result: ViewerLoadResult

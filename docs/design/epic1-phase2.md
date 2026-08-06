@@ -207,8 +207,8 @@ Current backend 可確認狀態：
   - Query Trace 是 explicit runtime endpoint probe，已具備 timeout、egress guard、masking 與
     no map mutation 測試；Phase2 target 要改為 build-scoped transient session overlay。
   - Viewer 讀取端已收斂為 build-scoped：回 `MapBuildScopedResponse`（內含
-    `ViewerLoadResult` / `GraphViewModel`）；`ViewerPayload` 已無 HTTP handler 回傳，
-    只剩 session store 內部槽位（清除見 Plan 08）。frontend zod types 仍以 current
+    `ViewerLoadResult` / `GraphViewModel`）；backend 的 `ViewerPayload` 包裝層與
+    session store 旁路槽已於 Plan 08 移除。frontend zod types 仍以 current
     payload 為主。
 - Current safety：
   - Tests 已覆蓋 secret masking、absolute path rejection、snapshot safety、filesystem provider

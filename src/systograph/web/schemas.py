@@ -36,7 +36,7 @@ from systograph.core.models.scan_boundary import (
     ScanBoundaryProposal,
 )
 from systograph.core.models.system_map import DetailScanResult
-from systograph.core.models.viewer import ViewerLoadResult, ViewerPayload
+from systograph.core.models.viewer import ViewerLoadResult
 
 
 class WebSchema(BaseModel):
@@ -401,5 +401,4 @@ __all__ = [
     "ScanCreateResponse",
     "ScanProgressEvent",
     "TraceCreateRequest",
-    "ViewerPayload",
 ]

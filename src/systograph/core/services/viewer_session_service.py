@@ -53,7 +53,7 @@ from systograph.core.services.viewer_legacy_compatibility import (
 
 # 做什麼：Viewer session 服務；讀 map、正規化、呼叫 graph projection。
 # 被誰用：BuildArtifactPublisher、BuildManifestService、MapBuild 相關、
-# PersistentSessionStore（projection_service）、CLI validate-map。
+# CLI validate-map。session store 兩個實作已不再持有它（Plan 08 旁路槽移除）。
 # 自己呼叫：CanonicalMapLoader、GraphProjectionService。
 class ViewerSessionService:
     """Convert validated canonical maps into frontend graph payloads."""

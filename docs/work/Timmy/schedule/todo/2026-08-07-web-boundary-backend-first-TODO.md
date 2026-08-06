@@ -120,8 +120,18 @@ Plan 07 的前置基礎，收尾時逐項複驗不得回退。
     無covering test（service 層有）；`docs/spec/features/套用確認對應
     .feature:142` 的「GET /api/map 呼叫次數為 0」成為空轉斷言（repo 無
     BDD runner，不紅不錯，Stage 5 sweep 裁量）
-- [ ] **2e Plan 08**：Task 0 gate 確認 → 刪 session 旁路槽（Protocol + 兩個
-  實作）→ 刪 `ViewerPayload` 型別與 re-export → 檔頭註解 → grep 零命中
+- [x] **2e Plan 08**：✅ 完成（commit `<backfill>`）。Task 0 gate 確認
+  （02＝`f0b9ef5`、05＝`b31cf4e`）→ 刪 session 旁路槽（Protocol + 兩個實作
+  的欄位／兩方法／兩處 re-wrap 行）→ 刪 `ViewerPayload` 型別與兩個 re-export
+  → 檔頭註解三檔 → 驗收 grep 零命中。追加的 `projection_service` 死接線清除
+  （兩個 store 建構參數、`session_store.py` 的 `ViewerSessionService` import、
+  `app.py` 注入）一併落地。測試 1138 passed / 1 skipped（與 2d 基線逐項一致，
+  死碼清除無新測試）。
+  - 死碼清除無紅測試可寫，安全網取「刪除前後全套測試不變」；`tests/` grep
+    三個符號零命中，無測試需改寫。
+  - 已知殘留（記錄）：`app.state.viewer_session_service` 在注入移除後
+    **repo 內零讀取者**（僅剩 `create_app` 參數注入它）。依裁定保留 app 層
+    DI 槽，但它已是下一個候選死槽 → Stage 5 sweep 裁量。
 - 驗收：四個端點回 404 有 regression 鎖住；正式路徑行為不變；全套測試綠
 
 ### Stage 3：Legacy 清理與語意收斂

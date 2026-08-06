@@ -238,7 +238,6 @@ def create_app(
     app.state.session_store = session_store or PersistentSessionStore(
         repository=repository,
         manifest_service=manifest_service,
-        projection_service=app.state.viewer_session_service,
     )
     origins = tuple(allowed_origins or DEFAULT_ALLOWED_ORIGINS)
     app.add_middleware(SafeUnhandledExceptionMiddleware)
