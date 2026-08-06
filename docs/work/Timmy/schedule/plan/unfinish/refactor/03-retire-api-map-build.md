@@ -2,7 +2,7 @@
 
 Status: **done**（2026-08-06 起草；GitHub issue #277。從
 `02-retire-process-wide-api-map.md` 拆出獨立執行——本端點**沒有任何前端依賴**，
-不需要等前端工作，可立即動工；2026-08-07 實作完成 @ commit `<pending>`）
+不需要等前端工作，可立即動工；2026-08-07 實作完成 @ commit `f15d4ea`）
 
 > **2026-08-07 完成紀錄**：Task 1–4 全數執行。`POST /api/map/build` handler、
 > `MapBuildApiRequest`、`scripts/trace_map_build.sh` 與 `trace_all.sh` 該列皆已移除；
