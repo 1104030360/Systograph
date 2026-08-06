@@ -5,8 +5,8 @@
 # Output : text/markdown report body (the latest controlled map markdown).
 #          404 map_markdown_not_available when no successful build exists.
 #
-# A successful build must exist first, so this script builds a map before
-# fetching the report (unless --no-setup is passed).
+# A successful build must exist first, so this script scans a project
+# (import -> scans) before fetching the report (unless --no-setup is passed).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,10 +25,10 @@ Usage:
 
 Options:
   --download              Request the attachment variant (?download=true).
-  --no-setup              Do not build a map first (expect 404 if none exists).
+  --no-setup              Do not scan first (expect 404 if no build exists).
   --start-server          Start a local FastAPI server for this run, stop on exit.
   --api-base-url URL      Backend base URL. Default: http://127.0.0.1:8000
-  --project-path PATH     Project to build before reading the report.
+  --project-path PATH     Project to scan before reading the report.
   --output DIR            Scan output dir. Default: outputs
   -h, --help              Show this help.
 USAGE

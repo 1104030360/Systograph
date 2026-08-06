@@ -1,8 +1,9 @@
 """Read routes for the process-wide latest viewer payload and report.
 
-Building is not exposed here: the HTTP build entry point is the project
-session flow (`POST /api/projects/import` -> `POST /api/scans`), and CLI
-`systograph map` covers the one-shot scan-a-path case.
+Building is not exposed here. Scanning a project into a new map goes
+through the project session flow (`POST /api/projects/import` ->
+`POST /api/scans`); detail scan and apply build on top of an existing
+scan. CLI `systograph map` covers the one-shot scan-a-path case.
 """
 
 from __future__ import annotations

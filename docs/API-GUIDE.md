@@ -344,7 +344,7 @@ data: {"event":"scan_progress","status":"completed","stage":"validate","message"
 | Response wrapper | `MapBuildScopedResponse` + legacy `ViewerLoadResult` | richer Graph projection + safe refs |
 | Persistence | project/scan/build/mapping local JSON repositories | 可替換 database adapter |
 | Identity | persisted `scan_id` + `build_id` | 同左 |
-| Artifacts | build-scoped response 不回 path；demo 保留 `*_path` | safe `artifact_refs` |
+| Artifacts | 兩邊都不回 path：build-scoped response 不回，demo 讀取面（`ViewerLoadResult`）本來就只回內容不回路徑；`*_path` 欄位隨 `POST /api/map/build` 一同退役 | safe `artifact_refs` |
 
 Phase2 primary endpoints（完整 surface，對齊 `epic1-phase2.md` §16）：
 

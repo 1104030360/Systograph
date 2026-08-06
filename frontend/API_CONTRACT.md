@@ -73,7 +73,7 @@ The frontend treats `graph_view_model` as the rendering input. It does not resca
 
 ## Project-Scoped Scan Flow
 
-The API mode can start a scan from a local project path. The frontend first imports the project path, then starts a scan with the returned project id. This is the only HTTP path that builds a map.
+The API mode can start a scan from a local project path. The frontend first imports the project path, then starts a scan with the returned project id. This is the only HTTP path that scans a project from scratch. `POST /api/detail-scans` and `POST /api/map-builds/{base_build_id}/apply` also mint new build ids, but both work inside an existing `scan_id` rather than starting a new scan.
 
 ```http
 POST /api/projects/import

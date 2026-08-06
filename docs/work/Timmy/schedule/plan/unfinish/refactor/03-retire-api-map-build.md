@@ -92,8 +92,8 @@ fallback 依賴，屬 Plan 02 範圍）。
 - [x] **Step 3: 刪除 `scripts/trace_map_build.sh`**
 - [x] **Step 4: 從 `trace_all.sh:55` 移除
   `"POST /api/map/build|trace_map_build.sh"` 該列**
-- [x] **Step 5: `scripts/trace_all.sh` 端到端跑過一次確認全綠**——
-  19 支跑完 11 PASS / 8 FAIL。改動過的 `trace_map_report.sh` 單跑 PASS
+- [x] **Step 5: `scripts/trace_all.sh` 端到端跑過一次；既知 mapping 類缺陷
+  除外全 PASS**——19 支跑完 11 PASS / 8 FAIL。改動過的 `trace_map_report.sh` 單跑 PASS
   （HTTP 200 + `text/markdown`）。8 支 FAIL 全在 mapping／detail-scan 群，
   失敗點是 helper 的 `components_by_slot | keys[0]` 打到 null
   （`jq: error ... null (null) has no keys`），**既有缺陷、與本計畫無關**：
