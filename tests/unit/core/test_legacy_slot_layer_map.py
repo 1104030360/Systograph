@@ -4,8 +4,12 @@ import importlib
 
 from systograph.core.services.legacy_slot_layer_map import SLOT_LAYER_BY_ID
 
-CONSUMER_MODULES = (
-    "systograph.core.services.system_map_v1_to_v2_adapter",
+# The mapping is migration-only: the v1 -> v2 adapter is its sole
+# consumer. The active v2 normalize path derives `layer` from
+# canonical_type via CanonicalTypePlaneResolver and must never read this
+# table again -- that retirement is asserted below.
+CONSUMER_MODULES = ("systograph.core.services.system_map_v1_to_v2_adapter",)
+RETIRED_CONSUMER_MODULES = (
     "systograph.core.services.system_map_v2_normalize_service",
 )
 
@@ -14,16 +18,25 @@ def _bound_mapping(module_name: str) -> object:
     # Runtime reflection on purpose: the consumers only import the name,
     # so mypy strict (no implicit re-export) rightly refuses a direct
     # `from <consumer> import SLOT_LAYER_BY_ID` here.
-    return vars(importlib.import_module(module_name))["SLOT_LAYER_BY_ID"]
+    return vars(importlib.import_module(module_name)).get("SLOT_LAYER_BY_ID")
 
 
 def test_slot_layer_map_has_one_shared_source() -> None:
-    """The v1 adapter and the v2 normalize service must bind the very
-    same mapping object, so v1/v2 layer equivalence no longer depends on
-    two copies happening to stay identical.
+    """The v1 adapter binds the very same mapping object this module
+    owns, so the migration path's layer values keep a single source.
     """
     for module_name in CONSUMER_MODULES:
         assert _bound_mapping(module_name) is SLOT_LAYER_BY_ID
+
+
+def test_active_v2_path_no_longer_imports_the_slot_layer_map() -> None:
+    """Given the projection plane now comes from canonical_type,
+    When the active v2 normalize module is imported,
+    Then it binds no reference to the legacy slot -> layer table, so a
+    mis-filed slot cannot reach the plane through a back door.
+    """
+    for module_name in RETIRED_CONSUMER_MODULES:
+        assert _bound_mapping(module_name) is None
 
 
 def test_slot_layer_map_covers_the_legacy_thirteen_slots() -> None:

@@ -1,3 +1,20 @@
+# 這個檔案負責：把掃描階段的中間結果（ProjectScanResult /
+# ComponentDetectionResult / Endpoint / Flow / RiskHint /
+# RecommendedNextCheck）組裝成正規化的 AiSystemMapV2 canonical truth。
+# 純轉換、無 I/O；不做偵測也不做評估。
+#
+# layer 來源：`components[].layer`（投影時的 GraphViewModel.plane_id）
+# 由 CanonicalTypePlaneResolver 從 canonical_type 推導
+# （canonical_type → capability node → node.plane_id），不再查
+# legacy slot→layer 表；slot 只留在 metadata.legacy_slot 當標籤。
+# 查不到的 type 落 "undetermined"。
+#
+# 呼叫鏈：
+#   MapBuildService / MapBuildPipeline
+#     → SystemMapV2NormalizeService.assemble()
+#         → CanonicalTypePlaneResolver.plane_for(instance.kind)
+#         → canonical_evidence_from_scan()
+#         → AiSystemMapV2
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -25,13 +42,22 @@ from systograph.core.models.system_map import Endpoint, Flow, RiskHint
 from systograph.core.services.canonical_evidence_service import (
     canonical_evidence_from_scan,
 )
+from systograph.core.services.canonical_type_plane_map import (
+    CanonicalTypePlaneResolver,
+)
 from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
 )
-from systograph.core.services.legacy_slot_layer_map import SLOT_LAYER_BY_ID
 
 
 class SystemMapV2NormalizeService:
+    def __init__(
+        self,
+        *,
+        plane_resolver: CanonicalTypePlaneResolver | None = None,
+    ) -> None:
+        self._plane_resolver = plane_resolver or CanonicalTypePlaneResolver()
+
     def assemble(
         self,
         *,
@@ -105,8 +131,8 @@ class SystemMapV2NormalizeService:
             ],
         )
 
-    @staticmethod
     def _components(
+        self,
         detected: ComponentDetectionResult,
     ) -> list[CanonicalComponent]:
         result: list[CanonicalComponent] = []
@@ -118,7 +144,7 @@ class SystemMapV2NormalizeService:
                         component_id=instance.id,
                         display_name=instance.name,
                         canonical_type=instance.kind,
-                        layer=SLOT_LAYER_BY_ID.get(slot.slot, "undetermined"),
+                        layer=self._plane_resolver.plane_for(instance.kind),
                         status=cast(DetectionStatus, slot.status),
                         activation=_activation(slot.status),
                         evidence_ids=sorted(instance.evidence_ids),

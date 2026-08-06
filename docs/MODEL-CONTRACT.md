@@ -302,13 +302,36 @@ Plan 13 已切換的 active public contract；正常 CLI/API build 只能產生 
 | `system_type` | `"ai_system"` |
 | `scan_id` / `build_id` / `environment_id` / `artifact_set_version` / `generated_from_build_id` | scope + lineage |
 | `project` | 專案 metadata |
-| `components[]` | `component_id`, `display_name`, `canonical_type`, `layer`, `status`, `activation`, `evidence_ids`, `metadata` |
+| `components[]` | `component_id`, `display_name`, `canonical_type`, `layer`, `status`, `activation`, `evidence_ids`, `metadata`；`layer` 的推導見 §5.1.1 |
 | `edges[]` | `edge_id`, `source`, `target`, `relationship`, `status`, `evidence_ids` |
 | `evidence[]` | canonical evidence refs |
 | `endpoints[]` | API entrypoints |
 | `risk_hints[]` | risk hints |
 | `unmapped_components[]` | 待使用者決策的 ambiguous components |
 | `recommended_next_checks[]` | deterministic scan-fact checks；見 §5.3 |
+
+### 5.1.1 `components[].layer` 的來源（type-driven，非 slot）
+
+`layer` 是 repo component 的**投影平面**：`GraphProjectionService` 直接把
+`component.layer` 當成 `GraphNodeModel.plane_id`（subtitle 同源），所以這個欄位
+決定元件畫在 viewer 的哪一帶。
+
+推導鏈（`CanonicalTypePlaneResolver`，由 `SystemMapV2NormalizeService` 呼叫）：
+
+```text
+component.canonical_type
+  → capability_type_node_map.toml  [canonical_type_nodes]
+  → primary capability node（陣列第一個元素）
+  → 該 node 在 52-node catalog 的 plane_id
+```
+
+| 規則 | 說明 |
+|------|------|
+| 值域 | 10 個 canonical plane id + `undetermined`；與 §4.2 的 plane 表同一組值 |
+| **primary node** | 一個 type 可對到多個 node（`api_input = ["user_input", "api_server"]`），**陣列第一個 node 決定平面**。順序即語意：重排 `capability_type_node_map.toml` 的陣列會移動元件帶位。Step 6 assessment 仍消費整個陣列，不受順序影響 |
+| **fallback** | `canonical_type` 不在表裡 → `"undetermined"`。manual mapping 的 `component_kind` 是自由文字，未列出的 type 會顯性落在 undetermined 帶，**不得**改回查 slot |
+| slot 的角色 | legacy `rag-core-v1` slot **對投影平面已無任何影響**，只留在 `metadata.legacy_slot`（graph node id slug、`GraphNodeModel.slot` 標籤、detail scan `component_slot` target）|
+| `SLOT_LAYER_BY_ID` | `legacy_slot_layer_map.py` 降為 **migration-only**，唯一消費者是 v1→v2 adapter（只有 slot 詞彙的 legacy v1 map 讀入時補 layer）；active v2 路徑零 import |
 
 ### 5.2 Step 4 Bridge Pipeline
 
