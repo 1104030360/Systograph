@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 from systograph.core.models.inventory_selection import InventorySelectionSource
+from systograph.core.services.git_environment import scoped_git_environment
 from systograph.core.services.path_safety_service import (
     PathSafetyError,
     normalize_project_relative_path,
@@ -104,6 +105,7 @@ class InventoryGitSourceService:
         return subprocess.run(
             [self._git_executable, *args],
             cwd=root,
+            env=scoped_git_environment(),
             input=input_text,
             check=check,
             text=True,

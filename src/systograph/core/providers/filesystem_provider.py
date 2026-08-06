@@ -21,6 +21,7 @@ from systograph.core.models.filesystem import (
 from systograph.core.models.inventory_policy import (
     InventoryPolicyAction,
 )
+from systograph.core.services.git_environment import scoped_git_environment
 from systograph.core.services.inventory_policy_matcher import (
     InventoryPolicyMatch,
     InventoryPolicyMatcher,
@@ -183,6 +184,7 @@ class FilesystemProvider:
         return subprocess.run(
             [self._git_executable, *args],
             cwd=root,
+            env=scoped_git_environment(),
             input=input_text,
             check=check,
             text=True,
