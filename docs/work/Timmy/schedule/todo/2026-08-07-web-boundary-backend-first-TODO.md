@@ -168,13 +168,27 @@ Plan 07 的前置基礎，收尾時逐項複驗不得回退。
 - 驗收：v2 只剩一條產出路徑；plane 與 slot 脫鉤有 regression 鎖住；
   v1 讀取能力不變
 
-### Stage 4：scripts 全面同步 + 端到端驗證
-- [ ] scripts/ 逐檔檢查與新後端一致（trace_all.sh 清單、lib helper、
-  其餘 trace script 的前置流程）
-- [ ] 起本機後端跑 `scripts/trace_all.sh` 全綠
-- [ ] `uv run pytest` / `ruff check` / `ruff format --check` / `mypy` /
-  `pnpm test` / `pnpm build` 全綠
-- 驗收：trace_all 端到端完整執行；六項 gate 全綠
+### Stage 4：scripts 全面同步 + 端到端驗證 ✅ 2026-08-07 完成
+- [x] scripts/ 逐檔盤點與新後端一致（commits `5871be8`/`b0d0632`/`493e188`）：
+  修復 8 支既存 v1-only jq 缺陷腳本（`components_by_slot`→v2、
+  `evidence[].evidence_id`、`unmapped_components[].unmapped_id`）；
+  trace_all 分母 17→18（補漏 inventory preflight）；detail-scan 預設 target
+  改 `unmapped_component`（fixture 0 components 下 `component_slot` 必
+  target_not_found）；apply lineage 補 `source_unmapped_id` 非空斷言
+  （關掉恆空假 PASS）；`--start-server` port 由 URL 推導＋fail-fast
+  （0 秒清楚報錯，部分實作 #151 Task 2/3，Task 1 測試留待）
+- [x] `bash scripts/trace_all.sh --start-server` **18/18 PASS、exit 0**
+  （隔離 state/output，真實 `~/.systograph` 零新增檔案）
+- [x] 六項 gate 全綠：pytest 1135 passed/1 skipped、ruff check、
+  ruff format --check、mypy 326 files、pnpm test 160、pnpm build ✓
+- 驗收：trace_all 端到端完整執行；六項 gate 全綠 ✅
+- **發現既存後端 bug 並另開 issue #278**（`main` 上即存在，非 #277 造成）：
+  mapping proposal decision skip_for_now/reject 一律 422（factory 不填
+  candidate 欄位被 validate_shape 擋）。trace 腳本改 demo accept 路徑並於
+  檔頭/輸出明示 #278，`--decision` 保留可重現；API-GUIDE:884 已註記。
+- review：Approved with follow-ups → fix round 1 六項 5 項 ADDRESSED、
+  M-2（scratchpad 報告一行）與 #151 Task 1 Step 2 過時敘述由主 agent
+  直接修正（記錄）。
 
 ### Stage 5：架構圖 + 最終驗收 + 收尾
 - [ ] 更新 `docs/work/Timmy/learn/architecture.md` ASCII 全景圖

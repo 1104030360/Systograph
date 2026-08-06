@@ -30,7 +30,10 @@
 - Modify/Create: `tests/cli/test_trace_scripts.py` or shell smoke under `scripts/`
 
 - [ ] **Step 1: Test parsing `http://127.0.0.1:9000`**
-- [ ] **Step 2: Test default port remains 8000**
+- [ ] **Step 2: Test default `API_BASE_URL`（`http://127.0.0.1:8000`）resolves
+  to port 8000**——2026-08-07 註：Task 2 落地的行為是「URL 缺 port 直接
+  fail-fast」而非退回 8000，原「default port remains 8000」敘述已過時，
+  測試對象改為預設 URL 常數的解析結果
 - [ ] **Step 3: Test invalid API URL fails fast**
 
 ### Task 2: Fix startup host/port
