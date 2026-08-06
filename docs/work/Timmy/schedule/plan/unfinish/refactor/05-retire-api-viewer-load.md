@@ -1,7 +1,7 @@
 # 退役 `POST /api/viewer/load` 實作計畫
 
 Status: **done**（2026-08-06 起草；2026-08-07 回填 umbrella issue #277；
-2026-08-07 實作完成 @ commit `<pending>`。
+2026-08-07 實作完成 @ commit `b31cf4e`。
 使用者決策：直接移除 HTTP adapter，而非執行 issue #140 的加固方案——見下方
 「與 issue #140 的關係」，該決策已於 Step 0 落檔）
 
