@@ -1,6 +1,6 @@
 # 移除 `_latest_viewer_payload` 旁路槽與 `ViewerPayload` 型別實作計畫
 
-Status: **planned**（2026-08-06 起草；GitHub issue 待開。**Gate：Plan 02 與
+Status: **planned**（2026-08-06 起草；GitHub issue #277。**Gate：Plan 02 與
 Plan 05 都完成後才可執行**——在那之前 `ViewerPayload` 仍有活的消費者）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
@@ -8,7 +8,7 @@ Plan 05 都完成後才可執行**——在那之前 `ViewerPayload` 仍有活�
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** 待開（開立後回填編號）
+**GitHub Issue:** #277（umbrella：Web 邊界收斂後端先行，2026-08-07 回填）
 
 **Goal:** 移除 demo 讀圖端點退役後成為死碼的 session 旁路槽
 （`_latest_viewer_payload`、`save_viewer_payload`、`latest_viewer_payload`、

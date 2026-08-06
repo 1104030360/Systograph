@@ -1,6 +1,6 @@
 # 退役 process-wide `/api/map` demo surface 實作計畫
 
-Status: **planned**（2026-08-06 起草；GitHub issue 待開。使用者決策：整個移除
+Status: **planned**（2026-08-06 起草；GitHub issue #277。使用者決策：整個移除
 process-wide `/api/map` demo 讀圖路徑，正式讀圖收斂為 build-scoped 端點。
 **Step 0 文件前置已於 2026-08-06 完成**，見下方「已完成的前置」）
 
@@ -19,7 +19,7 @@ process-wide `/api/map` demo 讀圖路徑，正式讀圖收斂為 build-scoped �
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** 待開（開立後回填編號）
+**GitHub Issue:** #277（umbrella：Web 邊界收斂後端先行，2026-08-07 回填）
 
 **Goal:** 移除 process-wide viewer demo **讀取**路徑——`GET /api/map`、
 `GET /map` 兩個 handler 及其前端 fallback——讓 viewer 讀圖只剩 build-scoped
@@ -178,9 +178,10 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
   正式主路徑，不得動）
 - [ ] **Step 2: 複查 `:278`「After a completed scan…」敘述**——Step 0 已改寫
   為 build-scoped latest，確認未被回退即可
-- [ ] **Step 3: `:75`、`:393-394` 提到「不呼叫 / 不刷新 process-wide
-  `/api/map`」的敘述在端點消失後改寫或刪除，不得留下指向已不存在端點的說明；
-  `:290` 錯誤表中提及 `POST /api/map/build` 的列屬 Plan 03（其 Task 4 Step 6）**
+- [ ] **Step 3: `:393-394`「never refreshes process-wide `/api/map`」的敘述在
+  端點消失後改寫或刪除，不得留下指向已不存在端點的說明；`:75` 具名的是
+  `POST /api/map/build`（非 `/api/map`），與 `:290` 錯誤表提及
+  `POST /api/map/build` 的列同屬 Plan 03（其 Task 4 Step 6 已列入兩處）**
 
 ---
 

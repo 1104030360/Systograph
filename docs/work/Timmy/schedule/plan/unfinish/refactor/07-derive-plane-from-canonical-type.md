@@ -1,6 +1,6 @@
 # 投影平面改由 canonical type 推導（退役 slot→layer 查表）實作計畫
 
-Status: **planned**（2026-08-06 起草；GitHub issue 待開。**與 UA 零相依，可在
+Status: **planned**（2026-08-06 起草；GitHub issue #277。**與 UA 零相依，可在
 s2-ua-integration 之前執行**——這是「slot 殘餘職責」中目前唯一能先做的一項；
 有計畫承接的另一項（模板假邊）屬 16C→16D→16G 鏈，留在 s2-ua-integration，
 見下方「與 16G 的邊界」）
@@ -10,7 +10,7 @@ s2-ua-integration 之前執行**——這是「slot 殘餘職責」中目前唯�
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** 待開（開立後回填編號）
+**GitHub Issue:** #277（umbrella：Web 邊界收斂後端先行，2026-08-07 回填）
 
 **Goal:** 讓 repo component 的 `layer`（投影時的 `plane_id`）由
 `canonical_type → capability node → node 所屬 plane` 推導，取代現行的
@@ -62,9 +62,10 @@ mapping 表：推導鏈全部用既有資料（`capability_type_node_map.toml` +
 
 - **模板邊退役**（16G）與任何 UA 相關工作。
 - **`metadata.legacy_slot` 的移除**——它另有消費者（graph projection 的
-  node id slug、detail scan 的 `component_slot` target、query trace、
-  manual mapping materializer），退場受 16 系列（13-slot keyspace）與
-  mapping UI 遷移阻擋，目前無人認領。本計畫**不動**這個欄位。
+  node id slug 與 node／endpoint `slot` 標籤、detail scan 的
+  `component_slot` target、query trace），退場受 16 系列（13-slot
+  keyspace）與 public 契約（detail-scan `component_slot`）阻擋，目前
+  無人認領。本計畫**不動**這個欄位。
 - **Mapping UI 從選 slot 改選 capability**（產品層決策，另案）。
 
 ---

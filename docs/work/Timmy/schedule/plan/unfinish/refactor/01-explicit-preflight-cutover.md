@@ -1,6 +1,6 @@
 # Explicit Preflight Cutover（前端兩段式掃描 → 退役 implicit preflight 分支）實作計畫
 
-Status: **planned**（2026-08-05 起草；GitHub issue 待開。前置事實查核：現行前端
+Status: **planned**（2026-08-05 起草；GitHub issue #277。前置事實查核：現行前端
 `projectScanApi.ts` 從未送 `preflight_request_id`，正式前端今天 100% 走 implicit
 compatibility 分支——所以退役順序必須是前端先遷移、後端才拆橋）
 
@@ -16,7 +16,7 @@ compatibility 分支——所以退役順序必須是前端先遷移、後端才
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** 待開（開立後回填編號，並依編號規則決定是否改檔名）
+**GitHub Issue:** #277（umbrella：Web 邊界收斂後端先行，2026-08-07 回填；檔名不改）
 
 **Goal:** 前端改走 Plan 20 設計的 explicit preflight 主路徑（先
 `POST /api/projects/{project_id}/scan-preflights` 取得 `preflight_request_id`

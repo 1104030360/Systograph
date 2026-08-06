@@ -1,6 +1,6 @@
 # 退役 `POST /api/map/build` 實作計畫
 
-Status: **planned**（2026-08-06 起草；GitHub issue 待開。從
+Status: **planned**（2026-08-06 起草；GitHub issue #277。從
 `02-retire-process-wide-api-map.md` 拆出獨立執行——本端點**沒有任何前端依賴**，
 不需要等前端工作，可立即動工）
 
@@ -9,7 +9,7 @@ Status: **planned**（2026-08-06 起草；GitHub issue 待開。從
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** 待開（開立後回填編號）
+**GitHub Issue:** #277（umbrella：Web 邊界收斂後端先行，2026-08-07 回填）
 
 **Goal:** 移除 all-in-one demo 建圖端點 `POST /api/map/build`，把 HTTP 建圖入口
 收斂為正式 project session 流程（`import` → `scans`）。
@@ -17,33 +17,34 @@ Status: **planned**（2026-08-06 起草；GitHub issue 待開。從
 **Architecture:** 這是 breaking API change，但 blast radius 遠小於 `GET /api/map`：
 前端零引用，且能力不會消失——CLI `systograph map`（`cli/map_command.py:63`
 同樣呼叫 `MapBuildService().build()`）提供完全等價的「一次掃一個路徑就出圖」。
-本計畫只砍寫入端點，**不動** `GET /api/map` / `GET /map`（那兩支卡在前端
-fallback，見 Plan 02）。
+本計畫只砍寫入端點，**不動** `GET /api/map` / `GET /map`（那兩支仍有前端
+fallback 依賴，屬 Plan 02 範圍）。
 
 **Tech Stack:** FastAPI（handler 移除）、pytest web tests、bash trace scripts、
 契約文件。
 
 ---
 
-## Source（判準基線，2026-08-06 對程式碼查核）
+## Source（判準基線，2026-08-07 對程式碼查核）
 
-- `src/systograph/web/routes/map_routes.py:22-35` — `build_map` handler。
+- `src/systograph/web/routes/map_routes.py:22-34` — `build_map` handler。
 - `src/systograph/web/schemas.py:49`（`MapBuildApiRequest`）與 `:411` 的
   `__all__` 條目——**唯一使用者就是這個 handler**，可一併退役。
 - 前端：`grep -rn "map/build" frontend/src` **零結果**；
   `frontend/API_CONTRACT.md:75` 明載「It does not call `/api/map/build`
   for this interactive flow」。
 - 等價能力：`src/systograph/cli/map_command.py:63`。
-- 既有 helper：`scripts/lib/api_trace_common.sh:186`
-  `systograph_import_project`、`:201` `systograph_run_scan`——script 遷移
+- 既有 helper：`scripts/lib/api_trace_common.sh:187`
+  `systograph_import_project`、`:202` `systograph_run_scan`——script 遷移
   直接改用它們，不需自行拼 curl。
 
 ## 範圍
 
 **移除：** `POST /api/map/build`、`MapBuildApiRequest`。
 
-**不動：** `GET /api/map`、`GET /map`（Plan 02 範圍，需等前端拔 fallback）、
-`GET /api/map/report`（issue #219，待接線非待退役）。
+**不動：** `GET /api/map`、`GET /map`（Plan 02 範圍；前端 fallback 仍在，
+但該計畫的前端先行 gate 已於 2026-08-07 解除）、`GET /api/map/report`
+（issue #219，待接線非待退役）。
 
 **注意副作用：** 本端點是餵養 process-wide latest 的來源之一。移除後
 `GET /api/map` 仍可運作，寫入者剩下走 `save_committed_build_projection` 的
@@ -63,7 +64,7 @@ fallback，見 Plan 02）。
 |---|---|---|
 | `trace_map_build.sh` | 專測本端點 | **刪除** |
 | `trace_map_report.sh:48-55` | 先建圖讓 markdown report 存在 | 改用 import → scans |
-| `trace_viewer_load.sh:55-64` | 先建圖取得 `map_json_path` | 改用 import → scans |
+| `trace_viewer_load.sh:55-65` | 先建圖取得 `map_json_path` | 改用 import → scans |
 | `trace_all.sh:55` | 清單引用 | 移除該列 |
 
 - [ ] **Step 1: `trace_map_report.sh` 的 setup 改寫**——把
@@ -72,7 +73,10 @@ fallback，見 Plan 02）。
 - [ ] **Step 2: `trace_viewer_load.sh` 的 setup 改寫**——同上；
   `map_json_path` 改從 scan 回應取
   （`echo "$scan" | jq -r '.build_result.map_json_path'`），
-  保留原有的 null 檢查與 `systograph_die`
+  保留原有的 null 檢查與 `systograph_die`。
+  **2026-08-07 順序註記：** 本輪執行順序為 Plan 05 先於本計畫；Plan 05
+  Task 4 會把該檔整檔刪除，屆時本步與上表第 3 列直接跳過（Plan 05
+  L140-142 有對應註記，勿重工）
 - [ ] **Step 3: 刪除 `scripts/trace_map_build.sh`**
 - [ ] **Step 4: 從 `trace_all.sh:55` 移除
   `"POST /api/map/build|trace_map_build.sh"` 該列**
@@ -84,11 +88,14 @@ fallback，見 Plan 02）。
 
 | 檔案 | 處數 | 用途 |
 |---|---:|---|
-| `tests/web/test_map_routes.py` | 5 | 測端點本身 ＋ 當作 `GET /api/map` 等測試的前置 build |
+| `tests/web/test_map_routes.py` | 5 | 2 處測端點本身（其一兼驗 `/api/map`）；3 處為 `/api/map/report` 前置 build |
 | `tests/web/test_local_api_hardening.py` | 1 | 拿它當 CORS／hardening 的 request 素材 |
 
 - [ ] **Step 1: `test_map_routes.py` 中純粹測 `POST /api/map/build`
-  行為的案例刪除**
+  行為的案例刪除**。**注意（2026-08-07 查核）：** `:11-33` 的第一個測試
+  兼驗 `GET /api/map` / `GET /map` 讀取——它是這兩個端點**全樹唯一**的
+  正向覆蓋，不得當「純測 map/build」整案刪除；歸 Step 2 改前置、保留
+  讀取斷言（其退役歸 Plan 02）
 - [ ] **Step 2: 其餘把它當前置 build 的案例改走 `import` → `scans`**；
   若重複出現，抽 helper 放 `tests/helpers/`
 - [ ] **Step 3: `test_local_api_hardening.py` 改用其他仍存在的寫入端點
@@ -97,7 +104,7 @@ fallback，見 Plan 02）。
 
 ## Task 3: 移除 handler 與 schema
 
-- [ ] **Step 1: 刪除 `map_routes.py:22-35` 的 `build_map`**
+- [ ] **Step 1: 刪除 `map_routes.py:22-34` 的 `build_map`**
 - [ ] **Step 2: 刪除 `schemas.py:49` 的 `MapBuildApiRequest` 與 `:411`
   的 `__all__` 條目**（已確認無其他使用者）
 - [ ] **Step 3: 清理 `map_routes.py` 隨之無用的 import**

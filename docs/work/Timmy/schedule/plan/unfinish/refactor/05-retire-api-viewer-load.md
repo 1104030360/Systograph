@@ -1,15 +1,15 @@
 # 退役 `POST /api/viewer/load` 實作計畫
 
-Status: **planned**（2026-08-06 起草；GitHub issue 待開。使用者決策：直接移除
-HTTP adapter，而非執行 issue #140 的加固方案——見下方「與 issue #140 的關係」，
-該決策需在 issue 上明示）
+Status: **planned**（2026-08-06 起草；2026-08-07 回填 umbrella issue #277。
+使用者決策：直接移除 HTTP adapter，而非執行 issue #140 的加固方案——見下方
+「與 issue #140 的關係」，該決策需在 issue 上明示）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (recommended) or
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** 待開（開立後回填編號）
+**GitHub Issue:** #277（umbrella：Web 邊界收斂後端先行，2026-08-07 回填）
 
 **Goal:** 移除 `POST /api/viewer/load` HTTP 端點。載入既有 `ai_system_map.json`
 的能力保留在 CLI（`systograph validate-map`），不再經由 HTTP 暴露。
@@ -44,7 +44,7 @@ scripts、契約文件。
 
 ---
 
-## Source（判準基線，2026-08-06 對程式碼查核）
+## Source（判準基線，2026-08-06 對程式碼查核；2026-08-07 複查一致）
 
 - `src/systograph/web/routes/viewer_routes.py` — **全檔只有這一個 route**
   （`:21`），刪端點等於刪整檔。
@@ -64,7 +64,7 @@ scripts、契約文件。
 | 東西 | 為什麼必須留 |
 |---|---|
 | `ViewerSessionService.load_map` | **CLI `systograph validate-map` 仍在用**（`cli/viewer_command.py:31`）；另有 `tests/unit/core/test_viewer_session_service.py` 7 處直接呼叫，以及 `tests/cli/test_viewer_command.py` 走 CLI 的覆蓋 |
-| `ViewerSessionService` 本身 | 它是 build-scoped 投影的唯一擁有者——`MapBuildService`、`BuildArtifactPublisher`、`BuildManifestService`（`:76`）各自持有一份；`app.py:236-243` 另把它注入兩個 session store 當 `projection_service`（只用來產生空 payload seed，`session_store.py:85,150`）。**刪掉會讓 build → viewer 投影整條壞掉** |
+| `ViewerSessionService` 本身 | 它是 build-scoped 投影的唯一擁有者——`BuildArtifactPublisher`（`:82`）與 `BuildManifestService`（`:76`）各自持有一份，`MapBuildService`（`:151,181`）則把 `projection_service` 轉交給 publisher；`app.py:239-243` 另把它注入 `PersistentSessionStore` 當 `projection_service`（兩個 store 實作都只拿它產生空 payload seed，`session_store.py:85,150`）。**刪掉會讓 build → viewer 投影整條壞掉** |
 | `dependencies.viewer_session_service` | 見下方 Task 3 Step 2 的判斷條件 |
 | `ViewerLoadResult` / graph projection | 正式 `map-builds` 路徑以它為主體（`schemas.py:144` `MapBuildScopedResponse.viewer_load_result: ViewerLoadResult`） |
 | `ViewerPayload`（**本輪留、非永久**） | 本計畫移除後 Web 層仍有 `GET /api/map`／`GET /map` 以它為 response model（`map_routes.py:37,75`，屬 Plan 02 範圍），再加 session 槽與 re-export；**正式 build-scoped 回應不使用它**（2026-08-06 更正：原記載有誤）。與 Plan 02 都完成後由 **Plan 08** 一併移除 |
@@ -169,9 +169,10 @@ scripts、契約文件。
 ## 風險
 
 - **誤刪 `ViewerSessionService`**：最高風險。它是 build-scoped 投影的唯一
-  擁有者（`MapBuildService`／`BuildArtifactPublisher`／`BuildManifestService`
-  各持一份），另被兩個 session store 當 `projection_service` 注入，刪掉會讓
-  build → viewer 投影整條壞掉。本計畫只刪 HTTP adapter。
+  擁有者（`BuildArtifactPublisher`／`BuildManifestService` 各持一份，
+  `MapBuildService` 轉交給 publisher），另被兩個 session store 實作當
+  `projection_service` 使用，刪掉會讓 build → viewer 投影整條壞掉。本計畫
+  只刪 HTTP adapter。
 - **捨棄 operator 能力**：HTTP 不再能載入任意既有 map JSON；替代方案是 CLI。
   若日後仍需 HTTP 版本，應以 build-scoped artifact API + 白名單重新設計，
   不要恢復本端點。

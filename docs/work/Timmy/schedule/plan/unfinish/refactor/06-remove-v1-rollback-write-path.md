@@ -1,6 +1,6 @@
 # 移除 legacy v1 rollback 寫入路徑實作計畫
 
-Status: **planned**（2026-08-06 起草；GitHub issue 待開。由 Plan 15 Task 2
+Status: **planned**（2026-08-06 起草；umbrella issue #277。由 Plan 15 Task 2
 「移除 v1 write path」抽出獨立執行——見下方「Gate 判定」對偏離 Plan 15 統一
 gate 的說明）
 
@@ -9,7 +9,7 @@ gate 的說明）
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**GitHub Issue:** 待開（開立後回填編號）
+**GitHub Issue:** #277（umbrella：Web 邊界收斂後端先行，2026-08-07 回填）
 
 **Goal:** 移除 operator rollback 的 v1 **寫入**路徑（三個服務 + 兩個 pipeline
 分支 + env 觸發），讓 `MapBuildService` 只有一條 v2 產出路徑。
@@ -46,7 +46,7 @@ Plan 18 的 issue #239 仍 OPEN）。本計畫是 Plan 15 Task 2 的抽出，因
 
 ---
 
-## Source（判準基線，2026-08-06 對程式碼查核）
+## Source（判準基線，2026-08-06 對程式碼查核；2026-08-07 覆核行號未變）
 
 - `map_build_service.py:104-127` `_build_legacy_v1_rollback_service()`
   （function-local import，檔頭註解自陳目的就是讓 Plan 15 好刪）
@@ -126,7 +126,9 @@ Plan 18 的 issue #239 仍 OPEN）。本計畫是 Plan 15 Task 2 的抽出，因
   `tests/unit/core/test_map_build_service_wiring.py`、
   `tests/integration/test_v2_active_cutover.py`、
   `tests/integration/test_build_manifest_service.py`、
-  `tests/web/test_local_json_restart_recovery.py`
+  `tests/web/test_local_json_restart_recovery.py`。
+  後兩檔沒有 rollback 分支斷言，各只有一行碰 `operator_rollback_active`
+  （`:111` round-trip、`:134` 斷言 `False`），採 (A) 時不必動，採 (B) 才要改
 - [ ] **Step 4（易漏）: 改寫兩處把 `SystemMapNormalizeService` 當 fixture
   產生器的測試**——`tests/unit/core/test_graph_projection_service.py:366`、
   `tests/integration/test_phase14_endpoints_risk_hints_flows_behaviors.py:54`。
