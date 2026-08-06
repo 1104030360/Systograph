@@ -46,12 +46,9 @@ done
 systograph_bootstrap_server
 
 if [[ "$NO_SETUP" -eq 0 ]]; then
-  systograph_section "準備：先建圖，讓 markdown report 存在"
-  systograph_progress "現在要先呼叫 map/build 產生報告..."
-  setup_post "/api/map/build" \
-    "$(jq -n --arg p "$PROJECT_PATH" --arg out "$OUTPUT_DIR" \
-      '{project_path:$p, output:$out, redact_root_path:true, no_snippets:false}')" \
-    >/dev/null
+  systograph_section "準備：先掃描，讓 markdown report 存在"
+  PROJECT_ID="$(systograph_import_project)"
+  systograph_run_scan "$PROJECT_ID" >/dev/null
 fi
 
 ENDPOINT="/api/map/report"

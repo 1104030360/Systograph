@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -19,7 +18,7 @@ from systograph.core.models.inventory_selection import (
     InventorySelectionSummary,
     InventoryTargetKind,
 )
-from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
+from systograph.core.models.map_build import MapBuildResult
 from systograph.core.models.mapping import (
     ManualMapping,
     ManualMappingCreate,
@@ -44,26 +43,6 @@ class WebSchema(BaseModel):
     """Base schema that rejects silent API contract drift."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
-
-
-class MapBuildApiRequest(WebSchema):
-    project_path: str
-    output: str = "outputs"
-    redact_root_path: bool = True
-    no_snippets: bool = False
-    system_map_schema_version: Literal[
-        "ai-system-map/v1",
-        "ai-system-map/v2",
-    ] = "ai-system-map/v2"
-
-    def to_core_request(self) -> MapBuildRequest:
-        return MapBuildRequest(
-            project_path=Path(self.project_path),
-            output=Path(self.output),
-            redact_root_path=self.redact_root_path,
-            no_snippets=self.no_snippets,
-            system_map_schema_version=self.system_map_schema_version,
-        )
 
 
 class ProjectImportRequest(WebSchema):
@@ -404,7 +383,6 @@ class MappingProposalListResponse(WebSchema):
 __all__ = [
     "DetailScanCreateRequest",
     "DetailScanResponse",
-    "MapBuildApiRequest",
     "MapBuildResult",
     "ManualMapping",
     "ManualMappingCreate",

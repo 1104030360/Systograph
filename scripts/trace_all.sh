@@ -52,7 +52,6 @@ COMMON_CHILD_ARGS=(
 
 SCRIPTS=(
   "POST /api/projects/import|trace_projects_import.sh"
-  "POST /api/map/build|trace_map_build.sh"
   "GET /api/map|trace_map_get.sh"
   "GET /api/map/report|trace_map_report.sh"
   "GET /map|trace_map_fallback.sh"

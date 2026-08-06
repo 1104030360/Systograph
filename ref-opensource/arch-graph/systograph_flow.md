@@ -22,7 +22,6 @@ TOML rule providers 是 Step 3 主路徑，UA sidecar 可缺席。
 | Web 專案流程（viewer 實際使用） | `POST /api/projects/import` →（`POST /api/projects/{id}/scan-preflights`）→ `POST /api/scans` | 是 | `BuildCommitService`：staging → validate → publish → manifest → CAS latest |
 | Apply | `POST /api/map-builds/{base_build_id}/apply` | 否（replay 同一 snapshot） | `BuildCommitService` |
 | Detail scan | `POST /api/detail-scans` | 否（enriched map 子 build） | 子 build，不動 latest 指標語意以外的東西 |
-| Viewer demo | `POST /api/map/build` → `GET /api/map` | 是 | 直接呼叫 `MapBuildService.build`，與 CLI 同形狀（無 commit gate） |
 
 > 舊版本檔案寫的 `systograph scan [target_repo]` **不存在**；沒有 `scan` 這個 CLI 子命令。
 > CLI 只有 `map` / `migrate-legacy-mappings` / `trace` / `validate-map` 四個命令。
@@ -144,8 +143,7 @@ uv run systograph map <project_path>        (pyproject also exposes: systograph 
   └─▶ no BuildCommitService: no staging dir, no manifest, no latest-pointer promote
 
 other CLI commands: migrate-legacy-mappings | trace <map_json> | validate-map <map_json>
-web demo path:      POST /api/map/build -> MapBuildService.build -> GET /api/map
-                    (same non-atomic shape as CLI; project-scoped APIs are the real flow)
+no web equivalent:  the HTTP build entry is POST /api/scans (project-scoped, commit-gated)
 ```
 
 ### 1.2 解說

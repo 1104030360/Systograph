@@ -159,7 +159,7 @@ proposal 建議路徑，**不能**決定五態、Mapping Completeness 或 readin
 ## 2. Map build pipeline（實際 Step 順序）
 
 ```text
-MapBuildService.build(request)    entries: CLI `map` / POST /api/map/build / POST /api/scans
+MapBuildService.build(request)    entries: CLI `map` / POST /api/scans
   │
   ├─ 1  require_public_v2_selection()
   ├─ 2  OutputArtifactProvider.check_preconditions()

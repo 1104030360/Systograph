@@ -34,8 +34,9 @@ Accept: application/json
 `GET /api/map` and its bare alias `GET /map` return the process-wide latest
 viewer payload and carry no `project_id`. The frontend tries the build-scoped
 endpoint first and only falls back to these when it fails. Both are being
-retired together with `POST /api/map/build`; after that, loading a map always
-requires a `project_id`.
+retired; after that, loading a map always requires a `project_id`. The
+matching demo writer `POST /api/map/build` is already gone — a project-scoped
+scan is what fills these reads now.
 
 Response shape must match the sample file:
 
@@ -72,7 +73,7 @@ The frontend treats `graph_view_model` as the rendering input. It does not resca
 
 ## Project-Scoped Scan Flow
 
-The API mode can start a scan from a local project path. The frontend first imports the project path, then starts a scan with the returned project id. It does not call `/api/map/build` for this interactive flow.
+The API mode can start a scan from a local project path. The frontend first imports the project path, then starts a scan with the returned project id. This is the only HTTP path that builds a map.
 
 ```http
 POST /api/projects/import
@@ -289,7 +290,7 @@ recoverable by retrying the same payload; the frontend must stop sending the ret
 | `detail` | Endpoints | Meaning |
 | --- | --- | --- |
 | `legacy_mapping_type_read_only` | `POST /api/mappings`, `PATCH /api/mappings/{mapping_id}`, `POST /api/mapping-proposals/{proposal_id}/decision` | The request carries `mapping_type: "new_extension_component"` (checked at top level and inside `edited_mapping`). The legacy extension mapping type is read-only: migration tooling may still read it, but no API accepts it as a write. Active values are `existing_slot_mapping` and `non_baseline_capability_candidate`. |
-| `legacy_output_not_selectable` | `POST /api/scans`, `POST /api/map/build` | The request asked for `system_map_schema_version: "ai-system-map/v1"`. Canonical output is `ai-system-map/v2`; `system_map_schema_version` is a deprecated input kept until Plan 15. Operator rollback exists but is a process-level setting, never a request-selectable option, so there is no payload the frontend can send to obtain v1. |
+| `legacy_output_not_selectable` | `POST /api/scans` | The request asked for `system_map_schema_version: "ai-system-map/v1"`. Canonical output is `ai-system-map/v2`; `system_map_schema_version` is a deprecated input kept until Plan 15. Operator rollback exists but is a process-level setting, never a request-selectable option, so there is no payload the frontend can send to obtain v1. |
 
 `POST /api/scans` rejects before any enumeration or scan work runs, so an invalid selection costs no
 scan time and leaves no persisted snapshot or output directory behind. The same is true of the

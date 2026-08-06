@@ -1,27 +1,50 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from fastapi.testclient import TestClient
 from tests.helpers.fixtures import rag_project_fixture_path
+from tests.helpers.web_flows import scan_project
 
 from systograph.web.app import create_app
 
 
-def test_map_build_route_updates_api_map_payload(tmp_path: Path) -> None:
-    client = TestClient(create_app())
-    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
+def scan_fixture_project(
+    client: TestClient,
+    tmp_path: Path,
+) -> dict[str, Any]:
+    """Import the sample RAG project and scan it into `tmp_path`.
 
-    response = client.post(
-        "/api/map/build",
+    Every map read below needs a committed build behind it, and the project
+    session flow (`import` -> `scans`) is the only HTTP path that makes one.
+    """
+
+    project_id = client.post(
+        "/api/projects/import",
         json={
-            "project_path": str(project_root),
-            "output": str(tmp_path / "outputs"),
+            "source_type": "local_path",
+            "project_path": str(
+                rag_project_fixture_path("basic_qdrant_ollama_rag")
+            ),
         },
+    ).json()["project_id"]
+    return scan_project(
+        client,
+        project_id,
+        output=str(tmp_path / "outputs"),
     )
 
-    assert response.status_code == 200
-    build_payload = response.json()
+
+def test_committed_scan_is_readable_from_process_wide_map_routes(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(create_app())
+
+    scan_payload = scan_fixture_project(client, tmp_path)
+
+    assert scan_payload["status"] == "completed"
+    build_payload = scan_payload["build_result"]
     assert build_payload["status"] == "ok"
     assert build_payload["viewer_load_result"]["loaded"] is True
     assert build_payload["viewer_load_result"]["graph_view_model"]["nodes"]
@@ -37,18 +60,10 @@ def test_map_report_route_returns_latest_markdown_report(
     tmp_path: Path,
 ) -> None:
     client = TestClient(create_app())
-    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
 
-    build_response = client.post(
-        "/api/map/build",
-        json={
-            "project_path": str(project_root),
-            "output": str(tmp_path / "outputs"),
-        },
-    )
+    scan_fixture_project(client, tmp_path)
     report_response = client.get("/api/map/report")
 
-    assert build_response.status_code == 200
     assert report_response.status_code == 200
     assert report_response.headers["content-type"].startswith("text/markdown")
     assert report_response.text.startswith("# Systograph System Map\n")
@@ -71,14 +86,7 @@ def test_map_report_route_can_return_download_attachment(
     tmp_path: Path,
 ) -> None:
     client = TestClient(create_app())
-    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
-    client.post(
-        "/api/map/build",
-        json={
-            "project_path": str(project_root),
-            "output": str(tmp_path / "outputs"),
-        },
-    )
+    scan_fixture_project(client, tmp_path)
 
     response = client.get("/api/map/report?download=true")
 
@@ -86,28 +94,6 @@ def test_map_report_route_can_return_download_attachment(
     assert response.headers["content-disposition"] == (
         'attachment; filename="ai_system_map.md"'
     )
-
-
-def test_map_build_route_rejects_public_v1_selection(
-    tmp_path: Path,
-) -> None:
-    output_dir = tmp_path / "outputs"
-    client = TestClient(create_app())
-
-    response = client.post(
-        "/api/map/build",
-        json={
-            "project_path": str(
-                rag_project_fixture_path("basic_qdrant_ollama_rag")
-            ),
-            "output": str(output_dir),
-            "system_map_schema_version": "ai-system-map/v1",
-        },
-    )
-
-    assert response.status_code == 422
-    assert response.json()["detail"] == "legacy_output_not_selectable"
-    assert not output_dir.exists()
 
 
 def test_map_report_route_before_build_returns_404() -> None:
@@ -123,14 +109,7 @@ def test_map_report_route_ignores_arbitrary_path_query(
     tmp_path: Path,
 ) -> None:
     client = TestClient(create_app())
-    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
-    client.post(
-        "/api/map/build",
-        json={
-            "project_path": str(project_root),
-            "output": str(tmp_path / "outputs"),
-        },
-    )
+    scan_fixture_project(client, tmp_path)
 
     response = client.get("/api/map/report?path=/etc/passwd")
 

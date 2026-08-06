@@ -978,7 +978,8 @@ Current API supports two flows:
 
 - Project session: `POST /api/projects/import` → `POST /api/scans` → project-scoped detail scan,
   mapping proposal, manual mappings.
-- Viewer demo: `POST /api/map/build` → `GET /api/map`; no project session.
+- Viewer demo: `GET /api/map` read only; no project session. Its writer `POST /api/map/build`
+  is retired, so the read is fed by the project session flow.
 
 Phase2 primary API surface:
 
@@ -995,7 +996,7 @@ POST /api/map-builds/{build_id}/trace
 
 Compatibility rules：
 
-- `POST /api/map/build` and process-wide `GET /api/map` remain demo/compatibility paths.
+- Process-wide `GET /api/map` remains a demo/compatibility read path; `POST /api/map/build` is retired.
 - Project-scoped APIs must use `project_id` / `build_id`, not global latest process state.
 - Current CLI builds v1 artifacts; Phase2 CLI must preserve v1 compatibility while adding explicit v2
   build/load/validate commands.
@@ -1198,7 +1199,7 @@ Contract drift decisions to apply when regenerating plans：
 - Replace v1 slot-missing readiness with generic capability/readiness findings.
 - Replace legacy extension product surface with non-baseline capability candidate overlay.
 - Treat frontend handoff JSON as target samples until validated by backend schemas/tests.
-- Treat `POST /api/map/build` as demo/compatibility path, not project-scoped persistence.
+- Treat process-wide `GET /api/map` as demo/compatibility path, not project-scoped persistence.
 - Treat dynamic runtime trace plan as deferred implementation.
 
 Plan regeneration rules：
