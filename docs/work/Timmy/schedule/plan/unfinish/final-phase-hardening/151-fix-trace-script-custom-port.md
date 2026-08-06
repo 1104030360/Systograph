@@ -12,7 +12,7 @@
 
 > **進度（2026-08-07）：部分完成，本檔仍在 `unfinish/`。**
 > Task 2（修正 startup host/port）與 Task 3（實機 smoke）已由 **#277 Stage 4** 順帶完成：
-> Steps 1–3 於 commit `5871be8`，Step 4（fail-fast 明確錯誤）於 commit `9b9b996`。
+> Steps 1–3 於 commit `5871be8`，Step 4（fail-fast 明確錯誤）於 commit `b0d0632`。
 > **剩餘範圍：Task 1（`API_BASE_URL` 解析的自動化測試）尚未實作** —— 目前 fail-fast 只有手動負向
 > 案例佐證，沒有回歸測試綁住行為；補完 Task 1 後本檔才可移入 `finish/`。
 
