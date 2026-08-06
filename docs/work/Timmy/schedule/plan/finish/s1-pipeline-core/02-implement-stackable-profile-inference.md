@@ -383,7 +383,7 @@ Detection threshold：
 Frontend 檔案、Zod contract、renderer、layout、detail panel、filter 與 trace replay 工作不屬
 本計畫；由 Plan 06 與對應 Meeting-Sync/Hardy plan 擁有：
 
-- `docs/work/Meeting-Sync/meeting_sync_2026_07_05/frontend-profile-attachment-ui.md`
+- `docs/work/Meeting-Sync/meeting_sync_2026_07_07/frontend-profile-attachment-ui.md`
 
 本計畫不修改：
 

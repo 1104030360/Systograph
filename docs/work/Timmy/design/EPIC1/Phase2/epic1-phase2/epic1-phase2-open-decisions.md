@@ -38,7 +38,6 @@ importer、MCP handoff 或企業級資安差異化。
 4. `static-trace-plan/README.md` 與 `00`～`18`。
 5. `epic1-phase2-design.md`。
 6. 本 decision queue。
-7. `raw-data/`。
 
 ## Settled Decisions
 

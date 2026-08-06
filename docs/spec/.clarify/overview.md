@@ -10,7 +10,7 @@
 
 - `docs/spec/erm.dbml`：31 個 Tables
 - `docs/spec/features/*.feature`：10 個 Features、104 條 Rules、111 個 Examples
-- `docs/spec/draft/epic1-phase2.md`
+- `docs/design/epic1-phase2.md`
 - 現行 `docs/MODEL-CONTRACT.md`、`docs/API-GUIDE.md` 與相關 web/core contract
 
 舊 `docs/spec/.clarify/resolved/` 在目前工作樹已刪除，內容屬舊 RAG contract。本次只以歷史檔名防止重複提問，不恢復或沿用 legacy product surface。

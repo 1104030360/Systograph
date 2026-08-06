@@ -25,14 +25,14 @@
 | 未知欄位 | 寫入類 endpoint `extra="forbid"` |
 | 錯誤格式 | `{ "detail": string }`；422 時 `detail` 為陣列 |
 | 安全錯誤 | 413/500 不回 raw secret、exception string、absolute path |
-| State | Project workflow 使用 `${SYSTOGRAPH_STATE_DIR:-~/.systograph}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復。Demo `/api/map` 仍保留 process-latest compatibility |
+| State | Project workflow 使用 `${SYSTOGRAPH_STATE_DIR:-~/.systograph}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復。Demo `/api/map` 仍保留 process-latest compatibility（deprecated，即將移除） |
 
 ### 兩種流程
 
 | 流程 | 路徑 | 用途 |
 |------|------|------|
 | **Project session** | `import` → `scans` → … | 正式 workflow；detail scan / mapping / proposals 必走此路 |
-| **Viewer demo** | `map/build` → `GET /api/map` | 快速載圖；**無** `project_id`，不能接 project-scoped API |
+| **Viewer demo**（**deprecated，即將移除**） | `map/build` → `GET /api/map` | 快速載圖；**無** `project_id`，不能接 project-scoped API。已決定退役，勿建立新依賴；退役後讀圖一律需要 `project_id` |
 
 > **標記：** `current` 是目前 OpenAPI 已實作；`[phase2-later]` 是後續 target。Pipeline、UA rollout、artifact 清單見 MODEL-CONTRACT；架構分層見 `epic1-phase2.md` §6。
 
@@ -52,9 +52,9 @@
 | POST | `/api/projects/import` | project | current | 1 |
 | POST | `/api/scans` | project | current | 1 |
 | GET | `/api/scan/events` | project | current | 1 |
-| POST | `/api/map/build` | demo | current | 1 |
-| GET | `/api/map` | demo | current | 2 |
-| GET | `/map` | demo | current | 2 |
+| POST | `/api/map/build` | demo | **deprecated** | 1 |
+| GET | `/api/map` | demo | **deprecated** | 2 |
+| GET | `/map` | demo | **deprecated** | 2 |
 | POST | `/api/viewer/load` | demo | current | 2 |
 | GET | `/api/map/report` | demo | current | 2 |
 | POST | `/api/detail-scans` | project | current | 3 |
@@ -75,14 +75,23 @@
 # 1. 啟動後端
 .venv/bin/uvicorn systograph.web.app:create_app --factory --host 127.0.0.1 --port 8000
 
-# 2. 一次性掃描並取得 viewer payload（最簡單的 demo 路徑）
-curl -s -X POST http://127.0.0.1:8000/api/map/build \
+# 2. 匯入專案取得 project_id
+curl -s -X POST http://127.0.0.1:8000/api/projects/import \
   -H 'Content-Type: application/json' \
-  -d '{"project_path":"/abs/path/to/rag_project"}' | jq '.status'
+  -d '{"source_type":"local_path","project_path":"/abs/path/to/rag_project"}' | jq -r '.project_id'
 
-# 3. 讀取最新地圖
-curl -s http://127.0.0.1:8000/api/map | jq '.viewer_load_result.loaded'
+# 3. 掃描（若回 requires_boundary_decision，補上 boundary_decisions 再送一次）
+curl -s -X POST http://127.0.0.1:8000/api/scans \
+  -H 'Content-Type: application/json' \
+  -d '{"project_id":"project:<uuid>"}' | jq '.status'
+
+# 4. 讀取該 project 的最新地圖（path 中的 ":" 需 URL-encode 為 "%3A"）
+curl -s "http://127.0.0.1:8000/api/projects/project%3A<uuid>/map-builds/latest" \
+  | jq '.viewer_load_result.loaded'
 ```
+
+> **舊的 demo 捷徑（`POST /api/map/build` → `GET /api/map`）已 deprecated**，
+> 請改用上面的 project session 流程。
 
 每個 endpoint 都有對應的可執行範例腳本，例如 `scripts/trace_map_build.sh`、`scripts/trace_all.sh`（一次跑完全部）。
 
@@ -92,7 +101,7 @@ curl -s http://127.0.0.1:8000/api/map | jq '.viewer_load_result.loaded'
 
 **Project session 流程**：`import` 取得 `project_id` → `scans` 觸發掃描 → `scan/events` 看進度。後續 detail scan / mapping 都依賴此 `project_id`。
 
-**Viewer demo 捷徑**：`map/build` 一次掃 path 並更新 `/api/map`，但不建立 project session（見下方說明）。
+**Viewer demo 捷徑（deprecated，即將移除）**：`map/build` 一次掃 path 並更新 `/api/map`，但不建立 project session（見下方說明）。勿建立新依賴。
 
 ### POST /api/projects/import
 
@@ -314,6 +323,9 @@ data: {"event":"scan_progress","status":"completed","stage":"validate","message"
 前端依序解析 `node_id` → `edge_id` → `component_id` → `source_id` → `slot` 找出要 highlight 的目標。
 
 ### POST /api/map/build
+
+> **Deprecated，即將移除。** 與 `GET /api/map`、`GET /map` 一同退役；請改用
+> `POST /api/projects/import` → `POST /api/scans` → `GET /api/projects/{project_id}/map-builds/latest`。
 
 All-in-one viewer / demo build：送入 path 觸發 L1 build，寫出 artifact，更新 current
 runtime 的 process-wide latest `/api/map`。
@@ -557,10 +569,13 @@ rollback 若啟用，則只由 process-level setting 決定實際 artifact versi
 對指定 build 執行 opt-in query trace overlay。Current runtime 等價路徑為 `POST /api/trace`（`project_id`）。
 Trace overlay 不得寫回 canonical map / profile artifacts。
 
-### GET /api/map（legacy / demo）
+### GET /api/map（legacy / demo，**deprecated**）
 
-Current runtime 回傳目前 process session 最新的 viewer payload。它是現行前端 API mode
-入口，但不是 Phase2 build history 的正式讀取入口。
+> **即將移除。** 正式讀圖入口是 `GET /api/projects/{project_id}/map-builds/latest`
+> （指定版本用 `GET /api/map-builds/{build_id}`）。退役後讀圖一律需要 `project_id`。
+
+Current runtime 回傳目前 process session 最新的 viewer payload。現行前端仍保留它作為
+build-scoped 讀取失敗時的 fallback，但它不是 Phase2 build history 的正式讀取入口。
 
 ```http
 GET /api/map
@@ -593,9 +608,9 @@ Response `200`（`ViewerPayload`）：
 
 尚未 build 前仍回傳 contract-compatible payload：`loaded:false`、`error_reason:"no_map_loaded"`、空 `nodes`/`edges`。
 
-### GET /map
+### GET /map（**deprecated**）
 
-`GET /api/map` 的 legacy fallback，回傳完全相同的 `ViewerPayload`。前端會先試 `/api/map`，失敗再退回 `/map`。
+`GET /api/map` 的 legacy fallback，回傳完全相同的 `ViewerPayload`。前端會先試 `/api/map`，失敗再退回 `/map`。與 `/api/map`、`POST /api/map/build` 一同退役。
 
 ### POST /api/viewer/load
 
@@ -899,6 +914,30 @@ NVIDIA_API_KEY=<your-key>
 ```
 
 僅有 `NVIDIA_API_KEY` 而沒有 explicit flag 時，後端仍用 deterministic provider（`provider_name: "deterministic"`）。
+
+**Runtime 設定（非敏感預設值）**：預設值由 bundled TOML
+`src/systograph/core/configs/llm_proposal.toml` 提供（模型 `google/gemma-4-31b-it`、
+endpoint `https://integrate.api.nvidia.com/v1/chat/completions`）。本機測試可經
+`.env` / 環境變數暫時覆寫（`.env` 已被 gitignore，API key 不得 commit）：
+
+```bash
+NVIDIA_NIM_MODEL=google/gemma-4-31b-it
+NVIDIA_NIM_ENDPOINT=https://integrate.api.nvidia.com/v1/chat/completions
+NVIDIA_NIM_TIMEOUT_SECONDS=8.0
+NVIDIA_NIM_MAX_TOKENS=16384
+NVIDIA_NIM_TEMPERATURE=1.0
+NVIDIA_NIM_TOP_P=0.95
+NVIDIA_NIM_STREAM=false
+NVIDIA_NIM_ENABLE_THINKING=true
+```
+
+只有 runtime/provider 預設值屬於 TOML／`.env`。Mapping proposal 的輸出上限
+（候選數、label/rationale 長度、evidence id 數、suggested edge 數、
+`provider_error_reason` 長度）是 `src/systograph/core/models/mapping.py` 的
+Pydantic schema limits，屬 API 與安全契約的一部分，**刻意不開放 TOML 設定**。
+Provider 只接收 masked packet 與 schema summary；request 採 NVIDIA Platform
+non-streaming chat completion 形狀。測試一律用 mock HTTP transport，不打真實
+NVIDIA endpoint。
 
 ### GET /api/mapping-proposals
 

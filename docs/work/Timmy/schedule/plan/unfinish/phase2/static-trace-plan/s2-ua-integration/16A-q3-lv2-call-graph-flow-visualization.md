@@ -1,5 +1,9 @@
 # 16A — Q3 決策：選 Lv2（UA call graph → flow 可視化）
 
+> 📖 **第一次看？** 先讀 [`README.md`](./README.md)（閱讀順序 + 名詞對照表）。
+> **白話一句話：** 為什麼「誰呼叫誰」這份資料值得花力氣拿——因為它一份餵飽五個下游。
+> **想搞懂整件事為什麼要做，從這份開始讀。**
+
 Status: **decision recorded**（2026-07-29）— 產品／架構洞察，非正式實作 plan。
 實作仍以 [`16-implement-understand-anything-sidecar-service.md`](./16-implement-understand-anything-sidecar-service.md) 為主；本檔說明 **為什麼 call-graph 深度（Lv2）值得做，以及一份 UA 資料會餵飽哪些下游。**
 
@@ -20,9 +24,11 @@ Status: **decision recorded**（2026-07-29）— 產品／架構洞察，非正�
 
 ---
 
-## 2. 今天的 flow 可視化水準（現況，非目標）
+## 2. 今天的資料流程圖（flow）畫到什麼程度（現況，非目標）
 
-今日「flow」主要來自 **legacy template 寫死的假想線**，不是看到的 call edge。
+今日圖上的「flow（資料流程線）」，主要來自**舊模板裡寫死的假想線**——
+不是從程式碼真的看到「A 呼叫了 B」而畫的。
+（legacy template = 舊的參考模板 `rag-core-v1`；call edge = 有真實呼叫證據的線。）
 
 ### 2.1 模板寫死兩條線
 
@@ -95,7 +101,7 @@ call hints 是唯一能同時提供**新語意**與**真實 call-site 證據**�
 
 ---
 
-## 3. 接上 UA call graph 之後：一份資料餵飽五張嘴
+## 3. 接上 UA 呼叫關係圖（call graph）之後：一份資料餵飽五張嘴
 
 ```text
         UA / Tree-sitter：誰呼叫誰（帶檔案＋行號）
@@ -130,9 +136,14 @@ call hints 是唯一能同時提供**新語意**與**真實 call-site 證據**�
 
 | 在 Plan 16 內 | 不在 Plan 16 一次做完（後續） |
 |---------------|-------------------------------|
-| Sidecar structural path（import / structure / **call hints**） | FlowDerivation 從「模板假想」改「call 優先」的完整行為切換 |
-| `UaStructuralAdapter` → `ScanFact` / `Evidence(direct)`，含穩定 `rule_id`（如 `ua_call_hint_*`） | Profile / readiness 文案與 G5c 專案收斂 |
-| Parity、fail-closed、不寫 target repo | Frontend 視覺 polish（契約不變則可不改） |
+| Sidecar structural path（import / structure / **call hints**） | FlowDerivation 從「模板假想」改「call 優先」的完整行為切換 → **[`16C`](./16C-component-attribution-and-edge-derivation.md) + [`16D`](./16D-call-priority-consumer-cutover.md)** |
+| `UaStructuralAdapter` → `ScanFact` / `Evidence(direct)`，含穩定 `rule_id`（如 `ua_call_hint_*`） | Profile / readiness 文案與 G5c 專案收斂 → **[`16D`](./16D-call-priority-consumer-cutover.md) Task 5** |
+| Parity、fail-closed、不寫 target repo | Frontend 視覺 polish（契約不變則可不改） → **[`16D`](./16D-call-priority-consumer-cutover.md) Task 6** |
+
+分工速記：
+
+- **16C** = 怎麼把 call/import 編成元件層邊（L1/L2），並把模板邊降成 L3 `undetermined`
+- **16D** = materialization／static execution／profile **正式以 call 邊為主**（完整消費者切換）
 
 **Lv2 的意思（本決策語境）：** 不只用 UA 補強「有哪些元件」，而是把 **call graph 當一等公民**，讓 flow／execution／relationship 共用同一批 direct evidence。
 
@@ -170,15 +181,14 @@ Lv（對話語境，非正式版本號）
 
 ---
 
-## 6. 建議的後續落地順序（給執行者）
+## 6. 建議的後續落地順序（給執行者；落地 = 實際做出來）
 
 1. **Plan 16**：sidecar + adapter 先把 `ua_call_hint_*`（或等價 call facts）穩定進 `scan_result`。
-2. **Step 4 / bridge**：需要時把 call facts 編成 `context_flow`（及其他 relationship）邊，餵 ①。
-3. **FlowDerivation 升級**：模板線降級為 fallback；有 call 證據時優先真接線（②）。
-4. **Static execution**：確認 ③ 的 siblings 吃到同一批 call edges。
-5. **Viewer 煙測**：④ 不改契約；只驗證邊／filter／execution 圖資料變真。
+2. **[`16C`](./16C-component-attribution-and-edge-derivation.md)**：residence + L1/L2/L3 邊推導；模板邊標 `undetermined`。
+3. **[`16D`](./16D-call-priority-consumer-cutover.md)**：materialization call 優先、static execution 同源、profile/G5c、可選關 L3、viewer 煙測。
+4. （可選）Frontend 虛線 polish — 見 16D Task 6。
 
-Gate 仍以 static-trace README 為準：Gate-1 後才開 Plan 16；Gate-2 要 structural + fail-closed + parity。
+Gate 仍以 static-trace README 為準：Gate-1 後才開 Plan 16；Gate-2 要 structural + fail-closed + parity；16C/16D 在 Gate-2 之後。
 
 ---
 
@@ -186,7 +196,7 @@ Gate 仍以 static-trace README 為準：Gate-1 後才開 Plan 16；Gate-2 要 s
 
 | 項目 | 狀態 |
 |------|------|
-| 對話中的「G5c」完整 finding 編號 | 本檔當 **rag-grounding / `context_flow` 缺口** 的別名使用；已正式化為 [`../s1-v2-cutover/13.8.md`](../s1-v2-cutover/13.8.md) |
+| 對話中的「G5c」完整 finding 編號 | 本檔當 **rag-grounding / `context_flow` 缺口** 的別名使用；已正式化為 [`../../../../finish/s1-v2-cutover/13.8.md`](../../../../finish/s1-v2-cutover/13.8.md) |
 | Lv1 / Lv3 完整定義 | 未完整寫入本檔；**已拍板的是選 Lv2（call graph 槓桿）** |
 | 今日 `execution_paths`「只有成對的點」 | **已量化**，見 §2.3；實作時仍以具體 artifact 對照為準 |
 | FlowDerivation 是否在 v2 materialization 路徑仍為 primary | **已確認為 primary 且是唯一 canonical edge 來源**（`system_map_v2_materialization_service.py:124` → `system_map_v2_normalize_service.py:136-158`），見 §2.3 |
@@ -197,8 +207,8 @@ UA 落地前必須完成的兩份前置計畫，否則 UA 的成果無法在 52 
 
 | 計畫 | 為什麼是 UA 的前置 |
 |------|--------------------|
-| [`../s1-v2-cutover/13.7.md`](../s1-v2-cutover/13.7.md) | UA 只替換 fact 來源；元件仍以 bridge kind 字彙表示，若 `_TYPE_TO_NODES` 未補齊，UA 掃得再準 52 格照樣點不亮（實測今天 4/52，拆 legacy 表後 1/52） |
-| [`../s1-v2-cutover/13.8.md`](../s1-v2-cutover/13.8.md) | 端點約束缺口；UA 產出的邊數量級遠大於現有 12 條，無約束時假陽性風險放大（見 §2.4） |
+| [`../../../../finish/s1-v2-cutover/13.7.md`](../../../../finish/s1-v2-cutover/13.7.md) | UA 只替換 fact 來源；元件仍以 bridge kind 字彙表示，若 `_TYPE_TO_NODES` 未補齊，UA 掃得再準 52 格照樣點不亮（實測今天 4/52，拆 legacy 表後 1/52） |
+| [`../../../../finish/s1-v2-cutover/13.8.md`](../../../../finish/s1-v2-cutover/13.8.md) | 端點約束缺口；UA 產出的邊數量級遠大於現有 12 條，無約束時假陽性風險放大（見 §2.4） |
 
 ## 7.2 給 Plan 16 的驗收輸入：12 張卡的關係語意需求
 

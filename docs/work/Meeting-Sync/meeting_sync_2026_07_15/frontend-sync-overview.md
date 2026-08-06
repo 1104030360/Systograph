@@ -126,7 +126,7 @@ build-scoped Viewer、Apply、profile / readiness contract。
 
 - [API Guide](../../../API-GUIDE.md)
 - [Model Contract](../../../MODEL-CONTRACT.md)
-- [Plan 13](../../Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-v2-cutover/13-retire-legacy-extension-contract.md)
+- [Plan 13](../../Timmy/schedule/plan/finish/s1-v2-cutover/13-retire-legacy-extension-contract.md)
 
 文件衝突時，依序相信 current backend code、Pydantic schema、API Guide / Model Contract，最後才是
 舊 PR 或舊 Meeting-Sync 文案。
