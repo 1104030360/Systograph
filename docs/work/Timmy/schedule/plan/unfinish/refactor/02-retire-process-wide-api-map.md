@@ -1,6 +1,6 @@
 # 退役 process-wide `/api/map` demo surface 實作計畫
 
-Status: **Phase B 完成（2026-08-07, commit `<pending>`）；Phase A（FE-2）待前端**
+Status: **Phase B 完成（2026-08-07, commit `f0b9ef5`）；Phase A（FE-2）待前端**
 （2026-08-06 起草；GitHub issue #277。使用者決策：整個移除 process-wide
 `/api/map` demo 讀圖路徑，正式讀圖收斂為 build-scoped 端點。
 **Step 0 文件前置已於 2026-08-06 完成**，見下方「已完成的前置」）
