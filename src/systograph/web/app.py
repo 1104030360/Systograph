@@ -73,7 +73,6 @@ from systograph.web.routes import (
     project_routes,
     scan_routes,
     trace_routes,
-    viewer_routes,
 )
 from systograph.web.session_store import (
     PersistentSessionStore,
@@ -255,7 +254,6 @@ def create_app(
     app.include_router(project_routes.router)
     app.include_router(scan_routes.router)
     app.include_router(trace_routes.router)
-    app.include_router(viewer_routes.router)
     cors_wrapped_app = CORSMiddleware(
         app,
         allow_origins=list(origins),

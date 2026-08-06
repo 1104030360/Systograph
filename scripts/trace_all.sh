@@ -56,7 +56,6 @@ SCRIPTS=(
   "GET /api/map|trace_map_get.sh"
   "GET /api/map/report|trace_map_report.sh"
   "GET /map|trace_map_fallback.sh"
-  "POST /api/viewer/load|trace_viewer_load.sh"
   "Track A graph projection QA|trace_graph_projection_qa.sh"
   "POST /api/scans|trace_scans_create.sh"
   "GET /api/scan/events|trace_scan_events.sh"

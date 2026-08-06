@@ -7,7 +7,8 @@
 #     → ViewerSessionService.build_loaded（唯一投影出口）
 #     → GraphProjectionService.project(AiSystemMapV2) → GraphViewModel
 #     → 包成 ViewerLoadResult → ViewerPayload
-#   Web：POST /api/viewer/load → ViewerPayload
+#   CLI: systograph validate-map → ViewerLoadResult
+#   Web: GET /api/map、GET /map → ViewerPayload (session slot)
 #   MapBuildResult.viewer_load_result 也會帶一份
 #   Frontend：types.ts / SystemGraph / DetailPanel / viewerStore 消費同形狀
 # JSON
@@ -273,7 +274,7 @@ class ViewerLoadResult(ViewerModel):
 
 # 做什麼：Web API / session store 對外的 viewer 包裝（目前就一個 load result）
 # 。
-# 被誰用：viewer_routes.POST /api/viewer/load；
+# 被誰用：map_routes.GET /api/map、map_routes.GET /map；
 # SessionStore.save_viewer_payload；
 #         Frontend viewerPayloadSchema。
 # 內含：viewer_load_result → ViewerLoadResult。

@@ -55,7 +55,6 @@
 | POST | `/api/map/build` | demo | **deprecated** | 1 |
 | GET | `/api/map` | demo | **deprecated** | 2 |
 | GET | `/map` | demo | **deprecated** | 2 |
-| POST | `/api/viewer/load` | demo | current | 2 |
 | GET | `/api/map/report` | demo | current | 2 |
 | POST | `/api/detail-scans` | project | current | 3 |
 | GET | `/api/detail-scans/{id}` | project | current | 3 |
@@ -622,26 +621,6 @@ Response `200`（`ViewerPayload`）：
 ### GET /map（**deprecated**）
 
 `GET /api/map` 的 legacy fallback，回傳完全相同的 `ViewerPayload`。前端會先試 `/api/map`，失敗再退回 `/map`。與 `/api/map`、`POST /api/map/build` 一同退役。
-
-### POST /api/viewer/load
-
-載入磁碟上既有的 `ai_system_map.json`，重新 validate 後成為最新 viewer payload。**不掃描專案、不呼叫 scanner。**
-這支 current compatibility endpoint 接受 server-local `map_json_path`；Phase2 target
-build-scoped workflow 改用 safe `artifact_refs`，不接受 frontend 傳入任意 absolute path。
-若同一 run directory 有 `profile_signals.json`、`readiness_report.json` 或 static execution
-artifacts，Phase2 target viewer 可讀取它們作為 enrichment；缺失時應回 warnings，不阻塞
-base graph 載入。
-
-```http
-POST /api/viewer/load
-```
-
-```json
-{ "map_json_path": "outputs/<run>/ai_system_map.json" }
-```
-
-Response `200`：`ViewerPayload`。
-map 無效時仍回 `200`，但 `loaded:false` 並帶 `error_reason`，讓前端渲染明確的 broken-map 狀態而非崩潰。
 
 ### GET /api/map/report
 

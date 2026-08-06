@@ -66,10 +66,6 @@ class MapBuildApiRequest(WebSchema):
         )
 
 
-class ViewerLoadMapRequest(WebSchema):
-    map_json_path: str
-
-
 class ProjectImportRequest(WebSchema):
     source_type: Literal["local_path"]
     project_path: str
@@ -427,6 +423,5 @@ __all__ = [
     "ScanCreateResponse",
     "ScanProgressEvent",
     "TraceCreateRequest",
-    "ViewerLoadMapRequest",
     "ViewerPayload",
 ]

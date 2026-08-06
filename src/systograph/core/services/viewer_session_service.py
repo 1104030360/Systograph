@@ -3,7 +3,7 @@
 # → GraphProjectionService.project。
 #
 # 呼叫鏈：
-#   Web POST /api/viewer/load、CLI viewer  → load_map
+#   CLI systograph validate-map            → load_map
 #   BuildArtifactPublisher                 → build_canonical
 #   BuildManifestService                   → build_loaded
 #     → ViewerSessionService（三個入口最後都收斂到 build_loaded）
@@ -52,8 +52,8 @@ from systograph.core.services.viewer_legacy_compatibility import (
 
 
 # 做什麼：Viewer session 服務；讀 map、正規化、呼叫 graph projection。
-# 被誰用：viewer_routes、BuildArtifactPublisher、BuildManifestService、
-# MapBuild 相關。
+# 被誰用：BuildArtifactPublisher、BuildManifestService、MapBuild 相關、
+# PersistentSessionStore（projection_service）、CLI validate-map。
 # 自己呼叫：CanonicalMapLoader、GraphProjectionService。
 class ViewerSessionService:
     """Convert validated canonical maps into frontend graph payloads."""
@@ -77,9 +77,9 @@ class ViewerSessionService:
 
     # 做什麼：從磁碟讀 ai_system_map.json → validate/load → 投影成
     # ViewerLoadResult。
-    # 被誰呼叫：viewer_routes.POST /api/viewer/load。
+    # 被誰呼叫：CLI validate-map command（cli/viewer_command.py）。
     # 自己呼叫：CanonicalMapLoader.load → build_loaded。
-    # 失敗：回 empty(error_reason=...)，不丟未處理例外給 API。
+    # 失敗：回 empty(error_reason=...)，不丟未處理例外給 caller。
     def load_map(self, map_json_path: Path) -> ViewerLoadResult:
         """Read, validate, and project one ai_system_map.json file."""
 
