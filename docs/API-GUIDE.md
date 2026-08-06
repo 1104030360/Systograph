@@ -80,12 +80,19 @@ curl -s -X POST http://127.0.0.1:8000/api/projects/import \
   -H 'Content-Type: application/json' \
   -d '{"source_type":"local_path","project_path":"/abs/path/to/rag_project"}' | jq -r '.project_id'
 
-# 3. 掃描（若回 requires_boundary_decision，補上 boundary_decisions 再送一次）
+# 3. 開 preflight 取得 preflight_request_id（path 中的 ":" 需 URL-encode 為 "%3A"）
+curl -s -X POST "http://127.0.0.1:8000/api/projects/project%3A<uuid>/scan-preflights" \
+  -H 'Content-Type: application/json' \
+  -d '{}' | jq -r '.preflight_request_id'
+
+# 4. 掃描（必帶 preflight_request_id；若回 requires_boundary_decision，
+#    補上 boundary_decisions 用同一張單號再送一次）
 curl -s -X POST http://127.0.0.1:8000/api/scans \
   -H 'Content-Type: application/json' \
-  -d '{"project_id":"project:<uuid>"}' | jq '.status'
+  -d '{"project_id":"project:<uuid>","preflight_request_id":"preflight:<digest>"}' \
+  | jq '.status'
 
-# 4. 讀取該 project 的最新地圖（path 中的 ":" 需 URL-encode 為 "%3A"）
+# 5. 讀取該 project 的最新地圖（path 中的 ":" 需 URL-encode 為 "%3A"）
 curl -s "http://127.0.0.1:8000/api/projects/project%3A<uuid>/map-builds/latest" \
   | jq '.viewer_load_result.loaded'
 ```
@@ -202,7 +209,7 @@ Response 主要欄位：
 
 ### POST /api/scans
 
-帶 `preflight_request_id` 與本次 delta decisions 開始正式 scan。Backend 會重新 enumeration、
+必須帶 `preflight_request_id` 與本次 delta decisions 開始正式 scan。Backend 會重新 enumeration、
 驗證 file metadata／directory manifest、套用 `hard safety > exact file > deepest directory >
 ancestor directory > default policy`，通過 post-decision safe-open／binary probe 後才建立唯一的
 final `FileInventory`。所有 current providers 只收到這份 final allowlist；此 runtime 不呼叫 UA。
@@ -233,6 +240,10 @@ identity，並在同一file handle建立content SHA-256；snapshot保存前會�
 }
 ```
 
+`preflight_request_id` 是必填欄位：沒帶就回 422 `preflight_request_id_required`，不做任何
+enumeration、snapshot 或 build。Client 一律先呼叫 `POST /api/projects/{project_id}/scan-preflights`
+取得單號再掃描。
+
 `scan_this_run`／`skip_this_run` 只作用於這次 scan，不改 `.gitignore`、TOML 或 Manual Mapping。
 Directory decision涵蓋所有 selectable descendants；hard-blocked child仍保持 blocked，exact child
 decision優先。沒有 optional decision 時維持 Systograph default；缺 required sensitive decision 時回
@@ -244,7 +255,7 @@ Pending response 不含 `scan_id`，也沒有 snapshot/build/latest pointer：
 {
   project_id: string;
   status: "requires_boundary_decision";
-  preflight_request_id?: string;
+  preflight_request_id: string;
   build_result: null;
   boundary_proposals: ScanBoundaryProposal[];
   available_boundary_actions: ["scan_this_run", "skip_this_run"];
@@ -258,7 +269,7 @@ Completed response會回真實 `scan_id`、build與由 final audit投影的 summ
   scan_id: string;
   project_id: string;
   status: "completed" | "error";
-  preflight_request_id?: string;
+  preflight_request_id: string;
   build_result: MapBuildResult;
   inventory_selection_summary?: {
     included_file_count: number;
@@ -275,8 +286,7 @@ Completed response會回真實 `scan_id`、build與由 final audit投影的 summ
 }
 ```
 
-未傳 `preflight_request_id` 的舊 client仍可走 sensitive-file compatibility flow；該 pending
-階段同樣是 metadata-only，且只能決定 current required sensitive targets，不能藉此覆寫 soft
+Pending 階段同樣是 metadata-only，且只能決定 current required sensitive targets，不能藉此覆寫 soft
 exclusions。Apply 重用保存的 snapshot，不重新 preflight或讀 repo；Rescan必須建立新 preflight，
 不自動沿用上次 decisions。
 
@@ -285,6 +295,7 @@ Typed error body固定為 `{detail:{code,message,retryable,context}}`。主要 c
 | HTTP | code | 意義 |
 | ---: | --- | --- |
 | 404 | `project_not_found` | project不存在 |
+| 422 | `preflight_request_id_required` | `POST /api/scans` 未帶 `preflight_request_id` |
 | 409 | `inventory_preflight_stale` | candidate set已變；刷新 preflight |
 | 409 | `inventory_selection_target_missing` | target已刪除；刷新 preflight |
 | 409 | `inventory_selection_target_changed` | file metadata或directory manifest已變 |

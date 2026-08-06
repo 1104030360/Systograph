@@ -70,6 +70,14 @@ def project_not_found_detail() -> dict[str, object]:
     ).model_dump(mode="json")
 
 
+def preflight_request_id_required_detail() -> dict[str, object]:
+    return InventoryApiErrorDetail(
+        code="preflight_request_id_required",
+        message="Open a scan preflight and send its preflight_request_id.",
+        retryable=False,
+    ).model_dump(mode="json")
+
+
 def inventory_system_error_detail(
     error: InventoryEnumerationError | ScanInventoryRulesError,
 ) -> dict[str, object]:

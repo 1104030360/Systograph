@@ -198,15 +198,39 @@ systograph_import_project() {
   echo "$project_id"
 }
 
+# Open a metadata-only preflight for a project_id and echo its
+# preflight_request_id. A rescan must always open a new preflight.
+systograph_open_scan_preflight() {
+  local project_id="$1"
+  local preflight_id
+  systograph_progress "現在要開 scan preflight，project_id=$project_id" >&2
+  preflight_id="$(
+    setup_post "/api/projects/${project_id}/scan-preflights" '{}' \
+      | jq -r '.preflight_request_id // empty'
+  )"
+  [[ -n "$preflight_id" ]] \
+    || systograph_die "Failed to open scan preflight for $project_id"
+  echo "$preflight_id"
+}
+
 # Run a system scan for a project_id and echo the full scan response JSON.
+# POST /api/scans always requires a preflight_request_id, so this opens a
+# preflight first. Trace fixtures carry no required boundary reviews, so a
+# requires_boundary_decision response means the fixture drifted.
 systograph_run_scan() {
   local project_id="$1"
+  local preflight_id
+  preflight_id="$(systograph_open_scan_preflight "$project_id")"
   systograph_progress "現在要建立 scan（系統掃描）project_id=$project_id" >&2
   local body scan status build_id
   body="$(jq -n --arg id "$project_id" --arg out "$OUTPUT_DIR" \
-    '{project_id:$id, scan_depth:"system", output:$out, redact_root_path:true, no_snippets:false}')"
+    --arg preflight_id "$preflight_id" \
+    '{project_id:$id, scan_depth:"system", output:$out, redact_root_path:true, no_snippets:false, preflight_request_id:$preflight_id, boundary_decisions:[]}')"
   scan="$(setup_post "/api/scans" "$body")"
   status="$(echo "$scan" | jq -r '.status')"
+  if [[ "$status" == "requires_boundary_decision" ]]; then
+    systograph_die "Scan needs boundary decisions this trace does not make"
+  fi
   [[ "$status" == "completed" ]] \
     || systograph_die "Scan did not complete (status=$status)"
   build_id="$(echo "$scan" | jq -r '.build_result.lineage.build_id // empty')"

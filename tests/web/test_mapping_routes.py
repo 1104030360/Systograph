@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from tests.helpers.web_flows import scan_project
 
 from systograph.web.app import create_app
 
@@ -135,13 +136,11 @@ def test_confirmed_mapping_takes_effect_on_next_scan(
         },
     ).json()["project_id"]
 
-    first_scan = client.post(
-        "/api/scans",
-        json={
-            "project_id": project_id,
-            "output": str(tmp_path / "outputs"),
-        },
-    ).json()
+    first_scan = scan_project(
+        client,
+        project_id,
+        output=str(tmp_path / "outputs"),
+    )
     first_map = first_scan["build_result"]["ai_system_map"]
     unmapped = first_map["unmapped_components"][0]
 
@@ -161,13 +160,11 @@ def test_confirmed_mapping_takes_effect_on_next_scan(
         },
     )
 
-    second_scan = client.post(
-        "/api/scans",
-        json={
-            "project_id": project_id,
-            "output": str(tmp_path / "outputs"),
-        },
-    ).json()
+    second_scan = scan_project(
+        client,
+        project_id,
+        output=str(tmp_path / "outputs"),
+    )
     second_map = second_scan["build_result"]["ai_system_map"]
 
     vector_store = next(

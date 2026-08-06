@@ -4,10 +4,10 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from tests.helpers.web_flows import boundary_decision, scan_project
 
 from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
@@ -32,17 +32,6 @@ def _import(client: TestClient, root: Path) -> str:
     )
     assert response.status_code == 200
     return str(response.json()["project_id"])
-
-
-def _decision(proposal: dict[str, Any], action: str) -> dict[str, str]:
-    return {
-        "target_path": str(proposal["target"]["path"]),
-        "fingerprint": str(proposal["target"]["fingerprint"]),
-        "decision": action,
-        "selection_scope": str(
-            proposal["selection_context"]["selection_scope"]
-        ),
-    }
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is unavailable")
@@ -103,8 +92,11 @@ def test_inventory_selection_scan_is_read_only_and_auditable(
             "output": str(tmp_path / "outputs"),
             "preflight_request_id": preflight["preflight_request_id"],
             "boundary_decisions": [
-                _decision(requested["ignored"], "scan_this_run"),
-                _decision(requested["ignored/skip.py"], "skip_this_run"),
+                boundary_decision(requested["ignored"], "scan_this_run"),
+                boundary_decision(
+                    requested["ignored/skip.py"],
+                    "skip_this_run",
+                ),
             ],
         },
     )
@@ -182,7 +174,9 @@ def test_changed_directory_after_preflight_has_no_snapshot_or_build(
         json={
             "project_id": project_id,
             "preflight_request_id": preflight["preflight_request_id"],
-            "boundary_decisions": [_decision(proposal, "scan_this_run")],
+            "boundary_decisions": [
+                boundary_decision(proposal, "scan_this_run"),
+            ],
         },
     )
 
@@ -195,7 +189,7 @@ def test_changed_directory_after_preflight_has_no_snapshot_or_build(
     assert repository.list_build_manifests(project_id) == ()
 
 
-def test_rescan_recomputes_inventory_without_reusing_prior_decision(
+def test_rescan_recomputes_inventory_without_reusing_priorboundary_decision(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "project"
@@ -219,17 +213,15 @@ def test_rescan_recomputes_inventory_without_reusing_prior_decision(
             "output": str(tmp_path / "selected-output"),
             "preflight_request_id": preflight["preflight_request_id"],
             "boundary_decisions": [
-                _decision(proposal, "scan_this_run"),
+                boundary_decision(proposal, "scan_this_run"),
             ],
         },
     ).json()
-    rescanned = client.post(
-        "/api/scans",
-        json={
-            "project_id": project_id,
-            "output": str(tmp_path / "rescan-output"),
-        },
-    ).json()
+    rescanned = scan_project(
+        client,
+        project_id,
+        output=str(tmp_path / "rescan-output"),
+    )
 
     assert selected["scan_id"] != rescanned["scan_id"]
     repository = LocalJsonStateProvider(state_dir)

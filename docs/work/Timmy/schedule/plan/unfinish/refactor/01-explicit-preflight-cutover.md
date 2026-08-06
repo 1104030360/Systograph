@@ -1,6 +1,7 @@
 # Explicit Preflight Cutover（前端兩段式掃描 → 退役 implicit preflight 分支）實作計畫
 
-Status: **planned**（2026-08-05 起草；GitHub issue #277。前置事實查核：現行前端
+Status: **Phase B 已於 2026-08-07 完成（見本 branch 的 Phase B commit）；Phase A 待 FE-1**
+（2026-08-05 起草；GitHub issue #277。前置事實查核：現行前端
 `projectScanApi.ts` 從未送 `preflight_request_id`，正式前端今天 100% 走 implicit
 compatibility 分支——所以退役順序必須是前端先遷移、後端才拆橋）
 
@@ -142,16 +143,16 @@ authorization token。
 - Modify: `tests/web/`、`tests/e2e/`（現行有 17 個不帶單號的 `/api/scans`
   呼叫點，散在 11 個測試檔）
 
-- [ ] **Step 1: 刪除 `scan_routes.py:183-218` implicit 分支與 `:228-250`
+- [x] **Step 1: 刪除 `scan_routes.py:183-218` implicit 分支與 `:228-250`
   implicit-only re-preflight fallback；未帶 `preflight_request_id` 一律回 422
   穩定 code（新增 code 併入錯誤對照表）；同步移除隨之失效的 `create_scan`
   參數 `boundary_service` / `preflight_service`，以及 `InventoryPreflightRequest`
   與 `InventorySelectionErrorCode` import（兩者僅 implicit 分支在用，留著會被
   ruff 擋）**
-- [ ] **Step 2: 同 PR 刪除 `docs/API-GUIDE.md:278` compatibility flow 段落，
+- [x] **Step 2: 同 PR 刪除 `docs/API-GUIDE.md:278` compatibility flow 段落，
   並把 `POST /api/scans` 的 `preflight_request_id` 更新為必填
   （`frontend/API_CONTRACT.md:185` 現寫成 optional，同 PR 一併改）**
-- [ ] **Step 3: 更新／移除倚賴 implicit 路徑的測試**——整檔建立在 implicit
+- [x] **Step 3: 更新／移除倚賴 implicit 路徑的測試**——整檔建立在 implicit
   流程上的 `tests/web/test_scan_boundary_routes.py` 與
   `test_inventory_preflight_routes.py::test_legacy_pending_flow_does_not_open_sensitive_candidate_content`
   移除；其餘只是「順手不帶單號」的呼叫點（`test_project_scan_routes.py`、
@@ -161,7 +162,7 @@ authorization token。
   `tests/e2e/test_apply_confirmations_build_lineage.py`、
   `tests/e2e/test_inventory_selection_scan_flow.py` 的 rescan 段）改成先
   preflight 再帶單號；補「未帶單號 → 422」regression test**
-- [ ] **Step 4: `scripts/trace_inventory_selection_preflight.sh` 全流程驗證**
+- [x] **Step 4: `scripts/trace_inventory_selection_preflight.sh` 全流程驗證**
 
 ---
 

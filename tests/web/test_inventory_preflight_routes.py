@@ -5,6 +5,7 @@ from typing import IO, Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
+from tests.helpers.web_flows import boundary_decision, open_scan_preflight
 
 from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
@@ -19,16 +20,6 @@ def _import_project(client: TestClient, root: Path) -> str:
     )
     assert response.status_code == 200
     return str(response.json()["project_id"])
-
-
-def _decision(proposal: dict[str, Any], action: str) -> dict[str, str]:
-    context = proposal["selection_context"]
-    return {
-        "target_path": str(proposal["target"]["path"]),
-        "fingerprint": str(proposal["target"]["fingerprint"]),
-        "decision": action,
-        "selection_scope": str(context["selection_scope"]),
-    }
 
 
 def test_preflight_projects_bounded_directory_summary_without_entries(
@@ -170,8 +161,8 @@ def test_preflight_selection_scan_uses_final_inventory_and_returns_summary(
             "output": str(tmp_path / "outputs"),
             "preflight_request_id": preflight["preflight_request_id"],
             "boundary_decisions": [
-                _decision(proposals[".env"], "skip_this_run"),
-                _decision(proposals["ignored"], "scan_this_run"),
+                boundary_decision(proposals[".env"], "skip_this_run"),
+                boundary_decision(proposals["ignored"], "scan_this_run"),
             ],
         },
     )
@@ -261,7 +252,9 @@ def test_stale_preflight_scan_returns_409_without_snapshot(
         json={
             "project_id": project_id,
             "preflight_request_id": preflight["preflight_request_id"],
-            "boundary_decisions": [_decision(proposal, "skip_this_run")],
+            "boundary_decisions": [
+                boundary_decision(proposal, "skip_this_run"),
+            ],
         },
     )
 
@@ -342,7 +335,7 @@ def test_scan_selection_errors_are_typed_and_create_no_snapshot(
     assert repository.list_build_manifests(project_id) == ()
 
 
-def test_legacy_pending_flow_does_not_open_sensitive_candidate_content(
+def test_unanswered_required_decision_returns_pending_without_opening_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -351,21 +344,42 @@ def test_legacy_pending_flow_does_not_open_sensitive_candidate_content(
     env_path = root / ".env"
     env_path.write_text("TOKEN=must-not-open\n", encoding="utf-8")
     (root / "app.py").write_text("app\n", encoding="utf-8")
-    client = TestClient(create_app(state_dir=tmp_path / "state"))
+    state_dir = tmp_path / "state"
+    client = TestClient(create_app(state_dir=state_dir))
     project_id = _import_project(client, root)
+    preflight = open_scan_preflight(client, project_id)
+    assert [
+        item["target"]["path"]
+        for item in preflight["required_boundary_proposals"]
+    ] == [".env"]
     original_open = Path.open
 
     def guarded_open(path: Path, *args: Any, **kwargs: Any) -> IO[Any]:
         if path == env_path:
-            raise AssertionError("legacy pending flow opened .env")
+            raise AssertionError("pending selection opened .env")
         return cast(IO[Any], original_open(path, *args, **kwargs))
 
     monkeypatch.setattr(Path, "open", guarded_open)
 
     response = client.post(
         "/api/scans",
-        json={"project_id": project_id},
+        json={
+            "project_id": project_id,
+            "output": str(tmp_path / "outputs"),
+            "preflight_request_id": preflight["preflight_request_id"],
+        },
     )
 
     assert response.status_code == 200
-    assert response.json()["status"] == "requires_boundary_decision"
+    payload = response.json()
+    assert payload["status"] == "requires_boundary_decision"
+    assert payload["build_result"] is None
+    assert "scan_id" not in payload
+    assert payload["preflight_request_id"] == preflight["preflight_request_id"]
+    assert [
+        item["target"]["path"] for item in payload["boundary_proposals"]
+    ] == [".env"]
+    assert "must-not-open" not in response.text
+    repository = LocalJsonStateProvider(state_dir)
+    assert repository.get_latest_pointer(project_id) is None
+    assert repository.list_build_manifests(project_id) == ()

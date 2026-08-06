@@ -170,7 +170,9 @@ Directory proposals expose bounded counts and a manifest fingerprint only; inter
 `entries[]`, file contents, snippets, absolute paths, and secret values must never appear in this payload.
 Preflight does not create a scan, snapshot, build, output directory, or latest pointer.
 
-The frontend then starts the scan:
+The frontend then starts the scan. `preflight_request_id` is required: a scan without one is
+rejected with `422 preflight_request_id_required` before any enumeration, snapshot, or build runs,
+so there is no implicit path that starts a scan straight from the project id.
 
 ```http
 POST /api/scans
@@ -182,7 +184,7 @@ Request:
 ```ts
 {
   project_id: string;
-  preflight_request_id?: string;
+  preflight_request_id: string; // required; from the preflight above
   boundary_decisions?: Array<{
     target_path: string;
     fingerprint: string;
@@ -201,7 +203,7 @@ Completed response:
   project_id: string;
   status: "completed" | "error";
   build_result?: unknown;
-  preflight_request_id?: string;
+  preflight_request_id: string; // echoed from the request
   inventory_selection_summary?: {
     included_file_count: number;
     skipped_file_count: number;
@@ -223,7 +225,7 @@ Boundary review response:
 {
   project_id: string;
   status: "requires_boundary_decision";
-  preflight_request_id?: string;
+  preflight_request_id: string; // echoed from the request
   available_boundary_actions: Array<"scan_this_run" | "skip_this_run">;
   boundary_proposals: Array<{
     proposal_id: string;
@@ -289,8 +291,9 @@ recoverable by retrying the same payload; the frontend must stop sending the ret
 | `legacy_mapping_type_read_only` | `POST /api/mappings`, `PATCH /api/mappings/{mapping_id}`, `POST /api/mapping-proposals/{proposal_id}/decision` | The request carries `mapping_type: "new_extension_component"` (checked at top level and inside `edited_mapping`). The legacy extension mapping type is read-only: migration tooling may still read it, but no API accepts it as a write. Active values are `existing_slot_mapping` and `non_baseline_capability_candidate`. |
 | `legacy_output_not_selectable` | `POST /api/scans`, `POST /api/map/build` | The request asked for `system_map_schema_version: "ai-system-map/v1"`. Canonical output is `ai-system-map/v2`; `system_map_schema_version` is a deprecated input kept until Plan 15. Operator rollback exists but is a process-level setting, never a request-selectable option, so there is no payload the frontend can send to obtain v1. |
 
-`POST /api/scans` rejects before any preflight or scan work runs, so an invalid selection costs no
-scan time and leaves no persisted snapshot or output directory behind.
+`POST /api/scans` rejects before any enumeration or scan work runs, so an invalid selection costs no
+scan time and leaves no persisted snapshot or output directory behind. The same is true of the
+`{detail:{code,message,retryable,context}}`-shaped `preflight_request_id_required` rejection.
 
 The frontend still has type definitions and form paths able to assemble
 `new_extension_component`; those must be removed rather than error-handled — the proposal UI is
