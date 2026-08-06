@@ -81,10 +81,13 @@ systograph_cleanup() {
   fi
 }
 
+# Readiness probe. `/openapi.json` is served by FastAPI itself, is read-only,
+# and is not a product endpoint, so it cannot be retired out from under the
+# whole trace suite the way a demo endpoint can.
 wait_for_api() {
   local attempt
   for attempt in $(seq 1 60); do
-    if curl -fsS "$API_BASE_URL/api/map" >/dev/null 2>&1; then
+    if curl -fsS "$API_BASE_URL/openapi.json" >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.5

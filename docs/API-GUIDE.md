@@ -25,14 +25,16 @@
 | 未知欄位 | 寫入類 endpoint `extra="forbid"` |
 | 錯誤格式 | `{ "detail": string }`；422 時 `detail` 為陣列 |
 | 安全錯誤 | 413/500 不回 raw secret、exception string、absolute path |
-| State | Project workflow 使用 `${SYSTOGRAPH_STATE_DIR:-~/.systograph}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復。Demo `/api/map` 仍保留 process-latest compatibility（deprecated，即將移除） |
+| State | Project workflow 使用 `${SYSTOGRAPH_STATE_DIR:-~/.systograph}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復 |
 
-### 兩種流程
+### 唯一流程：Project session
 
 | 流程 | 路徑 | 用途 |
 |------|------|------|
-| **Project session** | `import` → `scans` → … | 正式 workflow；detail scan / mapping / proposals 必走此路 |
-| **Viewer demo**（**deprecated，即將移除**） | `GET /api/map` | 只剩讀取：讀 process-wide 最新 build（由 project session 端點寫入）。**無** `project_id`，不能接 project-scoped API。已決定退役，勿建立新依賴；退役後讀圖一律需要 `project_id` |
+| **Project session** | `import` → `scans` → `map-builds/latest` | 唯一 workflow；讀圖、detail scan、mapping、proposals 全部必走此路 |
+
+讀圖一律需要 `project_id`（或指定 `build_id`）。舊的 process-wide demo surface
+——`POST /api/map/build`、`GET /api/map`、`GET /map`——已全數移除，回 `404`。
 
 > **標記：** `current` 是目前 OpenAPI 已實作；`[phase2-later]` 是後續 target。Pipeline、UA rollout、artifact 清單見 MODEL-CONTRACT；架構分層見 `epic1-phase2.md` §6。
 
@@ -52,9 +54,7 @@
 | POST | `/api/projects/import` | project | current | 1 |
 | POST | `/api/scans` | project | current | 1 |
 | GET | `/api/scan/events` | project | current | 1 |
-| GET | `/api/map` | demo | **deprecated** | 2 |
-| GET | `/map` | demo | **deprecated** | 2 |
-| GET | `/api/map/report` | demo | current | 2 |
+| GET | `/api/map/report` | process-wide | current | 2 |
 | POST | `/api/detail-scans` | project | current | 3 |
 | GET | `/api/detail-scans/{id}` | project | current | 3 |
 | POST | `/api/trace` | project | current | 4 |
@@ -95,9 +95,10 @@ curl -s "http://127.0.0.1:8000/api/projects/project%3A<uuid>/map-builds/latest" 
   | jq '.viewer_load_result.loaded'
 ```
 
-> **舊的 demo 建圖端點 `POST /api/map/build` 已移除**（回 `404`）。HTTP 建圖一律走上面的
-> project session 流程；一次掃一個路徑就出圖的等價能力在 CLI `systograph map`。
-> 讀取端 `GET /api/map` 尚未退役，但同樣 deprecated，勿建立新依賴。
+> **舊的 process-wide demo surface 已全數移除**（皆回 `404`）：建圖端
+> `POST /api/map/build`、讀取端 `GET /api/map` 與其 legacy fallback `GET /map`。
+> HTTP 建圖一律走上面的 project session 流程，讀圖一律走 build-scoped 端點；
+> 一次掃一個路徑就出圖的等價能力在 CLI `systograph map`。
 
 每個 endpoint 都有對應的可執行範例腳本，例如 `scripts/trace_scans_create.sh`、`scripts/trace_all.sh`（一次跑完全部）。
 
@@ -105,9 +106,7 @@ curl -s "http://127.0.0.1:8000/api/projects/project%3A<uuid>/map-builds/latest" 
 
 ## 1. 專案與掃描
 
-**Project session 流程**：`import` 取得 `project_id` → `scans` 觸發掃描 → `scan/events` 看進度。後續 detail scan / mapping 都依賴此 `project_id`。
-
-**Viewer demo 捷徑（deprecated，即將移除）**：`GET /api/map` 讀 process-wide 最新 build，但不帶 project session（見 §2）。寫入端 `POST /api/map/build` 已移除；勿建立新依賴。
+**Project session 流程**：`import` 取得 `project_id` → `scans` 觸發掃描 → `scan/events` 看進度。後續讀圖 / detail scan / mapping 都依賴此 `project_id`。沒有不帶 `project_id` 的捷徑。
 
 ### POST /api/projects/import
 
@@ -340,11 +339,11 @@ data: {"event":"scan_progress","status":"completed","stage":"validate","message"
 
 | Contract | Current S1 | Later target |
 |---|---|---|
-| Read surface | project latest / 指定 `build_id`；另保留 demo `/api/map` | 同左 |
+| Read surface | 只有 build-scoped：project latest / 指定 `build_id` | 同左 |
 | Response wrapper | `MapBuildScopedResponse` + legacy `ViewerLoadResult` | richer Graph projection + safe refs |
 | Persistence | project/scan/build/mapping local JSON repositories | 可替換 database adapter |
 | Identity | persisted `scan_id` + `build_id` | 同左 |
-| Artifacts | 兩邊都不回 path：build-scoped response 不回，demo 讀取面（`ViewerLoadResult`）本來就只回內容不回路徑；`*_path` 欄位隨 `POST /api/map/build` 一同退役 | safe `artifact_refs` |
+| Artifacts | 讀取面不回 path：`MapBuildScopedResponse.build_result`（`Phase2MapBuildResult`）與 `ViewerLoadResult` 都只回內容。`*_path` 欄位仍存在於 `POST /api/scans` 回應的 `build_result`（core `MapBuildResult`），且是 server-local absolute path | safe `artifact_refs` |
 
 Phase2 primary endpoints（完整 surface，對齊 `epic1-phase2.md` §16）：
 
@@ -359,7 +358,7 @@ POST /api/detail-scans  // optional build_id in body
 POST /api/trace         // optional build_id in body
 ```
 
-`GET /api/map` 與 `GET /map` 僅保留 demo / legacy compatibility。Current detail scan
+Current detail scan
 與 trace 使用 request body 的 optional `build_id`；省略時採 latest fallback 並回 warning。
 Path-scoped `/api/map-builds/{build_id}/detail-scans|trace` 是 later alias target，尚未存在。
 
@@ -501,52 +500,11 @@ rollback 若啟用，則只由 process-level setting 決定實際 artifact versi
 對指定 build 執行 opt-in query trace overlay。Current runtime 等價路徑為 `POST /api/trace`（`project_id`）。
 Trace overlay 不得寫回 canonical map / profile artifacts。
 
-### GET /api/map（legacy / demo，**deprecated**）
-
-> **即將移除。** 正式讀圖入口是 `GET /api/projects/{project_id}/map-builds/latest`
-> （指定版本用 `GET /api/map-builds/{build_id}`）。退役後讀圖一律需要 `project_id`。
-
-Current runtime 回傳目前 process session 最新的 viewer payload。現行前端仍保留它作為
-build-scoped 讀取失敗時的 fallback，但它不是 Phase2 build history 的正式讀取入口。
-
-```http
-GET /api/map
-```
-
-Response `200`（`ViewerPayload`）：
-
-```ts
-{
-  viewer_load_result: {
-    loaded: boolean;
-    error_reason: string | null;
-    map_json: string | null;
-    ai_system_map: object;
-    graph_view_model: {
-      schema_version: string;            // "graph-view-model/v1"
-      source_schema_version: string | null;
-      summary: object | null;
-      nodes: GraphNode[];
-      edges: GraphEdge[];
-      details: {
-        evidence_by_id: Record<string, object>;
-        risk_hints_by_id: Record<string, object>;
-      };
-      filters: { available: GraphFilter[]; behavior?: string };
-    };
-  };
-}
-```
-
-尚未 build 前仍回傳 contract-compatible payload：`loaded:false`、`error_reason:"no_map_loaded"`、空 `nodes`/`edges`。
-
-### GET /map（**deprecated**）
-
-`GET /api/map` 的 legacy fallback，回傳完全相同的 `ViewerPayload`。前端會先試 `/api/map`，失敗再退回 `/map`。與 `/api/map` 一同退役。
-
 ### GET /api/map/report
 
-回傳目前 session 最新的 Markdown report（讀 `map_build` 寫出的 `map_markdown_path`，不接受任意路徑）。
+回傳目前 process 最新一次成功 build 寫出的 Markdown report（讀該 build 的
+`map_markdown_path`，不接受任意路徑）。這是唯一還沒 build-scoped 的讀取端；
+接上 build-scoped artifact preview 由 issue #219 處理。
 
 ```http
 GET /api/map/report            # 行內檢視
@@ -570,8 +528,8 @@ MODEL-CONTRACT §5.3）。
 
 Current runtime 對單一目標做有界深掃，綁定指定 build，並產生同 `scan_id` 的
 immutable child `build_id`；不得 overwrite parent。**需先完成 project session**
-（`import` → `scans`）；`map_not_loaded` 檢查看的是該 project 的 build，process-wide
-`/api/map` 有內容不算數。
+（`import` → `scans`）；`map_not_loaded` 檢查看的是該 project 的 build，別的 project
+掃過不算數。
 若省略 `build_id`，後端使用該 project latest 並回 `latest_build_fallback` warning。
 
 ### POST /api/detail-scans
@@ -644,7 +602,7 @@ Response `200`：與 `POST /api/detail-scans` 相同。
 
 ## 4. Query Trace（Runtime opt-in）
 
-對已載入 project map 的某個 endpoint id 執行一次黑箱 query trace。這是明確 opt-in 的 runtime 路徑；`POST /api/scans`、`GET /api/map` 與 CLI `systograph map` 不會自動呼叫任何 endpoint。
+對已載入 project map 的某個 endpoint id 執行一次黑箱 query trace。這是明確 opt-in 的 runtime 路徑；`POST /api/scans`、build-scoped 讀取端點與 CLI `systograph map` 不會自動呼叫任何 endpoint。
 
 Trace 只回傳 transient `TraceRunResult`，不寫回 `ai_system_map.query_trace_events`，也不會把 observed unmapped component 自動升級成 confirmed mapping 或 baseline edge。
 

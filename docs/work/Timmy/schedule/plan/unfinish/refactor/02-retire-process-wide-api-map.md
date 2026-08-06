@@ -1,7 +1,8 @@
 # 退役 process-wide `/api/map` demo surface 實作計畫
 
-Status: **planned**（2026-08-06 起草；GitHub issue #277。使用者決策：整個移除
-process-wide `/api/map` demo 讀圖路徑，正式讀圖收斂為 build-scoped 端點。
+Status: **Phase B 完成（2026-08-07, commit `<pending>`）；Phase A（FE-2）待前端**
+（2026-08-06 起草；GitHub issue #277。使用者決策：整個移除 process-wide
+`/api/map` demo 讀圖路徑，正式讀圖收斂為 build-scoped 端點。
 **Step 0 文件前置已於 2026-08-06 完成**，見下方「已完成的前置」）
 
 > **2026-08-07 使用者決策 —— gate 解除，後端先行動工：** 前端會在後端之後補上
@@ -185,18 +186,26 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
 
 ---
 
-## Phase B — Backend（2026-08-07 起 gate 解除，可立即動工；原為「Phase A 上線後」）
+## Phase B — Backend（**已完成 2026-08-07**；gate 已於同日解除，原為「Phase A 上線後」）
 
 ### Task 4: 移除 handler
 
 **Files:**
 - Modify: `src/systograph/web/routes/map_routes.py`
 
-- [ ] **Step 1: 刪除 `get_api_map`(37) 與 `get_map_fallback`(75)**
+- [x] **Step 1: 刪除 `get_api_map`(37) 與 `get_map_fallback`(75)**
   （`build_map`(22) 屬 Plan 03；若 03 尚未執行則保持不動）
-- [ ] **Step 2: 清掉隨之無用的 import**（`MapBuildApiRequest` 的退役屬
+  → 2026-08-07 完成。Plan 03 已先行退役 `build_map`，本次刪掉剩下兩個讀取
+  handler；`map_routes.py` 保留檔案，只剩 `get_map_report`，module docstring
+  已改寫為「不再提供讀圖」。
+- [x] **Step 2: 清掉隨之無用的 import**（`MapBuildApiRequest` 的退役屬
   Plan 03；`ViewerPayload` response_model 若仍被其他 handler 使用則保留）
-- [ ] **Step 3: `uv run ruff check src tests` + `uv run mypy src tests` 通過**
+  → `ViewerPayload` 在兩個 handler 移除後已無使用者，import 一併移除；
+  **`map_routes.py` 現已無任何 `ViewerPayload` 引用**（Plan 08 gate 的最後一塊）。
+  另修正 `core/models/viewer.py` 兩處 header 註解（原本寫「被 map_routes.GET
+  /api/map / GET /map 使用」，端點消失後成為錯誤敘述）。
+- [x] **Step 3: `uv run ruff check src tests` + `uv run mypy src tests` 通過**
+  → ruff check / ruff format --check / mypy 全綠。
 
 ### Task 5: 測試遷移
 
@@ -208,15 +217,32 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
 | `tests/web/test_map_routes.py` | 8 | 主要退役對象：`:29`、`:145` 讀 `/api/map`，`:30` 讀 `/map`；另 5 處 `POST /api/map/build` 屬 Plan 03。保留 `/api/map/report` 相關案例 |
 | `tests/web/test_mapping_proposal_routes.py` | 2 | 改用 project scan 流程建立前置 build |
 | `tests/web/test_mapping_routes.py` | 2 | 同上 |
-| `tests/web/test_scan_boundary_routes.py` | 2 | 同上 |
+| ~~`tests/web/test_scan_boundary_routes.py`~~ | ~~2~~ | **作廢（2026-08-07）**：該檔已由 Plan 01（explicit preflight cutover）整檔刪除 |
 | `tests/web/test_local_api_hardening.py` | 1 | 唯一引用是 `:20` 的 `POST /api/map/build`，屬 Plan 03，本計畫不動 |
-| `tests/web/test_viewer_routes.py` | 1 | `:40` 用 `GET /api/map` 回讀 `POST /api/viewer/load` 的寫入結果；該端點只寫 `save_viewer_payload`（`viewer_routes.py:35`），**無 build-scoped 等價讀路徑**，處理方式待決 |
+| ~~`tests/web/test_viewer_routes.py`~~ | ~~1~~ | **作廢（2026-08-07）**：該檔已由 Plan 05（退役 `POST /api/viewer/load`）整檔刪除，「處理方式待決」隨之消滅 |
 
-- [ ] **Step 1: 逐檔把「讀 process-wide latest」的斷言改為 build-scoped
+- [x] **Step 1: 逐檔把「讀 process-wide latest」的斷言改為 build-scoped
   端點**；前置造 build 一律走 `import` → `scans`（或抽共用 helper 放
   `tests/helpers/`）。註：`/api/map/build` 相關前置由 Plan 03 處理
-- [ ] **Step 2: 新增 regression：`GET /api/map`、`GET /map` 回 404**
-- [ ] **Step 3: `uv run pytest -m web` 全綠**
+  → 2026-08-07 完成。實際格局已與上表快照（2026-08-06）不同：
+  - `test_map_routes.py`：`test_committed_scan_is_readable_from_process_wide_map_routes`
+    與 `test_map_payload_before_build_is_contract_compatible` 兩案整案刪除
+    （覆蓋改由 404 regression 承接）；`/api/map/report` 四個正向/負向案例全數
+    存活，模組層 `scan_fixture_project()` 前置保留（改為不回傳 payload）。
+  - `test_mapping_proposal_routes.py`：`before`/`after` 改讀
+    `GET /api/projects/{project_id}/map-builds/latest`（該案本來就已 import+scan）。
+  - `test_mapping_routes.py`：原 `test_mapping_route_does_not_mutate_current_map_payload`
+    沒有任何 build 前置，改為 `test_mapping_route_does_not_mutate_latest_build`，
+    先 import+scan 造出 build，並把 mapping 綁到**同一個** project，斷言因此更強
+    （記錄 mapping 不會重建 latest build，只有 Apply 會）。
+  - 前置一律走 `tests/helpers/web_flows.py` 的 `scan_project()`（Plan 01 起
+    `POST /api/scans` 必帶 `preflight_request_id`）。
+- [x] **Step 2: 新增 regression：`GET /api/map`、`GET /map` 回 404**
+  → 加在退役共用檔 `tests/web/test_retired_endpoints.py`：各兩支（404 回應 +
+  `assert_path_is_unregistered()` 路由表檢查，後者含 `/api/scans` positive
+  control）。TDD：先寫紅（4 failed，斷言路由仍註冊）再刪 handler 轉綠。
+- [x] **Step 3: `uv run pytest -m web` 全綠**
+  → 94 passed；全套 `uv run pytest` 1138 passed / 1 skipped。
 
 ### Task 6: Trace scripts
 
@@ -230,27 +256,68 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
 被所有 trace script（含 `trace_all.sh`）引用，端點消失後整組會等滿 60 次重試後
 以「Backend did not become available」失敗，因此必須一併遷移。
 
-- [ ] **Step 1: 刪除純粹驗證已退役端點的腳本**（`trace_map_get.sh`、
+- [x] **Step 1: 刪除純粹驗證已退役端點的腳本**（`trace_map_get.sh`、
   `trace_map_fallback.sh`；`trace_map_build.sh` 屬 Plan 03）
-- [ ] **Step 2: 兩處 `wait_for_api()` 探測改打仍存在的端點；其餘腳本
+  → 2026-08-07 完成，兩支腳本已刪除。
+- [x] **Step 2: 兩處 `wait_for_api()` 探測改打仍存在的端點；其餘腳本
   （`trace_graph_projection_qa.sh`、`trace_scan_boundary_multi_decision_gate.sh`）
   改用 project scan 流程取得 build**
-- [ ] **Step 3: 從 `trace_all.sh` 移除已刪腳本（`:56`、`:58` 兩列），
+  → 探針改打 `/openapi.json`（FastAPI 框架自帶、read-only、非產品端點，不會再被
+  退役；已實測 `curl -fsS` 對本 app 回 200，middleware 不擋）。兩處都加註解說明
+  選擇理由。`scripts/test_mapping_proposal_llm.sh` 被 gitignore，照改但不進 commit。
+  - `trace_graph_projection_qa.sh`：原本比對「session `/api/map` vs build-scoped」，
+    改為比對「`GET /api/projects/{id}/map-builds/latest` vs
+    `GET /api/map-builds/{build_id}`」，並額外斷言 latest 解析到的 `build_id`
+    等於掃描回傳的 `build_id`（保留原本的 node/relationship count 對帳）。
+  - `trace_scan_boundary_multi_decision_gate.sh`：原本用 `/api/map` payload 前後
+    比對，改為 project-scoped 的 `map-builds/latest` HTTP 狀態碼：掃描前 404、
+    pending 期間仍 404（證明 gate 沒發佈 build）、完成後 200 且
+    `viewer_load_result.loaded=true`。斷言比原本更強（原本只證明 process-wide
+    payload 沒變）。
+- [x] **Step 3: 從 `trace_all.sh` 移除已刪腳本（`:56`、`:58` 兩列），
   確認整組可跑**
+  → 兩列已移除。實跑證據（皆 `--start-server`，state dir 導向暫存目錄）：
+  `trace_graph_projection_qa.sh` exit 0、`trace_scan_boundary_multi_decision_gate.sh`
+  exit 0（PASS）、`trace_all.sh` 17 支跑完 9 PASS / 8 FAIL。
+  **8 支 FAIL 全為既有缺陷、與本次無關**：`trace_detail_scans_create.sh:66`、
+  `trace_detail_scans_get.sh:54`、`trace_mappings_create.sh:42`、
+  `lib/api_trace_common.sh:258` 仍讀 `.build_result.ai_system_map.components_by_slot`
+  ——該欄位是 v1 遺留，v2 map 沒有（實測產出的 `ai_system_map.json`
+  `has_components_by_slot=false`），故 `jq: null has no keys` 後 die。這四處本次
+  未修改（見 `git diff -- scripts/`），屬另案。
 
 ### Task 7: API-GUIDE
 
 **Files:**
 - Modify: `docs/API-GUIDE.md`
 
-- [ ] **Step 1: 改寫 `:30-35`「兩種流程」表——移除 Viewer demo 那一列，
+- [x] **Step 1: 改寫 `:30-35`「兩種流程」表——移除 Viewer demo 那一列，
   只留 Project session（這是本計畫對外語意的核心變更）**
-- [ ] **Step 2: 刪除 `GET /api/map（legacy / demo）` 與 `GET /map` 兩節**
+  → 標題改為「唯一流程：Project session」，表只剩一列，並補一句「讀圖一律需要
+  `project_id`（或指定 `build_id`）；`POST /api/map/build`、`GET /api/map`、
+  `GET /map` 已全數移除，回 404」。全域約定 State 列的 demo compatibility 敘述
+  一併刪除；§1 導言的「Viewer demo 捷徑」段落刪除。
+- [x] **Step 2: 刪除 `GET /api/map（legacy / demo）` 與 `GET /map` 兩節**
   （`POST /api/map/build` 一節屬 Plan 03）
-- [ ] **Step 3: Endpoint 總覽移除 `:56`、`:57` 兩列；`GET /api/map/report`
+  → 兩節（含 `ViewerPayload` response 型別區塊）已刪除。
+- [x] **Step 3: Endpoint 總覽移除 `:56`、`:57` 兩列；`GET /api/map/report`
   一節保留**（錯誤對照表 `:1035-1046` 以狀態碼分列、沒有指名這兩支端點的列；
   `:1067` 具名的是 `POST /api/map/build`，屬 Plan 03）
-- [ ] **Step 4: 全文 grep 確認無殘留指向已刪端點的敘述**
+  → 兩列已移除；`/api/map/report` 那列的「流程」欄由 `demo` 改為 `process-wide`
+  （demo 流程已不存在，該標籤失去指涉）。該節保留並註明它是唯一還沒 build-scoped
+  的讀取端，接線由 issue #219 處理。
+- [x] **Step 4: 全文 grep 確認無殘留指向已刪端點的敘述**
+  → API-GUIDE 只剩兩處刻意保留的「已移除、回 404」敘述（`:37`、`:99`）。
+  另修正下列附帶敘述：§2 對照表 Read surface 列、§2 primary endpoints 區塊的
+  「僅保留 demo / legacy compatibility」句、§3 Detail Scan 的「process-wide
+  `/api/map` 有內容不算數」、§4 trace 的「`GET /api/map` 不會自動呼叫任何
+  endpoint」。
+- [x] **Step 5（追加，N1 修正）：§2 對照表 Artifacts 列的過寬敘述**
+  → 原寫「`*_path` 欄位隨 `POST /api/map/build` 一同退役」，與現況不符：
+  `*_path`（`map_json_path` 等 11 個欄位，`core/models/map_build.py:74-84`）
+  仍隨 `POST /api/scans` 的 `build_result`（core `MapBuildResult`）回傳；
+  真正不回 path 的是 build-scoped 讀取面（`Phase2MapBuildResult`
+  沒有這些欄位，`web/schemas.py:67-98`）。已依現況重寫。
 
 ---
 
@@ -265,6 +332,31 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
 5. `docs/API-GUIDE.md` 與 `frontend/API_CONTRACT.md` 無指向已刪端點的殘留
    敘述；「兩種流程」已收斂為單一 project session 流程。
 6. `GET /api/map/report` 行為不變（仍可讀取正式 scan 產生的最新報告）。
+
+### Phase B 對照（2026-08-07）
+
+- 1 ✅ 兩支端點回 404，`tests/web/test_retired_endpoints.py` 各以兩支測試鎖住。
+- 2、3 ⏳ 屬 Phase A（FE-2），待前端。
+- 4 部分 ✅：`uv run pytest` 1138 passed / 1 skipped、ruff check、
+  ruff format --check、mypy 全綠；`pnpm test` 屬 Phase A。`scripts/trace_all.sh`
+  可完整跑完 17 支並印出 summary，但有 8 支因**既有的** `components_by_slot`
+  （v1 遺留欄位）jq 缺陷而 FAIL，非本次造成，見 Task 6 Step 3 註記。
+- 5 部分 ✅：`docs/API-GUIDE.md` 已收斂為單一 project session 流程且無殘留；
+  `frontend/API_CONTRACT.md` 屬 Phase A Task 3，尚未處理。
+- 6 ✅ `/api/map/report` 未動，四支既有測試（正向、download、404、path 注入）全綠。
+
+### Phase B 契約文件另掃（比照 Plan 03 前例）
+
+- `docs/design/epic1-phase2.md`：四處把 `GET /api/map` 寫成 current demo /
+  compatibility read path（Step 8 Mermaid 的 `S8compat` 節點、§「兩種流程」條目、
+  Compatibility rules、Plan regeneration rules），端點消失後全數成為錯誤敘述，
+  已一併改為「process-wide 讀取路徑不存在，讀圖一律 project/build-scoped」。
+
+### Phase B 未處理但已知的殘留（另案）
+
+- `docs/spec/features/套用確認對應.feature:142` 仍有
+  `And 額外的 "GET /api/map" 呼叫次數為 0`。該檔無 runner（repo 沒有 pytest-bdd /
+  behave），敘述本身未錯，但端點已不存在、該斷言變空轉，宜由 spec 維護者處理。
 
 ## 風險
 

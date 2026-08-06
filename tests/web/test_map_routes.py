@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from fastapi.testclient import TestClient
 from tests.helpers.fixtures import rag_project_fixture_path
@@ -10,14 +9,12 @@ from tests.helpers.web_flows import scan_project
 from systograph.web.app import create_app
 
 
-def scan_fixture_project(
-    client: TestClient,
-    tmp_path: Path,
-) -> dict[str, Any]:
+def scan_fixture_project(client: TestClient, tmp_path: Path) -> None:
     """Import the sample RAG project and scan it into `tmp_path`.
 
-    Every map read below needs a committed build behind it, and the project
-    session flow (`import` -> `scans`) is the only HTTP path that makes one.
+    Every report read below needs a committed build behind it, and the
+    project session flow (`import` -> `scans`) is the only HTTP path that
+    makes one.
     """
 
     project_id = client.post(
@@ -29,31 +26,11 @@ def scan_fixture_project(
             ),
         },
     ).json()["project_id"]
-    return scan_project(
+    scan_project(
         client,
         project_id,
         output=str(tmp_path / "outputs"),
     )
-
-
-def test_committed_scan_is_readable_from_process_wide_map_routes(
-    tmp_path: Path,
-) -> None:
-    client = TestClient(create_app())
-
-    scan_payload = scan_fixture_project(client, tmp_path)
-
-    assert scan_payload["status"] == "completed"
-    build_payload = scan_payload["build_result"]
-    assert build_payload["status"] == "ok"
-    assert build_payload["viewer_load_result"]["loaded"] is True
-    assert build_payload["viewer_load_result"]["graph_view_model"]["nodes"]
-
-    api_payload = client.get("/api/map").json()
-    fallback_payload = client.get("/map").json()
-    assert api_payload == fallback_payload
-    assert api_payload["viewer_load_result"]["loaded"] is True
-    assert api_payload["viewer_load_result"]["graph_view_model"]["nodes"]
 
 
 def test_map_report_route_returns_latest_markdown_report(
@@ -116,18 +93,6 @@ def test_map_report_route_ignores_arbitrary_path_query(
     assert response.status_code == 200
     assert response.text.startswith("# Systograph System Map\n")
     assert "root:" not in response.text
-
-
-def test_map_payload_before_build_is_contract_compatible() -> None:
-    client = TestClient(create_app())
-
-    response = client.get("/api/map")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["viewer_load_result"]["loaded"] is False
-    assert payload["viewer_load_result"]["error_reason"] == "no_map_loaded"
-    assert payload["viewer_load_result"]["graph_view_model"]["nodes"] == []
 
 
 def test_local_api_cors_does_not_use_wildcard_origin() -> None:

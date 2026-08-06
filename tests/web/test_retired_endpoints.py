@@ -13,6 +13,8 @@ from systograph.web.app import create_app
 
 RETIRED_VIEWER_LOAD_PATH = "/api/viewer/load"
 RETIRED_MAP_BUILD_PATH = "/api/map/build"
+RETIRED_PROCESS_WIDE_MAP_PATH = "/api/map"
+RETIRED_MAP_FALLBACK_PATH = "/map"
 LIVE_CONTROL_PATH = "/api/scans"
 
 
@@ -73,3 +75,39 @@ def test_app_registers_no_route_for_retired_map_build_path() -> None:
     no method is bound to the retired map-build path."""
 
     assert_path_is_unregistered(RETIRED_MAP_BUILD_PATH)
+
+
+def test_get_api_map_returns_404_after_retirement() -> None:
+    """Given the retired process-wide map read, when a client asks for the
+    latest map without a project, then the API answers 404."""
+
+    client = TestClient(create_app())
+
+    response = client.get(RETIRED_PROCESS_WIDE_MAP_PATH)
+
+    assert response.status_code == 404
+
+
+def test_app_registers_no_route_for_retired_process_wide_map_path() -> None:
+    """Given the assembled app, when its routing table is inspected, then
+    no method is bound to the retired process-wide map path."""
+
+    assert_path_is_unregistered(RETIRED_PROCESS_WIDE_MAP_PATH)
+
+
+def test_get_map_fallback_returns_404_after_retirement() -> None:
+    """Given the retired legacy map fallback, when a client asks for it,
+    then the API answers 404 instead of serving the same payload."""
+
+    client = TestClient(create_app())
+
+    response = client.get(RETIRED_MAP_FALLBACK_PATH)
+
+    assert response.status_code == 404
+
+
+def test_app_registers_no_route_for_retired_map_fallback_path() -> None:
+    """Given the assembled app, when its routing table is inspected, then
+    no method is bound to the retired legacy map fallback path."""
+
+    assert_path_is_unregistered(RETIRED_MAP_FALLBACK_PATH)

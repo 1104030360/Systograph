@@ -1,9 +1,12 @@
-"""Read routes for the process-wide latest viewer payload and report.
+"""Read route for the latest controlled Markdown report artifact.
 
-Building is not exposed here. Scanning a project into a new map goes
-through the project session flow (`POST /api/projects/import` ->
-`POST /api/scans`); detail scan and apply build on top of an existing
-scan. CLI `systograph map` covers the one-shot scan-a-path case.
+Building is not exposed here, and neither is reading the map. Scanning a
+project into a new map goes through the project session flow
+(`POST /api/projects/import` -> `POST /api/scans`); detail scan and apply
+build on top of an existing scan. CLI `systograph map` covers the one-shot
+scan-a-path case. Reading a map is build-scoped
+(`GET /api/projects/{project_id}/map-builds/latest`,
+`GET /api/map-builds/{build_id}`).
 """
 
 from __future__ import annotations
@@ -12,19 +15,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
-from systograph.core.models.viewer import ViewerPayload
 from systograph.web.dependencies import session_store
 from systograph.web.session_store import SessionStore
 
 router = APIRouter(tags=["map"])
-
-
-@router.get("/api/map", response_model=ViewerPayload)
-def get_api_map(
-    store: Annotated[SessionStore, Depends(session_store)],
-) -> ViewerPayload:
-    """回傳目前暫存的 viewer payload，供前端讀取最新地圖狀態。"""
-    return store.latest_viewer_payload()
 
 
 @router.get("/api/map/report")
@@ -55,11 +49,3 @@ def get_map_report(
         media_type="text/markdown; charset=utf-8",
         headers=headers,
     )
-
-
-@router.get("/map", response_model=ViewerPayload)
-def get_map_fallback(
-    store: Annotated[SessionStore, Depends(session_store)],
-) -> ViewerPayload:
-    """提供 /api/map 的相同 payload，保留給舊版或簡化路徑使用。"""
-    return store.latest_viewer_payload()

@@ -80,7 +80,8 @@ def test_proposal_routes_create_and_list_pending_proposal(
 ) -> None:
     client = create_deterministic_test_app()
     project_id, unmapped_id = import_and_scan_weak_project(client, tmp_path)
-    before = client.get("/api/map").json()
+    latest_url = f"/api/projects/{project_id}/map-builds/latest"
+    before = client.get(latest_url).json()
 
     response = client.post(
         "/api/mapping-proposals",
@@ -90,7 +91,7 @@ def test_proposal_routes_create_and_list_pending_proposal(
             "user_description": "This may be the vector store client.",
         },
     )
-    after = client.get("/api/map").json()
+    after = client.get(latest_url).json()
 
     assert response.status_code == 200
     payload = response.json()

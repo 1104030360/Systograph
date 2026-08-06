@@ -461,9 +461,7 @@ flowchart TB
     S8c["8-3 load / validate<br/>ViewerLoadResult + GraphViewModel"]
     S8d["8-4 React 渲染<br/>點 unmapped → 觸發 review"]
     S8note["— 無 TOML"]:::noToml
-    S8compat["GET /api/map<br/>demo / legacy compatibility only"]:::noToml
     S8a --> S8b --> S8c --> S8d
-    S8compat -.-> S8d
   end
 
   subgraph S9["Step 9 · Review 可選 · MappingProposal（active · 非 ai deferred）"]
@@ -978,8 +976,8 @@ Current API supports two flows:
 
 - Project session: `POST /api/projects/import` → `POST /api/scans` → project-scoped detail scan,
   mapping proposal, manual mappings.
-- Viewer demo: `GET /api/map` read only; no project session. Its writer `POST /api/map/build`
-  is retired, so the read is fed by the project session flow.
+- There is no second flow. The process-wide demo surface (`POST /api/map/build`,
+  `GET /api/map`, `GET /map`) is retired; every read needs a `project_id` or a `build_id`.
 
 Phase2 primary API surface:
 
@@ -996,7 +994,8 @@ POST /api/map-builds/{build_id}/trace
 
 Compatibility rules：
 
-- Process-wide `GET /api/map` remains a demo/compatibility read path; `POST /api/map/build` is retired.
+- The process-wide demo surface is fully retired: `POST /api/map/build`, `GET /api/map` and
+  `GET /map` all answer 404.
 - Project-scoped APIs must use `project_id` / `build_id`, not global latest process state.
 - Current CLI builds v1 artifacts; Phase2 CLI must preserve v1 compatibility while adding explicit v2
   build/load/validate commands.
@@ -1199,7 +1198,7 @@ Contract drift decisions to apply when regenerating plans：
 - Replace v1 slot-missing readiness with generic capability/readiness findings.
 - Replace legacy extension product surface with non-baseline capability candidate overlay.
 - Treat frontend handoff JSON as target samples until validated by backend schemas/tests.
-- Treat process-wide `GET /api/map` as demo/compatibility path, not project-scoped persistence.
+- Treat every map read as project-scoped or build-scoped; there is no process-wide read path.
 - Treat dynamic runtime trace plan as deferred implementation.
 
 Plan regeneration rules：
