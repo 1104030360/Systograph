@@ -32,7 +32,6 @@ from systograph.web.app import create_app
 def _build(
     tmp_path: Path,
     *,
-    service: MapBuildService | None = None,
     request: MapBuildRequest | None = None,
 ) -> MapBuildResult:
     snapshot = ScanSnapshot(
@@ -42,7 +41,7 @@ def _build(
         inventory_digest="sha256:v2-cutover",
         scan_result=ProjectScanResult(),
     )
-    return (service or MapBuildService()).build_from_snapshot(
+    return MapBuildService().build_from_snapshot(
         snapshot,
         request=request or MapBuildRequest(project_path=tmp_path / "project"),
         output_run=OutputRun(root_dir=tmp_path / "build"),

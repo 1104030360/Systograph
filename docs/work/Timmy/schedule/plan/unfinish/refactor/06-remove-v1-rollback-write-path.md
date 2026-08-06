@@ -253,11 +253,28 @@ Plan 18 的 issue #239 仍 OPEN）。本計畫是 Plan 15 Task 2 的抽出，因
 7. API-GUIDE / MODEL-CONTRACT 無 operator rollback 殘留敘述；Task 6 列出的四處
    檔頭呼叫鏈註解已更新。
 
-**驗收結果（2026-08-07）：** 七條全數通過。`uv run pytest` 1122 passed / 1 skipped
-（baseline 1138 − 刪除的 rollback 測試），branch coverage 90.76%（gate 85%）；
+**驗收結果（2026-08-07，含 fix round 1）：** 七條全數通過。
+`uv run pytest` **1124 passed / 1 skipped**，branch coverage 90.76%（gate 85%）；
 `ruff check` / `ruff format --check` / `mypy src tests`（324 files）全綠；
 `tests/contracts/` 46 passed 無 stale record；`uv run systograph validate-map`
 對既有 v1 fixture 仍回 `loaded=true`。
+
+測試數帳目（collected 口徑，含 parametrize 展開；baseline `87c6a34`
+= 1138 passed + 1 skipped）：
+
+| 階段 | removed | added | net | passed |
+|---|---:|---:|---:|---:|
+| 初版 commit `7b091ac` | 27 | 11 | −16 | 1138 → 1122 |
+| fix round 1 後 | 27 | 13 | −14 | 1138 → 1124 |
+
+removed 27 的組成：`test_legacy_v1_rollback_service.py` 8（5 defs，其中兩個
+parametrize 各展開 2 / 3）、`test_system_map_normalize_service.py` 4、
+`test_map_build_service_wiring.py` 10（7 plain + 1 個 3-way parametrize）、
+`test_v2_active_cutover.py` 3、`test_canonical_output_configuration.py` 1、
+`test_map_build_schema_selection.py` 1。
+added 13 的組成：`test_map_build_service_wiring.py` 6（3 plain + 1 個 3-way
+parametrize）、`test_v2_active_cutover.py` 4、其餘三檔各 1。
+（1138 − 27 + 13 = 1124 ✓）
 
 ---
 
@@ -304,6 +321,31 @@ Plan 18 的 issue #239 仍 OPEN）。本計畫是 Plan 15 Task 2 的抽出，因
 8. **env 收斂沿用既有錯誤碼**：`canonical_output_version_from_env()` 不為 v1
    特例化，直接收斂成「只接受 `ai-system-map/v2`」，其餘一律
    `invalid_canonical_output_version`。不新增 `legacy_rollback_removed`。
+
+## Fix round 1（2026-08-07，review 後）
+
+1. **`system_map_validation_service.py` 檔頭殘留**（Task 6 同類缺陷）：原本寫
+   「and the operator-rollback v1 writer uses it before publishing」，該 writer
+   已刪。改寫為現況——`CanonicalMapLoader` 是 `validate()` 的唯一 caller
+   （`ViewerSessionService` 只是把 optional instance 轉手給該 loader），已無 writer。
+2. **移除 `canonical_output_version` 建構參數**（`MapBuildService` 與
+   `MapBuildPipeline`）。它是「能把 v2 artifact 標成 v1」的說謊縫隙——實測傳 v1
+   進去會得到 artifact `schema_version=v2` 但 `result.active_schema_version=v1`，
+   而 MODEL-CONTRACT 已寫「恆為 v2」卻無 enforcement。收斂後 version 的單一真相源
+   是既有的 `V2_SCHEMA_VERSION` 常數（`models/ai_system_map_v2.py:107`），不新增
+   字串字面量。`web/app.py` 仍呼叫 `canonical_output_version_from_env()` 做 startup
+   fail-fast，只是不再把值傳下去。
+   - **回歸發現：** 光移除參數會讓 CLI 失去 env fail-fast——`cli/map_command.py:63`
+     直接 `MapBuildService()`，CLI 沒有自己的 startup hook，先前是靠
+     `MapBuildService.__init__` 讀 env 才擋得住。因此 `__init__` 保留
+     `canonical_output_version_from_env()` **作為 guard**（丟棄回傳值），並補
+     `tests/cli/test_map_command.py` 的 CLI env regression 把這條路徑鎖住。
+   - 新增 `test_published_artifact_and_reported_version_cannot_disagree`：
+     斷言 `active_schema_version` 等於磁碟上 artifact 的 `schema_version`。
+   - wiring 測試改名 `test_build_wiring_exposes_no_v1_output_seam`，斷言擴大到
+     「兩個 constructor 都沒有含 `rollback` 或 `canonical_output_version` 的參數」。
+3. **帳目更正**：見上方「驗收結果」表（原記 1122 未含 fix round 1 新增的兩個測試，
+   且 removed/added 未計 parametrize 展開）。
 
 ## 風險
 

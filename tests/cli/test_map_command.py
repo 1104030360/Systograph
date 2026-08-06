@@ -132,3 +132,39 @@ def test_map_command_rejects_public_v1_selection_without_artifacts(
     assert result.exit_code == 1
     assert "legacy_output_not_selectable" in result.stderr
     assert not output_dir.exists()
+
+
+def test_map_command_refuses_a_legacy_operator_output_env(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The CLI keeps the env fail-fast that only MapBuildService applies.
+
+    Given SYSTOGRAPH_CANONICAL_OUTPUT_VERSION set to the removed v1 mode,
+    When the map command runs,
+    Then it refuses with invalid_canonical_output_version and writes no
+    artifacts. The CLI has no startup hook of its own, so this guard only
+    exists because MapBuildService validates the env on construction.
+    """
+    # Given
+    output_dir = tmp_path / "outputs"
+    monkeypatch.setenv(
+        "SYSTOGRAPH_CANONICAL_OUTPUT_VERSION",
+        "ai-system-map/v1",
+    )
+
+    # When
+    result = CliRunner().invoke(
+        cli_main.app,
+        [
+            "map",
+            str(rag_project_fixture_path("basic_qdrant_ollama_rag")),
+            "--output",
+            str(output_dir),
+        ],
+    )
+
+    # Then
+    assert result.exit_code == 1
+    assert "invalid_canonical_output_version" in result.stderr
+    assert not output_dir.exists()

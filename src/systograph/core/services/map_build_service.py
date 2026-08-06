@@ -22,11 +22,7 @@ from systograph.core.models.analysis_history import (
 from systograph.core.models.capability_candidate import (
     CapabilityCandidateComponent,
 )
-from systograph.core.models.map_build import (
-    MapBuildRequest,
-    MapBuildResult,
-    SystemMapSchemaSelection,
-)
+from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
 from systograph.core.models.scan import OutputRun
 from systograph.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
@@ -120,7 +116,6 @@ class MapBuildService:
         materialization_service: SystemMapV2MaterializationService
         | None = None,
         artifact_publisher: BuildArtifactPublisher | None = None,
-        canonical_output_version: SystemMapSchemaSelection | None = None,
     ) -> None:
         output_provider = output_artifact_provider or OutputArtifactProvider()
         materializer = (
@@ -141,16 +136,19 @@ class MapBuildService:
             mermaid_renderer=graph_mermaid_renderer,
             projection_service=projection_service,
         )
+        # Guard, not a value source: refuse to build under a misconfigured
+        # SYSTOGRAPH_CANONICAL_OUTPUT_VERSION. The return value is
+        # deliberately discarded — the output version is not selectable,
+        # so the pipeline reads it from the v2 constant instead. This keeps
+        # the fail-fast on every entry point that builds, including the CLI,
+        # which has no other startup hook.
+        canonical_output_version_from_env()
         self._manual_mapping_service = manual_mapping_service
-        self._canonical_output_version = (
-            canonical_output_version or canonical_output_version_from_env()
-        )
         self._scanner = project_scan_service or ProjectScanService()
         self._output_provider = publisher.output_provider
         self._pipeline = MapBuildPipeline(
             materialization_service=materializer,
             artifact_publisher=publisher,
-            canonical_output_version=self._canonical_output_version,
             profile_inference_service=profile_inference_service,
             readiness_report_service=readiness_report_service,
             static_execution_artifact_service=static_execution_artifact_service,

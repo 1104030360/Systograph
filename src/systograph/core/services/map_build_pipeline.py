@@ -16,16 +16,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.models.ai_system_map_v2 import (
+    V2_SCHEMA_VERSION,
+    AiSystemMapV2,
+)
 from systograph.core.models.analysis_history import MapBuildLineage
 from systograph.core.models.capability_candidate import (
     CapabilityCandidateComponent,
 )
-from systograph.core.models.map_build import (
-    MapBuildRequest,
-    MapBuildResult,
-    SystemMapSchemaSelection,
-)
+from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
 from systograph.core.models.mapping import ManualMapping
 from systograph.core.models.scan import OutputRun, ProjectScanResult
 from systograph.core.services.build_artifact_publisher import (
@@ -59,7 +58,6 @@ class MapBuildPipeline:
         *,
         materialization_service: SystemMapV2MaterializationService,
         artifact_publisher: BuildArtifactPublisher,
-        canonical_output_version: SystemMapSchemaSelection,
         profile_inference_service: ProfileInferenceService | None = None,
         readiness_report_service: ReadinessReportService | None = None,
         static_execution_artifact_service: (
@@ -68,7 +66,6 @@ class MapBuildPipeline:
     ) -> None:
         self._materialization = materialization_service
         self._publisher = artifact_publisher
-        self._canonical_output_version = canonical_output_version
         self._profiles = profile_inference_service or ProfileInferenceService()
         self._readiness = readiness_report_service or ReadinessReportService()
         self._execution = (
@@ -221,7 +218,11 @@ class MapBuildPipeline:
             profile_inference_result=profiles,
             readiness_report=readiness,
             lineage=lineage,
-            active_schema_version=self._canonical_output_version,
+            # Single source of truth: the pipeline writes v2 and nothing
+            # else, so the label is the constant the writer is built on —
+            # never a caller-supplied value that could disagree with the
+            # artifact actually on disk.
+            active_schema_version=V2_SCHEMA_VERSION,
             requested_schema_version=request.system_map_schema_version,
             source_schema_version=(
                 normalized.source_schema_version or normalized.schema_version
