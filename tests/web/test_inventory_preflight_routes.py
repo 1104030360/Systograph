@@ -131,7 +131,10 @@ def test_preflight_selection_scan_uses_final_inventory_and_returns_summary(
     (root / "ignored").mkdir(parents=True)
     (root / ".gitignore").write_text("ignored/\n", encoding="utf-8")
     (root / "app.py").write_text("app\n", encoding="utf-8")
-    (root / ".env").write_text("MODE=fixture\n", encoding="utf-8")
+    (root / ".env").write_text(
+        "OPENAI_API_KEY=sk-live-secret-value\n",
+        encoding="utf-8",
+    )
     (root / "ignored" / "extra.py").write_text(
         "extra\n",
         encoding="utf-8",
@@ -172,6 +175,10 @@ def test_preflight_selection_scan_uses_final_inventory_and_returns_summary(
     assert payload["status"] == "completed"
     assert payload["scan_id"].startswith("scan:")
     assert payload["preflight_request_id"] == preflight["preflight_request_id"]
+    # A skipped .env must leave no trace at all: neither the secret value nor
+    # the key name it was stored under.
+    assert "sk-live-secret-value" not in str(payload)
+    assert "OPENAI_API_KEY" not in str(payload)
     summary = payload["inventory_selection_summary"]
     assert summary["included_file_count"] == 3
     assert summary["directory_scope_results"] == [
@@ -200,6 +207,45 @@ def test_preflight_selection_scan_uses_final_inventory_and_returns_summary(
     assert audit["ignored/extra.py"].decision_target_path == "ignored"
     assert audit["ignored/extra.py"].decision_scope == "recursive_directory"
     assert audit[".env"].effective_outcome == "skipped"
+
+
+def test_scan_this_run_completed_response_masks_value_but_keeps_key_name(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / ".env").write_text(
+        "OPENAI_API_KEY=sk-live-secret-value\n",
+        encoding="utf-8",
+    )
+    (root / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    client = TestClient(create_app(state_dir=tmp_path / "state"))
+    project_id = _import_project(client, root)
+    preflight = open_scan_preflight(client, project_id)
+    proposal = preflight["required_boundary_proposals"][0]
+    assert proposal["target"]["path"] == ".env"
+
+    response = client.post(
+        "/api/scans",
+        json={
+            "project_id": project_id,
+            "output": str(tmp_path / "outputs"),
+            "preflight_request_id": preflight["preflight_request_id"],
+            "boundary_decisions": [
+                boundary_decision(proposal, "scan_this_run"),
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    completed = response.json()
+    assert completed["status"] == "completed"
+    assert completed["boundary_proposals"] == []
+    assert completed["inventory_selection_summary"]["included_file_count"] == 2
+    # An explicitly scanned .env is reported, but only ever masked: the key
+    # name survives so the finding is actionable, the value never does.
+    assert "sk-live-secret-value" not in str(completed)
+    assert "OPENAI_API_KEY" in str(completed)
 
 
 def test_preflight_errors_use_typed_detail_and_do_not_create_scan(
@@ -379,6 +425,10 @@ def test_unanswered_required_decision_returns_pending_without_opening_file(
     assert [
         item["target"]["path"] for item in payload["boundary_proposals"]
     ] == [".env"]
+    assert payload["available_boundary_actions"] == [
+        "scan_this_run",
+        "skip_this_run",
+    ]
     assert "must-not-open" not in response.text
     repository = LocalJsonStateProvider(state_dir)
     assert repository.get_latest_pointer(project_id) is None

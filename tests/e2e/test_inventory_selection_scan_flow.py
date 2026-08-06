@@ -189,7 +189,7 @@ def test_changed_directory_after_preflight_has_no_snapshot_or_build(
     assert repository.list_build_manifests(project_id) == ()
 
 
-def test_rescan_recomputes_inventory_without_reusing_priorboundary_decision(
+def test_rescan_recomputes_inventory_without_reusing_prior_decision(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "project"

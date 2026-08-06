@@ -183,6 +183,46 @@ def test_create_scan_without_preflight_request_id_is_rejected_for_sensitive_proj
     assert "boundary_proposals" not in response.json()
 
 
+def test_missing_preflight_request_id_outranks_legacy_v1_selection_rejection(
+    tmp_path: Path,
+) -> None:
+    """A missing ticket always wins, whatever else the payload gets wrong.
+
+    Both guards return 422, so their order is observable. Pinning it keeps
+    `preflight_request_id_required` a deterministic answer to "no ticket"
+    rather than something the rest of the payload can mask.
+    """
+    client = TestClient(create_app(state_dir=tmp_path / "state"))
+    project_id = client.post(
+        "/api/projects/import",
+        json={
+            "source_type": "local_path",
+            "project_path": str(
+                rag_project_fixture_path("basic_qdrant_ollama_rag")
+            ),
+        },
+    ).json()["project_id"]
+
+    response = client.post(
+        "/api/scans",
+        json={
+            "project_id": project_id,
+            "output": str(tmp_path / "outputs"),
+            "system_map_schema_version": "ai-system-map/v1",
+        },
+    )
+
+    assert response.status_code == 422
+    # Compared whole: `legacy_output_not_selectable` is a plain-string detail,
+    # so an ordering regression fails here instead of raising on ["code"].
+    assert response.json()["detail"] == {
+        "code": "preflight_request_id_required",
+        "message": "Open a scan preflight and send its preflight_request_id.",
+        "retryable": False,
+        "context": None,
+    }
+
+
 def test_scan_create_rejects_public_v1_selection_before_scanning(
     tmp_path: Path,
 ) -> None:
