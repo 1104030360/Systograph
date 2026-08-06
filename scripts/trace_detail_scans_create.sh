@@ -8,11 +8,15 @@
 # Phase2 S1: prefer explicit build_id so the detail scan binds to a parent build
 # and publishes an immutable child build_id.
 #
-# Target types are the ai-system-map/v2 ones: component_instance,
-# unmapped_component, edge, evidence (plus the legacy component_slot alias,
-# which only resolves on maps whose components carry metadata.legacy_slot).
-# The default is unmapped_component because every scanned fixture yields
-# unmapped components, while legacy slot labels do not survive v2 uniformly.
+# Target types are the ones DetailScanService accepts (TARGET_TYPE_ALIASES in
+# core/services/detail_scan_service.py): component_instance (alias component),
+# unmapped_component (alias unmapped), edge, evidence, and the legacy
+# component_slot (alias slot).
+#
+# The default is unmapped_component because the default fixture
+# custom_router_rag detects zero components, so component_slot resolves to
+# nothing there. Every component v2 does emit carries metadata.legacy_slot, so
+# component_slot still works against fixtures that detect components.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,8 +36,10 @@ Usage:
     [--target-type TYPE] [--target ID] [--scan-depth component|code_path]
 
 Options:
-  --target-type TYPE      component_instance | unmapped_component | edge |
-                          evidence. Default: unmapped_component
+  --target-type TYPE      component_instance (alias component) |
+                          unmapped_component (alias unmapped) | edge |
+                          evidence | component_slot (alias slot, legacy).
+                          Default: unmapped_component
   --target ID             Target id. Default: first unmapped_components[].unmapped_id.
   --scan-depth DEPTH      component (L2) or code_path (L3). Default: component
   --start-server          Start a local FastAPI server for this run, stop on exit.

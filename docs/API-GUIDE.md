@@ -104,7 +104,7 @@ curl -s "http://127.0.0.1:8000/api/projects/project%3A<uuid>/map-builds/latest" 
 > HTTP 建圖一律走上面的 project session 流程，讀圖一律走 build-scoped 端點；
 > 一次掃一個路徑就出圖的等價能力在 CLI `systograph map`。
 
-每個 endpoint 都有對應的可執行範例腳本，例如 `scripts/trace_scans_create.sh`、`scripts/trace_all.sh`（一次跑完全部）。
+19 條 route 中有 18 條有對應的可執行範例腳本（例如 `scripts/trace_scans_create.sh`；`scripts/trace_all.sh` 一次跑完全部）。唯一沒有腳本的是 `GET /api/projects/{project_id}`。
 
 ---
 
@@ -881,6 +881,7 @@ POST /api/mapping-proposals/{proposal_id}/decision
 - `accept`：需 `candidate_id`，不可帶 `edited_mapping`
 - `edit`：需 `edited_mapping`（`ManualMappingCreate` 形狀），不可帶 `candidate_id`
 - `reject` / `skip_for_now`：兩者皆不帶 candidate payload；後端仍建立 durable audit mapping
+  （**現況缺陷**：當 proposal 的 candidates 解析為 non-baseline capability 型別時，這兩個 decision 目前回 `422`，修復追蹤見 #278）
 
 Response `200`：
 

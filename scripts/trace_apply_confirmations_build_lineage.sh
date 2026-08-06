@@ -51,6 +51,7 @@ systograph_progress "初始 build_id=${BASE_BUILD_ID}，unmapped=$UNMAPPED_COUNT
 
 systograph_section "準備：建立兩筆 confirmed mapping"
 MAPPING_IDS=()
+SOURCE_UNMAPPED_IDS=()
 for index in 0 1; do
   UNMAPPED="$(echo "$SCAN_JSON" \
     | jq ".build_result.ai_system_map.unmapped_components[$index]")"
@@ -65,6 +66,13 @@ for index in 0 1; do
   systograph_progress "現在要建立第 $((index + 1)) 筆 mapping..."
   CREATED="$(setup_post "/api/mappings" "$BODY")"
   MAPPING_IDS+=("$(echo "$CREATED" | jq -r '.mapping_id')")
+  # source_unmapped_id is optional on ManualMappingCreate, so a wrong jq path on
+  # the unmapped component silently posts null and the trace still passes. Assert
+  # it round-tripped, otherwise this script cannot detect that regression.
+  CREATED_SOURCE_ID="$(echo "$CREATED" | jq -r '.source_unmapped_id // empty')"
+  [[ -n "$CREATED_SOURCE_ID" ]] \
+    || systograph_die "Mapping $((index + 1)) came back without source_unmapped_id"
+  SOURCE_UNMAPPED_IDS+=("$CREATED_SOURCE_ID")
 done
 
 systograph_section "套用 confirmations：POST /api/map-builds/{B1}/apply"
@@ -113,13 +121,17 @@ HISTORY="$(setup_get "/api/projects/$PROJECT_ID/map-builds")"
   || systograph_die "Latest pointer did not advance to the applied build"
 
 systograph_section "Lineage 摘要"
+SOURCE_UNMAPPED_IDS_JSON="$(printf '%s\n' "${SOURCE_UNMAPPED_IDS[@]}" \
+  | jq -R . | jq -s .)"
 jq -n \
   --arg project_id "$PROJECT_ID" \
   --arg scan_id "$SCAN_ID" \
   --arg base_build_id "$BASE_BUILD_ID" \
   --arg applied_build_id "$APPLIED_BUILD_ID" \
   --argjson mappings "$MAPPING_IDS_JSON" \
+  --argjson source_unmapped_ids "$SOURCE_UNMAPPED_IDS_JSON" \
   --argjson history "$(echo "$HISTORY" | jq '.builds | map(.build_id)')" \
   '{project_id:$project_id, scan_id:$scan_id, base_build_id:$base_build_id,
     applied_build_id:$applied_build_id, mapping_ids:$mappings,
+    source_unmapped_ids:$source_unmapped_ids,
     history_build_ids:$history}'

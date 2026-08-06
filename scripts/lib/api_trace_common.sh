@@ -19,6 +19,10 @@ START_SERVER=0
 SERVER_PID=""
 SYSTOGRAPH_EXTRA_ARGS=()
 
+# Bind address for --start-server, derived from API_BASE_URL.
+SERVER_BIND_HOST=""
+SERVER_BIND_PORT=""
+
 # Globals populated by api_call / setup_* helpers.
 LAST_STATUS=""
 LAST_BODY=""
@@ -100,6 +104,32 @@ wait_for_api() {
   exit 1
 }
 
+# Resolve SERVER_BIND_HOST / SERVER_BIND_PORT from API_BASE_URL for
+# --start-server. Anything this cannot bind exactly is a hard error: guessing a
+# default port while wait_for_api probes the URL as written turns a typo into a
+# ~30s "Backend did not become available" timeout instead of a clear message.
+# Not meant to be a general URL parser — bracketed IPv6 hosts fail closed here.
+systograph_resolve_server_bind() {
+  local rest hostport
+  case "$API_BASE_URL" in
+    http://*) rest="${API_BASE_URL#http://}" ;;
+    *)
+      systograph_die \
+        "--start-server needs an http:// --api-base-url, got: $API_BASE_URL"
+      ;;
+  esac
+  hostport="${rest%%/*}"
+  SERVER_BIND_HOST="${hostport%%:*}"
+  SERVER_BIND_PORT="${hostport#*:}"
+  [[ -n "$SERVER_BIND_HOST" ]] \
+    || systograph_die "--api-base-url has no host: $API_BASE_URL"
+  if [[ "$SERVER_BIND_PORT" == "$hostport" ]] \
+    || [[ ! "$SERVER_BIND_PORT" =~ ^[0-9]+$ ]]; then
+    systograph_die \
+      "--start-server needs an explicit numeric port in --api-base-url (e.g. http://127.0.0.1:8000), got: $API_BASE_URL"
+  fi
+}
+
 # Boot a local server when --start-server was passed, then block until ready.
 # When --start-server is not passed, just wait for an already running server.
 # The started server binds the host/port of API_BASE_URL, so --start-server and
@@ -110,15 +140,10 @@ systograph_bootstrap_server() {
     if [[ ! -x ".venv/bin/uvicorn" ]]; then
       systograph_die "Cannot find executable .venv/bin/uvicorn (create the venv first)"
     fi
-    local hostport host port
-    hostport="${API_BASE_URL#*://}"
-    hostport="${hostport%%/*}"
-    host="${hostport%%:*}"
-    port="${hostport##*:}"
-    [[ "$port" == "$host" ]] && port="8000"
+    systograph_resolve_server_bind
     mkdir -p "$(dirname "$SERVER_LOG")"
     .venv/bin/uvicorn systograph.web.app:create_app --factory \
-      --host "$host" --port "$port" >"$SERVER_LOG" 2>&1 &
+      --host "$SERVER_BIND_HOST" --port "$SERVER_BIND_PORT" >"$SERVER_LOG" 2>&1 &
     SERVER_PID="$!"
     trap systograph_cleanup EXIT
     echo "Started FastAPI PID=$SERVER_PID log=$SERVER_LOG url=$API_BASE_URL"
@@ -255,11 +280,12 @@ systograph_run_scan() {
 
 # Echo a target_slot for an existing_slot manual mapping, derived from the
 # ai-system-map/v2 scan response. v2 has no components_by_slot: the legacy
-# 13-slot label only survives as components[].metadata.legacy_slot, so prefer a
-# slot this map actually detected. Maps with no legacy-slot-tagged components
-# (e.g. the custom_router_rag fixture) fall back to `vector_store`, which is a
-# real rag-core-v1 slot accepted by ManualMappingService's allowed-slot check —
-# a manual mapping asserts a slot, it does not have to already be detected.
+# 13-slot label lives on components[].metadata.legacy_slot, which every emitted
+# component carries, so prefer a slot this map actually detected. Maps that
+# detected no components at all (e.g. the custom_router_rag fixture) fall back
+# to `vector_store`, a real rag-core-v1 slot accepted by ManualMappingService's
+# allowed-slot check — a manual mapping asserts a slot, it does not have to
+# already be detected.
 systograph_demo_slot() {
   local scan_json="$1"
   echo "$scan_json" | jq -r '
