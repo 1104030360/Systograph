@@ -58,7 +58,7 @@ for index in 0 1; do
     --arg project "$PROJECT_ID" \
     --arg name "Trace Confirmed Component $((index + 1))" \
     '{project_id:$project, mapping_type:"existing_slot_mapping",
-      decision:"confirmed", source_unmapped_id:.id,
+      decision:"confirmed", source_unmapped_id:.unmapped_id,
       source_file:.source_file, observed_kind:.observed_kind,
       evidence_ids:.evidence_ids, target_slot:"vector_store",
       component_name:$name, component_kind:"manual_trace"}')"

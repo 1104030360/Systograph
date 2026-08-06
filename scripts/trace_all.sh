@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Smoke-test runner: trace every local Systograph API endpoint once.
+# Smoke-test runner: run every trace script under scripts/ once.
 #
 # Boots a single backend (when --start-server is passed), then runs each
 # per-endpoint trace script against the same base URL and prints a PASS/FAIL
 # summary. Each child script prepares its own session state, so order does not
 # matter and a failure in one endpoint does not block the others.
+#
+# This covers every route in the OpenAPI document except GET
+# /api/projects/{project_id}, which has no dedicated trace script yet.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,6 +58,7 @@ SCRIPTS=(
   "GET /api/map/report|trace_map_report.sh"
   "Track A graph projection QA|trace_graph_projection_qa.sh"
   "POST /api/scans|trace_scans_create.sh"
+  "POST /api/projects/{id}/scan-preflights|trace_inventory_selection_preflight.sh"
   "GET /api/scan/events|trace_scan_events.sh"
   "POST /api/trace|trace_query_trace.sh"
   "POST /api/detail-scans|trace_detail_scans_create.sh"

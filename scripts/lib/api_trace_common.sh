@@ -102,18 +102,26 @@ wait_for_api() {
 
 # Boot a local server when --start-server was passed, then block until ready.
 # When --start-server is not passed, just wait for an already running server.
+# The started server binds the host/port of API_BASE_URL, so --start-server and
+# --api-base-url stay consistent instead of silently disagreeing.
 systograph_bootstrap_server() {
   cd "$SYSTOGRAPH_ROOT_DIR"
   if [[ "$START_SERVER" -eq 1 ]]; then
     if [[ ! -x ".venv/bin/uvicorn" ]]; then
       systograph_die "Cannot find executable .venv/bin/uvicorn (create the venv first)"
     fi
+    local hostport host port
+    hostport="${API_BASE_URL#*://}"
+    hostport="${hostport%%/*}"
+    host="${hostport%%:*}"
+    port="${hostport##*:}"
+    [[ "$port" == "$host" ]] && port="8000"
     mkdir -p "$(dirname "$SERVER_LOG")"
     .venv/bin/uvicorn systograph.web.app:create_app --factory \
-      --host 127.0.0.1 --port 8000 >"$SERVER_LOG" 2>&1 &
+      --host "$host" --port "$port" >"$SERVER_LOG" 2>&1 &
     SERVER_PID="$!"
     trap systograph_cleanup EXIT
-    echo "Started FastAPI PID=$SERVER_PID log=$SERVER_LOG"
+    echo "Started FastAPI PID=$SERVER_PID log=$SERVER_LOG url=$API_BASE_URL"
   fi
   wait_for_api
 }
@@ -245,6 +253,27 @@ systograph_run_scan() {
   echo "$scan"
 }
 
+# Echo a target_slot for an existing_slot manual mapping, derived from the
+# ai-system-map/v2 scan response. v2 has no components_by_slot: the legacy
+# 13-slot label only survives as components[].metadata.legacy_slot, so prefer a
+# slot this map actually detected. Maps with no legacy-slot-tagged components
+# (e.g. the custom_router_rag fixture) fall back to `vector_store`, which is a
+# real rag-core-v1 slot accepted by ManualMappingService's allowed-slot check —
+# a manual mapping asserts a slot, it does not have to already be detected.
+systograph_demo_slot() {
+  local scan_json="$1"
+  echo "$scan_json" | jq -r '
+    [.build_result.ai_system_map.components[]?.metadata.legacy_slot
+     | select(type == "string")][0] // "vector_store"'
+}
+
+# Echo the first evidence id from a scan response JSON (v2: evidence[].evidence_id).
+systograph_first_evidence_id() {
+  local scan_json="$1"
+  echo "$scan_json" \
+    | jq -r '.build_result.ai_system_map.evidence[0].evidence_id // empty'
+}
+
 # Create one confirmed existing_slot manual mapping using a real slot key and a
 # real evidence id derived from a scan response. Echoes the created mapping JSON.
 # Usage: systograph_create_demo_mapping PROJECT_ID SCAN_JSON [COMPONENT_NAME]
@@ -254,10 +283,8 @@ systograph_create_demo_mapping() {
   local component_name="${3:-TraceDemoComponent}"
   local slot evidence_id body
 
-  slot="$(echo "$scan_json" \
-    | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
-  evidence_id="$(echo "$scan_json" \
-    | jq -r '.build_result.ai_system_map.evidence[0].id // empty')"
+  slot="$(systograph_demo_slot "$scan_json")"
+  evidence_id="$(systograph_first_evidence_id "$scan_json")"
   [[ -n "$slot" && "$slot" != "null" ]] \
     || systograph_die "Could not derive a target slot from the scan"
   [[ -n "$evidence_id" ]] \
@@ -275,10 +302,12 @@ systograph_create_demo_mapping() {
 }
 
 # Echo the first unmapped component id from a scan response JSON.
+# v2 names this field unmapped_components[].unmapped_id.
 systograph_first_unmapped_id() {
   local scan_json="$1"
   echo "$scan_json" \
-    | jq -r '.build_result.ai_system_map.unmapped_components[0].id // empty'
+    | jq -r '
+      .build_result.ai_system_map.unmapped_components[0].unmapped_id // empty'
 }
 
 # Create a pending mapping proposal for an unmapped component and echo the
@@ -371,7 +400,9 @@ systograph_summarize_map_build_result() {
     readiness_available: (.readiness_report != null),
     warnings,
     migration_warnings,
-    slot_count: ((.ai_system_map.components_by_slot // {}) | length),
+    component_count: ((.ai_system_map.components // []) | length),
+    edge_count: ((.ai_system_map.edges // []) | length),
+    evidence_count: ((.ai_system_map.evidence // []) | length),
     unmapped_count: ((.ai_system_map.unmapped_components // []) | length),
     graph: (
       if .viewer_load_result == null then null
