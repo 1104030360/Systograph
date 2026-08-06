@@ -135,16 +135,36 @@ Plan 07 的前置基礎，收尾時逐項複驗不得回退。
 - 驗收：四個端點回 404 有 regression 鎖住；正式路徑行為不變；全套測試綠
 
 ### Stage 3：Legacy 清理與語意收斂
-- [ ] **3a Plan 06**：紅測試（env 設 v1 → 穩定錯誤碼且零 artifact）→ 刪三個
-  rollback 服務檔 → pipeline/service 接線移除 → census allowlist 同步（同一
-  commit）→ 六檔測試改寫 + 兩處 fixture 測試改吃靜態 v1 fixture → 檔頭註解
-  4 處 → API-GUIDE / MODEL-CONTRACT → 採 **(A)**：`operator_rollback_active`
-  欄位保留、永遠 false
-- [ ] **3b Plan 07**：Task 0 裁定（primary node 慣例 + undetermined fallback +
-  覆蓋審計）→ helper TDD（單 node / 多 node / 查無 type）→ normalize service
-  切換 + 移除 `SLOT_LAYER_BY_ID` import → slot 誤填 regression → v1 adapter
-  不動 → `risk_hint_rules.toml` 文案清理 → MODEL-CONTRACT → 前端視覺
-  before/after（Playwright）記錄
+- [x] **3a Plan 06**：✅ 完成（commits `7b091ac`/`963b284`/`829fd75`，
+  review Approved → fix round 1 三項全 ADDRESSED）。三個 rollback 服務檔刪除、
+  pipeline/service 收斂單一 v2 路徑；census 8→1 筆（改標 migration_only，
+  fail-closed 雙向驗證仍在）；兩處 fixture 測試改吃靜態 v1 fixture（v1 讀取
+  路徑覆蓋保留，validate-map 實跑確認）；(A) 裁定：`operator_rollback_active`
+  保留恆 false。fix round 收斂 `canonical_output_version` 建構參數
+  （單一真相源＝`V2_SCHEMA_VERSION`），過程發現並補上 **CLI env fail-fast
+  regression**（先前根本不存在的覆蓋）。測試 1124 passed / 1 skipped
+  （帳目 27 removed / 13 added，reviewer 獨立複算吻合）。
+  - 計畫外裁量（reviewer 全數判正確）：`BuildArtifactPublisher.artifact_map`
+    參數刪除（v1 寫入能力根除）；README/API_CONTRACT 兩處假敘述修正
+  - 已知殘留（記錄）：env guard 在 core 建構子屬層次混用（pre-existing
+    模式、無測試汙染，正解是 CLI startup hook，另案）；歷史 v1 artifact
+    reload 仍正確回報 v1（fail-closed，設計行為）；新 fixture 凍結後不隨
+    scanner 演進（計畫已載明取捨）
+- [x] **3b Plan 07**：✅ 完成（commits `fb65e27`/`e927ca2`/`e6a378e`，
+  review Approved with follow-ups → fix round 1 七項全 ADDRESSED）。
+  type→plane resolver（TDD 紅→綠）；slot 誤填 regression 切換前紅證據
+  （worktree 檢出 BASE 驗證）；12 fixtures / 15 元件 / 7 移帶 / 0 掉
+  undetermined；TOML 零缺列；Playwright 前後截圖 5 張＋程式化重跑佐證；
+  lens 成員資格契約化（MODEL-CONTRACT §5.1.1＋2 條 fixture-build
+  regression）；退役索引 C3a/C6 標完成。測試 1135 passed / 1 skipped。
+  - 主 agent 直接修（一行級，記錄供最終 review）：C3b 行號 156-157、
+    MODEL-CONTRACT lens 句補 reference_node_id 分支的精確化
+  - 過程事故（已驗證完整復原）：fix round 中 `git stash pop` 誤彈 main 的
+    既存舊 stash 造成 4 檔暫時 conflict——已還原、舊 stash 未 drop、
+    re-review 確認 fix diff 無 stash 汙染。**後續一律避免 git stash pop**
+  - 已知殘留（記錄）：api_route → deployment_topology 為 catalog 忠實
+    投影（產品端若要改帶位應改 catalog／映射，不回退查表）；fixture 級
+    layer golden 斷言未加（超出計畫範圍）
 - 驗收：v2 只剩一條產出路徑；plane 與 slot 脫鉤有 regression 鎖住；
   v1 讀取能力不變
 

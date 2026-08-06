@@ -321,8 +321,10 @@ Plan 13 已切換的 active public contract；正常 CLI/API build 只能產生 
 ＝ ingestion_indexing / retrieval / memory_state；`lens:control` ＝ control；
 `lens:governance` ＝ governance_observability，見 §9.3）。改一個元件的 `layer`
 同時改它的帶位**與**它出現在哪些 lens——六個 lens 沒有 deployment topology 這
-一個，所以移進該 plane 的元件會退出所有 plane-based lens，只剩 signal-based 的
-`lens:evidence` / `lens:risk` / `lens:source`。此耦合由
+一個，所以移進該 plane 的 **repo component**（`reference_node_id` 為 null）會
+退出所有 plane-based lens，只剩 signal-based 的 `lens:evidence` / `lens:risk` /
+`lens:source`；reference node 另有 `reference_node_id` 分支可留在 lens 內
+（例：deployment_topology 上的 `agent_runtime` 仍屬 `lens:control`）。此耦合由
 `tests/integration/test_map_build_service.py` 的兩條 lens regression 鎖住。
 
 推導鏈（`CanonicalTypePlaneResolver`，由 `SystemMapV2NormalizeService` 呼叫）：

@@ -31,7 +31,7 @@ scanner 內部 grounding。本索引處理的是「把它從 active path 移除�
 | C1 | **13-slot 偵測 keyspace** 與 detected/missing/not_applicable 三態 | `system_map_v2_materialization_service.py:89` → `component_detection_service.py:121-156` | **無人認領** ⚠️ | ❌ 得先解掉 C2（16G，硬前置 16C→16D）的 slot_order 依賴 |
 | C2 | **模板假邊**：`flows[].slot_order` 相鄰配對 → `edges[]`；`RELATIONSHIPS` 12 條寫死語意 | `…materialization:126-129` → `flow_derivation_service.py:68-96`、`:18-30` | **16G** | ❌ 硬前置 16C → 16D |
 | C3a | ~~`components[].layer`（slot → `SLOT_LAYER_BY_ID` 查表 → 投影 `plane_id`）~~ → 已改為 `canonical_type` → capability node → `node.plane_id` 推導 | `system_map_v2_normalize_service.py:150`（`self._plane_resolver.plane_for(instance.kind)`）＋ `canonical_type_plane_map.py` | **`refactor/07`** | ✅ **已完成**（2026-08-07，#277，commit `fb65e27`） |
-| C3b | `metadata.legacy_slot` / `required_for_rag` 寫進每顆 repo component | `system_map_v2_normalize_service.py:127-128` | **無人認領** ⚠️ | ❌ `legacy_slot` 消費者含 public 契約，見 §2 |
+| C3b | `metadata.legacy_slot` / `required_for_rag` 寫進每顆 repo component | `system_map_v2_normalize_service.py:156-157` | **無人認領** ⚠️ | ❌ `legacy_slot` 消費者含 public 契約，見 §2 |
 | C4 | `available_slots`：13 slot 進 LLM evidence packet 與前端 ProposalModal | `manual_mapping_support.py:20` → `mapping_proposal_routes.py:87` | **無人認領** ⚠️ | ⏸ 需先做產品決策，見 §3 |
 | C5 | `EXISTING_SLOT.target_slot` 白名單 = 13 slot | `manual_mapping_support.py:20` → `manual_mapping_service.py:50,171-174` | **無人認領** ⚠️ | ⏸ 同 C4 |
 | C6 | ~~使用者可見文案含 `"rag-core-v1"` 字樣~~ → 已改為中性措辭（`"Required core slot was not detected..."`） | `risk_hint_rules.toml:61` + `risk_hint_service.py:122-130` | **`refactor/07` Task 4** | ✅ **已完成**（2026-08-07，#277，commit `fb65e27`） |
