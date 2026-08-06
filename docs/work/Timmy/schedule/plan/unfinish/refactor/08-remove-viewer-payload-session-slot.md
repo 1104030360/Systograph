@@ -1,7 +1,7 @@
 # 移除 `_latest_viewer_payload` 旁路槽與 `ViewerPayload` 型別實作計畫
 
 Status: **done**（2026-08-06 起草；GitHub issue #277；2026-08-07 實作完成
-@ commit `<backfill>`。Gate 已於執行前確認滿足：Plan 02 Phase B
+@ commit `a1ce0c6`。Gate 已於執行前確認滿足：Plan 02 Phase B
 （commit `f0b9ef5`）與 Plan 05（commit `b31cf4e`）都已完成）
 
 > **2026-08-07 完成紀錄**：Task 0–5 全數執行。`ViewerPayload` 型別、兩個
