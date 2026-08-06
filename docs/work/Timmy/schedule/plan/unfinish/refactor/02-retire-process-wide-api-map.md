@@ -229,10 +229,14 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
   - `test_map_routes.py`：`test_committed_scan_is_readable_from_process_wide_map_routes`
     與 `test_map_payload_before_build_is_contract_compatible` 兩案整案刪除。
     **覆蓋歸屬要分開講**（fix round 1 更正原本「覆蓋由 404 regression 承接」的
-    籠統說法）：兩支端點「不該再回應」由 404 regression 承接；但原測試在
-    `POST /api/scans` 回應與 HTTP 讀取面上的 `viewer_load_result.loaded is True`
-    ＋ `graph_view_model.nodes` 非空這組**正向投影斷言**，404 regression 承接不了，
-    改由下面兩個 mapping 測試的 baseline 正向斷言承接。
+    籠統說法）：兩支端點「不該再回應」由 404 regression 承接；原測試的
+    `viewer_load_result.loaded is True` ＋ `graph_view_model.nodes` 非空這組
+    **正向投影斷言**，404 regression 承接不了——其中 **HTTP 讀取面**改由
+    下面兩個 mapping 測試對 `map-builds/latest` 的 baseline 正向斷言承接；
+    **`POST /api/scans` 回應面**（原測試也斷言 `build_result.viewer_load_result`）
+    在 HTTP 層無承接者，現僅剩 service 層
+    `tests/integration/test_map_build_service.py:172-175` 覆蓋（re-review
+    2026-08-07 註記）。
     `/api/map/report` 四個正向/負向案例全數存活，模組層 `scan_fixture_project()`
     前置保留（改為不回傳 payload）。
   - `test_mapping_proposal_routes.py`：`before`/`after` 改讀

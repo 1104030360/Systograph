@@ -70,20 +70,56 @@ Plan 07 的前置基礎，收尾時逐項複驗不得回退。
   `map_build_pipeline.py:115-119` census 孤兒註解。
 
 ### Stage 2：Web 邊界退役（每個 plan 一個 commit，TDD）
-- [ ] **2a Plan 01 Phase B**：紅測試（未帶單號→422 穩定 code）→ 刪 implicit
-  分支（scan_routes.py）與 implicit-only re-preflight fallback → 遷移 17 個
-  裸 `/api/scans` 呼叫點（含 `systograph_run_scan`、tests 共用 helper）→
-  API-GUIDE / API_CONTRACT 同步 → `trace_inventory_selection_preflight.sh` 驗證
-- [ ] **2b Plan 05**：Step 0 記錄 #140 處置（端點移除即消解，issue 收尾註記）
-  → 紅測試（POST /api/viewer/load → 404）→ 刪 `viewer_routes.py` 整檔 +
-  `ViewerLoadMapRequest` → 檔頭呼叫鏈註解 5 處 → 刪 `trace_viewer_load.sh` →
-  API-GUIDE
-- [ ] **2c Plan 03**：先遷移 `trace_map_report.sh` setup（import→scans）→
-  紅測試（POST /api/map/build → 404）→ tests 遷移 → 刪 handler +
-  `MapBuildApiRequest` → API-GUIDE 10 處 + API_CONTRACT 3 處
-- [ ] **2d Plan 02 Phase B**：紅測試（GET /api/map、GET /map → 404）→ 刪兩個
-  handler → tests 遷移到 build-scoped → `wait_for_api` 探測換端點 → 刪
-  `trace_map_get.sh` / `trace_map_fallback.sh` → API-GUIDE「兩種流程」表收斂
+- [x] **2a Plan 01 Phase B**：✅ 完成（commits `4d8f5c6`/`9ecfd0d`/`6572817`）。
+  紅測試（422 `preflight_request_id_required`）→ 刪 implicit 分支與
+  fallback → 17 呼叫點遷移（`tests/helpers/web_flows.py` 新共用 helper、
+  `systograph_run_scan` preflight 先行、2 支 boundary trace script 既壞
+  `scan_summary` 斷言修復）→ API-GUIDE / API_CONTRACT 同步。
+  Review fix round 1（secret 遮罩 HTTP 覆蓋補回＋4 項）後 re-review 全數
+  ADDRESSED。測試 1136 passed / 1 skipped。
+  - deferred minor：pending 回應的 `str(tmp_path) not in str(pending)`
+    絕對路徑斷言未還原（unit 層 `test_scan_boundary_review_service.py:94`
+    有等價覆蓋）；守門順序測試與 422 regression 重複整份 detail dict 字面
+    （文案改動會紅兩支）——留給最終 review 裁量
+  - 既存缺陷（非本次引入，另開 issue 候選）：`api_trace_common.sh` 的
+    `systograph_create_demo_mapping`/`systograph_first_unmapped_id` 讀
+    v1-only 欄位，mapping 類 trace scripts 在 v2 下會死在 jq
+- [x] **2b Plan 05**：✅ 完成（commits `b31cf4e`/`4b9333e`，review Approved
+  無 Critical/Important）。140-*.md 已標 superseded；`tests/web/
+  test_retired_endpoints.py` 設立為退役 regression 共用檔；CLI validate-map
+  實跑確認能力未流失。測試 1135 passed / 1 skipped。
+  - 待辦路由：M1+M7（session store 註解與 protocol 收斂）→ Stage 2e；
+    M2（Plan 03 的 trace_viewer_load 步驟作廢標記）→ Stage 2c；
+    M3（Plan 02 失效清單列）→ Stage 2d；M5（retired_endpoints 加 positive
+    control）→ Stage 2c；M4（plan/unfinish/README.md 索引同步）+
+    **關閉 issue #140** + CLAUDE.md `app_services.py` 過時敘述校正 →
+    Stage 5；M6（標點混用）不處理
+  - trace_all.sh 現況 12 PASS / 8 FAIL（全為既知 mapping 類 v1-only jq
+    缺陷）→ Stage 4 處理
+- [x] **2c Plan 03**：✅ 完成（commits `f15d4ea`/`b6e3c69`/`9e04802`，
+  review Approved + fix round 1 全數 ADDRESSED）。404+路由表雙 regression
+  進共用檔（含 `/api/scans` positive control，M5 落地）；`GET /api/map`
+  唯一正向覆蓋保留並改名；越界文件掃除（epic1-phase2、arch-graph 3 處，
+  reviewer 驗證 house 規則全過）。測試 1136 passed / 1 skipped。
+  - 路由給 2d：N1（API-GUIDE:347 `*_path` 敘述過寬——欄位仍在
+    `POST /api/scans` build_result）＋ `trace_map_get.sh` 檔頭措辭
+    （整檔將刪、自然解消）＋ wait_for_api 探針必換（否則全 trace 卡死）
+  - 既存（記錄）：arch-graph `systograph_architecture.md:162` 把
+    `/api/scans` 寫成 `MapBuildService.build` 入口（實際 build_from_snapshot）
+    → Stage 5 架構圖同步時修
+- [x] **2d Plan 02 Phase B**：✅ 完成（commits `f0b9ef5`/`3a819d4`/`eaef26b`，
+  review Approved with fixes → fix round 1 八項全 ADDRESSED、無新破壞）。
+  探針換 `/openapi.json`；mapping 測試補 baseline 正向投影斷言（HTTP 讀取面
+  覆蓋從 0 補回）；trace_graph_projection_qa 與 boundary gate 兩支實跑 PASS。
+  測試 1138 passed / 1 skipped。
+  - 主 agent 直接修（例外，記錄供最終 review 覆核）：Plan 02 執行註記中
+    「scans-response 投影面」承接措辭一行收窄（HTTP 層無承接者，僅剩
+    service 層 `test_map_build_service.py:172-175`）——re-review 指出、
+    一行文字級、不再燒 fix round
+  - 已知殘留（記錄）：`POST /api/scans` 回應面的正向投影斷言在 HTTP 層
+    無covering test（service 層有）；`docs/spec/features/套用確認對應
+    .feature:142` 的「GET /api/map 呼叫次數為 0」成為空轉斷言（repo 無
+    BDD runner，不紅不錯，Stage 5 sweep 裁量）
 - [ ] **2e Plan 08**：Task 0 gate 確認 → 刪 session 旁路槽（Protocol + 兩個
   實作）→ 刪 `ViewerPayload` 型別與 re-export → 檔頭註解 → grep 零命中
 - 驗收：四個端點回 404 有 regression 鎖住；正式路徑行為不變；全套測試綠
