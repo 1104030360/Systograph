@@ -4,6 +4,16 @@ Status: **planned**（2026-08-06 起草；GitHub issue 待開。使用者決策�
 process-wide `/api/map` demo 讀圖路徑，正式讀圖收斂為 build-scoped 端點。
 **Step 0 文件前置已於 2026-08-06 完成**，見下方「已完成的前置」）
 
+> **2026-08-07 使用者決策 —— gate 解除，後端先行動工：** 前端會在後端之後補上
+> handoff 工作包 FE-2，因此**後端不必等前端上線即可執行 Phase B**。Phase A
+> 「必須先行」是**排程**約束，就此解除；其技術理由仍然成立，保留下來供判斷
+> **合併時機**參考——Phase B 合併後到 FE-2 上線前，切到 API mode 但尚未 import
+> 專案的情境會失去唯一還能回應的 `/api/map`，使用者直接看到錯誤字串，這段期間
+> `main` 對前端是壞的，屬已知並接受的代價。
+>
+> 另註：Plan 08（移除 `ViewerPayload` 與 session 旁路槽）的 gate 是「Plan 02
+> 與 05 都完成」，本計畫 Phase B 一旦執行，該 gate 即滿足。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (recommended) or
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
@@ -112,11 +122,15 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
 
 ---
 
-## Phase A — Frontend（必須先行；backend 移除前完成）
+## Phase A — Frontend（以 handoff 交付）
 
 > **2026-08-06 前端工作已抽出：** 本區段（含全部 Task 細節）已 handoff 至
-> `docs/work/Meeting-Sync/meeting_sync_2026_08_06/frontend-web-boundary-refactor-handoff.md`（工作包 FE-2）。後端不執行本區段；
-> gate 不變——前端上線後才進 Phase B。
+> `docs/work/Meeting-Sync/meeting_sync_2026_08_06/frontend-web-boundary-refactor-handoff.md`（工作包 FE-2）。後端不執行本區段。
+>
+> **2026-08-07 更新：** 原本「必須先行；backend 移除前完成」的 gate **已解除**
+> ——前端會於後端之後補上，後端不再等本區段上線即可進 Phase B。見文件開頭決策。
+> 本區段內部順序（先補空狀態、再拔 fallback）仍然不變，那是前端自身的正確性
+> 要求，與後端排程無關。
 
 ### Task 1: 補上「API mode 尚未選定專案」空狀態（**前置風險，必須先做**）
 
@@ -170,7 +184,7 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
 
 ---
 
-## Phase B — Backend（Gate：Phase A 上線後）
+## Phase B — Backend（2026-08-07 起 gate 解除，可立即動工；原為「Phase A 上線後」）
 
 ### Task 4: 移除 handler
 

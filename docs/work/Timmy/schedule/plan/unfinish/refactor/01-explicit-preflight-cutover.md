@@ -4,6 +4,13 @@ Status: **planned**（2026-08-05 起草；GitHub issue 待開。前置事實查�
 `projectScanApi.ts` 從未送 `preflight_request_id`，正式前端今天 100% 走 implicit
 compatibility 分支——所以退役順序必須是前端先遷移、後端才拆橋）
 
+> **2026-08-07 使用者決策 —— gate 解除，後端先行動工：** 前端會在後端之後補上
+> handoff 工作包 FE-1，因此**後端不必等前端上線即可執行 Phase B**。上方「必須
+> 前端先遷移」是**排程**約束，就此解除；其技術理由仍然成立，保留下來供判斷
+> **合併時機**參考——Phase B 是 breaking change，合併後到 FE-1 上線前，正式前端
+> 送不出 `preflight_request_id`，`POST /api/scans` 會全數回 422，這段期間 `main`
+> 對前端是壞的，屬已知並接受的代價。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (recommended) or
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
@@ -58,11 +65,13 @@ authorization token。
 
 ---
 
-## Phase A — Frontend（Hardy ownership；以 handoff 交付，完成前 Phase B 不得動工）
+## Phase A — Frontend（Hardy ownership；以 handoff 交付）
 
 > **2026-08-06 前端工作已抽出：** 本區段（含全部 Task 細節）已 handoff 至
-> `docs/work/Meeting-Sync/meeting_sync_2026_08_06/frontend-web-boundary-refactor-handoff.md`（工作包 FE-1）。後端不執行本區段；
-> gate 不變——前端上線後才進 Phase B。
+> `docs/work/Meeting-Sync/meeting_sync_2026_08_06/frontend-web-boundary-refactor-handoff.md`（工作包 FE-1）。後端不執行本區段。
+>
+> **2026-08-07 更新：** 原本「完成前 Phase B 不得動工」的 gate **已解除**——
+> 前端會於後端之後補上，後端不再等本區段上線即可進 Phase B。見文件開頭決策。
 
 ### Task 1: preflight service + zod schema
 
@@ -123,7 +132,7 @@ authorization token。
 
 ---
 
-## Phase B — Backend（Gate：Phase A 上線後才可執行）
+## Phase B — Backend（2026-08-07 起 gate 解除，可立即動工；原為「Phase A 上線後」）
 
 ### Task 5: 退役 implicit 分支（breaking change）
 
