@@ -205,7 +205,22 @@ class ScanCreateRequest(WebSchema):
     boundary_decisions: list[ScanBoundaryDecisionRequest] = Field(
         default_factory=list
     )
-    preflight_request_id: str | None = None
+    # Contract note: this field must stay optional in the schema. Making it
+    # pydantic-required (`Field(...)`) hands rejection to FastAPI, which
+    # answers a missing ticket with its own 422 validation array and so
+    # replaces the stable `preflight_request_id_required` error body raised
+    # by `scan_routes.create_scan` — a body that three tests in
+    # `tests/web/test_project_scan_routes.py` pin field by field. The guard
+    # belongs at the route, never here.
+    preflight_request_id: str | None = Field(
+        default=None,
+        description=(
+            "Contractually required for POST /api/scans. Optional in the "
+            "schema on purpose: the route guards it so a missing ticket "
+            "returns the stable preflight_request_id_required error code "
+            "instead of a FastAPI validation array."
+        ),
+    )
 
 
 class ScanCreateResponse(WebSchema):

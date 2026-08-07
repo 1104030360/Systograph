@@ -52,6 +52,7 @@
 | Method | Path | 流程 | Runtime | § |
 |--------|------|------|---------|---|
 | POST | `/api/projects/import` | project | current | 1 |
+| POST | `/api/projects/{project_id}/scan-preflights` | project | current | 1 |
 | POST | `/api/scans` | project | current | 1 |
 | GET | `/api/scan/events` | project | current | 1 |
 | GET | `/api/map/report` | process-wide | current | 2 |
@@ -99,10 +100,18 @@ curl -s "http://127.0.0.1:8000/api/projects/project%3A<uuid>/map-builds/latest" 
   | jq '.viewer_load_result.loaded'
 ```
 
-> **舊的 process-wide demo surface 已全數移除**（皆回 `404`）：建圖端
-> `POST /api/map/build`、讀取端 `GET /api/map` 與其 legacy fallback `GET /map`。
+> **舊的 demo surface 四支已全數移除**（皆回 `404`，由
+> `tests/web/test_retired_endpoints.py` 的 regression 鎖住）：建圖端
+> `POST /api/map/build`、讀取端 `GET /api/map` 與其 legacy fallback `GET /map`、
+> 任意路徑載圖端 `POST /api/viewer/load`（2026-08-07 移除）。
 > HTTP 建圖一律走上面的 project session 流程，讀圖一律走 build-scoped 端點；
 > 一次掃一個路徑就出圖的等價能力在 CLI `systograph map`。
+>
+> `POST /api/viewer/load` 的移除同時**就是** issue #140 path oracle 的修復：該端點
+> 拿 client 指定的 `map_json_path` 直接讀後端本機檔案，等於開放遠端探測任意本機路徑
+> 是否存在，並從錯誤回應洩漏絕對路徑與 errno。#140 選擇以**移除端點**消解風險，而不是
+> 補白名單硬化。載入既有 `ai_system_map.json` 的能力保留在 CLI
+> `systograph validate-map`——由 operator 在本機自行指定檔案，不是遠端可觸發面。
 
 19 條 route 中有 18 條有對應的可執行範例腳本（例如 `scripts/trace_scans_create.sh`；`scripts/trace_all.sh` 一次跑完全部）。唯一沒有腳本的是 `GET /api/projects/{project_id}`。
 
@@ -292,7 +301,15 @@ Pending 階段同樣是 metadata-only，且只能決定 current required sensiti
 exclusions。Apply 重用保存的 snapshot，不重新 preflight或讀 repo；Rescan必須建立新 preflight，
 不自動沿用上次 decisions。
 
-Typed error body固定為 `{detail:{code,message,retryable,context}}`。主要 code：
+本端點的 error body 有**兩種形狀並存**，前端不可假設 `detail` 一定是物件：
+
+- Typed envelope `{detail:{code,message,retryable,context}}`——preflight／inventory
+  selection 與 `preflight_request_id_required` 走這個形狀，即下表所有 code。
+- Plain-string `{"detail":"<code>"}`——retired write surface 的 fail-closed 拒絕走這個
+  形狀（`POST /api/scans` 上是 `legacy_output_not_selectable`，`scan_routes.py:170`）。
+  完整清單見 `frontend/API_CONTRACT.md` §Retired Legacy Write Surfaces。
+
+Typed envelope 的主要 code：
 
 | HTTP | code | 意義 |
 | ---: | --- | --- |

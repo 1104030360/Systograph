@@ -32,22 +32,58 @@ GET /map
 
 `GET /api/map` and its bare alias `GET /map` used to return the process-wide
 latest viewer payload, carrying no `project_id`. Both were removed on
-2026-08-07, together with the demo writer `POST /api/map/build` that fed them;
-the backend answers 404 on all three. Loading a map is now always
-build-scoped and always requires a `project_id`.
+2026-08-07, together with the demo writer `POST /api/map/build` that fed them
+and the arbitrary-path loader `POST /api/viewer/load`; the backend answers 404
+on all four. Loading a map is now always build-scoped and always requires a
+`project_id`.
+
+Removing `POST /api/viewer/load` **is** the fix for the #140 path oracle. The
+endpoint took a client-supplied `map_json_path` and read that file off the
+server's disk, so any caller could probe whether an arbitrary local path
+existed and harvest absolute paths and errno detail from the error responses.
+#140 was closed by deleting the endpoint rather than allowlisting it. Loading
+an existing `ai_system_map.json` now lives only in the CLI command
+`systograph validate-map`, where an operator names a local file and no remote
+caller can reach it.
 
 The frontend still contains the fallback branch that tries these two paths
 after the build-scoped request fails. It is dead code — every attempt hits a
 404 — and its removal belongs to the FE-2 work package. Do not build on it.
 
-Response shape must match the sample file:
+Both build-scoped endpoints above (`map-builds/latest` and
+`map-builds/{build_id}`) answer with the same envelope,
+`MapBuildScopedResponse`: six lineage fields at the top level, then
+`build_result` (validated profile and readiness sidecars) and
+`viewer_load_result` (the base graph projection). `viewer_load_result` is
+**not** the whole response — reading only that key loses the lineage the
+viewer is required to display.
 
 ```ts
-{
+type MapBuildScopedResponse = {
+  project_id: string;
+  scan_id: string;
+  build_id: string;
+  based_on_build_id: string | null;
+  build_reason: "initial_scan" | "apply_confirmations" | "detail_scan";
+  applied_mapping_ids: string[];
+  build_result: {
+    status: "ok" | "error";
+    project_name: string;
+    active_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+    requested_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+    source_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
+    operator_rollback_active: boolean;
+    migration_warnings: string[];
+    warnings: string[];
+    profile_signals_available: boolean;
+    readiness_report_available: boolean;
+    profile_inference_result: ProfileInferenceResult | null;
+    readiness_report: ReadinessReport | null;
+  };
   viewer_load_result: {
     loaded: boolean;
     error_reason?: string | null;
-    map_json?: string;
+    map_json?: string | null;
     ai_system_map: {
       schema_version?: string;
       system_type?: string;
@@ -56,6 +92,11 @@ Response shape must match the sample file:
       unmapped_components?: unknown[];
     };
     graph_view_model: {
+      scan_id: string | null;
+      build_id: string | null;
+      environment_id: string | null;
+      artifact_set_version: string | null;
+      mapping_completeness?: MappingCompleteness | null;
       nodes: GraphNode[];
       edges: GraphEdge[];
       details: {
@@ -68,8 +109,18 @@ Response shape must match the sample file:
       };
     };
   };
-}
+};
 ```
+
+The envelope does not expose `output_run_dir` or any `*_path`; artifacts are
+returned as content only. The identity strip the viewer must render
+(`MODEL-CONTRACT.md` §13 rule 5 — `scan_id`, `build_id`, `environment_id`,
+`artifact_set_version`, Mapping Completeness over 52) is assembled from these
+fields: `scan_id` and `build_id` from the envelope, `environment_id` and
+`artifact_set_version` from `graph_view_model` (which repeats `scan_id` and
+`build_id` for the same build), and completeness from
+`graph_view_model.mapping_completeness`. The full field list lives in
+`docs/API-GUIDE.md` §2 and `docs/MODEL-CONTRACT.md` §7.2.
 
 The frontend treats `graph_view_model` as the rendering input. It does not rescan files and does not infer canonical facts.
 
