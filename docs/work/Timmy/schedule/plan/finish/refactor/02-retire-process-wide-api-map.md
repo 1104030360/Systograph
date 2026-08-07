@@ -1,7 +1,9 @@
 # 退役 process-wide `/api/map` demo surface 實作計畫
 
-Status: **Phase B 完成（2026-08-07, commit `f0b9ef5`；fix round 1 見文末註記）；
-Phase A（FE-2）待前端**
+Status: **後端範圍 done——Phase B 完成（2026-08-07, commit `f0b9ef5`；fix round 1
+見文末註記）；Phase A 已移交前端工作包 FE-2**（2026-08-08 依使用者決策歸檔至
+`finish/`；Phase A 的 canonical 追蹤改為
+`docs/work/Meeting-Sync/meeting_sync_2026_08_06/frontend-web-boundary-refactor-handoff.md`）
 （2026-08-06 起草；GitHub issue #277。使用者決策：整個移除 process-wide
 `/api/map` demo 讀圖路徑，正式讀圖收斂為 build-scoped 端點。
 **Step 0 文件前置已於 2026-08-06 完成**，見下方「已完成的前置」）

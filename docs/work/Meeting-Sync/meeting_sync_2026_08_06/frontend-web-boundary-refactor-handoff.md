@@ -36,7 +36,7 @@ FE-2 內部順序固定：**先補空狀態、再拔 fallback**（順序反了�
 
 ## FE-2：API mode 空狀態 + 移除 `/api/map` fallback
 
-Canonical：[`refactor/02-retire-process-wide-api-map.md`](../../Timmy/schedule/plan/unfinish/refactor/02-retire-process-wide-api-map.md) Phase A
+Canonical：[`refactor/02-retire-process-wide-api-map.md`](../../Timmy/schedule/plan/finish/refactor/02-retire-process-wide-api-map.md) Phase A
 
 ### 背景
 
@@ -119,7 +119,7 @@ ReadinessPanel 現有的「Generated Markdown」分頁是**前端**由
 
 ## FE-1：Explicit preflight 兩段式掃描（最大的一包）
 
-Canonical：[`refactor/01-explicit-preflight-cutover.md`](../../Timmy/schedule/plan/unfinish/refactor/01-explicit-preflight-cutover.md) Phase A
+Canonical：[`refactor/01-explicit-preflight-cutover.md`](../../Timmy/schedule/plan/finish/refactor/01-explicit-preflight-cutover.md) Phase A
 
 ### 背景
 

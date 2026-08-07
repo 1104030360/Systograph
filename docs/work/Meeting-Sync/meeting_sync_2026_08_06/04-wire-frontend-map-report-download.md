@@ -26,7 +26,7 @@ issue #277 不含本計畫，issue 由前端自行開立）
 > （umbrella issue #277）會刪掉 `GET /api/map`、`GET /map`、
 > `POST /api/map/build`，但**明確保留 `GET /api/map/report`** 與它依賴的
 > `session_store.latest_build_result`（見
-> `docs/work/Timmy/schedule/plan/unfinish/refactor/02-retire-process-wide-api-map.md`
+> `docs/work/Timmy/schedule/plan/finish/refactor/02-retire-process-wide-api-map.md`
 > 的「不動」清單、`plan/finish/refactor/03-retire-api-map-build.md` 的同名段落，以及
 > Plan 08 的驗收標準）。因此本計畫依賴的端點與下方「已知限制」皆不會消失；唯一影響是
 > 同檔案的鄰居 handler 被刪後，Source 段引用的 `map_routes.py`、

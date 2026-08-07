@@ -1,6 +1,9 @@
 # Explicit Preflight Cutover（前端兩段式掃描 → 退役 implicit preflight 分支）實作計畫
 
-Status: **Phase B 已於 2026-08-07 完成（commit 4d8f5c6）；Phase A 待 FE-1**
+Status: **後端範圍 done——Phase B 已於 2026-08-07 完成（commit 4d8f5c6）；Phase A
+已移交前端工作包 FE-1**（2026-08-08 依使用者決策歸檔至 `finish/`；Phase A 的
+canonical 追蹤改為
+`docs/work/Meeting-Sync/meeting_sync_2026_08_06/frontend-web-boundary-refactor-handoff.md`）
 （2026-08-05 起草；GitHub issue #277。前置事實查核：現行前端
 `projectScanApi.ts` 從未送 `preflight_request_id`，正式前端今天 100% 走 implicit
 compatibility 分支——所以退役順序必須是前端先遷移、後端才拆橋）
