@@ -227,7 +227,7 @@ Plan 07 的前置基礎，收尾時逐項複驗不得回退。
 
 ## 紀錄
 
-- 每階段完成 → `docs/work/Timmy/schedule/report/2026-08-07-<階段名>-REP.md`
+- 每階段完成 → `docs/work/Timmy/schedule/report/2026-08-07/2026-08-07-<階段名>-REP.md`
 - 本檔為 ledger：階段完成即回填 checkbox 與 commit hash。
 
 ## 階段完成紀錄（ledger）

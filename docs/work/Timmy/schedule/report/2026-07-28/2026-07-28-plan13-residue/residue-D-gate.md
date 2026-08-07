@@ -50,7 +50,7 @@ frontend/src/data/frontend-json-sample.json:21,32,842,1634  ai-system-map/v1
 frontend/src/data/frontend-json-sample.json:1595  new_extension_component
 ```
 
-- **判定理由**：`35 records / 35 hits`、`migrate=5 / migration_only=22 / operator_rollback=8`、SHA-256 三項與 REP `docs/work/Timmy/schedule/report/2026-07-17-phase2-plan13-v2-cutover-REP.md:33-35,143` 完全一致。這份 census 不是編造的。
+- **判定理由**：`35 records / 35 hits`、`migrate=5 / migration_only=22 / operator_rollback=8`、SHA-256 三項與 REP `docs/work/Timmy/schedule/report/2026-07-17/2026-07-17-phase2-plan13-v2-cutover-REP.md:33-35,143` 完全一致。這份 census 不是編造的。
 - **建議處置**：無。
 - **風險**：低
 

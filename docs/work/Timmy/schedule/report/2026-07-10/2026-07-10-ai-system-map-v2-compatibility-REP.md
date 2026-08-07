@@ -68,7 +68,7 @@ legacy metadata / compatibility view tests，而是接到完整 canonical contra
 - `tests/unit/core/test_system_map_v1_to_v2_adapter.py`
 - `tests/integration/test_ai_system_map_v2_compatibility.py`
 - `docs/work/Timmy/schedule/todo/2026-07-10-ai-system-map-v2-compatibility-TODO.md`
-- `docs/work/Timmy/schedule/report/2026-07-10-ai-system-map-v2-compatibility-gate.md`
+- `docs/work/Timmy/schedule/report/2026-07-10/2026-07-10-ai-system-map-v2-compatibility-gate.md`
 - `docs/work/Timmy/schedule/plan/.../00A-...md`（驗收勾選）
 
 ## 測試方式

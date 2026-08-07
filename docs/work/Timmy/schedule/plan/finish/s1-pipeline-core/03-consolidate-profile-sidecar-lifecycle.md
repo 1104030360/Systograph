@@ -3,7 +3,7 @@
 > **2026-07-11 backend execution status：** 10 public siblings、atomic writer cleanup、
 > profile/readiness/static artifacts、manifest digests、degraded build read 與 CLI/API discovery
 > 已完成並測試。Frontend render 不在本次範圍；完成證據見
-> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+> `docs/work/Timmy/schedule/report/2026-07-11/2026-07-11-phase2-s1-pipeline-core-REP.md`。
 
 > **執行者注意：** Implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
