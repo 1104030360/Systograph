@@ -73,7 +73,7 @@ demo 端點的 response 包裝層；Plan 02（`GET /api/map`、`GET /map`）與 
 | `MapBuildResult` / `save_build_result` 本身 | 只刪其中的 re-wrap 行，方法本體是正式路徑 |
 | `save_committed_build_projection` | 正式 scan / apply / detail scan 都在用 |
 | `ViewerSessionService` 類別 | `BuildArtifactPublisher` / `BuildManifestService` / `MapBuildService` / CLI `validate-map` 仍持有（**不是**因為 session store——見下方範圍追加） |
-| `app.state.viewer_session_service` 與 `create_app(viewer_session_service=...)` | 保留 app 層 DI 槽與其注入點 |
+| ~~`app.state.viewer_session_service` 與 `create_app(viewer_session_service=...)`~~ | 當時裁定保留 app 層 DI 槽與其注入點。**2026-08-07 Stage 5 推翻並移除**：本計畫的死接線清除拿掉 `PersistentSessionStore` 注入後，該槽在 repo 內成為零讀取（無 route／`dependencies.py` helper 讀它、無測試經 `create_app(viewer_session_service=...)` 注入、`MapBuildService`／`BuildArtifactPublisher`／`BuildManifestService` 都自建 default），依「不留相容層」原則刪除 |
 | 前端 `frontend/src/types.ts` 的 `ViewerPayload` TS 型別 | **同名不同物**——前端內部正規化型別，與 backend 無關，零改動 |
 
 ## 2026-08-07 範圍追加：死接線清除
@@ -92,9 +92,12 @@ demo 端點的 response 包裝層；Plan 02（`GET /api/map`、`GET /map`）與 
   `projection_service=app.state.viewer_session_service` 注入。
 
 **保留**：`ViewerSessionService` 類別本身（`BuildArtifactPublisher`、
-`BuildManifestService`、`MapBuildService`、CLI `validate-map` 仍持有）、
-`app.state.viewer_session_service` 與 `create_app` 的
-`viewer_session_service` 參數（app 層 DI 槽與其唯一注入點，成對保留）。
+`BuildManifestService`、`MapBuildService`、CLI `validate-map` 仍持有）。
+
+> **2026-08-07 Stage 5 更正**：原本這裡連 `app.state.viewer_session_service`
+> 與 `create_app` 的 `viewer_session_service` 參數也一併保留（「app 層 DI 槽與其
+> 唯一注入點，成對保留」）。上述死接線清除之後，該槽的唯一消費者消失、成為
+> repo 內零讀取死槽，已於 Stage 5 連同 `web/app.py` 的 import 一併移除。
 
 連帶的註解同步（2b review M1）：`core/services/viewer_session_service.py`
 檔頭「被誰用」原本列了 `PersistentSessionStore（projection_service）`，

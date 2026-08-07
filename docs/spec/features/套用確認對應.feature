@@ -139,7 +139,7 @@ Feature: 套用確認對應
       Then Viewer 顯示 Apply response 的 viewer_payload
       And Viewer 顯示的 build_id 為 "B2"
       And 只有 response applied_mapping_ids 中的 mappings 被清除
-      And 額外的 "GET /api/map" 呼叫次數為 0
+      And Viewer 額外發出的 map 重新載入請求次數為 0
 
   Rule: Stale base Apply 失敗後必須保留 pending confirmations
 

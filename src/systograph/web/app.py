@@ -56,9 +56,6 @@ from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
 from systograph.core.services.scan_snapshot_service import ScanSnapshotService
-from systograph.core.services.viewer_session_service import (
-    ViewerSessionService,
-)
 from systograph.web.middleware import (
     DEFAULT_MAX_REQUEST_BODY_BYTES,
     RequestSizeLimitMiddleware,
@@ -130,7 +127,6 @@ def create_app(
     scan_snapshot_service: ScanSnapshotService | None = None,
     inventory_preflight_service: InventoryPreflightService | None = None,
     inventory_selection_service: InventorySelectionService | None = None,
-    viewer_session_service: ViewerSessionService | None = None,
     session_store: SessionStore | None = None,
     state_dir: Path | None = None,
     apply_confirmations_service: ApplyConfirmationsService | None = None,
@@ -235,9 +231,6 @@ def create_app(
         )
     )
     app.state.query_trace_service = query_trace_service or QueryTraceService()
-    app.state.viewer_session_service = (
-        viewer_session_service or ViewerSessionService()
-    )
     app.state.session_store = session_store or PersistentSessionStore(
         repository=repository,
         manifest_service=manifest_service,
