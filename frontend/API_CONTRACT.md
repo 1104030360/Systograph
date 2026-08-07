@@ -4,7 +4,9 @@ This document records the frontend-facing contract for the local Python API.
 
 The frontend can run in two modes:
 
-- `Sample`: uses the committed `frontend-json-sample.json`.
+- `Sample`: uses the committed
+  `frontend/src/data/frontend-ai-system-map-v2-canonical.json`
+  (assembled through `src/data/sampleMap.ts`).
 - `API`: loads from a local Python backend. Default base URL is `http://127.0.0.1:8000` and can be changed in the UI or through `VITE_API_BASE_URL`.
 
 ## Map Loading

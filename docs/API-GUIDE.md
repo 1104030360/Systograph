@@ -52,6 +52,7 @@
 | Method | Path | 流程 | Runtime | § |
 |--------|------|------|---------|---|
 | POST | `/api/projects/import` | project | current | 1 |
+| GET | `/api/projects/{project_id}` | project | current | 1 |
 | POST | `/api/projects/{project_id}/scan-preflights` | project | current | 1 |
 | POST | `/api/scans` | project | current | 1 |
 | GET | `/api/scan/events` | project | current | 1 |
@@ -158,6 +159,21 @@ Response `200`：
   source_type: "local_path";
   project_name: string;
   reused: boolean;
+}
+```
+
+### GET /api/projects/{project_id}
+
+回傳 project 身分與顯示用 metadata（`project_id`、`source_type`、
+`project_name`）；**不含任何本機路徑**。查無 project 回 404
+`project_not_found`。這是 19 條 route 中唯一沒有對應 trace 腳本的端點
+（見上方註記）。
+
+```ts
+{
+  project_id: string;
+  source_type: "local_path";
+  project_name: string;
 }
 ```
 

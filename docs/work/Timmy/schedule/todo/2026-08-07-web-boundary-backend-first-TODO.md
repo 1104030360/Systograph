@@ -191,14 +191,31 @@ Plan 07 的前置基礎，收尾時逐項複驗不得回退。
   直接修正（記錄）。
 
 ### Stage 5：架構圖 + 最終驗收 + 收尾
-- [ ] 更新 `docs/work/Timmy/learn/architecture.md` ASCII 全景圖
-  （完整、無缺漏；反映端點退役、v1 寫入路徑移除、type→plane 推導）
-- [ ] 逐項複驗 13.7 / 13.8 驗收條件未回退（護欄測試仍在、grep 零命中）
-- [ ] 逐項複驗 Plans 01B/02B/03/05/06/07/08 驗收標準，計畫檔 checkbox 勾選
-  + status 更新 + 移至 finish/（含 04 除外的歸檔判斷）
-- [ ] 過渡期程式碼殘留 grep 掃描（deprecated 標記、compatibility 敘述）
-- [ ] 寫最終 REP、push、開 PR（Closes umbrella issue）
-- 驗收：13.7/13.8 + 7 份執行計畫全部想法實現；文件與程式碼一致
+- [x] 更新 `docs/work/Timmy/learn/architecture.md` ASCII 全景圖（38 hunks，
+  1087 行；Route 表重寫為 19 端點＋退役區塊、preflight 必帶、v1 寫入刪除、
+  type→plane resolver 子樹、scripts；全景圖鏈路連續無斷點，框線 python 驗證
+  零錯位）。**⚠️ 事故：learn/ 目錄先前已從磁碟消失**（gitignored 無備份，
+  約 08-06 19:10）——由 transcript 重播還原（三重驗證）後才更新；建議使用者
+  目視複核並考慮備份機制。gitignored 檔不入 commit。
+- [x] 逐項複驗 13.7 / 13.8 驗收未回退（Stage 5d：9 條全 ✅，47 個護欄測試
+  實跑零失敗，alias TOML 仍僅 context_flow，loader fail-closed 完整）
+- [x] 逐項複驗 Plans 01B/02B/03/05/06/07/08 驗收（Stage 5d：後端範圍全數
+  成立；唯一 ❌ 為 Plan 02 驗收 5b 的 API_CONTRACT 前端側——已由殘餘批次
+  `d40efcc` 改為誠實過渡態敘述）。**歸檔裁定修正：不在本 PR 搬移計畫檔**
+  （美觀性搬移不進功能 PR、避免 cross-link 腐化；03/05/06/07/08 已標 done，
+  搬移留待 merge 後由使用者執行）
+- [x] 過渡期殘留 grep 掃描（Stage 5d C 節：端點字串與 9 個已刪符號 scope 內
+  零非法命中；找到的 4 處漏網已由 `d40efcc`/`dfd8b40` 清除；CLAUDE.md
+  兩處 rollback 敘述已本機修正——該檔 gitignored）
+- [x] 最終 whole-branch review（READY-with-notes）→ fix wave `1d8f2d9`
+  （退役告示補 viewer/load＋#140 動機、API_CONTRACT build-scoped 完整
+  形狀、preflight_request_id 防誤修註解、總覽補列、錯誤體兩形狀並存）
+  → scoped re-review 5/5 ADDRESSED
+- [x] 寫最終 REP、push、開 PR（**Refs #277**——Phase A 未完不得 Closes；
+  **Closes #140**；PR 連結見 issue #277 留言；8 筆 subagent commits 缺
+  trailer 已於 PR body 註記，不 rebase）
+- 驗收：13.7/13.8 + 7 份執行計畫全部想法實現；文件與程式碼一致 ✅
+  （Stage 5d 掃描 + 最終 review 雙重確認）
 
 ## 測試方式（TDD+BDD 落實）
 
@@ -215,8 +232,12 @@ Plan 07 的前置基礎，收尾時逐項複驗不得回退。
 
 ## 階段完成紀錄（ledger）
 
-- Stage 1：（待記）
-- Stage 2：（待記）
-- Stage 3：（待記）
-- Stage 4：（待記）
-- Stage 5：（待記）
+- Stage 1：`b56b260`（8 份計畫查核＋#277 回填）
+- Stage 2：`4d8f5c6`..`a1ce0c6`（01B/05/03/02B/08 五個 plan，各含
+  review + fix round；中繼 ledger `d949b9f`、REP `87c6a34`）
+- Stage 3：`7b091ac`..`e6a378e`（06/07 兩個 plan；REP+nits `9633ab8`）
+- Stage 4：`5871be8`..`493e188`（scripts v2 對齊、trace_all 18/18；
+  REP `4f7b0f0`）
+- Stage 5：`7052d1a`（收尾五項）、`d40efcc`（殘餘批次 11 項）、
+  `dfd8b40`（arch-graph v1 敘述）＋ architecture.md（gitignored 不入
+  commit）＋最終驗收掃描（stage5d-acceptance.md）
