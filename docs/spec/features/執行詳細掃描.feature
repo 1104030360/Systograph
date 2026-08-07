@@ -23,7 +23,7 @@ Feature: 執行詳細掃描
       Given build "B2" 為 project latest build
       When 使用者針對 build "B2" 執行 Detail Scan 且 child build "B3" atomic publish 成功
       Then project latest_build_id 為 "B3"
-      And Viewer 顯示 Detail Scan response 的 viewer_payload
+      And Viewer 顯示 Detail Scan response 的 viewer_load_result
       And Viewer 顯示的 build_id 為 "B3"
 
   Rule: Target file fingerprint 改變時必須要求 explicit rescan

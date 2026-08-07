@@ -349,7 +349,8 @@ systograph_create_proposal() {
   setup_post "/api/mapping-proposals" "$body"
 }
 
-# Summarize a ViewerPayload JSON (stdin or arg) for Track A graph projection QA.
+# Summarize a build-scoped map response JSON (stdin or arg) for Track A graph
+# projection QA.
 # Expects root shape: { viewer_load_result: { loaded, error_reason, graph_view_model: {...} } }
 systograph_summarize_viewer_payload() {
   local json="${1:-}"
@@ -393,7 +394,8 @@ systograph_summarize_viewer_payload() {
   }'
 }
 
-# Soft asserts for a loaded ViewerPayload. Fail only when map is expected loaded.
+# Soft asserts for a loaded build-scoped map response. Fail only when the map
+# is expected loaded.
 # Usage: systograph_assert_graph_projection_loaded "$LAST_BODY"
 systograph_assert_graph_projection_loaded() {
   local json="$1"

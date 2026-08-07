@@ -82,12 +82,11 @@ proposal 建議路徑，**不能**決定五態、Mapping Completeness 或 readin
 │                                                                                              │
 │ ┌─ Legacy v1 compatibility ─────────────────┐  ┌─ Loaders + config ────────────────────────┐ │
 │ │ SystemMapV1ToV2Adapter (711 ln)           │  │ RuleCatalogLoader ScanInventoryRuleLoader │ │
-│ │ SystemMapValidation / Normalize (v1)      │  │ ProfileRegistryLoader (labels/axes only)  │ │
-│ │ SystemMapMaterializationService           │  │ LlmProposalConfigLoader PromptTemplate    │ │
-│ │   (operator rollback only, Plan 15 drops) │  │ QueryTraceConfigLoader                    │ │
-│ │ LegacyV1RollbackService                   │  │ core/models/ (28)  core/repositories/     │ │
-│ │ LegacyManualMappingMigrationService       │  └───────────────────────────────────────────┘ │
-│ └───────────────────────────────────────────┘                                                │
+│ │ SystemMapValidation (v1 read)             │  │ ProfileRegistryLoader (labels/axes only)  │ │
+│ │ LegacyManualMappingMigrationService       │  │ LlmProposalConfigLoader PromptTemplate    │ │
+│ └───────────────────────────────────────────┘  │ QueryTraceConfigLoader                    │ │
+│                                                │ core/models/ (28)  core/repositories/     │ │
+│                                                └───────────────────────────────────────────┘ │
 └───────────────────────────────────────┬──────────────────────────────────────────────────────┘
                                         │  core services dispatch providers and load rule catalogs
                                         ▼
@@ -174,8 +173,6 @@ MapBuildService.build(request)   entry: CLI `map` only
   │        MapBuildLineage(build_reason="initial_scan")
   ▼
 MapBuildPipeline.materialize()
-  │
-  ├┄┄▶ "ai-system-map/v1" requested (operator rollback, default off) ┄┄▶ LegacyV1RollbackService
   │
   ├──▶ "ai-system-map/v2" ACTIVE ──▶ SystemMapV2MaterializationService        ◀── Step 4
   │        1 RagTemplateService.load("rag-core-v1")     legacy template, NOT a blueprint

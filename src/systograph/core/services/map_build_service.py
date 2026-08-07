@@ -155,7 +155,7 @@ class MapBuildService:
         )
 
     # 做什麼：完整初掃 build——precondition → scan → pipeline.materialize。
-    # 被誰呼叫：CLI map、Web create scan、一般首次建圖。
+    # 被誰呼叫：CLI map（唯一 production caller）。
     # 自己呼叫：check_preconditions、scan_project、
     # MapBuildPipeline.materialize。
     # 失敗 precondition：回 precondition_error_result（status=error）。
@@ -218,7 +218,7 @@ class MapBuildService:
         )
 
     # 做什麼：用既有 ScanSnapshot 重建（不重掃 filesystem inventory）。
-    # 被誰呼叫：ApplyConfirmations 等「基於 snapshot 再 build」流程。
+    # 被誰呼叫：Web POST /api/scans、ApplyConfirmations。
     # 自己呼叫：組 MapBuildLineage → MapBuildPipeline.materialize。
     def build_from_snapshot(
         self,

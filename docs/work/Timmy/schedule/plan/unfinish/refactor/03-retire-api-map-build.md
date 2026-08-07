@@ -191,6 +191,8 @@ Plan 01 的快速開始 preflight 段落插在前面；以內容為準）：
 
 1. `POST /api/map/build` 回 404，且有 regression test 鎖住。
 2. `GET /api/map` / `GET /map` 行為不變（跑過一次正式 scan 後仍可讀取）。
+   （本條驗收於 Plan 03 完成當下成立；同日稍後 Plan 02 Phase B 已依計畫將這兩支
+   端點退役為 404。時序正確，非矛盾。）
 3. `uv run pytest`、`ruff`、`mypy` 全綠；`scripts/trace_all.sh` 可完整執行。
 4. `docs/API-GUIDE.md`、`frontend/API_CONTRACT.md` 無指向已刪端點的殘留敘述。
 5. CLI `systograph map` 仍可完成等價的一次性建圖（能力未流失）。

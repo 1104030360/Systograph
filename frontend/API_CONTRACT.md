@@ -23,20 +23,22 @@ GET /api/map-builds/{build_id}
 Accept: application/json
 ```
 
-Deprecated fallback endpoints — **scheduled for removal**, do not build on them:
+Removed fallback endpoints — **retired on 2026-08-07**, they now return 404:
 
 ```http
 GET /api/map
 GET /map
-Accept: application/json
 ```
 
-`GET /api/map` and its bare alias `GET /map` return the process-wide latest
-viewer payload and carry no `project_id`. The frontend tries the build-scoped
-endpoint first and only falls back to these when it fails. Both are being
-retired; after that, loading a map always requires a `project_id`. The
-matching demo writer `POST /api/map/build` is already gone — a project-scoped
-scan is what fills these reads now.
+`GET /api/map` and its bare alias `GET /map` used to return the process-wide
+latest viewer payload, carrying no `project_id`. Both were removed on
+2026-08-07, together with the demo writer `POST /api/map/build` that fed them;
+the backend answers 404 on all three. Loading a map is now always
+build-scoped and always requires a `project_id`.
+
+The frontend still contains the fallback branch that tries these two paths
+after the build-scoped request fails. It is dead code — every attempt hits a
+404 — and its removal belongs to the FE-2 work package. Do not build on it.
 
 Response shape must match the sample file:
 
@@ -394,8 +396,8 @@ Success returns the immutable child identity and projection:
 ```
 
 The UI immediately consumes this child projection, then requests
-`GET /api/map-builds/{build_id}` for the complete build-scoped envelope. It never refreshes
-process-wide `/api/map` after Detail Scan. Parent/historical builds remain immutable, and
+`GET /api/map-builds/{build_id}` for the complete build-scoped envelope. It never issues an
+extra map reload after Detail Scan. Parent/historical builds remain immutable, and
 `base_build_not_latest` / `scan_snapshot_stale` require reloading the current build before a new request.
 
 L2 renders bounded summaries, safe evidence references, warnings and context limits. L3 renders only

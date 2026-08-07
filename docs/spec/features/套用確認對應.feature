@@ -130,13 +130,13 @@ Feature: 套用確認對應
       And UI 主要操作文字為 "套用 3 項確認並建立新版本"
       And UI 顯示 "將沿用目前的掃描資料更新分析結果，不會重新掃描專案。"
 
-  Rule: Apply 成功後必須以 response viewer_payload 原子更新 Viewer
+  Rule: Apply 成功後必須以 response viewer_load_result 原子更新 Viewer
 
     Example: B1 Apply 成功建立 B2
       Given Viewer 目前顯示 build "B1"
       And Apply request 包含多筆 confirmed mapping_ids
       When 使用者呼叫 "POST /api/map-builds/{base_build_id}/apply" 且建立 build "B2"
-      Then Viewer 顯示 Apply response 的 viewer_payload
+      Then Viewer 顯示 Apply response 的 viewer_load_result
       And Viewer 顯示的 build_id 為 "B2"
       And 只有 response applied_mapping_ids 中的 mappings 被清除
       And Viewer 額外發出的 map 重新載入請求次數為 0

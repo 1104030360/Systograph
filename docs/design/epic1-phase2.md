@@ -2,8 +2,9 @@
 
 Status: canonical design baseline for regenerating Phase2 plans.
 
-Implementation status: mixed. Current repo still runs the v1 map-build/session
-pipeline; Phase2 v2 map, build lineage, local JSON persistence, readiness
+Implementation status: mixed. Current repo runs the v2-only map-build pipeline
+(the v1 write path was removed on 2026-08-07; v1 is retained for read and
+migration only); Phase2 build lineage, local JSON persistence, readiness
 sidecars and static execution artifacts are accepted targets.
 
 Owner: Timmy
