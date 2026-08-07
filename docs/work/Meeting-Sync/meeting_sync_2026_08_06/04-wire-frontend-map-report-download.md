@@ -13,16 +13,22 @@ process-wide Markdown 端點，不等 build-scoped artifact API）
 **GitHub Issue:** 待開（開立後回填編號；本計畫是前端工作包 FE-3，後端 umbrella
 issue #277 不含本計畫，issue 由前端自行開立）
 
-> **2026-08-06 ownership 註記：** 本計畫**全份為前端工作**（後端零改動），已
-> handoff 至 `docs/work/Meeting-Sync/meeting_sync_2026_08_06/frontend-web-boundary-refactor-handoff.md`（工作包 FE-3）。
-> 本檔留在 refactor 佇列僅作編號追蹤，不屬後端工作。
+> **2026-08-06 ownership 註記：** 本計畫**全份為前端工作**（後端零改動），
+> handoff 為工作包 **FE-3**（同資料夾的
+> `frontend-web-boundary-refactor-handoff.md`）。
+>
+> **2026-08-07 搬移註記：** 本檔已依使用者指示自
+> `docs/work/Timmy/schedule/plan/unfinish/refactor/` 搬到本 handoff 資料夾，
+> 與 FE-3 工作包同住；refactor 佇列不再保留副本（原編號 04 保留於檔名，
+> 索引見 `docs/work/Timmy/schedule/plan/unfinish/README.md`）。
 
 > **2026-08-07 依賴確認：** 後端本輪執行的 Plans 01B/02B/03/05/06/07/08
 > （umbrella issue #277）會刪掉 `GET /api/map`、`GET /map`、
 > `POST /api/map/build`，但**明確保留 `GET /api/map/report`** 與它依賴的
-> `session_store.latest_build_result`（見 `02-retire-process-wide-api-map.md`
-> 的「不動」清單、`03-retire-api-map-build.md` 的同名段落，以及 Plan 08 的
-> 驗收標準）。因此本計畫依賴的端點與下方「已知限制」皆不會消失；唯一影響是
+> `session_store.latest_build_result`（見
+> `docs/work/Timmy/schedule/plan/unfinish/refactor/02-retire-process-wide-api-map.md`
+> 的「不動」清單、同目錄 `03-retire-api-map-build.md` 的同名段落，以及
+> Plan 08 的驗收標準）。因此本計畫依賴的端點與下方「已知限制」皆不會消失；唯一影響是
 > 同檔案的鄰居 handler 被刪後，Source 段引用的 `map_routes.py`、
 > `session_store.py` 行號會位移，行為與契約不變。
 

@@ -82,7 +82,7 @@ Canonical：[`refactor/02-retire-process-wide-api-map.md`](../../Timmy/schedule/
 
 ## FE-3：Markdown report 預覽／下載
 
-Canonical：[`refactor/04-wire-frontend-map-report-download.md`](../../Timmy/schedule/plan/unfinish/refactor/04-wire-frontend-map-report-download.md)（全計畫皆前端，後端零改動）
+Canonical：[`04-wire-frontend-map-report-download.md`](04-wire-frontend-map-report-download.md)（同資料夾；2026-08-07 自 refactor 佇列搬入。全計畫皆前端，後端零改動）
 
 ### ⚠️ 先讀這個限制
 
