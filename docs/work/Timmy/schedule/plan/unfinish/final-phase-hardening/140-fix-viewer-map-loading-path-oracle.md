@@ -1,6 +1,6 @@
 # GitHub #140 Viewer Map Loading Path Oracle Implementation Plan
 
-Status: **superseded**（由 `plan/unfinish/refactor/05-retire-api-viewer-load.md`
+Status: **superseded**（由 `plan/finish/refactor/05-retire-api-viewer-load.md`
 ＋ umbrella issue #277 取代，2026-08-07）
 
 > **2026-08-07 — 本計畫不再執行。**

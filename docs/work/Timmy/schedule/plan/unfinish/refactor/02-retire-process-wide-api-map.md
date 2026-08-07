@@ -29,7 +29,8 @@ Phase A（FE-2）待前端**
 `GET /api/map-builds/{build_id}`）。
 
 > **範圍調整（2026-08-06）：** 原本一併涵蓋的 `POST /api/map/build` 已拆出為
-> `03-retire-api-map-build.md` 獨立執行。理由：該端點**前端零引用**，不受
+> `03-retire-api-map-build.md` 獨立執行（已完成，現位於
+> `plan/finish/refactor/`）。理由：該端點**前端零引用**，不受
 > Phase A gate 約束，可立即動工；本計畫的兩支讀取端點才是卡在前端 fallback。
 > 兩份計畫互不阻擋，任一順序皆可；`03` 先完成時，本計畫 Task 7 對應敘述改為
 > 只處理讀取端點。
@@ -77,7 +78,7 @@ preview and download`** 仍為 OPEN。本計畫與 Plan 03 都完成後 `map_rou
 （`session_store.py:125,198`）則是本計畫後即無呼叫者（現有唯一呼叫點就是要刪的
 `map_routes.py:42,80`），但清除歸 Plan 08，本計畫同樣不動。
 
-> **槽位收尾 → 已獨立為 `refactor/08-remove-viewer-payload-session-slot.md`。** 本計畫與 Plan 05（退役
+> **槽位收尾 → 已獨立為 `plan/finish/refactor/08-remove-viewer-payload-session-slot.md`（已完成）。** 本計畫與 Plan 05（退役
 > `POST /api/viewer/load`）都完成後，`_latest_viewer_payload` 槽、
 > `save_viewer_payload`、以及 `save_build_result` 內「再包一份
 > `ViewerPayload`」的那幾行（`session_store.py:117-120,190-193`）即成死碼，

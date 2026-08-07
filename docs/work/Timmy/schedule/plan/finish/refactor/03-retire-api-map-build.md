@@ -1,7 +1,7 @@
 # 退役 `POST /api/map/build` 實作計畫
 
 Status: **done**（2026-08-06 起草；GitHub issue #277。從
-`02-retire-process-wide-api-map.md` 拆出獨立執行——本端點**沒有任何前端依賴**，
+`plan/unfinish/refactor/02-retire-process-wide-api-map.md` 拆出獨立執行——本端點**沒有任何前端依賴**，
 不需要等前端工作，可立即動工；2026-08-07 實作完成 @ commit `f15d4ea`）
 
 > **2026-08-07 完成紀錄**：Task 1–4 全數執行。`POST /api/map/build` handler、

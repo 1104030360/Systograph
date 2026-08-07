@@ -480,5 +480,5 @@ keyspace 本身。**slot 對投影平面已無任何影響**（graph node id 的
   文案已中性化但語意仍是 slot 覆蓋率，非 52 格 capability 覆蓋率。
 
 完整歸屬與各項可否動工，見
-[`RAG-CORE-V1-RETIREMENT-INDEX.md`](./RAG-CORE-V1-RETIREMENT-INDEX.md)
+[`RAG-CORE-V1-RETIREMENT-INDEX.md`](../../unfinish/refactor/RAG-CORE-V1-RETIREMENT-INDEX.md)
 ——注意其中 **C1 / C3b / C4 / C5 / C7 目前無人認領**（本計畫涵蓋 C3a 與 C6）。

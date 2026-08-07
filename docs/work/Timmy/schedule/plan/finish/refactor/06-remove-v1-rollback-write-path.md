@@ -25,7 +25,7 @@ issue #277。由 Plan 15 Task 2「移除 v1 write path」抽出獨立執行—�
 
 ## Gate 判定（**執行前請確認你同意這個推論**）
 
-`refactor/15-complete-legacy-v1-retirement-after-compatibility.md` 開頭寫「本計畫
+`plan/unfinish/refactor/15-complete-legacy-v1-retirement-after-compatibility.md` 開頭寫「本計畫
 只能在 **Gate-4** 通過後執行」，而 Gate-4 目前**未通過**（Plan 14 無 report、
 Plan 18 的 issue #239 仍 OPEN）。本計畫是 Plan 15 Task 2 的抽出，因此嚴格說
 也在該 gate 之下。
