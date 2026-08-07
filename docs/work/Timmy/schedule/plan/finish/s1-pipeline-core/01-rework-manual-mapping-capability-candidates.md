@@ -3,7 +3,7 @@
 > **2026-07-11 backend execution status：** capability candidate、durable mapping
 > decisions、proposal conversion、legacy compatibility 與 evidence review state 已完成並
 > 測試。依使用者 backend-only 邊界，frontend copy／互動未實作；完成證據見
-> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+> `docs/work/Timmy/schedule/report/2026-07-11/2026-07-11-phase2-s1-pipeline-core-REP.md`。
 
 > **執行者注意：** 逐 task 實作本計畫。步驟使用 checkbox（`- [ ]`）語法以便追蹤。
 

@@ -4,7 +4,7 @@
 > assessments、15 profiles、five-state validation、related refs、Mapping Completeness 與
 > sidecar/API serialization 已完成並測試。Frontend Zod／degraded UI 已依使用者要求還原，
 > 對應 frontend-only checkboxes 保持未完成；後端證據見
-> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+> `docs/work/Timmy/schedule/report/2026-07-11/2026-07-11-phase2-s1-pipeline-core-REP.md`。
 
 > **執行者注意：** 逐 task 實作本計畫。步驟以 checkbox（`- [ ]`）語法追蹤進度。
 

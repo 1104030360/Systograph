@@ -58,7 +58,7 @@ uncertainty = "Key name is a heuristic and does not prove whether the value is a
 rule_id = "missing_required_slot"
 type = "missing_component"
 default_severity_hint = "medium"
-rationale = "Required rag-core-v1 slot was not detected in the available evidence."
+rationale = "Required core slot was not detected in the available evidence."
 uncertainty = "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it."
 
 [[risk_hints]]

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from tests.helpers.web_flows import scan_project
 
 from systograph.web.app import create_app
 
@@ -68,14 +69,36 @@ def test_mapping_route_rejects_invalid_slot() -> None:
     assert "Unknown target slot" in response.json()["detail"]
 
 
-def test_mapping_route_does_not_mutate_current_map_payload() -> None:
+def test_mapping_route_does_not_mutate_latest_build(tmp_path: Path) -> None:
+    """Recording a mapping is a decision, not a rebuild: the project's
+    latest published build stays byte-identical until Apply replays it."""
+
+    project_root = tmp_path / "weak_chroma_project"
+    project_root.mkdir()
+    (project_root / "requirements.txt").write_text(
+        "chromadb==0.5.0\n",
+        encoding="utf-8",
+    )
     client = TestClient(create_app())
-    before = client.get("/api/map").json()
+    project_id = client.post(
+        "/api/projects/import",
+        json={
+            "source_type": "local_path",
+            "project_path": str(project_root),
+        },
+    ).json()["project_id"]
+    scan_project(client, project_id, output=str(tmp_path / "outputs"))
+    latest_url = f"/api/projects/{project_id}/map-builds/latest"
+    before = client.get(latest_url).json()
+    # Pin the baseline as a real projection: without this, a latest that
+    # degraded to 404 would make both sides equal error bodies and pass.
+    assert before["viewer_load_result"]["loaded"] is True
+    assert before["viewer_load_result"]["graph_view_model"]["nodes"]
 
     response = client.post(
         "/api/mappings",
         json={
-            "project_id": "project:demo",
+            "project_id": project_id,
             "mapping_type": "existing_slot_mapping",
             "decision": "confirmed",
             "source_file": "src/reranker.py",
@@ -84,7 +107,7 @@ def test_mapping_route_does_not_mutate_current_map_payload() -> None:
             "component_name": "reranker",
         },
     )
-    after = client.get("/api/map").json()
+    after = client.get(latest_url).json()
 
     assert response.status_code == 200
     assert after == before
@@ -135,13 +158,11 @@ def test_confirmed_mapping_takes_effect_on_next_scan(
         },
     ).json()["project_id"]
 
-    first_scan = client.post(
-        "/api/scans",
-        json={
-            "project_id": project_id,
-            "output": str(tmp_path / "outputs"),
-        },
-    ).json()
+    first_scan = scan_project(
+        client,
+        project_id,
+        output=str(tmp_path / "outputs"),
+    )
     first_map = first_scan["build_result"]["ai_system_map"]
     unmapped = first_map["unmapped_components"][0]
 
@@ -161,13 +182,11 @@ def test_confirmed_mapping_takes_effect_on_next_scan(
         },
     )
 
-    second_scan = client.post(
-        "/api/scans",
-        json={
-            "project_id": project_id,
-            "output": str(tmp_path / "outputs"),
-        },
-    ).json()
+    second_scan = scan_project(
+        client,
+        project_id,
+        output=str(tmp_path / "outputs"),
+    )
     second_map = second_scan["build_result"]["ai_system_map"]
 
     vector_store = next(

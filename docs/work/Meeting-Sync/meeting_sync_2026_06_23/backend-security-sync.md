@@ -105,7 +105,7 @@ Query Trace 會對使用者指定的 URL 發 HTTP request，但沒有限制目�
 
 ## 相關文件
 
-- 完整 Phase 138 報告：`docs/work/Timmy/schedule/report/2026-06-22-phase138-secret-masking-REP.md`
-- 完整 Phase 139 報告：`docs/work/Timmy/schedule/report/2026-06-23-phase139-query-trace-ssrf-egress-policy-REP.md`
+- 完整 Phase 138 報告：`docs/work/Timmy/schedule/report/2026-06-22/2026-06-22-phase138-secret-masking-REP.md`
+- 完整 Phase 139 報告：`docs/work/Timmy/schedule/report/2026-06-23/2026-06-23-phase139-query-trace-ssrf-egress-policy-REP.md`
 - 安全設計文件：`docs/security/query-trace-egress-policy.md`
 - API 指南：`docs/API-GUIDE.md`

@@ -200,6 +200,94 @@ def test_map_build_service_builds_valid_canonical_map_and_viewer_payload(
     assert all(edge.id in mermaid for edge in graph.edges)
 
 
+# `layer` has a second consumer besides the plane band: graph_lens_projector
+# derives plane-based lens membership from GraphNodeModel.plane_id. The two
+# tests below pin that coupling for the components Plan 07 moved, so a future
+# reordering of capability_type_node_map.toml cannot silently redraw the
+# lens filters. See MODEL-CONTRACT.md 5.1.1.
+def _lens_members(graph: Any, lens_id: str) -> set[str]:
+    lens = next(item for item in graph.filters.lenses if item.id == lens_id)
+    return set(lens.matches_node_ids)
+
+
+def _nodes_of_type(graph: Any, canonical_type: str) -> list[Any]:
+    return [node for node in graph.nodes if node.type == canonical_type]
+
+
+def test_api_route_left_the_control_lens_with_its_plane(
+    tmp_path: Path,
+) -> None:
+    """Given the api_route component now projects onto the deployment
+    topology plane instead of the control plane,
+    When the fixture project is built,
+    Then it is no longer a member of `lens:control`, and no plane-based
+    lens replaces it -- the six backend lenses have no deployment
+    topology lens, so its only remaining memberships are the
+    signal-based evidence/risk ones.
+
+    Before Plan 07 this node sat on the control plane and `lens:control`
+    carried 10 members; it now carries 9.
+    """
+    # Given
+    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
+
+    # When
+    result = MapBuildService().build(
+        MapBuildRequest(
+            project_path=project_root,
+            output=tmp_path / "outputs",
+        )
+    )
+
+    # Then
+    assert result.viewer_load_result is not None
+    graph = result.viewer_load_result.graph_view_model
+    api_nodes = _nodes_of_type(graph, "api_route")
+    assert [node.plane_id for node in api_nodes] == ["deployment_topology"]
+    api_ids = {node.id for node in api_nodes}
+    assert not (api_ids & _lens_members(graph, "lens:control"))
+    plane_lens_ids = ("lens:data", "lens:control", "lens:governance")
+    assert all(
+        not (api_ids & _lens_members(graph, lens_id))
+        for lens_id in plane_lens_ids
+    )
+    # The six backend lenses carry no deployment topology lens, so the
+    # only memberships left are driven by the node's own signals.
+    assert api_ids <= _lens_members(graph, "lens:evidence")
+    assert api_ids <= _lens_members(graph, "lens:risk")
+
+
+def test_vector_db_keeps_its_data_lens_membership_across_the_move(
+    tmp_path: Path,
+) -> None:
+    """Given the vector_db component moved from the retrieval plane to
+    the ingestion/indexing plane,
+    When the fixture project is built,
+    Then it stays inside `lens:data` -- that lens spans
+    ingestion_indexing / retrieval / memory_state, so this particular
+    move is deliberately lens-neutral and must stay that way.
+    """
+    # Given
+    project_root = rag_project_fixture_path("basic_qdrant_ollama_rag")
+
+    # When
+    result = MapBuildService().build(
+        MapBuildRequest(
+            project_path=project_root,
+            output=tmp_path / "outputs",
+        )
+    )
+
+    # Then
+    assert result.viewer_load_result is not None
+    graph = result.viewer_load_result.graph_view_model
+    vector_nodes = _nodes_of_type(graph, "vector_db")
+    assert [node.plane_id for node in vector_nodes] == ["ingestion_indexing"]
+    vector_ids = {node.id for node in vector_nodes}
+    assert vector_ids <= _lens_members(graph, "lens:data")
+    assert not (vector_ids & _lens_members(graph, "lens:control"))
+
+
 def test_map_build_failure_removes_partial_public_siblings(
     tmp_path: Path,
 ) -> None:

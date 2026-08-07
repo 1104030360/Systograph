@@ -164,7 +164,7 @@ export function nodeStatusKey(data) {
 
 - 契約：`docs/MODEL-CONTRACT.md`（五態規則、`detected` 需 direct evidence、GraphViewModel 規則）
 - 前置修復的原始出處：`../meeting_sync_2026_07_28/frontend-v2-cutover-handoff.md` 3-3（RC-10）
-  ＋ `docs/work/Timmy/schedule/report/2026-07-28-plan13-residue/residue-C-frontend.md`
+  ＋ `docs/work/Timmy/schedule/report/2026-07-28/2026-07-28-plan13-residue/residue-C-frontend.md`
 - 程式現況（本文所有 file:line 皆為 2026-08-04 核對）：
   `frontend/src/utils/assessment.ts`、`frontend/src/components/ArchitectureMap.tsx`、
   `frontend/src/components/ArchitectureViewNav.tsx`、`frontend/src/App.tsx`、`frontend/src/types.ts`

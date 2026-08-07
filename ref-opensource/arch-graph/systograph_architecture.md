@@ -82,12 +82,11 @@ proposal 建議路徑，**不能**決定五態、Mapping Completeness 或 readin
 │                                                                                              │
 │ ┌─ Legacy v1 compatibility ─────────────────┐  ┌─ Loaders + config ────────────────────────┐ │
 │ │ SystemMapV1ToV2Adapter (711 ln)           │  │ RuleCatalogLoader ScanInventoryRuleLoader │ │
-│ │ SystemMapValidation / Normalize (v1)      │  │ ProfileRegistryLoader (labels/axes only)  │ │
-│ │ SystemMapMaterializationService           │  │ LlmProposalConfigLoader PromptTemplate    │ │
-│ │   (operator rollback only, Plan 15 drops) │  │ QueryTraceConfigLoader                    │ │
-│ │ LegacyV1RollbackService                   │  │ core/models/ (28)  core/repositories/     │ │
-│ │ LegacyManualMappingMigrationService       │  └───────────────────────────────────────────┘ │
-│ └───────────────────────────────────────────┘                                                │
+│ │ SystemMapValidation (v1 read)             │  │ ProfileRegistryLoader (labels/axes only)  │ │
+│ │ LegacyManualMappingMigrationService       │  │ LlmProposalConfigLoader PromptTemplate    │ │
+│ └───────────────────────────────────────────┘  │ QueryTraceConfigLoader                    │ │
+│                                                │ core/models/ (28)  core/repositories/     │ │
+│                                                └───────────────────────────────────────────┘ │
 └───────────────────────────────────────┬──────────────────────────────────────────────────────┘
                                         │  core services dispatch providers and load rule catalogs
                                         ▼
@@ -159,7 +158,8 @@ proposal 建議路徑，**不能**決定五態、Mapping Completeness 或 readin
 ## 2. Map build pipeline（實際 Step 順序）
 
 ```text
-MapBuildService.build(request)    entries: CLI `map` / POST /api/map/build / POST /api/scans
+MapBuildService.build(request)   entry: CLI `map` only
+                                 POST /api/scans + Apply call build_from_snapshot(): no step 2/3
   │
   ├─ 1  require_public_v2_selection()
   ├─ 2  OutputArtifactProvider.check_preconditions()
@@ -173,8 +173,6 @@ MapBuildService.build(request)    entries: CLI `map` / POST /api/map/build / POS
   │        MapBuildLineage(build_reason="initial_scan")
   ▼
 MapBuildPipeline.materialize()
-  │
-  ├┄┄▶ "ai-system-map/v1" requested (operator rollback, default off) ┄┄▶ LegacyV1RollbackService
   │
   ├──▶ "ai-system-map/v2" ACTIVE ──▶ SystemMapV2MaterializationService        ◀── Step 4
   │        1 RagTemplateService.load("rag-core-v1")     legacy template, NOT a blueprint
@@ -265,8 +263,9 @@ CLI path   uv run systograph map <project_path>
   profile attachment 上 `string[]` 的 System-2）不得互相替代。
 - **靜態執行 artifacts 不是 runtime 證據**：用語必須是 "static evidence suggests"，
   不得說 "executed" / "traversed"。
-- **Schema**：`ai-system-map.v2` 是 active public schema；v1 只用於讀取／遷移與預設關閉的
-  operator rollback（公開請求選 v1 會得到 `legacy_output_not_selectable`）。
+- **Schema**：`ai-system-map.v2` 是 active public schema；v1 只用於讀取／遷移
+  （寫入路徑已於 2026-08-07 移除；公開請求選 v1 會得到
+  `legacy_output_not_selectable`）。
 
 ---
 

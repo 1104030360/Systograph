@@ -10,6 +10,12 @@
 
 **Tech Stack:** POSIX shell, curl, existing trace scripts.
 
+> **進度（2026-08-07）：部分完成，本檔仍在 `unfinish/`。**
+> Task 2（修正 startup host/port）與 Task 3（實機 smoke）已由 **#277 Stage 4** 順帶完成：
+> Steps 1–3 於 commit `5871be8`，Step 4（fail-fast 明確錯誤）於 commit `b0d0632`。
+> **剩餘範圍：Task 1（`API_BASE_URL` 解析的自動化測試）尚未實作** —— 目前 fail-fast 只有手動負向
+> 案例佐證，沒有回歸測試綁住行為；補完 Task 1 後本檔才可移入 `finish/`。
+
 ---
 
 ## Source
@@ -24,7 +30,10 @@
 - Modify/Create: `tests/cli/test_trace_scripts.py` or shell smoke under `scripts/`
 
 - [ ] **Step 1: Test parsing `http://127.0.0.1:9000`**
-- [ ] **Step 2: Test default port remains 8000**
+- [ ] **Step 2: Test default `API_BASE_URL`（`http://127.0.0.1:8000`）resolves
+  to port 8000**——2026-08-07 註：Task 2 落地的行為是「URL 缺 port 直接
+  fail-fast」而非退回 8000，原「default port remains 8000」敘述已過時，
+  測試對象改為預設 URL 常數的解析結果
 - [ ] **Step 3: Test invalid API URL fails fast**
 
 ### Task 2: Fix startup host/port
@@ -32,18 +41,18 @@
 **Files:**
 - Modify: `scripts/lib/api_trace_common.sh`
 
-- [ ] **Step 1: Parse host and port from `API_BASE_URL`**
-- [ ] **Step 2: Pass parsed values to uvicorn**
-- [ ] **Step 3: Keep `wait_for_api` polling the same URL**
-- [ ] **Step 4: Add clear error if scheme/host/port is unsupported**
+- [x] **Step 1: Parse host and port from `API_BASE_URL`**（`systograph_resolve_server_bind`）
+- [x] **Step 2: Pass parsed values to uvicorn**（`--host "$SERVER_BIND_HOST" --port "$SERVER_BIND_PORT"`）
+- [x] **Step 3: Keep `wait_for_api` polling the same URL**（`wait_for_api` 未動，仍打 `$API_BASE_URL/openapi.json`）
+- [x] **Step 4: Add clear error if scheme/host/port is unsupported**（非 `http://`、無 host、無明確數字 port 皆立即 `systograph_die`）
 
 ### Task 3: Verify real smoke path
 
 **Files:**
 - No code change unless smoke reveals follow-up
 
-- [ ] **Step 1: Run a trace script with `--api-base-url http://127.0.0.1:9000 --start-server`**
-- [ ] **Step 2: Ensure no orphan uvicorn process remains**
+- [x] **Step 1: Run a trace script with `--api-base-url http://127.0.0.1:9000 --start-server`**
+- [x] **Step 2: Ensure no orphan uvicorn process remains**（跑完 `pgrep -f "uvicorn systograph.web.app"` 無殘留）
 
 ## Verification
 

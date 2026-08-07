@@ -115,7 +115,7 @@ Task 1B/2，不表示 cutover 已完成。
   `fa27a510c5253dc2d856ecee9d76ac1c1e5f7ab07df096893799a969e6be1c56`
   （digest 推導方式——allowlist tuple 順序的四欄 record list →
   `json.dumps(payload, sort_keys=True, separators=(",", ":"))` → SHA-256——記於
-  `docs/work/Timmy/schedule/report/2026-07-17-phase2-plan13-v2-cutover-REP.md`，
+  `docs/work/Timmy/schedule/report/2026-07-17/2026-07-17-phase2-plan13-v2-cutover-REP.md`，
   由 Plan 13.5 Task B2 寫入；本檔只記結果值。注意 digest 是**人工依該 recipe 重算**的
   記錄值，census contract test 本身不計算也不斷言它——別去 test 裡找。）
   （2026-07-28 更新 1：Plan 13.5 Stage B 把 `LegacyManualMappingType`／`NEW_EXTENSION`
@@ -137,7 +137,7 @@ Task 1B/2，不表示 cutover 已完成。
   Playwright結果不再作 current completion evidence。Windows 本輪由跨平台
   fixtures/contracts 覆蓋，未宣稱 Windows host live QA。
 - 完整實作、問題修復與 remaining warnings 記錄於
-  `docs/work/Timmy/schedule/report/2026-07-17-phase2-plan13-v2-cutover-REP.md`。
+  `docs/work/Timmy/schedule/report/2026-07-17/2026-07-17-phase2-plan13-v2-cutover-REP.md`。
 - Frontend 要做的 4 個檔案、原因、實作順序與驗收清單記錄於
   `docs/work/Meeting-Sync/meeting_sync_2026_07_15/frontend-ai-system-map-v2-cutover.md`。
 
@@ -350,7 +350,7 @@ canonical schema。
 
 - [x] `00A-introduce-ai-system-map-v2-compatibility-migration.md` Task 4/5 對應 checkbox 已由
   新測試證據改成 `[x]`。
-- [x] `docs/work/Timmy/schedule/report/2026-07-10-00a-review-p1-fixes-REP.md` 已追加最新
+- [x] `docs/work/Timmy/schedule/report/2026-07-10/2026-07-10-00a-review-p1-fixes-REP.md` 已追加最新
   verification，remaining risks 不再包含 normalized consumer/readiness equivalence。
 - [x] 本計畫的 consumer census 與 live AST/text facts 一致。
 - [x] 已保存切換前 normal v1 default 證據；operator rollback command、invalid value 與

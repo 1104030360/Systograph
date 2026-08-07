@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import cast
 
 from fastapi.testclient import TestClient
+from tests.helpers.web_flows import create_scan_with_preflight
 
 from systograph.core.models.filesystem import FileInventory
 from systograph.core.models.scan import ProjectScanResult
@@ -98,9 +99,10 @@ def scan_project(
     project_id: str,
     output_dir: Path,
 ) -> dict[str, object]:
-    response = client.post(
-        "/api/scans",
-        json={"project_id": project_id, "output": str(output_dir)},
+    response = create_scan_with_preflight(
+        client,
+        project_id,
+        output=str(output_dir),
     )
     assert response.status_code == 200
     payload = cast(dict[str, object], response.json())

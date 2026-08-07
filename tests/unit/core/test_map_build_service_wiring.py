@@ -1,288 +1,113 @@
 from __future__ import annotations
 
+import inspect
 import json
-import os
-import subprocess
-import sys
 from datetime import UTC, datetime
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Final
 
 import pytest
 
-from systograph.core.models.ai_system_map_v2 import (
-    AiSystemMapV2,
-    CanonicalProject,
-)
-from systograph.core.models.analysis_history import MapBuildLineage
+from systograph.core.models.analysis_history import ScanSnapshot
 from systograph.core.models.map_build import MapBuildRequest
 from systograph.core.models.scan import OutputRun, ProjectScanResult
-from systograph.core.services.build_artifact_publisher import (
-    BuildArtifactPublisher,
-)
-from systograph.core.services.legacy_v1_rollback_service import (
-    LegacyV1RollbackError,
-    LegacyV1RollbackService,
-)
 from systograph.core.services.map_build_pipeline import MapBuildPipeline
 from systograph.core.services.map_build_service import MapBuildService
-from systograph.core.services.system_map_materialization_service import (
-    SystemMapMaterializationService,
-)
 from systograph.core.services.system_map_v2_materialization_service import (
     SystemMapV2MaterializationService,
 )
 
-# Modules that only the operator rollback writer needs. Plan 15 deletes
-# them, so the active v2 build path must never reach them.
-ROLLBACK_MODULES: Final[tuple[str, ...]] = (
+# Modules that existed only to write the operator rollback v1 artifact.
+# Refactor 06 deleted them; the build path must never grow them back.
+REMOVED_ROLLBACK_MODULES: Final[tuple[str, ...]] = (
     "systograph.core.services.legacy_v1_rollback_service",
     "systograph.core.services.system_map_materialization_service",
     "systograph.core.services.system_map_normalize_service",
 )
 
-# The active entry points that must stay free of the rollback graph. The
-# probe receives its state dir as argv[1]; web.app is fully constructed
-# rather than only imported, because create_app() is what wires the build
-# services together.
-ENTRY_POINTS: Final[dict[str, str]] = {
-    "map_build_service": (
-        "from systograph.core.services.map_build_service import "
-        "MapBuildService\n"
-        "MapBuildService()"
-    ),
-    "web_create_app": (
-        "from systograph.web.app import create_app\n"
-        "create_app(state_dir=Path(sys.argv[1]))"
-    ),
-    "cli_main": "import systograph.cli.main",
-}
 
-# Import purity is only observable in a fresh interpreter: an in-process
-# probe would see modules that unrelated earlier tests already imported.
-_PROBE_TEMPLATE: Final[str] = """
-import json
-import sys
-from pathlib import Path
+@pytest.mark.parametrize("module_name", REMOVED_ROLLBACK_MODULES)
+def test_rollback_writer_modules_no_longer_exist(module_name: str) -> None:
+    """The v1 writer graph is gone, not merely unreferenced.
 
-{entry_point}
-
-targets = {targets}
-print(json.dumps(sorted(set(targets) & set(sys.modules))))
-"""
+    Given a module that only the operator rollback writer needed,
+    When the import system is asked to locate it,
+    Then nothing is found, so no caller can reach a v1 writer.
+    """
+    assert find_spec(module_name) is None
 
 
-def _rollback_modules_loaded_by(
-    entry_point: str,
-    *,
-    canonical_output_version: str,
-    state_dir: Path,
-) -> set[str]:
-    env = dict(os.environ)
-    env["SYSTOGRAPH_CANONICAL_OUTPUT_VERSION"] = canonical_output_version
-    # systograph.web.app builds an app at import time, so only the env keeps
-    # that side effect off the real state dir.
-    env["SYSTOGRAPH_STATE_DIR"] = str(state_dir)
-    probe = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            _PROBE_TEMPLATE.format(
-                entry_point=ENTRY_POINTS[entry_point],
-                targets=json.dumps(list(ROLLBACK_MODULES)),
-            ),
-            str(state_dir),
-        ],
-        capture_output=True,
-        text=True,
-        env=env,
-        timeout=300,
-        check=False,
-    )
-    assert probe.returncode == 0, probe.stderr
-    loaded: list[str] = json.loads(probe.stdout)
-    return set(loaded)
+def test_build_wiring_exposes_no_v1_output_seam() -> None:
+    """No injection point survives the removed write path.
+
+    Given the build service and the build pipeline constructors,
+    When their parameters are inspected,
+    Then neither accepts a rollback writer nor a canonical output
+    version, so the v1 output mode cannot be reintroduced through
+    dependency injection and no caller can label an artifact it did not
+    produce.
+    """
+    # Given / When
+    parameters = set(
+        inspect.signature(MapBuildService.__init__).parameters
+    ) | set(inspect.signature(MapBuildPipeline.__init__).parameters)
+
+    # Then
+    assert not [
+        name
+        for name in parameters
+        if "rollback" in name or "canonical_output_version" in name
+    ]
 
 
-def _rollback_stub() -> LegacyV1RollbackService:
-    return LegacyV1RollbackService(
-        materialization_service=SystemMapMaterializationService()
-    )
-
-
-def _writerless_v1_pipeline() -> MapBuildPipeline:
-    return MapBuildPipeline(
-        materialization_service=SystemMapV2MaterializationService(),
-        artifact_publisher=BuildArtifactPublisher(),
-        canonical_output_version="ai-system-map/v1",
-        legacy_v1_rollback_service=None,
-    )
-
-
-@pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
-def test_active_v2_entry_points_import_no_v1_rollback_module(
-    entry_point: str,
+def test_published_artifact_and_reported_version_cannot_disagree(
     tmp_path: Path,
 ) -> None:
-    """No active entry point may touch the rollback object graph.
+    """The reported schema version is the artifact's, not a caller's.
 
-    Given a fresh interpreter running the active ai-system-map/v2 mode,
-    When the build service, the Web app or the CLI is loaded,
-    Then none of the operator rollback modules are imported, so Plan 15
-    can delete them without breaking any active path.
+    Given a build with no way to select an output version,
+    When a snapshot is materialized,
+    Then active_schema_version equals the schema_version actually
+    written to disk — the v1 label is unreachable.
     """
-    assert (
-        _rollback_modules_loaded_by(
-            entry_point,
-            canonical_output_version="ai-system-map/v2",
-            state_dir=tmp_path / "state",
-        )
-        == set()
+    # Given
+    snapshot = ScanSnapshot(
+        project_id="project:single-truth",
+        scan_id="scan:single-truth",
+        generated_at=datetime(2026, 8, 7, tzinfo=UTC),
+        inventory_digest="sha256:single-truth",
+        scan_result=ProjectScanResult(),
     )
 
+    # When
+    result = MapBuildService().build_from_snapshot(
+        snapshot,
+        request=MapBuildRequest(project_path=tmp_path / "project"),
+        output_run=OutputRun(root_dir=tmp_path / "build"),
+        build_reason="initial_scan",
+        build_id="build:single-truth",
+    )
 
-def test_operator_v1_env_loads_the_rollback_modules(tmp_path: Path) -> None:
-    """Operator rollback still builds its writer graph eagerly.
+    # Then
+    assert result.map_json_path is not None
+    artifact = json.loads(result.map_json_path.read_text(encoding="utf-8"))
+    assert result.active_schema_version == artifact["schema_version"]
+    assert result.active_schema_version == "ai-system-map/v2"
 
-    Given a fresh interpreter with the operator rollback env set to v1,
-    When MapBuildService is constructed with no injected dependencies,
-    Then the rollback modules are imported so the v1 writer exists.
+
+def test_default_service_materializes_through_the_v2_writer_only() -> None:
+    """One build path, one materializer.
+
+    Given a default MapBuildService,
+    When its pipeline is inspected,
+    Then the only materializer wired in is the active v2 writer.
     """
-    assert _rollback_modules_loaded_by(
-        "map_build_service",
-        canonical_output_version="ai-system-map/v1",
-        state_dir=tmp_path / "state",
-    ) == set(ROLLBACK_MODULES)
+    # Given / When
+    service = MapBuildService()
 
-
-def test_v2_service_leaves_the_pipeline_rollback_writer_unset() -> None:
-    """v2 mode holds no rollback writer instance.
-
-    Given the active ai-system-map/v2 mode,
-    When MapBuildService is constructed,
-    Then the pipeline keeps its rollback writer unset and relies on the
-    legacy_rollback_writer_unavailable guard.
-    """
-    service = MapBuildService(canonical_output_version="ai-system-map/v2")
-
-    assert service._pipeline._legacy_rollback is None
-
-
-def test_v1_service_builds_the_rollback_writer() -> None:
-    """v1 mode still wires a rollback writer into the pipeline.
-
-    Given the operator rollback ai-system-map/v1 mode,
-    When MapBuildService is constructed with no injected writer,
-    Then the pipeline holds a rollback writer instance.
-    """
-    service = MapBuildService(canonical_output_version="ai-system-map/v1")
-
+    # Then
     assert isinstance(
-        service._pipeline._legacy_rollback, LegacyV1RollbackService
+        service._pipeline._materialization,
+        SystemMapV2MaterializationService,
     )
-
-
-def test_injected_rollback_writer_wins_in_v2_mode() -> None:
-    """The DI parameter survives the lazy construction rewrite.
-
-    Given an explicitly injected rollback writer,
-    When MapBuildService is constructed in the active v2 mode,
-    Then the pipeline holds exactly that instance.
-    """
-    injected = _rollback_stub()
-
-    service = MapBuildService(
-        canonical_output_version="ai-system-map/v2",
-        legacy_v1_rollback_service=injected,
-    )
-
-    assert service._pipeline._legacy_rollback is injected
-
-
-def test_injected_rollback_writer_wins_in_v1_mode() -> None:
-    """Injection is never overwritten by the lazily built writer.
-
-    Given an explicitly injected rollback writer,
-    When MapBuildService is constructed in operator rollback v1 mode,
-    Then the pipeline holds exactly that instance.
-    """
-    injected = _rollback_stub()
-
-    service = MapBuildService(
-        canonical_output_version="ai-system-map/v1",
-        legacy_v1_rollback_service=injected,
-    )
-
-    assert service._pipeline._legacy_rollback is injected
-
-
-def test_materialize_fails_closed_without_a_rollback_writer(
-    tmp_path: Path,
-) -> None:
-    """An unset rollback writer never degrades into a v2 build.
-
-    Given a pipeline in operator rollback mode with no rollback writer,
-    When a scan is materialized,
-    Then it fails closed with legacy_rollback_writer_unavailable and
-    writes nothing, which is what makes the v2-mode None safe.
-    """
-    output_dir = tmp_path / "build"
-
-    with pytest.raises(
-        LegacyV1RollbackError,
-        match="legacy_rollback_writer_unavailable",
-    ):
-        _writerless_v1_pipeline().materialize(
-            raw_scan=ProjectScanResult(),
-            request=MapBuildRequest(project_path=tmp_path / "project"),
-            output_run=OutputRun(root_dir=output_dir),
-            project_name="project",
-            project_root=tmp_path / "project",
-            project_id=None,
-            scan_id="scan:writerless",
-            build_id="build:writerless",
-            lineage=None,
-        )
-
-    assert not output_dir.exists()
-
-
-def test_existing_map_publish_fails_closed_without_a_rollback_writer(
-    tmp_path: Path,
-) -> None:
-    """The enriched-map entry point applies the same fail-closed guard.
-
-    Given a pipeline in operator rollback mode with no rollback writer,
-    When an already enriched map is published,
-    Then it fails closed with legacy_rollback_writer_unavailable and
-    writes nothing.
-    """
-    output_dir = tmp_path / "build"
-
-    with pytest.raises(
-        LegacyV1RollbackError,
-        match="legacy_rollback_writer_unavailable",
-    ):
-        _writerless_v1_pipeline().materialize_existing_map(
-            system_map=AiSystemMapV2(
-                schema_version="ai-system-map/v2",
-                system_type="ai_system",
-                project=CanonicalProject(name="project"),
-            ),
-            capability_candidates=(),
-            request=MapBuildRequest(project_path=tmp_path / "project"),
-            output_run=OutputRun(root_dir=output_dir),
-            project_name="project",
-            scan_id="scan:writerless",
-            build_id="build:writerless",
-            lineage=MapBuildLineage(
-                project_id="project:writerless",
-                scan_id="scan:writerless",
-                build_id="build:writerless",
-                based_on_build_id="build:parent",
-                build_reason="detail_scan",
-                generated_at=datetime(2026, 7, 28, tzinfo=UTC),
-            ),
-        )
-
-    assert not output_dir.exists()

@@ -30,15 +30,27 @@ scanner 內部 grounding。本索引處理的是「把它從 active path 移除�
 |---|---|---|---|---|
 | C1 | **13-slot 偵測 keyspace** 與 detected/missing/not_applicable 三態 | `system_map_v2_materialization_service.py:89` → `component_detection_service.py:121-156` | **無人認領** ⚠️ | ❌ 得先解掉 C2（16G，硬前置 16C→16D）的 slot_order 依賴 |
 | C2 | **模板假邊**：`flows[].slot_order` 相鄰配對 → `edges[]`；`RELATIONSHIPS` 12 條寫死語意 | `…materialization:126-129` → `flow_derivation_service.py:68-96`、`:18-30` | **16G** | ❌ 硬前置 16C → 16D |
-| C3a | `components[].layer`（slot → `SLOT_LAYER_BY_ID` 查表 → 投影 `plane_id`） | `system_map_v2_normalize_service.py:121` | **`refactor/07`** | ✅ **可立即** |
-| C3b | `metadata.legacy_slot` / `required_for_rag` 寫進每顆 repo component | `system_map_v2_normalize_service.py:127-128` | **無人認領** ⚠️ | ❌ `legacy_slot` 消費者含 public 契約，見 §2 |
+| C3a | ~~`components[].layer`（slot → `SLOT_LAYER_BY_ID` 查表 → 投影 `plane_id`）~~ → 已改為 `canonical_type` → capability node → `node.plane_id` 推導 | `system_map_v2_normalize_service.py:150`（`self._plane_resolver.plane_for(instance.kind)`）＋ `canonical_type_plane_map.py` | **`refactor/07`** | ✅ **已完成**（2026-08-07，#277，commit `fb65e27`） |
+| C3b | `metadata.legacy_slot` / `required_for_rag` 寫進每顆 repo component | `system_map_v2_normalize_service.py:156-157` | **無人認領** ⚠️ | ❌ `legacy_slot` 消費者含 public 契約，見 §2 |
 | C4 | `available_slots`：13 slot 進 LLM evidence packet 與前端 ProposalModal | `manual_mapping_support.py:20` → `mapping_proposal_routes.py:87` | **無人認領** ⚠️ | ⏸ 需先做產品決策，見 §3 |
 | C5 | `EXISTING_SLOT.target_slot` 白名單 = 13 slot | `manual_mapping_support.py:20` → `manual_mapping_service.py:50,171-174` | **無人認領** ⚠️ | ⏸ 同 C4 |
-| C6 | 使用者可見文案含 `"rag-core-v1"` 字樣 | `risk_hint_rules.toml:61` + `risk_hint_service.py:122-130` | **`refactor/07` Task 4** | ✅ **可立即** |
+| C6 | ~~使用者可見文案含 `"rag-core-v1"` 字樣~~ → 已改為中性措辭（`"Required core slot was not detected..."`） | `risk_hint_rules.toml:61` + `risk_hint_service.py:122-130` | **`refactor/07` Task 4** | ✅ **已完成**（2026-08-07，#277，commit `fb65e27`） |
 | C7 | `RUNTIME_CRITICAL_SLOTS` / `RAG_TRUST_CRITICAL_SLOTS` 兩組硬編碼 slot 名單驅動 public `recommended_next_checks[]` | `recommended_next_check_service.py:42-58,166,208` | **無人認領** ⚠️ | ❌ 綁在 C1 上 |
 
-**現況小結：** 七項中只有 **C3a 與 C6（皆屬 `refactor/07`）現在可執行**；
-C2 有計畫但被前置擋住；**C1 / C3b / C4 / C5 / C7 沒有任何計畫**。
+**現況小結（2026-08-07 更新）：** **C3a 與 C6 已由 `refactor/07` 完成**
+（commit `fb65e27`）——`SLOT_LAYER_BY_ID` 在 active v2 路徑零 import，降為
+v1→v2 adapter 專用的 migration-only 表；使用者可見文案不再含 `rag-core-v1`
+字樣，並由 `test_packaged_risk_copy_never_names_the_legacy_template` 擋回寫。
+
+剩下五項：C2 有計畫但被前置（16C → 16D → 16G）擋住；
+**C1 / C3b / C4 / C5 / C7 仍沒有任何計畫**，且**沒有一項現在可執行**——
+C1／C7 卡在 C2，C3b 卡在 public 契約（見 §2），C4／C5 卡在產品決策（見 §3）。
+
+`refactor/07` 完成後 slot 對**投影平面**已無任何影響，但仍決定
+`ComponentInstance.id` 的 slug（`component:<slot>:<name>`）與 graph node id
+——那部分屬 C1 射程。另注意 `layer` 有**第二個消費者**：plane-based lens
+membership（`graph_lens_projector`），已隨本次一併寫進
+`MODEL-CONTRACT.md` §5.1.1 並加上 regression。
 
 ---
 
@@ -125,9 +137,11 @@ C1 長期無人認領的根因。
 ## 6. 建議順序
 
 ```text
+已完成
+  └─ refactor/07          C3a 投影平面 + C6 文案（2026-08-07, fb65e27）
+
 現在可做
-  ├─ refactor/15 Task 0   補 census 盲區（先做，給後面的改動上保險）
-  └─ refactor/07          C3a 投影平面 + C6 文案
+  └─ refactor/15 Task 0   補 census 盲區（給後續改動上保險）
 
 s2-ua-integration（refactor 全部完成後才進）
   16 → 16C → 16D → 16G   解鎖 C2

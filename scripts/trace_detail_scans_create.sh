@@ -7,13 +7,23 @@
 #
 # Phase2 S1: prefer explicit build_id so the detail scan binds to a parent build
 # and publishes an immutable child build_id.
+#
+# Target types are the ones DetailScanService accepts (TARGET_TYPE_ALIASES in
+# core/services/detail_scan_service.py): component_instance (alias component),
+# unmapped_component (alias unmapped), edge, evidence, and the legacy
+# component_slot (alias slot).
+#
+# The default is unmapped_component because the default fixture
+# custom_router_rag detects zero components, so component_slot resolves to
+# nothing there. Every component v2 does emit carries metadata.legacy_slot, so
+# component_slot still works against fixtures that detect components.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/api_trace_common.sh
 source "$SCRIPT_DIR/lib/api_trace_common.sh"
 
-TARGET_TYPE="component_slot"
+TARGET_TYPE="unmapped_component"
 TARGET=""
 SCAN_DEPTH="component"
 
@@ -26,8 +36,11 @@ Usage:
     [--target-type TYPE] [--target ID] [--scan-depth component|code_path]
 
 Options:
-  --target-type TYPE      Detail scan target type. Default: component_slot
-  --target ID             Target id. Default: first component slot from the scan.
+  --target-type TYPE      component_instance (alias component) |
+                          unmapped_component (alias unmapped) | edge |
+                          evidence | component_slot (alias slot, legacy).
+                          Default: unmapped_component
+  --target ID             Target id. Default: first unmapped_components[].unmapped_id.
   --scan-depth DEPTH      component (L2) or code_path (L3). Default: component
   --start-server          Start a local FastAPI server for this run, stop on exit.
   --api-base-url URL      Backend base URL. Default: http://127.0.0.1:8000
@@ -63,9 +76,9 @@ BUILD_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.lineage.build_id')"
   || systograph_die "Scan response missing build_result.lineage.build_id"
 
 if [[ -z "$TARGET" ]]; then
-  TARGET="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
-  [[ -n "$TARGET" && "$TARGET" != "null" ]] \
-    || systograph_die "Could not derive a default target slot from the scan"
+  TARGET="$(systograph_first_unmapped_id "$SCAN_JSON")"
+  [[ -n "$TARGET" ]] \
+    || systograph_die "Scan produced no unmapped component; pass --target-type/--target"
   systograph_progress "預設目標 ($TARGET_TYPE) = $TARGET"
 fi
 

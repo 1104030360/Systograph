@@ -420,7 +420,7 @@ flowchart TD
   （**2026-07-13 重驗**：先前勾選曾與實際 E501 / format drift 不符；已折行中文註解並
   `ruff format` 後，`uv run ruff check src tests` + `uv run ruff format --check src tests`
   通過。細節見
-  `docs/work/Timmy/schedule/report/2026-07-12-backend-validation-manual-qa-REP.md`
+  `docs/work/Timmy/schedule/report/2026-07-12/2026-07-12-backend-validation-manual-qa-REP.md`
   Correction 節。）
 - [x] `rg -n "profile_attachment|semantic_kind|primary_anchor_node_id|filter:profile_attachments" src tests docs/work/Timmy/design`
 - [x] `git diff --check -- docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-track-a-index-projection/06-deepen-graph-projection-module.md`

@@ -1,15 +1,17 @@
 # 這個檔案負責：legacy `rag-core-v1` 13 個 slot → canonical layer 的
-# 唯一對照表。純資料、無行為；v1 adapter 與 v2 normalize 共用同一份，
-# 讓兩條路徑的 layer 語意等價性由「單一來源」保證，而不是靠兩份複本
-# 剛好長得一樣。
+# 唯一對照表。純資料、無行為。
+# 用途：**migration-only**——只服務 v1→v2 adapter，把只有 slot 詞彙的
+# legacy v1 map 讀進來時補出一個 layer。
+# active v2 路徑已經不查這張表：`SystemMapV2NormalizeService` 改由
+# `CanonicalTypePlaneResolver` 從 canonical_type 推導 layer
+# （canonical_type → capability node → node.plane_id）。
 # 注意：key 是 legacy `rag-core-v1` template 的 slot 詞彙，不是 v2
-# canonical component 詞彙；新的 v2 元件不應該擴充這張表。
+# canonical component 詞彙。這張表已凍結在 13 個 legacy slot，不再擴充：
+# 新的 canonical type 要落哪一帶，改 `capability_type_node_map.toml`。
 #
-# 呼叫鏈：
+# 呼叫鏈（唯一消費者）：
 #   system_map_v1_to_v2_adapter._layer_for_slot()
 #     → SLOT_LAYER_BY_ID.get(slot, "undetermined")
-#   SystemMapV2NormalizeService._components()
-#     → SLOT_LAYER_BY_ID.get(slot.slot, "undetermined")
 from __future__ import annotations
 
 from typing import Final

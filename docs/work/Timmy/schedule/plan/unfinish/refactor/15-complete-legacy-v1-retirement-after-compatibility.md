@@ -343,7 +343,7 @@ rollback service → canonical_map_loader 的 v1 分支 → v1→v2 adapter → 
 
 ### Task 2：移除 v1 write path
 
-> **已於 2026-08-06 抽出為獨立計畫：`refactor/06-remove-v1-rollback-write-path.md`。**
+> **已於 2026-08-06 抽出為獨立計畫：`plan/finish/refactor/06-remove-v1-rollback-write-path.md`。**
 > 抽出理由：v1 **寫入**路徑（operator rollback）與 v1 **讀取**路徑可分離，且
 > Gate-4 的目的是「先證明既有 v1 artifact 能相容遷移」——移除產生 v1 的逃生口
 > 不影響讀取能力。使用者已知悉「執行後無法回退到 v1 輸出」並接受（開發期、
@@ -354,7 +354,12 @@ rollback service → canonical_map_loader 的 v1 分支 → v1→v2 adapter → 
 > `require_public_v2_selection()`（deprecated 輸入的穩定 422 仍依賴它們），
 > 那組的收斂仍屬本計畫，見上方「新增前置事實 (1)」的原子性約束。
 
-- [ ] 確認 `refactor/06-remove-v1-rollback-write-path.md` 已完成（三個服務檔已刪、
+> **已由 `refactor/06` 於 2026-08-07 完成（#277）——本 Task 勿重複執行。**
+> 三個服務檔已刪、`MapBuildService` / `MapBuildPipeline` 無 v1 分支、env 不再接受
+> `ai-system-map/v1`、census 已同步（`operator_rollback` 分類本身已移除）。
+> 本 Task 僅剩下方第二項的 `LEGACY_CANONICAL_OUTPUT_VERSION` 收斂。
+
+- [x] 確認 `plan/finish/refactor/06-remove-v1-rollback-write-path.md` 已完成（三個服務檔已刪、
   pipeline 無 v1 分支、census 無 stale record）。
 - [ ] 本計畫僅接手 Plan 06 明列的「不得更動」項：`LEGACY_CANONICAL_OUTPUT_VERSION`
   與 `require_public_v2_selection()` 的原子性收斂（連同 `SystemMapSchemaSelection`、

@@ -47,7 +47,7 @@ V1_SEMANTIC = Path(
 )
 V2_SEMANTIC = V2_DIR / "grounded_rag_equivalent.v2.json"
 REPORT_PATH = Path(
-    "docs/work/Timmy/schedule/report/"
+    "docs/work/Timmy/schedule/report/2026-07-10/"
     "2026-07-10-ai-system-map-v2-compatibility-gate.md"
 )
 

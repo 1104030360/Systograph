@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
@@ -23,11 +22,7 @@ from systograph.core.models.analysis_history import (
 from systograph.core.models.capability_candidate import (
     CapabilityCandidateComponent,
 )
-from systograph.core.models.map_build import (
-    MapBuildRequest,
-    MapBuildResult,
-    SystemMapSchemaSelection,
-)
+from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
 from systograph.core.models.scan import OutputRun
 from systograph.core.providers.output_artifact_provider import (
     OutputArtifactProvider,
@@ -36,7 +31,6 @@ from systograph.core.services.build_artifact_publisher import (
     BuildArtifactPublisher,
 )
 from systograph.core.services.canonical_output_configuration import (
-    LEGACY_CANONICAL_OUTPUT_VERSION,
     canonical_output_version_from_env,
     require_public_v2_selection,
 )
@@ -90,42 +84,6 @@ from systograph.core.services.viewer_session_service import (
     ViewerSessionService,
 )
 
-if TYPE_CHECKING:
-    from systograph.core.services.legacy_v1_rollback_service import (
-        LegacyV1RollbackService,
-    )
-
-
-# 做什麼：只在 operator rollback 模式下 import 並建 v1 rollback 物件圖。
-# 被誰呼叫：MapBuildService.__init__。
-# 自己呼叫：LegacyV1RollbackService、SystemMapMaterializationService。
-# 用 function-local import：active v2 path 不得依賴 v1 rollback 模組，
-# 這樣 Plan 15 刪掉那些模組時不會弄壞正常 build。
-def _build_legacy_v1_rollback_service(
-    *,
-    component_detection_service: ComponentDetectionService | None,
-    endpoint_detection_service: EndpointDetectionService | None,
-    risk_hint_service: RiskHintService | None,
-    flow_derivation_service: FlowDerivationService | None,
-    manual_mapping_service: ManualMappingService | None,
-) -> LegacyV1RollbackService:
-    from systograph.core.services.legacy_v1_rollback_service import (
-        LegacyV1RollbackService,
-    )
-    from systograph.core.services.system_map_materialization_service import (
-        SystemMapMaterializationService,
-    )
-
-    return LegacyV1RollbackService(
-        materialization_service=SystemMapMaterializationService(
-            component_detection_service=component_detection_service,
-            endpoint_detection_service=endpoint_detection_service,
-            risk_hint_service=risk_hint_service,
-            flow_derivation_service=flow_derivation_service,
-            manual_mapping_service=manual_mapping_service,
-        )
-    )
-
 
 # 做什麼：對外 build facade；組 pipeline，提供三種建圖入口。
 # 被誰用：CLI、Web、ApplyConfirmations、DetailScanBuild。
@@ -158,8 +116,6 @@ class MapBuildService:
         materialization_service: SystemMapV2MaterializationService
         | None = None,
         artifact_publisher: BuildArtifactPublisher | None = None,
-        canonical_output_version: SystemMapSchemaSelection | None = None,
-        legacy_v1_rollback_service: LegacyV1RollbackService | None = None,
     ) -> None:
         output_provider = output_artifact_provider or OutputArtifactProvider()
         materializer = (
@@ -180,41 +136,26 @@ class MapBuildService:
             mermaid_renderer=graph_mermaid_renderer,
             projection_service=projection_service,
         )
+        # Guard, not a value source: refuse to build under a misconfigured
+        # SYSTOGRAPH_CANONICAL_OUTPUT_VERSION. The return value is
+        # deliberately discarded — the output version is not selectable,
+        # so the pipeline reads it from the v2 constant instead. This keeps
+        # the fail-fast on every entry point that builds, including the CLI,
+        # which has no other startup hook.
+        canonical_output_version_from_env()
         self._manual_mapping_service = manual_mapping_service
-        self._canonical_output_version = (
-            canonical_output_version or canonical_output_version_from_env()
-        )
-        rollback_service = legacy_v1_rollback_service
-        # Census contract: this comparison uses the constant, so this file
-        # carries no inline legacy literal for the AST census to find. The
-        # literal is owned by canonical_output_configuration.py, which is
-        # the module the census records for this branch.
-        if (
-            rollback_service is None
-            and self._canonical_output_version
-            == LEGACY_CANONICAL_OUTPUT_VERSION
-        ):
-            rollback_service = _build_legacy_v1_rollback_service(
-                component_detection_service=component_detection_service,
-                endpoint_detection_service=endpoint_detection_service,
-                risk_hint_service=risk_hint_service,
-                flow_derivation_service=flow_derivation_service,
-                manual_mapping_service=manual_mapping_service,
-            )
         self._scanner = project_scan_service or ProjectScanService()
         self._output_provider = publisher.output_provider
         self._pipeline = MapBuildPipeline(
             materialization_service=materializer,
             artifact_publisher=publisher,
-            canonical_output_version=self._canonical_output_version,
-            legacy_v1_rollback_service=rollback_service,
             profile_inference_service=profile_inference_service,
             readiness_report_service=readiness_report_service,
             static_execution_artifact_service=static_execution_artifact_service,
         )
 
     # 做什麼：完整初掃 build——precondition → scan → pipeline.materialize。
-    # 被誰呼叫：CLI map、Web create scan、一般首次建圖。
+    # 被誰呼叫：CLI map（唯一 production caller）。
     # 自己呼叫：check_preconditions、scan_project、
     # MapBuildPipeline.materialize。
     # 失敗 precondition：回 precondition_error_result（status=error）。
@@ -277,7 +218,7 @@ class MapBuildService:
         )
 
     # 做什麼：用既有 ScanSnapshot 重建（不重掃 filesystem inventory）。
-    # 被誰呼叫：ApplyConfirmations 等「基於 snapshot 再 build」流程。
+    # 被誰呼叫：Web POST /api/scans、ApplyConfirmations。
     # 自己呼叫：組 MapBuildLineage → MapBuildPipeline.materialize。
     def build_from_snapshot(
         self,

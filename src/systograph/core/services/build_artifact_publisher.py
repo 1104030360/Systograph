@@ -15,8 +15,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from pydantic import BaseModel
-
 from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
 from systograph.core.models.profile_signal import ProfileInferenceResult
 from systograph.core.models.readiness_report import ReadinessReport
@@ -88,7 +86,6 @@ class BuildArtifactPublisher:
         self,
         *,
         system_map: AiSystemMapV2,
-        artifact_map: BaseModel | None = None,
         profile_result: ProfileInferenceResult,
         readiness_report: ReadinessReport,
         execution: StaticExecutionArtifacts,
@@ -97,7 +94,6 @@ class BuildArtifactPublisher:
         try:
             return self._publish(
                 system_map=system_map,
-                artifact_map=artifact_map,
                 profile_result=profile_result,
                 readiness_report=readiness_report,
                 execution=execution,
@@ -119,14 +115,13 @@ class BuildArtifactPublisher:
         self,
         *,
         system_map: AiSystemMapV2,
-        artifact_map: BaseModel | None,
         profile_result: ProfileInferenceResult,
         readiness_report: ReadinessReport,
         execution: StaticExecutionArtifacts,
         output_run: OutputRun,
     ) -> PublishedBuildArtifacts:
         map_json_path = self.output_provider.write_json(
-            artifact_map or system_map,
+            system_map,
             output_run=output_run,
         )
         viewer = self._projection.build_canonical(

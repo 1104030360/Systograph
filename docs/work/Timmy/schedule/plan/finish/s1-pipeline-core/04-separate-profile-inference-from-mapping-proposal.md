@@ -3,7 +3,7 @@
 > **2026-07-11 backend execution status：** profile inference runtime dependency guard、
 > weak-evidence negative gates、read-only related refs 與 durable proposal/mapping lifecycle 分離
 > 已完成並測試。Frontend integration 不在本次 backend-only 範圍；完成證據見
-> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+> `docs/work/Timmy/schedule/report/2026-07-11/2026-07-11-phase2-s1-pipeline-core-REP.md`。
 
 > **2026-07-05 decision sync：** Proposal 只產生 candidate/review lifecycle；Plan 02 的
 > Python evaluator 才能輸出 `detected / partial / undetermined / not_detected /

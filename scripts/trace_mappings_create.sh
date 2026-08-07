@@ -7,8 +7,8 @@
 # Output : ManualMapping {mapping_id, mapping_digest, created_at, updated_at, ...}
 #          422 on validation errors (e.g. missing evidence / unknown slot).
 #
-# This script imports + scans to obtain a real slot + evidence id, then creates
-# a confirmed existing_slot mapping.
+# This script imports + scans to obtain a real slot + evidence id from the
+# ai-system-map/v2 build, then creates a confirmed existing_slot mapping.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,8 +39,8 @@ systograph_bootstrap_server
 systograph_section "準備：匯入 + 掃描，取得 slot 與 evidence"
 PROJECT_ID="$(systograph_import_project)"
 SCAN_JSON="$(systograph_run_scan "$PROJECT_ID")"
-SLOT="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
-EVIDENCE_ID="$(echo "$SCAN_JSON" | jq -r '.build_result.ai_system_map.evidence[0].id // empty')"
+SLOT="$(systograph_demo_slot "$SCAN_JSON")"
+EVIDENCE_ID="$(systograph_first_evidence_id "$SCAN_JSON")"
 [[ -n "$SLOT" && "$SLOT" != "null" ]] || systograph_die "Could not derive a target slot"
 [[ -n "$EVIDENCE_ID" ]] || systograph_die "Could not derive an evidence id"
 

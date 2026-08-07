@@ -5,19 +5,30 @@
 - 分工：**後端（Timmy）**執行 refactor 各計畫的 backend 部分；**前端**負責本文件
   的三個工作包。各計畫檔是驗收標準的 canonical source，本文件是可自足執行的
   handoff 摘要——兩邊若有出入，以計畫檔為準。
-- **安全保證：前端未動工前，不會有任何東西壞。** 後端所有 breaking 移除
-  （implicit preflight 分支、`GET /api/map`／`GET /map`）都 gate 在對應前端
-  工作包上線之後才執行。
+- ~~**安全保證：前端未動工前，不會有任何東西壞。**~~ **⚠️ 2026-08-07 已失效
+  ——順序反轉，請先讀這段：** 使用者決策改為**後端先行**，不再等前端工作包
+  上線。後端會直接執行 Plan 01／02 的 Phase B，把 implicit preflight 分支與
+  `GET /api/map`／`GET /map` 移除。因此：
+  - **FE-1 與 FE-2 從「解鎖後端」變成「修復 `main`」**——後端 Phase B 合併後、
+    這兩包上線前，正式前端會壞：掃描全數回 422（沒送 `preflight_request_id`）、
+    API mode 未選專案時讀圖直接拋錯（fallback 已移除）。
+  - 這是已知並接受的代價，但也代表**這兩包現在是擋在 `main` 綠燈前的工作，
+    優先度提高**。
+  - **FE-3（Markdown report）不受影響**——它是獨立新功能，後端零改動，沒有
+    任何東西在等它，也不會因後端先行而壞掉。
 
 ---
 
 ## 執行順序與 gate 總表
 
-| 工作包 | 內容 | 解鎖的後端動作 | 建議順序 |
+> **2026-08-07：本表的「解鎖」語意已變更**——後端先行，這些工作包不再是解鎖
+> 後端的前置，而是**追上後端、把 `main` 修回綠燈**的補件。順序建議不變。
+
+| 工作包 | 內容 | 與後端的關係（2026-08-07 更新） | 建議順序 |
 |---|---|---|---|
-| **FE-2** | API mode 空狀態 + 移除 `/api/map` fallback | Plan 02 Phase B（刪 `GET /api/map`、`GET /map`） | ① 最小、先做 |
-| **FE-3** | Markdown report 預覽／下載 | 無（獨立功能，#219 縮小版） | ② 小、獨立 |
-| **FE-1** | Explicit preflight 兩段式掃描 | Plan 01 Phase B（刪 `create_scan` implicit 分支） | ③ 最大、最後 |
+| **FE-2** | API mode 空狀態 + 移除 `/api/map` fallback | 修復 Plan 02 Phase B 造成的中斷（讀圖） | ① 最小、先做 |
+| **FE-3** | Markdown report 預覽／下載 | 無（獨立功能，#219 縮小版；不受後端先行影響） | ② 小、獨立 |
+| **FE-1** | Explicit preflight 兩段式掃描 | 修復 Plan 01 Phase B 造成的中斷（掃描 422） | ③ 最大、最後 |
 
 FE-2 內部順序固定：**先補空狀態、再拔 fallback**（順序反了會出現無圖可讀的死角）。
 
@@ -25,7 +36,7 @@ FE-2 內部順序固定：**先補空狀態、再拔 fallback**（順序反了�
 
 ## FE-2：API mode 空狀態 + 移除 `/api/map` fallback
 
-Canonical：[`refactor/02-retire-process-wide-api-map.md`](../../Timmy/schedule/plan/unfinish/refactor/02-retire-process-wide-api-map.md) Phase A
+Canonical：[`refactor/02-retire-process-wide-api-map.md`](../../Timmy/schedule/plan/finish/refactor/02-retire-process-wide-api-map.md) Phase A
 
 ### 背景
 
@@ -63,13 +74,15 @@ Canonical：[`refactor/02-retire-process-wide-api-map.md`](../../Timmy/schedule/
 
 未選專案顯示空狀態、不發 request；讀圖只剩 `map-builds/latest` 與
 `map-builds/{build_id}`；primary 失敗（含契約解析錯誤）直接呈現錯誤。
-`pnpm lint / test / build` 全綠。**上線後通知後端執行 Plan 02 Phase B。**
+`pnpm lint / test / build` 全綠。~~上線後通知後端執行 Plan 02 Phase B。~~
+**2026-08-07 更新：後端已先行執行 Plan 02 Phase B，不需再通知；本包上線即
+把讀圖中斷修復。**
 
 ---
 
 ## FE-3：Markdown report 預覽／下載
 
-Canonical：[`refactor/04-wire-frontend-map-report-download.md`](../../Timmy/schedule/plan/unfinish/refactor/04-wire-frontend-map-report-download.md)（全計畫皆前端，後端零改動）
+Canonical：[`04-wire-frontend-map-report-download.md`](04-wire-frontend-map-report-download.md)（同資料夾；2026-08-07 自 refactor 佇列搬入。全計畫皆前端，後端零改動）
 
 ### ⚠️ 先讀這個限制
 
@@ -106,7 +119,7 @@ ReadinessPanel 現有的「Generated Markdown」分頁是**前端**由
 
 ## FE-1：Explicit preflight 兩段式掃描（最大的一包）
 
-Canonical：[`refactor/01-explicit-preflight-cutover.md`](../../Timmy/schedule/plan/unfinish/refactor/01-explicit-preflight-cutover.md) Phase A
+Canonical：[`refactor/01-explicit-preflight-cutover.md`](../../Timmy/schedule/plan/finish/refactor/01-explicit-preflight-cutover.md) Phase A
 
 ### 背景
 
@@ -155,7 +168,8 @@ explicit 兩段式。前端遷移完成後，後端才會退役 implicit 分支�
 
 全程只發一次 `POST /api/scans` 且必帶單號；required 未收齊不能 submit；
 payload 只含 delta；stale 時自動重走且不靜默沿用。
-**上線後通知後端執行 Plan 01 Phase B。**
+~~上線後通知後端執行 Plan 01 Phase B。~~ **2026-08-07 更新：後端已先行執行
+Plan 01 Phase B，不需再通知；本包上線即把掃描中斷修復。**
 
 ---
 

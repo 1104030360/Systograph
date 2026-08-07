@@ -1,10 +1,11 @@
 """Runtime validation for ai-system-map/v1 cross-reference invariants.
 
-The v1 validator on the two remaining legacy paths: CanonicalMapLoader
-uses it to read legacy v1 payloads, and the operator-rollback v1 writer
-uses it before publishing. Native v2 validation lives in
+Read-only: CanonicalMapLoader is the only caller of validate(), using it
+to read historical v1 payloads (ViewerSessionService merely passes an
+optional instance through to that loader). No writer reaches it —
+refactor 06 deleted the v1 write path. Native v2 validation lives in
 SystemMapV2ValidationService; schema branching belongs to
-CanonicalMapLoader. Plan 15 removes it together with v1 read support.
+CanonicalMapLoader. Plan 15 removes this service with v1 read support.
 """
 
 from __future__ import annotations

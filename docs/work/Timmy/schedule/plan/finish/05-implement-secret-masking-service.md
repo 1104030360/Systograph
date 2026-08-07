@@ -58,7 +58,7 @@
 - `tests/unit/core/test_secret_masking_service.py`
 - `tests/integration/test_phase5_secret_masking_behaviors.py`
 - `docs/work/Timmy/schedule/todo/2026-05-31-phase5-secret-masking-service-TODO.md`
-- `docs/work/Timmy/schedule/report/2026-05-31-phase5-secret-masking-service-REP.md`
+- `docs/work/Timmy/schedule/report/2026-05-31/2026-05-31-phase5-secret-masking-service-REP.md`
 
 ## 驗收標準
 - full fake secret 不會出現在 masked output。

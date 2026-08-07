@@ -4,7 +4,7 @@
 > snapshot、atomic local JSON、project locks、CAS latest、Apply replay、restart/history、Detail
 > child 與 Trace binding 已完成並測試。Task 6 frontend Apply/version UI 已依使用者要求還原，
 > frontend-only checkboxes 保持未完成；後端證據見
-> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+> `docs/work/Timmy/schedule/report/2026-07-11/2026-07-11-phase2-s1-pipeline-core-REP.md`。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

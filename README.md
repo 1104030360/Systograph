@@ -19,8 +19,8 @@ README 必須區分「目前程式碼已能執行」與「roadmap / 尚未交付
 
 - deterministic-first scanner：先以 filesystem、config、dependency、Docker 與 code pattern
   providers 擷取結構化 facts / evidence（Understand-Anything 結構主掃仍為後續 Phase）。
-- `ai-system-map/v2` 已是 **active canonical** artifact；v1 僅保留 dual-read compatibility
-  與隔離的 operator rollback。
+- `ai-system-map/v2` 是**唯一** canonical 產出 artifact；v1 僅保留 dual-read compatibility
+  （historical artifact 的 load / migration），已無任何 v1 寫入路徑。
 - 每次成功 build 可 atomic publish **10 public siblings**（map／Markdown／Mermaid、
   `profile_signals.json`、`readiness_report.json`、static execution JSON 等）。
 - package-bundled **10-plane / 52-node** capability reference catalog 與 **15 MVP profiles**；

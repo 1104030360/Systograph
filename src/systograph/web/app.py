@@ -56,9 +56,6 @@ from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
 from systograph.core.services.scan_snapshot_service import ScanSnapshotService
-from systograph.core.services.viewer_session_service import (
-    ViewerSessionService,
-)
 from systograph.web.middleware import (
     DEFAULT_MAX_REQUEST_BODY_BYTES,
     RequestSizeLimitMiddleware,
@@ -73,7 +70,6 @@ from systograph.web.routes import (
     project_routes,
     scan_routes,
     trace_routes,
-    viewer_routes,
 )
 from systograph.web.session_store import (
     PersistentSessionStore,
@@ -131,7 +127,6 @@ def create_app(
     scan_snapshot_service: ScanSnapshotService | None = None,
     inventory_preflight_service: InventoryPreflightService | None = None,
     inventory_selection_service: InventorySelectionService | None = None,
-    viewer_session_service: ViewerSessionService | None = None,
     session_store: SessionStore | None = None,
     state_dir: Path | None = None,
     apply_confirmations_service: ApplyConfirmationsService | None = None,
@@ -141,7 +136,11 @@ def create_app(
     env_file: Path | None = None,
     max_request_body_bytes: int = DEFAULT_MAX_REQUEST_BODY_BYTES,
 ) -> LocalApiApp:
-    canonical_output_version = canonical_output_version_from_env()
+    # Startup fail-fast only: an unsupported
+    # SYSTOGRAPH_CANONICAL_OUTPUT_VERSION must stop the process before it
+    # serves anything. The validated value is not passed on — the build
+    # path owns its single v2 source of truth.
+    canonical_output_version_from_env()
     app = FastAPI(title="Systograph Local API", version="0.1.0")
     if state_dir is None:
         state_dir = default_state_dir()
@@ -195,7 +194,6 @@ def create_app(
     app.state.map_build_service = map_build_service or MapBuildService(
         project_scan_service=shared_scanner,
         manual_mapping_service=app.state.manual_mapping_service,
-        canonical_output_version=canonical_output_version,
     )
     app.state.scan_snapshot_service = (
         scan_snapshot_service
@@ -233,13 +231,9 @@ def create_app(
         )
     )
     app.state.query_trace_service = query_trace_service or QueryTraceService()
-    app.state.viewer_session_service = (
-        viewer_session_service or ViewerSessionService()
-    )
     app.state.session_store = session_store or PersistentSessionStore(
         repository=repository,
         manifest_service=manifest_service,
-        projection_service=app.state.viewer_session_service,
     )
     origins = tuple(allowed_origins or DEFAULT_ALLOWED_ORIGINS)
     app.add_middleware(SafeUnhandledExceptionMiddleware)
@@ -255,7 +249,6 @@ def create_app(
     app.include_router(project_routes.router)
     app.include_router(scan_routes.router)
     app.include_router(trace_routes.router)
-    app.include_router(viewer_routes.router)
     cors_wrapped_app = CORSMiddleware(
         app,
         allow_origins=list(origins),

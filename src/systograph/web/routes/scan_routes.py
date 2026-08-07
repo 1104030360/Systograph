@@ -13,11 +13,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from systograph.core.models.errors import (
     InventoryEnumerationError,
     InventorySelectionError,
-    InventorySelectionErrorCode,
     ScanInventoryRulesError,
-)
-from systograph.core.models.inventory_selection import (
-    InventoryPreflightRequest,
 )
 from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
 from systograph.core.models.scan import OutputRun
@@ -56,6 +52,7 @@ from systograph.web.dependencies import (
 from systograph.web.inventory_error_response import (
     inventory_error_detail,
     inventory_system_error_detail,
+    preflight_request_id_required_detail,
     project_not_found_detail,
 )
 from systograph.web.inventory_preflight_projection import (
@@ -137,17 +134,9 @@ def create_scan_preflight(
 def create_scan(
     payload: ScanCreateRequest,
     service: Annotated[MapBuildService, Depends(map_build_service)],
-    boundary_service: Annotated[
-        ScanBoundaryReviewService,
-        Depends(scan_boundary_review_service),
-    ],
     selection_service: Annotated[
         InventorySelectionService,
         Depends(inventory_selection_service),
-    ],
-    preflight_service: Annotated[
-        InventoryPreflightService,
-        Depends(inventory_preflight_service),
     ],
     snapshot_service: Annotated[
         ScanSnapshotService,
@@ -170,85 +159,23 @@ def create_scan(
             status_code=404,
             detail=project_not_found_detail(),
         )
+    if payload.preflight_request_id is None:
+        raise HTTPException(
+            status_code=422,
+            detail=preflight_request_id_required_detail(),
+        )
     try:
         require_public_v2_selection(payload.system_map_schema_version)
     except CanonicalOutputConfigurationError as exc:
         raise HTTPException(status_code=422, detail=exc.code) from exc
 
-    selection_summary = None
     try:
-        explicit_preflight = payload.preflight_request_id is not None
-        if explicit_preflight:
-            selection_request_id = payload.preflight_request_id
-        else:
-            implicit_state = preflight_service.create(
-                payload.project_id,
-                project.project_path,
-                InventoryPreflightRequest(
-                    requested_paths=tuple(
-                        item.target_path for item in payload.boundary_decisions
-                    )
-                ),
-            )
-            selection_request_id = implicit_state.preflight_request_id
-            required_paths = {
-                item.path
-                for item in implicit_state.candidate_set.candidates
-                if item.decision_required
-            }
-            if not payload.boundary_decisions and required_paths:
-                implicit_proposals = (
-                    boundary_service.create_selection_proposals(implicit_state)
-                )
-                return ScanCreateResponse(
-                    project_id=payload.project_id,
-                    status="requires_boundary_decision",
-                    boundary_proposals=[
-                        item
-                        for item in implicit_proposals
-                        if item.target.path in required_paths
-                    ],
-                )
-            if any(
-                item.target_path not in required_paths
-                for item in payload.boundary_decisions
-            ):
-                raise InventorySelectionError(
-                    InventorySelectionErrorCode.OVERRIDE_NOT_ALLOWED
-                )
-        assert selection_request_id is not None
-        try:
-            selection = selection_service.select(
-                project_id=payload.project_id,
-                project_root=project.project_path,
-                preflight_request_id=selection_request_id,
-                decisions=payload.boundary_decisions,
-            )
-        except InventorySelectionError as exc:
-            if not explicit_preflight and exc.code in {
-                InventorySelectionErrorCode.PREFLIGHT_STALE,
-                InventorySelectionErrorCode.TARGET_CHANGED,
-            }:
-                refreshed = preflight_service.create(
-                    payload.project_id,
-                    project.project_path,
-                    InventoryPreflightRequest(),
-                )
-                proposals = [
-                    item
-                    for item in boundary_service.create_selection_proposals(
-                        refreshed
-                    )
-                    if item.selection_context is not None
-                    and item.selection_context.decision_required
-                ]
-                if proposals:
-                    return ScanCreateResponse(
-                        project_id=payload.project_id,
-                        status="requires_boundary_decision",
-                        boundary_proposals=proposals,
-                    )
-            raise
+        selection = selection_service.select(
+            project_id=payload.project_id,
+            project_root=project.project_path,
+            preflight_request_id=payload.preflight_request_id,
+            decisions=payload.boundary_decisions,
+        )
         if selection.pending_proposals:
             return ScanCreateResponse(
                 project_id=payload.project_id,
@@ -260,7 +187,6 @@ def create_scan(
             raise ValueError("Inventory selection was not materialized")
         inventory = selection.inventory
         selection_summary = selection.summary
-        proposals = []
     except InventorySelectionError as exc:
         raise HTTPException(
             status_code=exc.http_status,
@@ -273,14 +199,6 @@ def create_scan(
         ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    if proposals:
-        return ScanCreateResponse(
-            project_id=payload.project_id,
-            status="requires_boundary_decision",
-            boundary_proposals=proposals,
-            preflight_request_id=payload.preflight_request_id,
-        )
 
     try:
         inventory_policy = None

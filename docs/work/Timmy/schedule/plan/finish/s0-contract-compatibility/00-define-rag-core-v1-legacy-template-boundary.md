@@ -74,7 +74,7 @@ Plan 13 cutover 後，**Phase2 active 新 build 不再以 template 填格產 map
 ## Implementation Tasks
 
 > 2026-07-09 執行紀錄：
-> `docs/work/Timmy/schedule/report/2026-07-09-rag-core-v1-legacy-boundary-REP.md`
+> `docs/work/Timmy/schedule/report/2026-07-09/2026-07-09-rag-core-v1-legacy-boundary-REP.md`
 > 已完成本計畫的 legacy boundary / standalone adapter boundary。後續 00A 仍需補
 > `CanonicalMapLoader`、v2 schema gate 與 compatibility gate；Plan 13 才切 active v2 write path。
 

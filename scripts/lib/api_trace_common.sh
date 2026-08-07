@@ -19,6 +19,10 @@ START_SERVER=0
 SERVER_PID=""
 SYSTOGRAPH_EXTRA_ARGS=()
 
+# Bind address for --start-server, derived from API_BASE_URL.
+SERVER_BIND_HOST=""
+SERVER_BIND_PORT=""
+
 # Globals populated by api_call / setup_* helpers.
 LAST_STATUS=""
 LAST_BODY=""
@@ -81,10 +85,13 @@ systograph_cleanup() {
   fi
 }
 
+# Readiness probe. `/openapi.json` is served by FastAPI itself, is read-only,
+# and is not a product endpoint, so it cannot be retired out from under the
+# whole trace suite the way a demo endpoint can.
 wait_for_api() {
   local attempt
   for attempt in $(seq 1 60); do
-    if curl -fsS "$API_BASE_URL/api/map" >/dev/null 2>&1; then
+    if curl -fsS "$API_BASE_URL/openapi.json" >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.5
@@ -97,20 +104,49 @@ wait_for_api() {
   exit 1
 }
 
+# Resolve SERVER_BIND_HOST / SERVER_BIND_PORT from API_BASE_URL for
+# --start-server. Anything this cannot bind exactly is a hard error: guessing a
+# default port while wait_for_api probes the URL as written turns a typo into a
+# ~30s "Backend did not become available" timeout instead of a clear message.
+# Not meant to be a general URL parser — bracketed IPv6 hosts fail closed here.
+systograph_resolve_server_bind() {
+  local rest hostport
+  case "$API_BASE_URL" in
+    http://*) rest="${API_BASE_URL#http://}" ;;
+    *)
+      systograph_die \
+        "--start-server needs an http:// --api-base-url, got: $API_BASE_URL"
+      ;;
+  esac
+  hostport="${rest%%/*}"
+  SERVER_BIND_HOST="${hostport%%:*}"
+  SERVER_BIND_PORT="${hostport#*:}"
+  [[ -n "$SERVER_BIND_HOST" ]] \
+    || systograph_die "--api-base-url has no host: $API_BASE_URL"
+  if [[ "$SERVER_BIND_PORT" == "$hostport" ]] \
+    || [[ ! "$SERVER_BIND_PORT" =~ ^[0-9]+$ ]]; then
+    systograph_die \
+      "--start-server needs an explicit numeric port in --api-base-url (e.g. http://127.0.0.1:8000), got: $API_BASE_URL"
+  fi
+}
+
 # Boot a local server when --start-server was passed, then block until ready.
 # When --start-server is not passed, just wait for an already running server.
+# The started server binds the host/port of API_BASE_URL, so --start-server and
+# --api-base-url stay consistent instead of silently disagreeing.
 systograph_bootstrap_server() {
   cd "$SYSTOGRAPH_ROOT_DIR"
   if [[ "$START_SERVER" -eq 1 ]]; then
     if [[ ! -x ".venv/bin/uvicorn" ]]; then
       systograph_die "Cannot find executable .venv/bin/uvicorn (create the venv first)"
     fi
+    systograph_resolve_server_bind
     mkdir -p "$(dirname "$SERVER_LOG")"
     .venv/bin/uvicorn systograph.web.app:create_app --factory \
-      --host 127.0.0.1 --port 8000 >"$SERVER_LOG" 2>&1 &
+      --host "$SERVER_BIND_HOST" --port "$SERVER_BIND_PORT" >"$SERVER_LOG" 2>&1 &
     SERVER_PID="$!"
     trap systograph_cleanup EXIT
-    echo "Started FastAPI PID=$SERVER_PID log=$SERVER_LOG"
+    echo "Started FastAPI PID=$SERVER_PID log=$SERVER_LOG url=$API_BASE_URL"
   fi
   wait_for_api
 }
@@ -198,15 +234,39 @@ systograph_import_project() {
   echo "$project_id"
 }
 
+# Open a metadata-only preflight for a project_id and echo its
+# preflight_request_id. A rescan must always open a new preflight.
+systograph_open_scan_preflight() {
+  local project_id="$1"
+  local preflight_id
+  systograph_progress "現在要開 scan preflight，project_id=$project_id" >&2
+  preflight_id="$(
+    setup_post "/api/projects/${project_id}/scan-preflights" '{}' \
+      | jq -r '.preflight_request_id // empty'
+  )"
+  [[ -n "$preflight_id" ]] \
+    || systograph_die "Failed to open scan preflight for $project_id"
+  echo "$preflight_id"
+}
+
 # Run a system scan for a project_id and echo the full scan response JSON.
+# POST /api/scans always requires a preflight_request_id, so this opens a
+# preflight first. Trace fixtures carry no required boundary reviews, so a
+# requires_boundary_decision response means the fixture drifted.
 systograph_run_scan() {
   local project_id="$1"
+  local preflight_id
+  preflight_id="$(systograph_open_scan_preflight "$project_id")"
   systograph_progress "現在要建立 scan（系統掃描）project_id=$project_id" >&2
   local body scan status build_id
   body="$(jq -n --arg id "$project_id" --arg out "$OUTPUT_DIR" \
-    '{project_id:$id, scan_depth:"system", output:$out, redact_root_path:true, no_snippets:false}')"
+    --arg preflight_id "$preflight_id" \
+    '{project_id:$id, scan_depth:"system", output:$out, redact_root_path:true, no_snippets:false, preflight_request_id:$preflight_id, boundary_decisions:[]}')"
   scan="$(setup_post "/api/scans" "$body")"
   status="$(echo "$scan" | jq -r '.status')"
+  if [[ "$status" == "requires_boundary_decision" ]]; then
+    systograph_die "Scan needs boundary decisions this trace does not make"
+  fi
   [[ "$status" == "completed" ]] \
     || systograph_die "Scan did not complete (status=$status)"
   build_id="$(echo "$scan" | jq -r '.build_result.lineage.build_id // empty')"
@@ -218,6 +278,28 @@ systograph_run_scan() {
   echo "$scan"
 }
 
+# Echo a target_slot for an existing_slot manual mapping, derived from the
+# ai-system-map/v2 scan response. v2 has no components_by_slot: the legacy
+# 13-slot label lives on components[].metadata.legacy_slot, which every emitted
+# component carries, so prefer a slot this map actually detected. Maps that
+# detected no components at all (e.g. the custom_router_rag fixture) fall back
+# to `vector_store`, a real rag-core-v1 slot accepted by ManualMappingService's
+# allowed-slot check — a manual mapping asserts a slot, it does not have to
+# already be detected.
+systograph_demo_slot() {
+  local scan_json="$1"
+  echo "$scan_json" | jq -r '
+    [.build_result.ai_system_map.components[]?.metadata.legacy_slot
+     | select(type == "string")][0] // "vector_store"'
+}
+
+# Echo the first evidence id from a scan response JSON (v2: evidence[].evidence_id).
+systograph_first_evidence_id() {
+  local scan_json="$1"
+  echo "$scan_json" \
+    | jq -r '.build_result.ai_system_map.evidence[0].evidence_id // empty'
+}
+
 # Create one confirmed existing_slot manual mapping using a real slot key and a
 # real evidence id derived from a scan response. Echoes the created mapping JSON.
 # Usage: systograph_create_demo_mapping PROJECT_ID SCAN_JSON [COMPONENT_NAME]
@@ -227,10 +309,8 @@ systograph_create_demo_mapping() {
   local component_name="${3:-TraceDemoComponent}"
   local slot evidence_id body
 
-  slot="$(echo "$scan_json" \
-    | jq -r '.build_result.ai_system_map.components_by_slot | keys[0]')"
-  evidence_id="$(echo "$scan_json" \
-    | jq -r '.build_result.ai_system_map.evidence[0].id // empty')"
+  slot="$(systograph_demo_slot "$scan_json")"
+  evidence_id="$(systograph_first_evidence_id "$scan_json")"
   [[ -n "$slot" && "$slot" != "null" ]] \
     || systograph_die "Could not derive a target slot from the scan"
   [[ -n "$evidence_id" ]] \
@@ -248,10 +328,12 @@ systograph_create_demo_mapping() {
 }
 
 # Echo the first unmapped component id from a scan response JSON.
+# v2 names this field unmapped_components[].unmapped_id.
 systograph_first_unmapped_id() {
   local scan_json="$1"
   echo "$scan_json" \
-    | jq -r '.build_result.ai_system_map.unmapped_components[0].id // empty'
+    | jq -r '
+      .build_result.ai_system_map.unmapped_components[0].unmapped_id // empty'
 }
 
 # Create a pending mapping proposal for an unmapped component and echo the
@@ -267,7 +349,8 @@ systograph_create_proposal() {
   setup_post "/api/mapping-proposals" "$body"
 }
 
-# Summarize a ViewerPayload JSON (stdin or arg) for Track A graph projection QA.
+# Summarize a build-scoped map response JSON (stdin or arg) for Track A graph
+# projection QA.
 # Expects root shape: { viewer_load_result: { loaded, error_reason, graph_view_model: {...} } }
 systograph_summarize_viewer_payload() {
   local json="${1:-}"
@@ -311,7 +394,8 @@ systograph_summarize_viewer_payload() {
   }'
 }
 
-# Soft asserts for a loaded ViewerPayload. Fail only when map is expected loaded.
+# Soft asserts for a loaded build-scoped map response. Fail only when the map
+# is expected loaded.
 # Usage: systograph_assert_graph_projection_loaded "$LAST_BODY"
 systograph_assert_graph_projection_loaded() {
   local json="$1"
@@ -344,7 +428,9 @@ systograph_summarize_map_build_result() {
     readiness_available: (.readiness_report != null),
     warnings,
     migration_warnings,
-    slot_count: ((.ai_system_map.components_by_slot // {}) | length),
+    component_count: ((.ai_system_map.components // []) | length),
+    edge_count: ((.ai_system_map.edges // []) | length),
+    evidence_count: ((.ai_system_map.evidence // []) | length),
     unmapped_count: ((.ai_system_map.unmapped_components // []) | length),
     graph: (
       if .viewer_load_result == null then null

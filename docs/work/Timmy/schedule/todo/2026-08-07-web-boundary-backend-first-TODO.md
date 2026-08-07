@@ -1,0 +1,243 @@
+# 2026-08-07 Web 邊界收斂後端先行（Refactor Plans 01B/02B/03/05/06/07/08）TODO
+
+- 分支：`refactor/web-boundary-and-legacy-retirement`
+- 執行者：Claude（自主執行 phase10 dev-prompt）
+- 方法：TDD（紅→綠→重構）＋ BDD（測試以行為命名、Given/When/Then 描述）＋
+  subagent-driven development（每階段獨立 implementer + reviewer）
+- 基線（動工前實測）：`uv run pytest` **1136 passed, 1 skipped**；
+  `pnpm test` **160 passed (35 files)**——起點全綠。
+
+## 目標
+
+依 `docs/work/Timmy/schedule/plan/unfinish/refactor/` 的 8 份計畫，把 Web 層
+demo/相容路徑全部退役、v1 rollback 寫入路徑移除、投影平面改為 type-driven，
+使正式路徑成為唯一路徑。13.7/13.8（已完成）交付的 52 格 type 對位是本次
+Plan 07 的前置基礎，收尾時逐項複驗不得回退。
+
+## 範圍界定（誰做什麼）
+
+- **本次執行（後端 + scripts + 契約文件）**：
+  - Plan 01 **Phase B**（explicit preflight cutover；breaking：未帶單號回 422）
+  - Plan 02 **Phase B**（退役 `GET /api/map`、`GET /map`）
+  - Plan 03 全份（退役 `POST /api/map/build`）
+  - Plan 05 全份（退役 `POST /api/viewer/load`；#140 以移除方式消解）
+  - Plan 06 全份（移除 v1 rollback 寫入路徑；讀取路徑完整保留）
+  - Plan 07 全份（plane 由 canonical_type → node → plane 推導）
+  - Plan 08 全份（gate＝02+05 完成；移除 `ViewerPayload` 與 session 旁路槽）
+- **不在本次範圍（前端 handoff，見
+  `docs/work/Meeting-Sync/meeting_sync_2026_08_06/frontend-web-boundary-refactor-handoff.md`）**：
+  FE-1（前端兩段式掃描）、FE-2（API mode 空狀態 + fallback 移除）、
+  FE-3（Plan 04 Markdown report 下載，全份前端）。
+- **已知並接受的代價**（2026-08-07 使用者決策，記載於 Plan 01/02 檔頭）：
+  後端 Phase B 合併後到 FE-1/FE-2 上線前，正式前端掃描回 422、
+  API mode 未選專案讀圖報錯——`main` 對前端暫時是壞的。
+
+## 實作邏輯（Linus 式判斷）
+
+1. **資料結構優先**：所有測試與 trace scripts 的「造一個 build」動作必須收斂到
+   同一個 helper（scripts 端 `systograph_run_scan` 升級為 preflight 先行；
+   tests 端新增共用 helper）。先把 helper 修好，再讓 17 個裸呼叫點與各 demo
+   端點的 fixture 全部改用它——一個資料結構，消滅所有特殊情況。
+2. **消除特殊情況**：implicit preflight 分支、demo 讀寫端點、v1 rollback
+   分支、slot→layer 查表，全是「正式路徑之外的第二條路」。退役它們之後，
+   每個行為只剩一條路，if/else 消失。
+3. **Never break userspace 的邊界**：這裡的 userspace 是「正式契約使用者」
+   （build-scoped 端點、CLI、v1 artifact 讀取能力、`legacy_output_not_selectable`
+   錯誤碼契約）——這些一項都不能壞。demo 端點不是契約使用者，是計畫明載
+   要退役的 deprecated surface（文件已於 2026-08-06 標記 deprecation）。
+4. **順序即依賴**：01B 最先（定義最終 scan 流程，後續遷移一次到位）→
+   05（刪 viewer/load，順便讓 02/03 的測試表縮短）→ 03 → 02 →
+   08（gate 滿足）→ 06 → 07（互相獨立，排最後因為有視覺驗證）。
+
+## 階段規劃與步驟
+
+### Stage 1：計畫檔查核更新（8 份逐檔）✅ 2026-08-07 完成
+- [x] Fan out 8 個 Opus subagents 逐檔比對計畫敘述 vs 現行程式碼（行號、
+  引用數、issue 狀態、gate 敘述），過時處直接修正、不留舊錯
+- [x] 開 umbrella GitHub issue **#277** 並回填各計畫檔的「GitHub Issue」欄
+  （Plan 04 除外——它歸前端，保持待開）
+- [x] 主 agent 最終 review 全部 diff ＋ 補 Plan 03 兩處執行順序註記
+- 驗收：8 份計畫檔內容與 2026-08-07 程式碼現況一致 ✅
+- 查核結論：所有行號/計數層級的事實 95% 準確；實質修正集中在
+  Plan 02（API_CONTRACT `:75` 歸屬改 Plan 03）、Plan 03（handler 行號、
+  helper 行號、測試表用途、gate 敘述）、Plan 05（ViewerSessionService
+  持有關係）、Plan 06（後兩檔測試無 rollback 分支斷言）、Plan 07
+  （legacy_slot 消費者清單、C3b 阻擋原因）。無阻斷級發現。
+- 執行期裁定（記錄於各計畫檔）：(1) Plan 05 先於 Plan 03 →
+  `trace_viewer_load.sh` 直接刪除不改寫；(2) `test_map_routes.py:11-33`
+  是 `GET /api/map` 唯一正向覆蓋，Plan 03 階段保留讀取斷言；
+  (3) Plan 08 追加清除 `projection_service` 死接線；(4) Plan 06 追加清理
+  `map_build_pipeline.py:115-119` census 孤兒註解。
+
+### Stage 2：Web 邊界退役（每個 plan 一個 commit，TDD）
+- [x] **2a Plan 01 Phase B**：✅ 完成（commits `4d8f5c6`/`9ecfd0d`/`6572817`）。
+  紅測試（422 `preflight_request_id_required`）→ 刪 implicit 分支與
+  fallback → 17 呼叫點遷移（`tests/helpers/web_flows.py` 新共用 helper、
+  `systograph_run_scan` preflight 先行、2 支 boundary trace script 既壞
+  `scan_summary` 斷言修復）→ API-GUIDE / API_CONTRACT 同步。
+  Review fix round 1（secret 遮罩 HTTP 覆蓋補回＋4 項）後 re-review 全數
+  ADDRESSED。測試 1136 passed / 1 skipped。
+  - deferred minor：pending 回應的 `str(tmp_path) not in str(pending)`
+    絕對路徑斷言未還原（unit 層 `test_scan_boundary_review_service.py:94`
+    有等價覆蓋）；守門順序測試與 422 regression 重複整份 detail dict 字面
+    （文案改動會紅兩支）——留給最終 review 裁量
+  - 既存缺陷（非本次引入，另開 issue 候選）：`api_trace_common.sh` 的
+    `systograph_create_demo_mapping`/`systograph_first_unmapped_id` 讀
+    v1-only 欄位，mapping 類 trace scripts 在 v2 下會死在 jq
+- [x] **2b Plan 05**：✅ 完成（commits `b31cf4e`/`4b9333e`，review Approved
+  無 Critical/Important）。140-*.md 已標 superseded；`tests/web/
+  test_retired_endpoints.py` 設立為退役 regression 共用檔；CLI validate-map
+  實跑確認能力未流失。測試 1135 passed / 1 skipped。
+  - 待辦路由：M1+M7（session store 註解與 protocol 收斂）→ Stage 2e；
+    M2（Plan 03 的 trace_viewer_load 步驟作廢標記）→ Stage 2c；
+    M3（Plan 02 失效清單列）→ Stage 2d；M5（retired_endpoints 加 positive
+    control）→ Stage 2c；M4（plan/unfinish/README.md 索引同步）+
+    **關閉 issue #140** + CLAUDE.md `app_services.py` 過時敘述校正 →
+    Stage 5；M6（標點混用）不處理
+  - trace_all.sh 現況 12 PASS / 8 FAIL（全為既知 mapping 類 v1-only jq
+    缺陷）→ Stage 4 處理
+- [x] **2c Plan 03**：✅ 完成（commits `f15d4ea`/`b6e3c69`/`9e04802`，
+  review Approved + fix round 1 全數 ADDRESSED）。404+路由表雙 regression
+  進共用檔（含 `/api/scans` positive control，M5 落地）；`GET /api/map`
+  唯一正向覆蓋保留並改名；越界文件掃除（epic1-phase2、arch-graph 3 處，
+  reviewer 驗證 house 規則全過）。測試 1136 passed / 1 skipped。
+  - 路由給 2d：N1（API-GUIDE:347 `*_path` 敘述過寬——欄位仍在
+    `POST /api/scans` build_result）＋ `trace_map_get.sh` 檔頭措辭
+    （整檔將刪、自然解消）＋ wait_for_api 探針必換（否則全 trace 卡死）
+  - 既存（記錄）：arch-graph `systograph_architecture.md:162` 把
+    `/api/scans` 寫成 `MapBuildService.build` 入口（實際 build_from_snapshot）
+    → Stage 5 架構圖同步時修
+- [x] **2d Plan 02 Phase B**：✅ 完成（commits `f0b9ef5`/`3a819d4`/`eaef26b`，
+  review Approved with fixes → fix round 1 八項全 ADDRESSED、無新破壞）。
+  探針換 `/openapi.json`；mapping 測試補 baseline 正向投影斷言（HTTP 讀取面
+  覆蓋從 0 補回）；trace_graph_projection_qa 與 boundary gate 兩支實跑 PASS。
+  測試 1138 passed / 1 skipped。
+  - 主 agent 直接修（例外，記錄供最終 review 覆核）：Plan 02 執行註記中
+    「scans-response 投影面」承接措辭一行收窄（HTTP 層無承接者，僅剩
+    service 層 `test_map_build_service.py:172-175`）——re-review 指出、
+    一行文字級、不再燒 fix round
+  - 已知殘留（記錄）：`POST /api/scans` 回應面的正向投影斷言在 HTTP 層
+    無covering test（service 層有）；`docs/spec/features/套用確認對應
+    .feature:142` 的「GET /api/map 呼叫次數為 0」成為空轉斷言（repo 無
+    BDD runner，不紅不錯，Stage 5 sweep 裁量）
+- [x] **2e Plan 08**：✅ 完成（commit `a1ce0c6`）。Task 0 gate 確認
+  （02＝`f0b9ef5`、05＝`b31cf4e`）→ 刪 session 旁路槽（Protocol + 兩個實作
+  的欄位／兩方法／兩處 re-wrap 行）→ 刪 `ViewerPayload` 型別與兩個 re-export
+  → 檔頭註解三檔 → 驗收 grep 零命中。追加的 `projection_service` 死接線清除
+  （兩個 store 建構參數、`session_store.py` 的 `ViewerSessionService` import、
+  `app.py` 注入）一併落地。測試 1138 passed / 1 skipped（與 2d 基線逐項一致，
+  死碼清除無新測試）。
+  - 死碼清除無紅測試可寫，安全網取「刪除前後全套測試不變」；`tests/` grep
+    三個符號零命中，無測試需改寫。
+  - 已知殘留（記錄）：`app.state.viewer_session_service` 在注入移除後
+    **repo 內零讀取者**（僅剩 `create_app` 參數注入它）。依裁定保留 app 層
+    DI 槽，但它已是下一個候選死槽 → Stage 5 sweep 裁量。
+- 驗收：四個端點回 404 有 regression 鎖住；正式路徑行為不變；全套測試綠
+
+### Stage 3：Legacy 清理與語意收斂
+- [x] **3a Plan 06**：✅ 完成（commits `7b091ac`/`963b284`/`829fd75`，
+  review Approved → fix round 1 三項全 ADDRESSED）。三個 rollback 服務檔刪除、
+  pipeline/service 收斂單一 v2 路徑；census 8→1 筆（改標 migration_only，
+  fail-closed 雙向驗證仍在）；兩處 fixture 測試改吃靜態 v1 fixture（v1 讀取
+  路徑覆蓋保留，validate-map 實跑確認）；(A) 裁定：`operator_rollback_active`
+  保留恆 false。fix round 收斂 `canonical_output_version` 建構參數
+  （單一真相源＝`V2_SCHEMA_VERSION`），過程發現並補上 **CLI env fail-fast
+  regression**（先前根本不存在的覆蓋）。測試 1124 passed / 1 skipped
+  （帳目 27 removed / 13 added，reviewer 獨立複算吻合）。
+  - 計畫外裁量（reviewer 全數判正確）：`BuildArtifactPublisher.artifact_map`
+    參數刪除（v1 寫入能力根除）；README/API_CONTRACT 兩處假敘述修正
+  - 已知殘留（記錄）：env guard 在 core 建構子屬層次混用（pre-existing
+    模式、無測試汙染，正解是 CLI startup hook，另案）；歷史 v1 artifact
+    reload 仍正確回報 v1（fail-closed，設計行為）；新 fixture 凍結後不隨
+    scanner 演進（計畫已載明取捨）
+- [x] **3b Plan 07**：✅ 完成（commits `fb65e27`/`e927ca2`/`e6a378e`，
+  review Approved with follow-ups → fix round 1 七項全 ADDRESSED）。
+  type→plane resolver（TDD 紅→綠）；slot 誤填 regression 切換前紅證據
+  （worktree 檢出 BASE 驗證）；12 fixtures / 15 元件 / 7 移帶 / 0 掉
+  undetermined；TOML 零缺列；Playwright 前後截圖 5 張＋程式化重跑佐證；
+  lens 成員資格契約化（MODEL-CONTRACT §5.1.1＋2 條 fixture-build
+  regression）；退役索引 C3a/C6 標完成。測試 1135 passed / 1 skipped。
+  - 主 agent 直接修（一行級，記錄供最終 review）：C3b 行號 156-157、
+    MODEL-CONTRACT lens 句補 reference_node_id 分支的精確化
+  - 過程事故（已驗證完整復原）：fix round 中 `git stash pop` 誤彈 main 的
+    既存舊 stash 造成 4 檔暫時 conflict——已還原、舊 stash 未 drop、
+    re-review 確認 fix diff 無 stash 汙染。**後續一律避免 git stash pop**
+  - 已知殘留（記錄）：api_route → deployment_topology 為 catalog 忠實
+    投影（產品端若要改帶位應改 catalog／映射，不回退查表）；fixture 級
+    layer golden 斷言未加（超出計畫範圍）
+- 驗收：v2 只剩一條產出路徑；plane 與 slot 脫鉤有 regression 鎖住；
+  v1 讀取能力不變
+
+### Stage 4：scripts 全面同步 + 端到端驗證 ✅ 2026-08-07 完成
+- [x] scripts/ 逐檔盤點與新後端一致（commits `5871be8`/`b0d0632`/`493e188`）：
+  修復 8 支既存 v1-only jq 缺陷腳本（`components_by_slot`→v2、
+  `evidence[].evidence_id`、`unmapped_components[].unmapped_id`）；
+  trace_all 分母 17→18（補漏 inventory preflight）；detail-scan 預設 target
+  改 `unmapped_component`（fixture 0 components 下 `component_slot` 必
+  target_not_found）；apply lineage 補 `source_unmapped_id` 非空斷言
+  （關掉恆空假 PASS）；`--start-server` port 由 URL 推導＋fail-fast
+  （0 秒清楚報錯，部分實作 #151 Task 2/3，Task 1 測試留待）
+- [x] `bash scripts/trace_all.sh --start-server` **18/18 PASS、exit 0**
+  （隔離 state/output，真實 `~/.systograph` 零新增檔案）
+- [x] 六項 gate 全綠：pytest 1135 passed/1 skipped、ruff check、
+  ruff format --check、mypy 326 files、pnpm test 160、pnpm build ✓
+- 驗收：trace_all 端到端完整執行；六項 gate 全綠 ✅
+- **發現既存後端 bug 並另開 issue #278**（`main` 上即存在，非 #277 造成）：
+  mapping proposal decision skip_for_now/reject 一律 422（factory 不填
+  candidate 欄位被 validate_shape 擋）。trace 腳本改 demo accept 路徑並於
+  檔頭/輸出明示 #278，`--decision` 保留可重現；API-GUIDE:884 已註記。
+- review：Approved with follow-ups → fix round 1 六項 5 項 ADDRESSED、
+  M-2（scratchpad 報告一行）與 #151 Task 1 Step 2 過時敘述由主 agent
+  直接修正（記錄）。
+
+### Stage 5：架構圖 + 最終驗收 + 收尾
+- [x] 更新 `docs/work/Timmy/learn/architecture.md` ASCII 全景圖（38 hunks，
+  1087 行；Route 表重寫為 19 端點＋退役區塊、preflight 必帶、v1 寫入刪除、
+  type→plane resolver 子樹、scripts；全景圖鏈路連續無斷點，框線 python 驗證
+  零錯位）。**⚠️ 事故：learn/ 目錄先前已從磁碟消失**（gitignored 無備份，
+  約 08-06 19:10）——由 transcript 重播還原（三重驗證）後才更新；建議使用者
+  目視複核並考慮備份機制。gitignored 檔不入 commit。
+- [x] 逐項複驗 13.7 / 13.8 驗收未回退（Stage 5d：9 條全 ✅，47 個護欄測試
+  實跑零失敗，alias TOML 仍僅 context_flow，loader fail-closed 完整）
+- [x] 逐項複驗 Plans 01B/02B/03/05/06/07/08 驗收（Stage 5d：後端範圍全數
+  成立；唯一 ❌ 為 Plan 02 驗收 5b 的 API_CONTRACT 前端側——已由殘餘批次
+  `d40efcc` 改為誠實過渡態敘述）。**歸檔裁定修正：不在本 PR 搬移計畫檔**
+  （美觀性搬移不進功能 PR、避免 cross-link 腐化；03/05/06/07/08 已標 done，
+  搬移留待 merge 後由使用者執行）
+- [x] 過渡期殘留 grep 掃描（Stage 5d C 節：端點字串與 9 個已刪符號 scope 內
+  零非法命中；找到的 4 處漏網已由 `d40efcc`/`dfd8b40` 清除；CLAUDE.md
+  兩處 rollback 敘述已本機修正——該檔 gitignored）
+- [x] 最終 whole-branch review（READY-with-notes）→ fix wave `1d8f2d9`
+  （退役告示補 viewer/load＋#140 動機、API_CONTRACT build-scoped 完整
+  形狀、preflight_request_id 防誤修註解、總覽補列、錯誤體兩形狀並存）
+  → scoped re-review 5/5 ADDRESSED
+- [x] 寫最終 REP、push、開 PR（**Refs #277**——Phase A 未完不得 Closes；
+  **Closes #140**；PR 連結見 issue #277 留言；8 筆 subagent commits 缺
+  trailer 已於 PR body 註記，不 rebase）
+- 驗收：13.7/13.8 + 7 份執行計畫全部想法實現；文件與程式碼一致 ✅
+  （Stage 5d 掃描 + 最終 review 雙重確認）
+
+## 測試方式（TDD+BDD 落實）
+
+- 每個退役端點先寫「回 404」的紅測試、每個 breaking change 先寫「穩定錯誤碼」
+  的紅測試，看它紅、再動刀、看它綠。
+- 行為敘述式命名（`test_scan_without_preflight_request_id_returns_422_stable_code`
+  這類 Given/When/Then 可讀句），不寫 `test1`。
+- 遷移類改動靠既有測試網（1136 個）當回歸保護；改 fixture 不改斷言語意。
+
+## 紀錄
+
+- 每階段完成 → `docs/work/Timmy/schedule/report/2026-08-07/2026-08-07-<階段名>-REP.md`
+- 本檔為 ledger：階段完成即回填 checkbox 與 commit hash。
+
+## 階段完成紀錄（ledger）
+
+- Stage 1：`b56b260`（8 份計畫查核＋#277 回填）
+- Stage 2：`4d8f5c6`..`a1ce0c6`（01B/05/03/02B/08 五個 plan，各含
+  review + fix round；中繼 ledger `d949b9f`、REP `87c6a34`）
+- Stage 3：`7b091ac`..`e6a378e`（06/07 兩個 plan；REP+nits `9633ab8`）
+- Stage 4：`5871be8`..`493e188`（scripts v2 對齊、trace_all 18/18；
+  REP `4f7b0f0`）
+- Stage 5：`7052d1a`（收尾五項）、`d40efcc`（殘餘批次 11 項）、
+  `dfd8b40`（arch-graph v1 敘述）＋ architecture.md（gitignored 不入
+  commit）＋最終驗收掃描（stage5d-acceptance.md）

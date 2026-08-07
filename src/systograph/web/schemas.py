@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -19,7 +18,7 @@ from systograph.core.models.inventory_selection import (
     InventorySelectionSummary,
     InventoryTargetKind,
 )
-from systograph.core.models.map_build import MapBuildRequest, MapBuildResult
+from systograph.core.models.map_build import MapBuildResult
 from systograph.core.models.mapping import (
     ManualMapping,
     ManualMappingCreate,
@@ -37,37 +36,13 @@ from systograph.core.models.scan_boundary import (
     ScanBoundaryProposal,
 )
 from systograph.core.models.system_map import DetailScanResult
-from systograph.core.models.viewer import ViewerLoadResult, ViewerPayload
+from systograph.core.models.viewer import ViewerLoadResult
 
 
 class WebSchema(BaseModel):
     """Base schema that rejects silent API contract drift."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
-
-
-class MapBuildApiRequest(WebSchema):
-    project_path: str
-    output: str = "outputs"
-    redact_root_path: bool = True
-    no_snippets: bool = False
-    system_map_schema_version: Literal[
-        "ai-system-map/v1",
-        "ai-system-map/v2",
-    ] = "ai-system-map/v2"
-
-    def to_core_request(self) -> MapBuildRequest:
-        return MapBuildRequest(
-            project_path=Path(self.project_path),
-            output=Path(self.output),
-            redact_root_path=self.redact_root_path,
-            no_snippets=self.no_snippets,
-            system_map_schema_version=self.system_map_schema_version,
-        )
-
-
-class ViewerLoadMapRequest(WebSchema):
-    map_json_path: str
 
 
 class ProjectImportRequest(WebSchema):
@@ -230,7 +205,22 @@ class ScanCreateRequest(WebSchema):
     boundary_decisions: list[ScanBoundaryDecisionRequest] = Field(
         default_factory=list
     )
-    preflight_request_id: str | None = None
+    # Contract note: this field must stay optional in the schema. Making it
+    # pydantic-required (`Field(...)`) hands rejection to FastAPI, which
+    # answers a missing ticket with its own 422 validation array and so
+    # replaces the stable `preflight_request_id_required` error body raised
+    # by `scan_routes.create_scan` — a body that three tests in
+    # `tests/web/test_project_scan_routes.py` pin field by field. The guard
+    # belongs at the route, never here.
+    preflight_request_id: str | None = Field(
+        default=None,
+        description=(
+            "Contractually required for POST /api/scans. Optional in the "
+            "schema on purpose: the route guards it so a missing ticket "
+            "returns the stable preflight_request_id_required error code "
+            "instead of a FastAPI validation array."
+        ),
+    )
 
 
 class ScanCreateResponse(WebSchema):
@@ -408,7 +398,6 @@ class MappingProposalListResponse(WebSchema):
 __all__ = [
     "DetailScanCreateRequest",
     "DetailScanResponse",
-    "MapBuildApiRequest",
     "MapBuildResult",
     "ManualMapping",
     "ManualMappingCreate",
@@ -427,6 +416,4 @@ __all__ = [
     "ScanCreateResponse",
     "ScanProgressEvent",
     "TraceCreateRequest",
-    "ViewerLoadMapRequest",
-    "ViewerPayload",
 ]

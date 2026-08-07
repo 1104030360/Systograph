@@ -24,9 +24,6 @@ from systograph.core.services.canonical_map_loader import (
 from systograph.core.services.canonical_output_configuration import (
     CanonicalOutputConfigurationError,
 )
-from systograph.core.services.legacy_v1_rollback_service import (
-    LegacyV1RollbackError,
-)
 from systograph.core.services.map_build_service import MapBuildService
 from systograph.core.services.rag_template_service import RagTemplateService
 from systograph.web.app import create_app
@@ -35,7 +32,6 @@ from systograph.web.app import create_app
 def _build(
     tmp_path: Path,
     *,
-    service: MapBuildService | None = None,
     request: MapBuildRequest | None = None,
 ) -> MapBuildResult:
     snapshot = ScanSnapshot(
@@ -45,7 +41,7 @@ def _build(
         inventory_digest="sha256:v2-cutover",
         scan_result=ProjectScanResult(),
     )
-    return (service or MapBuildService()).build_from_snapshot(
+    return MapBuildService().build_from_snapshot(
         snapshot,
         request=request or MapBuildRequest(project_path=tmp_path / "project"),
         output_run=OutputRun(root_dir=tmp_path / "build"),
@@ -264,60 +260,27 @@ def test_unknown_schema_version_uses_stable_cutover_error_code() -> None:
         CanonicalMapLoader().load({"schema_version": "ai-system-map/v999"})
 
 
-def test_operator_v1_rollback_writes_one_v1_artifact_but_returns_v2(
+def test_build_publishes_exactly_one_canonical_v2_map_json(
     tmp_path: Path,
 ) -> None:
-    # Given
-    service = MapBuildService(canonical_output_version="ai-system-map/v1")
+    """The single write path emits one canonical artifact.
 
-    # When
-    result = _build(tmp_path, service=service)
-    assert result.map_json_path is not None
-    artifact = json.loads(result.map_json_path.read_text(encoding="utf-8"))
+    Given the only remaining build path,
+    When a snapshot is built,
+    Then exactly one ai_system_map.json is published and it is v2, with
+    no sibling artifact left over from a second writer.
+    """
+    # Given / When
+    result = _build(tmp_path)
 
     # Then
-    assert artifact["schema_version"] == "ai-system-map/v1"
-    assert result.ai_system_map is not None
-    assert result.ai_system_map.schema_version == "ai-system-map/v2"
-    assert result.ai_system_map.source_schema_version == "ai-system-map/v1"
-    assert result.active_schema_version == "ai-system-map/v1"
-    assert result.source_schema_version == "ai-system-map/v1"
-    assert result.operator_rollback_active is True
-    assert "operator_rollback_active" in result.migration_warnings
+    assert result.map_json_path is not None
+    artifact = json.loads(result.map_json_path.read_text(encoding="utf-8"))
+    assert artifact["schema_version"] == "ai-system-map/v2"
     json_names = [
         path.name for path in result.map_json_path.parent.glob("*.json")
     ]
     assert json_names.count("ai_system_map.json") == 1
-
-
-def test_operator_env_rollback_writes_the_v1_artifact(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The env-driven rollback keeps its lazily built writer graph.
-
-    Given SYSTOGRAPH_CANONICAL_OUTPUT_VERSION selecting the legacy version,
-    When a default MapBuildService builds a snapshot,
-    Then the rollback writer is still constructed and emits one v1
-    artifact while the returned map stays v2.
-    """
-    # Given
-    monkeypatch.setenv(
-        "SYSTOGRAPH_CANONICAL_OUTPUT_VERSION",
-        "ai-system-map/v1",
-    )
-
-    # When
-    result = _build(tmp_path)
-
-    # Then
-    assert result.operator_rollback_active is True
-    assert result.active_schema_version == "ai-system-map/v1"
-    assert result.map_json_path is not None
-    artifact = json.loads(result.map_json_path.read_text(encoding="utf-8"))
-    assert artifact["schema_version"] == "ai-system-map/v1"
-    assert result.ai_system_map is not None
-    assert result.ai_system_map.schema_version == "ai-system-map/v2"
 
 
 def test_public_v1_selection_fails_before_writing_artifacts(
@@ -341,6 +304,57 @@ def test_public_v1_selection_fails_before_writing_artifacts(
     assert not (tmp_path / "build").exists()
 
 
+def test_operator_env_v1_fails_before_writing_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The legacy env value is no longer an escape hatch to a v1 build.
+
+    Given SYSTOGRAPH_CANONICAL_OUTPUT_VERSION set to the legacy version,
+    When a default MapBuildService builds a snapshot,
+    Then construction fails with the stable
+    invalid_canonical_output_version code and no artifact is written.
+    """
+    # Given
+    monkeypatch.setenv(
+        "SYSTOGRAPH_CANONICAL_OUTPUT_VERSION",
+        "ai-system-map/v1",
+    )
+
+    # When
+    raised = pytest.raises(
+        CanonicalOutputConfigurationError,
+        match="invalid_canonical_output_version",
+    )
+
+    # Then
+    with raised:
+        _build(tmp_path)
+    assert not (tmp_path / "build").exists()
+
+
+def test_operator_env_v1_prevents_app_startup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Web app refuses to start in the removed rollback mode.
+
+    Given SYSTOGRAPH_CANONICAL_OUTPUT_VERSION set to the legacy version,
+    When the FastAPI app is created,
+    Then startup fails with invalid_canonical_output_version, so no
+    process can serve requests in a mode that no longer exists.
+    """
+    monkeypatch.setenv(
+        "SYSTOGRAPH_CANONICAL_OUTPUT_VERSION",
+        "ai-system-map/v1",
+    )
+
+    with pytest.raises(
+        CanonicalOutputConfigurationError,
+        match="invalid_canonical_output_version",
+    ):
+        create_app()
+
+
 def test_invalid_operator_version_prevents_app_startup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -356,33 +370,41 @@ def test_invalid_operator_version_prevents_app_startup(
         create_app()
 
 
-def test_operator_rollback_rejects_native_v2_enrichment_without_output(
+def test_enriched_map_build_publishes_a_v2_child_build(
     tmp_path: Path,
 ) -> None:
+    """The enriched-map entry point has one behaviour, not two.
+
+    Given a normal build whose canonical map is then enriched,
+    When a child build is published from that map,
+    Then it succeeds as a v2 build; the removed rollback branch no
+    longer refuses this path with a legacy_rollback_* code.
+    """
+    # Given
     normal = _build(tmp_path)
     assert normal.ai_system_map is not None
     snapshot = ScanSnapshot(
-        project_id="project:rollback-preflight",
-        scan_id="scan:rollback-preflight",
+        project_id="project:enriched-child",
+        scan_id="scan:v2-cutover",
         generated_at=datetime(2026, 7, 17, tzinfo=UTC),
-        inventory_digest="sha256:rollback-preflight",
+        inventory_digest="sha256:enriched-child",
         scan_result=ProjectScanResult(),
     )
-    output_dir = tmp_path / "rollback-build"
+    output_dir = tmp_path / "child-build"
 
-    with pytest.raises(
-        LegacyV1RollbackError,
-        match="legacy_rollback_not_representable",
-    ):
-        MapBuildService(
-            canonical_output_version="ai-system-map/v1"
-        ).build_from_enriched_map(
-            snapshot,
-            system_map=normal.ai_system_map,
-            capability_candidates=(),
-            request=MapBuildRequest(project_path=tmp_path),
-            output_run=OutputRun(root_dir=output_dir),
-            based_on_build_id="build:parent",
-        )
+    # When
+    child = MapBuildService().build_from_enriched_map(
+        snapshot,
+        system_map=normal.ai_system_map,
+        capability_candidates=(),
+        request=MapBuildRequest(project_path=tmp_path),
+        output_run=OutputRun(root_dir=output_dir),
+        based_on_build_id="build:v2-cutover",
+    )
 
-    assert not output_dir.exists()
+    # Then
+    assert child.status == "ok"
+    assert child.active_schema_version == "ai-system-map/v2"
+    assert child.operator_rollback_active is False
+    assert child.ai_system_map is not None
+    assert child.ai_system_map.schema_version == "ai-system-map/v2"
