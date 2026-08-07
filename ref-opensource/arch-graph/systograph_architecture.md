@@ -263,8 +263,9 @@ CLI path   uv run systograph map <project_path>
   profile attachment 上 `string[]` 的 System-2）不得互相替代。
 - **靜態執行 artifacts 不是 runtime 證據**：用語必須是 "static evidence suggests"，
   不得說 "executed" / "traversed"。
-- **Schema**：`ai-system-map.v2` 是 active public schema；v1 只用於讀取／遷移與預設關閉的
-  operator rollback（公開請求選 v1 會得到 `legacy_output_not_selectable`）。
+- **Schema**：`ai-system-map.v2` 是 active public schema；v1 只用於讀取／遷移
+  （寫入路徑已於 2026-08-07 移除；公開請求選 v1 會得到
+  `legacy_output_not_selectable`）。
 
 ---
 
