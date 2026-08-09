@@ -5,7 +5,7 @@ import { ArchitectureMap } from "./components/ArchitectureMap";
 import { ArchitectureInfoDialog } from "./components/ArchitectureInfoDialog";
 import { ArchitectureViewNav } from "./components/ArchitectureViewNav";
 import { ChatPanel } from "./components/ChatPanel";
-import { BoundaryDecisionModal, decisionsForBoundary } from "./components/BoundaryDecisionModal";
+import { BoundaryDecisionModal } from "./components/BoundaryDecisionModal";
 import { BuildHistoryMenu } from "./components/BuildHistoryMenu";
 import { DataSourceControl } from "./components/DataSourceControl";
 import { DetailPanel } from "./components/DetailPanel";
@@ -21,15 +21,15 @@ import { viewerPayload as sampleViewerPayload } from "./data/sampleMap";
 import { BrandMark } from "./icons/BrandMark";
 import { useMapBuilds } from "./hooks/useMapBuilds";
 import { useDismissibleDetails } from "./hooks/useDismissibleDetails";
+import { useProjectScanFlow } from "./hooks/useProjectScanFlow";
 import { useScanProgress } from "./hooks/useScanProgress";
 import { useTheme } from "./hooks/useTheme";
 import { useTraceReplay } from "./hooks/useTraceReplay";
 import { useViewerPayload } from "./hooks/useViewerPayload";
 import { extractMappingCompleteness } from "./contracts/viewer";
-import { importProject, startProjectScan } from "./services/projectScanApi";
-import { loadApiViewerPayload } from "./services/viewerApi";
+import { loadLatestMapBuild } from "./services/mapBuildApi";
 import { useViewerStore } from "./store/viewerStore";
-import type { GraphViewModel, ProjectImportResponse, ScanBoundaryAction, ScanBoundaryProposal, Selection } from "./types";
+import type { GraphViewModel, Selection } from "./types";
 import { buildArchitectureViews, type ArchitectureViewId } from "./utils/architectureViews";
 import { hasBackendPlaneProjection } from "./utils/planes";
 import { resolveTraceHighlight } from "./utils/trace";
@@ -115,11 +115,6 @@ export default function App() {
   const [activeArchitectureView, setActiveArchitectureView] = useState<ArchitectureViewId>("overview");
   const [nodeSearch, setNodeSearch] = useState("");
   const [projectPath, setProjectPath] = useState("");
-  const [projectSession, setProjectSession] = useState<ProjectImportResponse | null>(null);
-  const [pendingBoundary, setPendingBoundary] = useState<ScanBoundaryProposal[]>([]);
-  const [boundaryDecisions, setBoundaryDecisions] = useState<Record<string, ScanBoundaryAction>>({});
-  const [scanBusy, setScanBusy] = useState(false);
-  const [scanFlowError, setScanFlowError] = useState<string | undefined>();
   // Mapping Profile is a build-scoped read-only dialog. Mapping Proposal stays
   // a separate workflow and is not inferred from profile findings.
   const [view, setView] = useState<"viewer" | "scan-template">("viewer");
@@ -172,129 +167,60 @@ export default function App() {
   });
 
   const completeScanFlow = useCallback(
-    async (projectId: string) => {
-      const freshPayload = await loadApiViewerPayload(apiBaseUrl, undefined, projectId);
-      queryClient.setQueryData(["viewer-load-result", "api", apiBaseUrl, projectId, null], freshPayload);
-      void queryClient.invalidateQueries({ queryKey: ["map-builds"] });
+    async (projectId: string, isCurrent: () => boolean) => {
+      // Inventory Scan success is project/build scoped. Do not fall through to
+      // the process-wide /api/map compatibility route.
+      const latest = await loadLatestMapBuild(apiBaseUrl, projectId);
+      // A cancel or a newly started scan during the fetch above owns the
+      // session now; publishing this build would point the viewer at the
+      // previous project.
+      if (!isCurrent()) return;
+      queryClient.setQueryData(["viewer-load-result", "api", apiBaseUrl, projectId, null], latest.payload);
+      void queryClient.invalidateQueries({ queryKey: ["map-builds", apiBaseUrl, projectId] });
       setActiveProjectId(projectId);
       setActiveBuildId(null);
       setDataSourceMode("api");
-      setProgressRunning(false);
-      setLiveProgressEvent({
-        event: "scan_progress",
-        status: "completed",
-        stage: "map",
-        message: "Scan completed. Loading map.",
-        percent: 100,
-      });
     },
-    [apiBaseUrl, queryClient, setActiveBuildId, setActiveProjectId, setDataSourceMode, setLiveProgressEvent, setProgressRunning],
+    [apiBaseUrl, queryClient, setActiveBuildId, setActiveProjectId, setDataSourceMode],
   );
 
-  const runScan = useCallback(
-    async (session: ProjectImportResponse, decisions: ReturnType<typeof decisionsForBoundary> = []) => {
-      setScanBusy(true);
-      setScanFlowError(undefined);
+  const handleProjectScanProgress = useCallback(
+    (progress: {
+      running: boolean;
+      stage: string;
+      message: string;
+      percent: number;
+      status: "running" | "waiting" | "completed" | "error";
+    }) => {
+      // The progress strip can describe import/preflight while SSE is enabled
+      // only for the actual scan stage.
+      setProgressRunning(progress.running && progress.stage === "scan");
       setLiveProgressEvent({
         event: "scan_progress",
-        status: "running",
-        stage: "scan",
-        message: "Scanning project.",
-        percent: 30,
+        status: progress.status,
+        stage: progress.stage,
+        message: progress.message,
+        percent: progress.percent,
       });
-
-      try {
-        const response = await startProjectScan(apiBaseUrl, {
-          projectId: session.project_id,
-          boundaryDecisions: decisions,
-        });
-
-        if (response.status === "requires_boundary_decision") {
-          setPendingBoundary(response.boundary_proposals);
-          setBoundaryDecisions({});
-          setLiveProgressEvent({
-            event: "scan_progress",
-            status: "running",
-            stage: "boundary",
-            message: "Waiting for scan boundary review.",
-            percent: 10,
-          });
-          return;
-        }
-
-        if (response.status === "error") {
-          setScanFlowError("Scan finished with an error. Check the backend report or logs for details.");
-          setProgressRunning(false);
-          setLiveProgressEvent({
-            event: "scan_progress",
-            status: "error",
-            stage: "scan",
-            message: "Scan finished with an error.",
-            percent: 100,
-          });
-          return;
-        }
-
-        setPendingBoundary([]);
-        setBoundaryDecisions({});
-        await completeScanFlow(session.project_id);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        setScanFlowError(message);
-        setProgressRunning(false);
-        setLiveProgressEvent({
-          event: "scan_progress",
-          status: "error",
-          stage: "scan",
-          message,
-          percent: 100,
-        });
-      } finally {
-        setScanBusy(false);
-      }
     },
-    [apiBaseUrl, completeScanFlow, setLiveProgressEvent, setProgressRunning],
+    [setLiveProgressEvent, setProgressRunning],
   );
+
+  const scanFlow = useProjectScanFlow({
+    apiBaseUrl,
+    onCompleted: async (projectId, _response, isCurrent) => {
+      await completeScanFlow(projectId, isCurrent);
+    },
+    onProgress: handleProjectScanProgress,
+  });
 
   const handleStartScan = useCallback(async () => {
     const path = projectPath.trim();
     if (!path) return;
 
-    setScanBusy(true);
-    setScanFlowError(undefined);
     setDataSourceMode("api");
-    setProgressRunning(true);
-    setLiveProgressEvent({
-      event: "scan_progress",
-      status: "running",
-      stage: "project",
-      message: "Importing project.",
-      percent: 5,
-    });
-
-    try {
-      const session = await importProject(apiBaseUrl, path);
-      setProjectSession(session);
-      await runScan(session);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setScanFlowError(message);
-      setProgressRunning(false);
-      setLiveProgressEvent({
-        event: "scan_progress",
-        status: "error",
-        stage: "project",
-        message,
-        percent: 100,
-      });
-      setScanBusy(false);
-    }
-  }, [apiBaseUrl, projectPath, runScan, setDataSourceMode, setLiveProgressEvent, setProgressRunning]);
-
-  const handleBoundarySubmit = useCallback(async () => {
-    if (!projectSession) return;
-    await runScan(projectSession, decisionsForBoundary(pendingBoundary, boundaryDecisions));
-  }, [boundaryDecisions, pendingBoundary, projectSession, runScan]);
+    await scanFlow.start(path);
+  }, [projectPath, scanFlow, setDataSourceMode]);
 
   const handleResetView = useCallback(() => {
     setActiveArchitectureView("overview");
@@ -374,9 +300,9 @@ export default function App() {
             apiBaseUrl={apiBaseUrl}
             projectPath={projectPath}
             isLoading={payloadQuery.isFetching}
-            isScanning={scanBusy}
+            isScanning={scanFlow.isBusy}
             error={sourceError}
-            scanError={scanFlowError}
+            scanError={scanFlow.externalError}
             onModeChange={setDataSourceMode}
             onApiBaseUrlChange={setApiBaseUrl}
             onProjectPathChange={setProjectPath}
@@ -598,25 +524,23 @@ export default function App() {
         <ArchitectureInfoDialog graph={graph} onClose={() => setArchitectureInfoOpen(false)} />
       ) : null}
 
-      {pendingBoundary.length > 0 ? (
+      {scanFlow.dialogOpen ? (
         <BoundaryDecisionModal
-          proposals={pendingBoundary}
-          decisions={boundaryDecisions}
-          isSubmitting={scanBusy}
-          error={scanFlowError}
-          onDecisionChange={(proposalId, decision) =>
-            setBoundaryDecisions((current) => ({ ...current, [proposalId]: decision }))
-          }
-          onSubmit={() => void handleBoundarySubmit()}
-          onCancel={() => {
-            setPendingBoundary([]);
-            setBoundaryDecisions({});
-            setScanBusy(false);
-            // Cancelling the boundary review abandons this scan run: stop the
-            // progress stream and return the strip to its idle state.
-            setProgressRunning(false);
-            setLiveProgressEvent(null);
-          }}
+          status={scanFlow.status}
+          preflight={scanFlow.preflight}
+          decisions={scanFlow.decisionsByIdentity}
+          requestedPaths={scanFlow.requestedPaths}
+          missingRequiredCount={scanFlow.missingRequiredCount}
+          error={scanFlow.error}
+          notice={scanFlow.notice}
+          isBusy={scanFlow.isBusy}
+          onDecisionChange={scanFlow.setDecision}
+          onCheckPath={(path) => void scanFlow.checkPath(path)}
+          onRemoveRequestedPath={(path) => void scanFlow.removeRequestedPath(path)}
+          onLoadMore={() => void scanFlow.loadMore()}
+          onRetryPreflight={() => void scanFlow.retryPreflight()}
+          onSubmit={() => void scanFlow.submit()}
+          onCancel={scanFlow.cancel}
         />
       ) : null}
 

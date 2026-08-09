@@ -1,14 +1,24 @@
-import { apiErrorSchema } from "../types";
+import { apiErrorSchema, typedApiErrorDetailSchema } from "../types";
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 export class ApiRequestError extends Error {
   status?: number;
+  code?: string;
+  retryable?: boolean;
+  context?: Record<string, unknown> | null;
 
-  constructor(message: string, status?: number) {
+  constructor(
+    message: string,
+    status?: number,
+    detail?: { code: string; retryable: boolean; context?: Record<string, unknown> | null },
+  ) {
     super(message);
     this.name = "ApiRequestError";
     this.status = status;
+    this.code = detail?.code;
+    this.retryable = detail?.retryable;
+    this.context = detail?.context;
   }
 }
 
@@ -39,7 +49,8 @@ export async function fetchJson(
     });
 
     if (!response.ok) {
-      throw new ApiRequestError(await errorMessage(response), response.status);
+      const error = await responseError(response);
+      throw new ApiRequestError(error.message, response.status, error.detail);
     }
 
     return response.json();
@@ -58,12 +69,26 @@ export async function fetchJson(
   }
 }
 
-async function errorMessage(response: Response) {
+async function responseError(response: Response): Promise<{
+  message: string;
+  detail?: { code: string; retryable: boolean; context?: Record<string, unknown> | null };
+}> {
   try {
     const payload = apiErrorSchema.parse(await response.json());
-    if (typeof payload.detail === "string") return payload.detail;
+    if (typeof payload.detail === "string") return { message: payload.detail };
+    const typedDetail = typedApiErrorDetailSchema.safeParse(payload.detail);
+    if (typedDetail.success) {
+      return {
+        message: typedDetail.data.message,
+        detail: {
+          code: typedDetail.data.code,
+          retryable: typedDetail.data.retryable,
+          context: typedDetail.data.context,
+        },
+      };
+    }
   } catch {
     // Fall through to status text when the error body is not JSON.
   }
-  return `${response.status} ${response.statusText}`;
+  return { message: `${response.status} ${response.statusText}` };
 }

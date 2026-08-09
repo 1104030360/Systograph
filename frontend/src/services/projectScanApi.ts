@@ -1,14 +1,26 @@
 import {
   projectImportResponseSchema,
+  scanCreateRequestSchema,
   scanCreateResponseSchema,
+  scanInventoryPreflightRequestSchema,
+  scanInventoryPreflightResponseSchema,
   type ProjectImportResponse,
   type ScanBoundaryDecision,
   type ScanCreateResponse,
+  type ScanInventoryPreflightResponse,
 } from "../types";
 import { fetchJson, normalizeBaseUrl } from "./http";
 
-type StartScanOptions = {
+export type CreateScanPreflightOptions = {
   projectId: string;
+  requestedPaths?: string[];
+  reviewableExcludedCursor?: string | null;
+  reviewableExcludedLimit?: number;
+};
+
+export type StartScanOptions = {
+  projectId: string;
+  preflightRequestId: string;
   boundaryDecisions?: ScanBoundaryDecision[];
 };
 
@@ -24,14 +36,38 @@ export async function importProject(baseUrl: string, projectPath: string): Promi
   return projectImportResponseSchema.parse(payload);
 }
 
+export async function createScanPreflight(
+  baseUrl: string,
+  options: CreateScanPreflightOptions,
+): Promise<ScanInventoryPreflightResponse> {
+  const request = scanInventoryPreflightRequestSchema.parse({
+    scan_depth: "system",
+    requested_paths: options.requestedPaths ?? [],
+    reviewable_excluded_cursor: options.reviewableExcludedCursor ?? null,
+    reviewable_excluded_limit: options.reviewableExcludedLimit ?? 100,
+  });
+  const payload = await fetchJson(
+    `${normalizeBaseUrl(baseUrl)}/api/projects/${encodeURIComponent(options.projectId)}/scan-preflights`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    },
+  );
+  return scanInventoryPreflightResponseSchema.parse(payload);
+}
+
 export async function startProjectScan(baseUrl: string, options: StartScanOptions): Promise<ScanCreateResponse> {
+  const request = scanCreateRequestSchema.parse({
+    project_id: options.projectId,
+    scan_depth: "system",
+    preflight_request_id: options.preflightRequestId,
+    boundary_decisions: options.boundaryDecisions ?? [],
+  });
   const payload = await fetchJson(`${normalizeBaseUrl(baseUrl)}/api/scans`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      project_id: options.projectId,
-      boundary_decisions: options.boundaryDecisions ?? [],
-    }),
+    body: JSON.stringify(request),
   });
   return scanCreateResponseSchema.parse(payload);
 }
