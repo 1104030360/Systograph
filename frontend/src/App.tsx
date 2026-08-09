@@ -518,6 +518,9 @@ export default function App() {
         <ReadinessPanel
           report={payload.viewer_load_result.readiness_report}
           graph={graph}
+          apiBaseUrl={apiBaseUrl}
+          mapReportEnabled={dataSourceMode === "api"}
+          isHistoricalBuild={dataSourceMode === "api" && activeBuildId != null}
           onClose={() => setReadinessOpen(false)}
         />
       ) : null}

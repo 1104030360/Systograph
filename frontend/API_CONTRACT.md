@@ -178,7 +178,6 @@ This endpoint closes only part of issue #219. The `.mmd` renders
 build-scoped envelope (#219 is what makes the response carry refs; their shape
 is defined by Plan 06), and the in-app artifact preview UI are still OPEN: the
 whitelist has one row, so there is no build-scoped way to fetch a `.mmd` yet.
-
 ## Project-Scoped Scan Flow
 
 The API mode can start a scan from a local project path. The frontend first imports the project path, then starts a scan with the returned project id. This is the only HTTP path that scans a project from scratch. `POST /api/detail-scans` and `POST /api/map-builds/{base_build_id}/apply` also mint new build ids, but both work inside an existing `scan_id` rather than starting a new scan.

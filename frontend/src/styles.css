@@ -1334,6 +1334,7 @@ h1, h2, h3 { margin: 0; }
   color: var(--text-3); font-size: var(--fs-sm); cursor: pointer;
 }
 .readiness-view-tabs button:hover { color: var(--text); background: var(--surface-2); }
+.readiness-view-tabs button:disabled { opacity: 0.45; cursor: default; }
 .readiness-view-tabs button.is-active { border-color: var(--line); background: var(--surface); color: var(--text); }
 .readiness-markdown-document {
   max-width: 680px; margin: 0 auto; padding: 28px 32px;
@@ -1355,6 +1356,26 @@ h1, h2, h3 { margin: 0; }
   overflow: auto; border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--surface); color: var(--text-2); font-family: var(--mono); font-size: 12px; line-height: 1.65; white-space: pre-wrap;
 }
+.readiness-map-report-view { display: grid; gap: 14px; }
+.readiness-map-report-view .readiness-sample-note {
+  border: 1px solid color-mix(in srgb, var(--dr-orange) 30%, var(--line));
+  border-radius: var(--radius-sm);
+}
+.readiness-map-report-actions { display: flex; justify-content: flex-end; }
+.readiness-map-report-actions .btn { text-decoration: none; }
+.readiness-map-report-state {
+  min-height: 180px; padding: 28px;
+  display: flex; align-items: flex-start; justify-content: center; gap: 10px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--text-3); font-size: var(--fs-sm); line-height: 1.5;
+}
+.readiness-map-report-state svg { flex: none; margin-top: 2px; }
+.readiness-map-report-state div { display: grid; gap: 5px; max-width: 480px; }
+.readiness-map-report-state strong { color: var(--text); }
+.readiness-map-report-state p { margin: 0; }
+.readiness-map-report-state .btn { width: max-content; margin-top: 5px; }
+.readiness-map-report-state.is-warning svg { color: var(--dr-orange); }
+.readiness-map-report-state.is-error svg { color: var(--error); }
 .readiness-summary { display: flex; align-items: center; gap: var(--space-2); }
 .readiness-static-note { font-size: var(--fs-sm); color: var(--text-3); }
 .readiness-empty {

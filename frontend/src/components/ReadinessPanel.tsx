@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleSlash2, ClipboardCheck, Eye, FileText, FlaskConical, X } from "lucide-react";
+import {
+  AlertTriangle,
+  CircleSlash2,
+  ClipboardCheck,
+  Download,
+  Eye,
+  FileText,
+  FlaskConical,
+  LoaderCircle,
+  RefreshCw,
+  X,
+} from "lucide-react";
 import {
   readinessReportSchema,
   type ReadinessFinding,
@@ -7,12 +18,20 @@ import {
 } from "../contracts/viewer";
 import type { GraphViewModel } from "../types";
 import { titleCase } from "../utils/format";
+import {
+  loadMapReport,
+  mapReportDownloadUrl,
+  MapReportUnavailableError,
+} from "../services/mapReportApi";
 
 type Props = {
   /** Raw backend readiness report; unsupported payloads never become findings. */
   report: Record<string, unknown> | null;
   graph: GraphViewModel;
   onClose: () => void;
+  apiBaseUrl?: string;
+  mapReportEnabled?: boolean;
+  isHistoricalBuild?: boolean;
 };
 
 const SAMPLE_READINESS_REPORT: ReadinessReport = {
@@ -167,11 +186,142 @@ function RenderedReport({ report, graph }: { report: ReadinessReport; graph: Gra
   );
 }
 
-export function ReadinessPanel({ report, graph, onClose }: Props) {
+type MapReportState =
+  | { status: "loading" }
+  | { status: "loaded"; markdown: string }
+  | { status: "missing" }
+  | { status: "error" };
+
+function LatestMapReport({
+  apiBaseUrl,
+  enabled,
+  isHistoricalBuild,
+}: {
+  apiBaseUrl: string;
+  enabled: boolean;
+  isHistoricalBuild: boolean;
+}) {
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<MapReportState>({ status: "loading" });
+
+  useEffect(() => {
+    if (!enabled || isHistoricalBuild) return;
+
+    const controller = new AbortController();
+    setState({ status: "loading" });
+    void loadMapReport(apiBaseUrl, controller.signal)
+      .then((markdown) => {
+        if (!controller.signal.aborted) setState({ status: "loaded", markdown });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setState(
+          error instanceof MapReportUnavailableError
+            ? { status: "missing" }
+            : { status: "error" },
+        );
+      });
+
+    return () => controller.abort();
+  }, [apiBaseUrl, attempt, enabled, isHistoricalBuild]);
+
+  if (!enabled) {
+    return (
+      <div className="readiness-empty" role="status">
+        <CircleSlash2 aria-hidden="true" size={16} />
+        <p>The backend-published latest scan report is available only in API mode.</p>
+      </div>
+    );
+  }
+
+  if (isHistoricalBuild) {
+    return (
+      <div className="readiness-map-report-state is-warning" role="alert">
+        <AlertTriangle aria-hidden="true" size={18} />
+        <div>
+          <strong>Latest report is disabled while viewing a historical build.</strong>
+          <p>
+            The current endpoint returns the backend process&apos;s latest scan report, not the build
+            shown here. Return to Latest before previewing or downloading it.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.status === "loading") {
+    return (
+      <div className="readiness-map-report-state" role="status" aria-live="polite">
+        <LoaderCircle className="spin" aria-hidden="true" size={18} />
+        <p>Loading the latest scan report…</p>
+      </div>
+    );
+  }
+
+  if (state.status === "missing") {
+    return (
+      <div className="readiness-map-report-state" role="status">
+        <CircleSlash2 aria-hidden="true" size={18} />
+        <div>
+          <strong>No latest scan report is available yet.</strong>
+          <p>Complete a successful scan, then try again.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div className="readiness-map-report-state is-error" role="alert">
+        <AlertTriangle aria-hidden="true" size={18} />
+        <div>
+          <strong>Could not load the latest scan report.</strong>
+          <p>Check that the local API server is running, then retry.</p>
+          <button className="btn" type="button" onClick={() => setAttempt((value) => value + 1)}>
+            <RefreshCw aria-hidden="true" size={14} /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="readiness-map-report-view">
+      <div className="readiness-sample-note" role="note">
+        <AlertTriangle aria-hidden="true" size={15} />
+        <span>
+          <strong>Latest scan report.</strong> This backend endpoint is process-wide and is not tied
+          to the project or build shown in the viewer. It may belong to another project.
+        </span>
+      </div>
+      <div className="readiness-map-report-actions">
+        <a
+          className="btn primary"
+          href={mapReportDownloadUrl(apiBaseUrl)}
+          download="ai_system_map.md"
+        >
+          <Download aria-hidden="true" size={14} /> Download ai_system_map.md
+        </a>
+      </div>
+      <pre className="readiness-markdown-source" aria-label="Latest scan report Markdown">
+        {state.markdown}
+      </pre>
+    </div>
+  );
+}
+
+export function ReadinessPanel({
+  report,
+  graph,
+  onClose,
+  apiBaseUrl = "http://127.0.0.1:8000",
+  mapReportEnabled = false,
+  isHistoricalBuild = false,
+}: Props) {
   const parsed = report == null ? null : readinessReportSchema.safeParse(report);
   const isSample = report == null;
   const displayReport = parsed?.success ? parsed.data : isSample ? SAMPLE_READINESS_REPORT : null;
-  const [mode, setMode] = useState<"preview" | "source">("preview");
+  const [mode, setMode] = useState<"preview" | "source" | "map-report">("preview");
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -208,36 +358,45 @@ export function ReadinessPanel({ report, graph, onClose }: Props) {
           </div>
         ) : null}
 
-        {displayReport ? (
-          <>
-            <div className="readiness-view-tabs" role="tablist" aria-label="Readiness document view">
-              <button type="button" role="tab" aria-selected={mode === "preview"} className={mode === "preview" ? "is-active" : ""} onClick={() => setMode("preview")}>
-                <Eye aria-hidden="true" size={14} /> Preview
-              </button>
-              <button type="button" role="tab" aria-selected={mode === "source"} className={mode === "source" ? "is-active" : ""} onClick={() => setMode("source")}>
-                <FileText aria-hidden="true" size={14} /> Generated Markdown
-              </button>
+        <div className="readiness-view-tabs" role="tablist" aria-label="Readiness document view">
+          <button type="button" role="tab" aria-selected={mode === "preview"} className={mode === "preview" ? "is-active" : ""} onClick={() => setMode("preview")}>
+            <Eye aria-hidden="true" size={14} /> Preview
+          </button>
+          <button type="button" role="tab" aria-selected={mode === "source"} className={mode === "source" ? "is-active" : ""} disabled={!displayReport} onClick={() => setMode("source")}>
+            <FileText aria-hidden="true" size={14} /> Generated Markdown
+          </button>
+          <button type="button" role="tab" aria-selected={mode === "map-report"} className={mode === "map-report" ? "is-active" : ""} onClick={() => setMode("map-report")}>
+            <Download aria-hidden="true" size={14} /> Latest map report
+          </button>
+        </div>
+        <div className="readiness-body">
+          {mode === "map-report" ? (
+            <LatestMapReport
+              apiBaseUrl={apiBaseUrl}
+              enabled={mapReportEnabled}
+              isHistoricalBuild={isHistoricalBuild}
+            />
+          ) : displayReport && mode === "preview" ? (
+            <RenderedReport report={displayReport} graph={graph} />
+          ) : displayReport ? (
+            <div className="readiness-source-view">
+              <div className="readiness-sample-note" role="note">
+                <FileText aria-hidden="true" size={15} />
+                <span>
+                  This plain text is generated from the inline <code>readiness-report/v1</code>
+                  payload. The backend-published system map is a separate document under Latest map
+                  report and is not safely build-scoped yet.
+                </span>
+              </div>
+              <pre className="readiness-markdown-source">{buildReadinessMarkdown(displayReport, graph)}</pre>
             </div>
-            <div className="readiness-body">
-              {mode === "preview" ? (
-                <RenderedReport report={displayReport} graph={graph} />
-              ) : (
-                <div className="readiness-source-view">
-                  <div className="readiness-sample-note" role="note">
-                    <FileText aria-hidden="true" size={15} />
-                    <span>This plain text is generated from the inline <code>readiness-report/v1</code> payload. No standalone Markdown artifact preview or download is available without a safe build-scoped artifact endpoint.</span>
-                  </div>
-                  <pre className="readiness-markdown-source">{buildReadinessMarkdown(displayReport, graph)}</pre>
-                </div>
-              )}
+          ) : (
+            <div className="readiness-empty">
+              <CircleSlash2 aria-hidden="true" size={16} />
+              <p>The readiness report uses a contract this viewer version does not support, so findings are not shown.</p>
             </div>
-          </>
-        ) : (
-          <div className="readiness-empty">
-            <CircleSlash2 aria-hidden="true" size={16} />
-            <p>The readiness report uses a contract this viewer version does not support, so findings are not shown.</p>
-          </div>
-        )}
+          )}
+        </div>
       </section>
     </div>
   );
