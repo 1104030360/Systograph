@@ -25,14 +25,16 @@
 | 未知欄位 | 寫入類 endpoint `extra="forbid"` |
 | 錯誤格式 | `{ "detail": string }`；422 時 `detail` 為陣列 |
 | 安全錯誤 | 413/500 不回 raw secret、exception string、absolute path |
-| State | Project workflow 使用 `${SYSTOGRAPH_STATE_DIR:-~/.systograph}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復。Demo `/api/map` 仍保留 process-latest compatibility |
+| State | Project workflow 使用 `${SYSTOGRAPH_STATE_DIR:-~/.systograph}` local JSON；project、scan、build、mapping 與 latest 可跨重啟恢復 |
 
-### 兩種流程
+### 唯一流程：Project session
 
 | 流程 | 路徑 | 用途 |
 |------|------|------|
-| **Project session** | `import` → `scans` → … | 正式 workflow；detail scan / mapping / proposals 必走此路 |
-| **Viewer demo** | `map/build` → `GET /api/map` | 快速載圖；**無** `project_id`，不能接 project-scoped API |
+| **Project session** | `import` → `scans` → `map-builds/latest` | 唯一 workflow；讀圖、detail scan、mapping、proposals 全部必走此路 |
+
+讀圖一律需要 `project_id`（或指定 `build_id`）。舊的 process-wide demo surface
+——`POST /api/map/build`、`GET /api/map`、`GET /map`——已全數移除，回 `404`。
 
 > **標記：** `current` 是目前 OpenAPI 已實作；`[phase2-later]` 是後續 target。Pipeline、UA rollout、artifact 清單見 MODEL-CONTRACT；架構分層見 `epic1-phase2.md` §6。
 
@@ -50,13 +52,11 @@
 | Method | Path | 流程 | Runtime | § |
 |--------|------|------|---------|---|
 | POST | `/api/projects/import` | project | current | 1 |
+| GET | `/api/projects/{project_id}` | project | current | 1 |
+| POST | `/api/projects/{project_id}/scan-preflights` | project | current | 1 |
 | POST | `/api/scans` | project | current | 1 |
 | GET | `/api/scan/events` | project | current | 1 |
-| POST | `/api/map/build` | demo | current | 1 |
-| GET | `/api/map` | demo | current | 2 |
-| GET | `/map` | demo | current | 2 |
-| POST | `/api/viewer/load` | demo | current | 2 |
-| GET | `/api/map/report` | demo | current | 2 |
+| GET | `/api/map/report` | process-wide | current | 2 |
 | POST | `/api/detail-scans` | project | current | 3 |
 | GET | `/api/detail-scans/{id}` | project | current | 3 |
 | POST | `/api/trace` | project | current | 4 |
@@ -69,30 +69,58 @@
 | POST | `/api/map-builds/{build_id}/detail-scans` | build | **[phase2-later]** | 2 |
 | POST | `/api/map-builds/{build_id}/trace` | build | **[phase2-later]** | 2 |
 
+「流程」欄的取值：`project` 需要 `project_id`、`build` 需要 `build_id`（或 project latest
+指標）、`process-wide` 不帶任何 id，讀的是本 process 最新一次成功 build。目前只有
+`GET /api/map/report` 還是 `process-wide`，接上 build-scoped 由 issue #219 處理。
+
 ## 快速開始
 
 ```bash
 # 1. 啟動後端
 .venv/bin/uvicorn systograph.web.app:create_app --factory --host 127.0.0.1 --port 8000
 
-# 2. 一次性掃描並取得 viewer payload（最簡單的 demo 路徑）
-curl -s -X POST http://127.0.0.1:8000/api/map/build \
+# 2. 匯入專案取得 project_id
+curl -s -X POST http://127.0.0.1:8000/api/projects/import \
   -H 'Content-Type: application/json' \
-  -d '{"project_path":"/abs/path/to/rag_project"}' | jq '.status'
+  -d '{"source_type":"local_path","project_path":"/abs/path/to/rag_project"}' | jq -r '.project_id'
 
-# 3. 讀取最新地圖
-curl -s http://127.0.0.1:8000/api/map | jq '.viewer_load_result.loaded'
+# 3. 開 preflight 取得 preflight_request_id（path 中的 ":" 需 URL-encode 為 "%3A"）
+curl -s -X POST "http://127.0.0.1:8000/api/projects/project%3A<uuid>/scan-preflights" \
+  -H 'Content-Type: application/json' \
+  -d '{}' | jq -r '.preflight_request_id'
+
+# 4. 掃描（必帶 preflight_request_id；若回 requires_boundary_decision，
+#    補上 boundary_decisions 用同一張單號再送一次）
+curl -s -X POST http://127.0.0.1:8000/api/scans \
+  -H 'Content-Type: application/json' \
+  -d '{"project_id":"project:<uuid>","preflight_request_id":"preflight:<digest>"}' \
+  | jq '.status'
+
+# 5. 讀取該 project 的最新地圖（path 中的 ":" 需 URL-encode 為 "%3A"）
+curl -s "http://127.0.0.1:8000/api/projects/project%3A<uuid>/map-builds/latest" \
+  | jq '.viewer_load_result.loaded'
 ```
 
-每個 endpoint 都有對應的可執行範例腳本，例如 `scripts/trace_map_build.sh`、`scripts/trace_all.sh`（一次跑完全部）。
+> **舊的 demo surface 四支已全數移除**（皆回 `404`，由
+> `tests/web/test_retired_endpoints.py` 的 regression 鎖住）：建圖端
+> `POST /api/map/build`、讀取端 `GET /api/map` 與其 legacy fallback `GET /map`、
+> 任意路徑載圖端 `POST /api/viewer/load`（2026-08-07 移除）。
+> HTTP 建圖一律走上面的 project session 流程，讀圖一律走 build-scoped 端點；
+> 一次掃一個路徑就出圖的等價能力在 CLI `systograph map`。
+>
+> `POST /api/viewer/load` 的移除同時**就是** issue #140 path oracle 的修復：該端點
+> 拿 client 指定的 `map_json_path` 直接讀後端本機檔案，等於開放遠端探測任意本機路徑
+> 是否存在，並從錯誤回應洩漏絕對路徑與 errno。#140 選擇以**移除端點**消解風險，而不是
+> 補白名單硬化。載入既有 `ai_system_map.json` 的能力保留在 CLI
+> `systograph validate-map`——由 operator 在本機自行指定檔案，不是遠端可觸發面。
+
+19 條 route 中有 18 條有對應的可執行範例腳本（例如 `scripts/trace_scans_create.sh`；`scripts/trace_all.sh` 一次跑完全部）。唯一沒有腳本的是 `GET /api/projects/{project_id}`。
 
 ---
 
 ## 1. 專案與掃描
 
-**Project session 流程**：`import` 取得 `project_id` → `scans` 觸發掃描 → `scan/events` 看進度。後續 detail scan / mapping 都依賴此 `project_id`。
-
-**Viewer demo 捷徑**：`map/build` 一次掃 path 並更新 `/api/map`，但不建立 project session（見下方說明）。
+**Project session 流程**：`import` 取得 `project_id` → `scans` 觸發掃描 → `scan/events` 看進度。後續讀圖 / detail scan / mapping 都依賴此 `project_id`。沒有不帶 `project_id` 的捷徑。
 
 ### POST /api/projects/import
 
@@ -131,6 +159,21 @@ Response `200`：
   source_type: "local_path";
   project_name: string;
   reused: boolean;
+}
+```
+
+### GET /api/projects/{project_id}
+
+回傳 project 身分與顯示用 metadata（`project_id`、`source_type`、
+`project_name`）；**不含任何本機路徑**。查無 project 回 404
+`project_not_found`。這是 19 條 route 中唯一沒有對應 trace 腳本的端點
+（見上方註記）。
+
+```ts
+{
+  project_id: string;
+  source_type: "local_path";
+  project_name: string;
 }
 ```
 
@@ -193,7 +236,7 @@ Response 主要欄位：
 
 ### POST /api/scans
 
-帶 `preflight_request_id` 與本次 delta decisions 開始正式 scan。Backend 會重新 enumeration、
+必須帶 `preflight_request_id` 與本次 delta decisions 開始正式 scan。Backend 會重新 enumeration、
 驗證 file metadata／directory manifest、套用 `hard safety > exact file > deepest directory >
 ancestor directory > default policy`，通過 post-decision safe-open／binary probe 後才建立唯一的
 final `FileInventory`。所有 current providers 只收到這份 final allowlist；此 runtime 不呼叫 UA。
@@ -224,6 +267,10 @@ identity，並在同一file handle建立content SHA-256；snapshot保存前會�
 }
 ```
 
+`preflight_request_id` 是必填欄位：沒帶就回 422 `preflight_request_id_required`，不做任何
+enumeration、snapshot 或 build。Client 一律先呼叫 `POST /api/projects/{project_id}/scan-preflights`
+取得單號再掃描。
+
 `scan_this_run`／`skip_this_run` 只作用於這次 scan，不改 `.gitignore`、TOML 或 Manual Mapping。
 Directory decision涵蓋所有 selectable descendants；hard-blocked child仍保持 blocked，exact child
 decision優先。沒有 optional decision 時維持 Systograph default；缺 required sensitive decision 時回
@@ -235,7 +282,7 @@ Pending response 不含 `scan_id`，也沒有 snapshot/build/latest pointer：
 {
   project_id: string;
   status: "requires_boundary_decision";
-  preflight_request_id?: string;
+  preflight_request_id: string;
   build_result: null;
   boundary_proposals: ScanBoundaryProposal[];
   available_boundary_actions: ["scan_this_run", "skip_this_run"];
@@ -249,7 +296,7 @@ Completed response會回真實 `scan_id`、build與由 final audit投影的 summ
   scan_id: string;
   project_id: string;
   status: "completed" | "error";
-  preflight_request_id?: string;
+  preflight_request_id: string;
   build_result: MapBuildResult;
   inventory_selection_summary?: {
     included_file_count: number;
@@ -266,16 +313,24 @@ Completed response會回真實 `scan_id`、build與由 final audit投影的 summ
 }
 ```
 
-未傳 `preflight_request_id` 的舊 client仍可走 sensitive-file compatibility flow；該 pending
-階段同樣是 metadata-only，且只能決定 current required sensitive targets，不能藉此覆寫 soft
+Pending 階段同樣是 metadata-only，且只能決定 current required sensitive targets，不能藉此覆寫 soft
 exclusions。Apply 重用保存的 snapshot，不重新 preflight或讀 repo；Rescan必須建立新 preflight，
 不自動沿用上次 decisions。
 
-Typed error body固定為 `{detail:{code,message,retryable,context}}`。主要 code：
+本端點的 error body 有**兩種形狀並存**，前端不可假設 `detail` 一定是物件：
+
+- Typed envelope `{detail:{code,message,retryable,context}}`——preflight／inventory
+  selection 與 `preflight_request_id_required` 走這個形狀，即下表所有 code。
+- Plain-string `{"detail":"<code>"}`——retired write surface 的 fail-closed 拒絕走這個
+  形狀（`POST /api/scans` 上是 `legacy_output_not_selectable`，`scan_routes.py:170`）。
+  完整清單見 `frontend/API_CONTRACT.md` §Retired Legacy Write Surfaces。
+
+Typed envelope 的主要 code：
 
 | HTTP | code | 意義 |
 | ---: | --- | --- |
 | 404 | `project_not_found` | project不存在 |
+| 422 | `preflight_request_id_required` | `POST /api/scans` 未帶 `preflight_request_id` |
 | 409 | `inventory_preflight_stale` | candidate set已變；刷新 preflight |
 | 409 | `inventory_selection_target_missing` | target已刪除；刷新 preflight |
 | 409 | `inventory_selection_target_changed` | file metadata或directory manifest已變 |
@@ -313,92 +368,6 @@ data: {"event":"scan_progress","status":"completed","stage":"validate","message"
 
 前端依序解析 `node_id` → `edge_id` → `component_id` → `source_id` → `slot` 找出要 highlight 的目標。
 
-### POST /api/map/build
-
-All-in-one viewer / demo build：送入 path 觸發 L1 build，寫出 artifact，更新 current
-runtime 的 process-wide latest `/api/map`。
-
-Current runtime 的 Step 3 仍由現有 Systograph scan providers 執行。Phase B/C target 才改由
-UA structural sidecar 主導，並在 UA 失敗時 fail closed。
-
-> **不建立 project session**——沒有 `project_id`，build result 也不會存到 project-scoped store。若要接 `detail-scans` 或 `mapping-proposals`，請改走 `import` → `scans`。
-
-```http
-POST /api/map/build
-```
-
-```json
-{
-  "project_path": "/abs/path/to/project",
-  "output": "outputs",
-  "redact_root_path": true,
-  "no_snippets": false
-}
-```
-
-`system_map_schema_version` 是 Plan 15 前保留的 deprecated input。省略或指定
-`ai-system-map/v2` 才能正常建置；public request 指定 v1 會回 `422` +
-`legacy_output_not_selectable`。v1 rollback 不透過 request，而由 process 啟動前的 operator
-setting 控制。
-
-Current runtime response `200`（`MapBuildResult`）：
-
-```ts
-{
-  status: "ok" | "error";
-  project_name: string;
-  output_run_dir: string;
-  map_json_path: string | null;
-  map_markdown_path: string | null;
-  map_error_path: string | null;
-  profile_signals_path: string | null;
-  readiness_report_path: string | null;
-  call_graph_path: string | null;
-  dataflow_hints_path: string | null;
-  execution_paths_path: string | null;
-  evidence_table_path: string | null;
-  system_map_mermaid_path: string | null;
-  execution_map_mermaid_path: string | null;
-  viewer_load_result: ViewerLoadResult; // 見 GET /api/map
-  ai_system_map: object;                // 唯一 normalized v2 canonical truth
-  profile_inference_result: ProfileInferenceResult;
-  readiness_report: ReadinessReport;
-  active_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
-  requested_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
-  source_schema_version: "ai-system-map/v1" | "ai-system-map/v2";
-  operator_rollback_active: boolean;
-  migration_warnings: string[];
-  warnings: string[];
-  error: object | null;
-}
-```
-
-> Current runtime 的 `output_run_dir` 與 `*_path` 可能是 server-local absolute path，
-> 僅屬 compatibility contract。Phase2 target response 不得新增或延續 absolute-path 欄位。
-
-> `ai_system_map` 帶 deterministic `recommended_next_checks[]`（scan-fact checks，欄位語意
-> 見 MODEL-CONTRACT §5.3）。此欄位為 additive，缺此欄位的舊 artifact 仍可載入；但 pin 舊
-> v2 schema copy 的 strict validator 需先更新 schema copy 才能驗證新 artifact。
-
-正式 project workflow 不使用這個 demo response 當 history contract；它透過下節的
-`MapBuildScopedResponse` 回傳 scan/build lineage，且不暴露上述 absolute paths。
-Plan 06 後續才加入 safe lazy artifact refs：
-
-```ts
-type ArtifactRef = {
-  artifact_id: string;
-  artifact_type: string;
-  file_name: string; // basename only
-  media_type: string;
-  sha256: string;
-  size_bytes: number;
-};
-
-```
-
-Phase2 active contract 不另設 `snapshot_id`；同一 `scan_id` 可產生 initial、Apply 或
-Detail Scan 等多個 immutable `build_id`。
-
 ---
 
 ## 2. 地圖讀取（Viewer）
@@ -407,11 +376,11 @@ Detail Scan 等多個 immutable `build_id`。
 
 | Contract | Current S1 | Later target |
 |---|---|---|
-| Read surface | project latest / 指定 `build_id`；另保留 demo `/api/map` | 同左 |
+| Read surface | 只有 build-scoped：project latest / 指定 `build_id` | 同左 |
 | Response wrapper | `MapBuildScopedResponse` + legacy `ViewerLoadResult` | richer Graph projection + safe refs |
 | Persistence | project/scan/build/mapping local JSON repositories | 可替換 database adapter |
 | Identity | persisted `scan_id` + `build_id` | 同左 |
-| Artifacts | build-scoped response 不回 path；demo 保留 `*_path` | safe `artifact_refs` |
+| Artifacts | 讀取面不回 path：`MapBuildScopedResponse.build_result`（`Phase2MapBuildResult`）與 `ViewerLoadResult` 都只回內容。`*_path` 欄位仍存在於 `POST /api/scans` 回應的 `build_result`（core `MapBuildResult`），且是 server-local absolute path | safe `artifact_refs` |
 
 Phase2 primary endpoints（完整 surface，對齊 `epic1-phase2.md` §16）：
 
@@ -426,7 +395,7 @@ POST /api/detail-scans  // optional build_id in body
 POST /api/trace         // optional build_id in body
 ```
 
-`GET /api/map` 與 `GET /map` 僅保留 demo / legacy compatibility。Current detail scan
+Current detail scan
 與 trace 使用 request body 的 optional `build_id`；省略時採 latest fallback 並回 warning。
 Path-scoped `/api/map-builds/{build_id}/detail-scans|trace` 是 later alias target，尚未存在。
 
@@ -491,10 +460,22 @@ Readiness 對應 warning 為 `readiness_report_missing_or_invalid`。
 Manifest 會保存 `active_schema_version`、`requested_schema_version`、
 `source_schema_version`、`operator_rollback_active`、`artifact_set_version` 與
 `migration_warnings`；同一 `build_id` 在 restart 前後不得改寫這些欄位。
+`operator_rollback_active` **恆為 `false`**：v1 寫入路徑已移除，欄位僅為契約相容保留。
 
 Current build-scoped response 不包含 server-local absolute path，也尚未包含
 `artifact_refs`。Plan 06 加入 refs 後，frontend 只能依 stable artifact id/type 與受控 API
-讀取 artifact。
+讀取 artifact：
+
+```ts
+type ArtifactRef = {
+  artifact_id: string;
+  artifact_type: string;
+  file_name: string; // basename only
+  media_type: string;
+  sha256: string;
+  size_bytes: number;
+};
+```
 
 #### ViewerLoadResult 載入策略
 
@@ -544,8 +525,8 @@ Frontend **不得**重算五態、activation、Mapping Completeness。Sidecar �
 ```
 
 Apply publish 失敗時：**不得**切換 `latest_build_id`；pending confirmations 保留。
-成功的 public child build 維持 v2 request provenance；Apply 不會自行切成 v1。Operator
-rollback 若啟用，則只由 process-level setting 決定實際 artifact version並留下稽核欄位。
+成功的 public child build 維持 v2 request provenance；Apply 不會自行切成 v1——build
+只有一條 v2 產出路徑，沒有任何 setting 能讓它寫出 v1 artifact。
 
 ### POST /api/map-builds/{build_id}/detail-scans（later alias，未實作）
 
@@ -557,69 +538,11 @@ rollback 若啟用，則只由 process-level setting 決定實際 artifact versi
 對指定 build 執行 opt-in query trace overlay。Current runtime 等價路徑為 `POST /api/trace`（`project_id`）。
 Trace overlay 不得寫回 canonical map / profile artifacts。
 
-### GET /api/map（legacy / demo）
-
-Current runtime 回傳目前 process session 最新的 viewer payload。它是現行前端 API mode
-入口，但不是 Phase2 build history 的正式讀取入口。
-
-```http
-GET /api/map
-```
-
-Response `200`（`ViewerPayload`）：
-
-```ts
-{
-  viewer_load_result: {
-    loaded: boolean;
-    error_reason: string | null;
-    map_json: string | null;
-    ai_system_map: object;
-    graph_view_model: {
-      schema_version: string;            // "graph-view-model/v1"
-      source_schema_version: string | null;
-      summary: object | null;
-      nodes: GraphNode[];
-      edges: GraphEdge[];
-      details: {
-        evidence_by_id: Record<string, object>;
-        risk_hints_by_id: Record<string, object>;
-      };
-      filters: { available: GraphFilter[]; behavior?: string };
-    };
-  };
-}
-```
-
-尚未 build 前仍回傳 contract-compatible payload：`loaded:false`、`error_reason:"no_map_loaded"`、空 `nodes`/`edges`。
-
-### GET /map
-
-`GET /api/map` 的 legacy fallback，回傳完全相同的 `ViewerPayload`。前端會先試 `/api/map`，失敗再退回 `/map`。
-
-### POST /api/viewer/load
-
-載入磁碟上既有的 `ai_system_map.json`，重新 validate 後成為最新 viewer payload。**不掃描專案、不呼叫 scanner。**
-這支 current compatibility endpoint 接受 server-local `map_json_path`；Phase2 target
-build-scoped workflow 改用 safe `artifact_refs`，不接受 frontend 傳入任意 absolute path。
-若同一 run directory 有 `profile_signals.json`、`readiness_report.json` 或 static execution
-artifacts，Phase2 target viewer 可讀取它們作為 enrichment；缺失時應回 warnings，不阻塞
-base graph 載入。
-
-```http
-POST /api/viewer/load
-```
-
-```json
-{ "map_json_path": "outputs/<run>/ai_system_map.json" }
-```
-
-Response `200`：`ViewerPayload`。
-map 無效時仍回 `200`，但 `loaded:false` 並帶 `error_reason`，讓前端渲染明確的 broken-map 狀態而非崩潰。
-
 ### GET /api/map/report
 
-回傳目前 session 最新的 Markdown report（讀 `map_build` 寫出的 `map_markdown_path`，不接受任意路徑）。
+回傳目前 process 最新一次成功 build 寫出的 Markdown report（讀該 build 的
+`map_markdown_path`，不接受任意路徑）。這是唯一還沒 build-scoped 的讀取端；
+接上 build-scoped artifact preview 由 issue #219 處理。
 
 ```http
 GET /api/map/report            # 行內檢視
@@ -643,7 +566,8 @@ MODEL-CONTRACT §5.3）。
 
 Current runtime 對單一目標做有界深掃，綁定指定 build，並產生同 `scan_id` 的
 immutable child `build_id`；不得 overwrite parent。**需先完成 project session**
-（`import` → `scans`）；只用 `map/build` 不足以滿足 `map_not_loaded` 檢查。
+（`import` → `scans`）；`map_not_loaded` 檢查看的是該 project 的 build，別的 project
+掃過不算數。
 若省略 `build_id`，後端使用該 project latest 並回 `latest_build_fallback` warning。
 
 ### POST /api/detail-scans
@@ -691,12 +615,6 @@ Response `200`：
 | `base_build_not_latest` | 409 | 指定 build 已不是 latest，避免 lineage fork |
 | `scan_snapshot_stale` | 409 | 目標檔案 fingerprint 已變更，需 explicit rescan |
 | `profile_sidecar_unavailable` | 409 | parent profile sidecar 缺失或 invalid；base graph 仍可讀，但不得發布語意不完整的 child build |
-| `legacy_rollback_not_representable` | 422 | 僅 operator rollback 模式；preflight 判定該 map 無法以 v1 表示。詳見〈Operator rollback 專用 error code〉 |
-| `legacy_rollback_detail_scan_unsupported` | 422 | 僅 operator rollback 模式；rollback writer 不支援 enriched map。詳見〈Operator rollback 專用 error code〉 |
-
-> **兩者的優先順序（rollback 模式下）：** preflight 先跑，因此 map 若不可表示，回的是較具體的
-> `legacy_rollback_not_representable`；只有通過 preflight 的 map 才會走到
-> `legacy_rollback_detail_scan_unsupported`。normal v2 模式下兩者都不會出現。
 
 ### GET /api/detail-scans/{detail_scan_id}
 
@@ -716,7 +634,7 @@ Response `200`：與 `POST /api/detail-scans` 相同。
 
 ## 4. Query Trace（Runtime opt-in）
 
-對已載入 project map 的某個 endpoint id 執行一次黑箱 query trace。這是明確 opt-in 的 runtime 路徑；`POST /api/scans`、`POST /api/map/build`、`GET /api/map` 不會自動呼叫任何 endpoint。
+對已載入 project map 的某個 endpoint id 執行一次黑箱 query trace。這是明確 opt-in 的 runtime 路徑；`POST /api/scans`、build-scoped 讀取端點與 CLI `systograph map` 不會自動呼叫任何 endpoint。
 
 Trace 只回傳 transient `TraceRunResult`，不寫回 `ai_system_map.query_trace_events`，也不會把 observed unmapped component 自動升級成 confirmed mapping 或 baseline edge。
 
@@ -900,6 +818,30 @@ NVIDIA_API_KEY=<your-key>
 
 僅有 `NVIDIA_API_KEY` 而沒有 explicit flag 時，後端仍用 deterministic provider（`provider_name: "deterministic"`）。
 
+**Runtime 設定（非敏感預設值）**：預設值由 bundled TOML
+`src/systograph/core/configs/llm_proposal.toml` 提供（模型 `google/gemma-4-31b-it`、
+endpoint `https://integrate.api.nvidia.com/v1/chat/completions`）。本機測試可經
+`.env` / 環境變數暫時覆寫（`.env` 已被 gitignore，API key 不得 commit）：
+
+```bash
+NVIDIA_NIM_MODEL=google/gemma-4-31b-it
+NVIDIA_NIM_ENDPOINT=https://integrate.api.nvidia.com/v1/chat/completions
+NVIDIA_NIM_TIMEOUT_SECONDS=8.0
+NVIDIA_NIM_MAX_TOKENS=16384
+NVIDIA_NIM_TEMPERATURE=1.0
+NVIDIA_NIM_TOP_P=0.95
+NVIDIA_NIM_STREAM=false
+NVIDIA_NIM_ENABLE_THINKING=true
+```
+
+只有 runtime/provider 預設值屬於 TOML／`.env`。Mapping proposal 的輸出上限
+（候選數、label/rationale 長度、evidence id 數、suggested edge 數、
+`provider_error_reason` 長度）是 `src/systograph/core/models/mapping.py` 的
+Pydantic schema limits，屬 API 與安全契約的一部分，**刻意不開放 TOML 設定**。
+Provider 只接收 masked packet 與 schema summary；request 採 NVIDIA Platform
+non-streaming chat completion 形狀。測試一律用 mock HTTP transport，不打真實
+NVIDIA endpoint。
+
 ### GET /api/mapping-proposals
 
 ```http
@@ -972,6 +914,7 @@ POST /api/mapping-proposals/{proposal_id}/decision
 - `accept`：需 `candidate_id`，不可帶 `edited_mapping`
 - `edit`：需 `edited_mapping`（`ManualMappingCreate` 形狀），不可帶 `candidate_id`
 - `reject` / `skip_for_now`：兩者皆不帶 candidate payload；後端仍建立 durable audit mapping
+  （**現況缺陷**：當 proposal 的 candidates 解析為 non-baseline capability 型別時，這兩個 decision 目前回 `422`，修復追蹤見 #278）
 
 Response `200`：
 
@@ -1001,33 +944,19 @@ Response `200`：
 | 404 | 目標不存在 | `resource_not_found`（malformed typed state id）、`project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
 | 409 | 狀態衝突 | `base_build_not_latest`、`latest_build_changed`、`scan_snapshot_stale`、`profile_sidecar_unavailable` |
 | 413 | request body 超過本機 API resource limit | `request_too_large` |
-| 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、operator rollback 的 `legacy_rollback_*`（見下表）、validation 陣列 |
+| 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、validation 陣列 |
 | 500 | 未預期後端錯誤，回應會遮蔽 raw path / secret | `internal_server_error` |
 | 503 | project state lock timeout | `project_state_busy` |
 
 > Project workflow 會跨重啟恢復。若重啟後出現 404，先確認啟動前後使用相同
 > `SYSTOGRAPH_STATE_DIR`；只有 state record 不存在時才需要重新 import / scan。
 
-### Operator rollback 專用 error code
+### Canonical output version 設定
 
-下列 code 只在 process 啟動前設定
-`SYSTOGRAPH_CANONICAL_OUTPUT_VERSION=ai-system-map/v1` 的 operator rollback 模式出現；
-normal `ai-system-map/v2` 模式不會產生。失敗時都不寫任何 artifact。
+`SYSTOGRAPH_CANONICAL_OUTPUT_VERSION` 只接受 `ai-system-map/v2`（未設定時的預設值）。
+任何其他值——包含 `ai-system-map/v1`——都會在 process 啟動時以
+`invalid_canonical_output_version` 失敗，且不寫任何 artifact。v1 只剩讀取路徑
+（historical artifact 的 load / migration），沒有任何設定能讓 build 寫出 v1。
 
-| `detail` | 意義 |
-| --- | --- |
-| `legacy_rollback_not_representable` | map 無法以 v1 無損表示：不是 v1-sourced map，或含 legacy contract 表達不了的 component（`semantic_kind` 超出 `repo_component` / `slot_placeholder` / `legacy_extension`）。preflight fail closed，不靜默丟資料 |
-| `legacy_rollback_detail_scan_unsupported` | map 本身可以 v1 表示，但 rollback writer 只能從 raw scan 重建；enriched map（detail scan 子 build）這條路徑在 rollback 模式沒有 writer |
-| `legacy_rollback_writer_unavailable` | process 設成 rollback 模式，但該 build pipeline 沒有被注入 rollback writer（`MapBuildPipeline` 的 `legacy_rollback` 為 `None`）。屬 wiring/組態錯誤，不是使用者輸入問題 |
-
-- 前兩者由 `POST /api/detail-scans`（enriched map 路徑）以 `422` 回傳。
-  同一 endpoint 上 preflight 先跑，因此 `legacy_rollback_not_representable` 優先於
-  `legacy_rollback_detail_scan_unsupported`。
-- `legacy_rollback_writer_unavailable` **不限** detail-scan：normal build 路徑
-  （`MapBuildPipeline.materialize`）在 rollback 模式下同樣會拋，因此 `POST /api/scans`、
-  `POST /api/map/build` 與 CLI `map` 都可能遇到。它代表 wiring／組態問題（pipeline 沒被注入
-  rollback writer），不是使用者輸入問題，重送相同請求不會改變結果。
-  HTTP 呈現依 endpoint 而異：`POST /api/detail-scans` 與 `POST /api/scans` 走各自的 broad
-  `ValueError` handler，以 `422` + 同名 code 回傳；`POST /api/map/build` 目前只攔
-  `CanonicalOutputConfigurationError`，因此會落到 middleware 的
-  `500 internal_server_error`。
+API／CLI 在 request 送 `system_map_schema_version: "ai-system-map/v1"` 仍回
+`legacy_output_not_selectable`(422)——這是**輸入**被拒，與上述啟動設定是兩件事。

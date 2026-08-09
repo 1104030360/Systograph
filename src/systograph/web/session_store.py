@@ -11,15 +11,11 @@ from uuid import uuid4
 
 from systograph.core.models.analysis_history import ProjectState
 from systograph.core.models.map_build import MapBuildResult
-from systograph.core.models.viewer import ViewerPayload
 from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
 )
 from systograph.core.services.build_manifest_service import (
     BuildManifestService,
-)
-from systograph.core.services.viewer_session_service import (
-    ViewerSessionService,
 )
 
 
@@ -42,10 +38,6 @@ class SessionStore(Protocol):
     def save_build_result(
         self, result: MapBuildResult, *, project_id: str | None = None
     ) -> None: ...
-
-    def save_viewer_payload(self, payload: ViewerPayload) -> None: ...
-
-    def latest_viewer_payload(self) -> ViewerPayload: ...
 
     def latest_build_result(self) -> MapBuildResult | None: ...
 
@@ -74,16 +66,8 @@ def save_committed_build_projection(
 class InMemorySessionStore:
     """Non-persistent local API state for one backend process."""
 
-    def __init__(
-        self,
-        *,
-        projection_service: ViewerSessionService | None = None,
-    ) -> None:
-        self._projection_service = projection_service or ViewerSessionService()
+    def __init__(self) -> None:
         self._projects: dict[str, ProjectRecord] = {}
-        self._latest_viewer_payload = ViewerPayload(
-            viewer_load_result=self._projection_service.empty()
-        )
         self._latest_build_result: MapBuildResult | None = None
         self._build_results_by_project: dict[str, MapBuildResult] = {}
 
@@ -114,16 +98,6 @@ class InMemorySessionStore:
         self._latest_build_result = result
         if project_id is not None:
             self._build_results_by_project[project_id] = result
-        if result.viewer_load_result is not None:
-            self.save_viewer_payload(
-                ViewerPayload(viewer_load_result=result.viewer_load_result)
-            )
-
-    def save_viewer_payload(self, payload: ViewerPayload) -> None:
-        self._latest_viewer_payload = payload
-
-    def latest_viewer_payload(self) -> ViewerPayload:
-        return self._latest_viewer_payload
 
     def latest_build_result(self) -> MapBuildResult | None:
         return self._latest_build_result
@@ -141,14 +115,9 @@ class PersistentSessionStore:
         *,
         repository: LocalJsonStateProvider,
         manifest_service: BuildManifestService,
-        projection_service: ViewerSessionService | None = None,
     ) -> None:
         self._repository = repository
         self._manifest_service = manifest_service
-        self._projection = projection_service or ViewerSessionService()
-        self._latest_viewer_payload = ViewerPayload(
-            viewer_load_result=self._projection.empty()
-        )
         self._latest_build_result: MapBuildResult | None = None
 
     def import_project(
@@ -187,19 +156,6 @@ class PersistentSessionStore:
         project_id: str | None = None,
     ) -> None:
         self._latest_build_result = result
-        if result.viewer_load_result is not None:
-            self.save_viewer_payload(
-                ViewerPayload(viewer_load_result=result.viewer_load_result)
-            )
-
-    def save_viewer_payload(self, payload: ViewerPayload) -> None:
-        self._latest_viewer_payload = payload
-
-    def latest_viewer_payload(self) -> ViewerPayload:
-        result = self.latest_build_result()
-        if result is not None and result.viewer_load_result is not None:
-            return ViewerPayload(viewer_load_result=result.viewer_load_result)
-        return self._latest_viewer_payload
 
     def latest_build_result(self) -> MapBuildResult | None:
         if self._latest_build_result is not None:

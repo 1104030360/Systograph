@@ -1,8 +1,8 @@
 # 這個檔案負責：定義 ai-system-map/v1 的 Pydantic 資料契約（舊版 / v1 map），
 # 外加一批還沒拆出去、版本中立的掃描 model（Evidence / Endpoint / Flow /
 # RiskHint / DetailScan* / QueryTraceEvent…），v2 主路徑也在用。
-# 注意：正常 build 產出的是 v2（canonical 形狀在 ai_system_map_v2.py）；
-# 本檔的 RagSystemMap 只剩 migration（v1 讀取）與 operator rollback 在用。
+# 注意：build 只會產出 v2（canonical 形狀在 ai_system_map_v2.py）；本檔的
+# RagSystemMap 只剩 migration（v1 讀取）在用——沒有任何路徑會寫出 v1。
 # 待辦：把版本中立 model 拆到中立 module 是 Plan 15 的工作；拆完之後本檔才
 # 真的只剩 v1 contract。
 #
@@ -10,8 +10,7 @@
 #   providers（掃檔找證據）→ Evidence
 #   ComponentDetection / EndpointDetection / FlowDerivation / RiskHint
 #     → ComponentInstance / Endpoint / Flow / RiskHint
-#     → v2 主路徑：SystemMapV2NormalizeService → AiSystemMapV2
-#     → v1 rollback writer：SystemMapNormalizeService → RagSystemMap
+#     → v2 唯一 writer：SystemMapV2NormalizeService → AiSystemMapV2
 #   CanonicalMapLoader / SystemMapValidationService
 #     → 驗證 v1 payload → RagSystemMap
 #   SystemMapV1ToV2Adapter / viewer_legacy_compatibility
@@ -303,13 +302,11 @@ class ScanSummary(ContractModel):
 
 
 # 做什麼：v1 AI System Map 的根物件（整份地圖）。
-# 被誰用（只剩 migration / operator rollback 兩條路）：
+# 被誰用（read-only；已無任何 writer）：
 #   - migration 讀取：CanonicalMapLoader + SystemMapValidationService
 #     → SystemMapV1ToV2Adapter → AiSystemMapV2 → SystemMapIndex
 #   - legacy 投影細節：viewer_legacy_compatibility
-#   - rollback 寫入：LegacyV1RollbackService →
-#     SystemMapMaterializationService → SystemMapNormalizeService
-# 正常 v2 build 完全不碰這個 model。
+# build 完全不碰這個 model——v1 只進不出。
 # 內含：把上面所有區塊組在一起（slots、evidence、flows、risks…）。
 class RagSystemMap(ContractModel):
     schema_version: SystemMapSchemaVersion

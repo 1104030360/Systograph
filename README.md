@@ -19,8 +19,8 @@ README 必須區分「目前程式碼已能執行」與「roadmap / 尚未交付
 
 - deterministic-first scanner：先以 filesystem、config、dependency、Docker 與 code pattern
   providers 擷取結構化 facts / evidence（Understand-Anything 結構主掃仍為後續 Phase）。
-- `ai-system-map/v2` 已是 **active canonical** artifact；v1 僅保留 dual-read compatibility
-  與隔離的 operator rollback。
+- `ai-system-map/v2` 是**唯一** canonical 產出 artifact；v1 僅保留 dual-read compatibility
+  （historical artifact 的 load / migration），已無任何 v1 寫入路徑。
 - 每次成功 build 可 atomic publish **10 public siblings**（map／Markdown／Mermaid、
   `profile_signals.json`、`readiness_report.json`、static execution JSON 等）。
 - package-bundled **10-plane / 52-node** capability reference catalog 與 **15 MVP profiles**；
@@ -93,7 +93,7 @@ pipeline／各 Epic 子任務推進，不要把未合併的 design-only 文件�
 | Artifact／欄位語意 | [`docs/MODEL-CONTRACT.md`](docs/MODEL-CONTRACT.md) |
 | Systograph hard cutover | [`docs/SYSTOGRAPH-HARD-CUTOVER.md`](docs/SYSTOGRAPH-HARD-CUTOVER.md) |
 | Phase2 設計基線 | [`docs/design/epic1-phase2.md`](docs/design/epic1-phase2.md) |
-| Epic 1 設計 | [`docs/design/epic1.md`](docs/design/epic1.md) |
+| Epic 1 設計 | [`docs/design/epic1-phase1.md`](docs/design/epic1-phase1.md) |
 | Frontend JSON handoff | [`docs/work/Timmy/design/EPIC1/frontend-json-handoff/`](docs/work/Timmy/design/EPIC1/frontend-json-handoff/) |
 | Phase2 執行計畫 | [`docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/`](docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/) |
 | API trace scripts | [`scripts/trace_*.sh`](scripts/) |

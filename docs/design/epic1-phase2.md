@@ -2,8 +2,9 @@
 
 Status: canonical design baseline for regenerating Phase2 plans.
 
-Implementation status: mixed. Current repo still runs the v1 map-build/session
-pipeline; Phase2 v2 map, build lineage, local JSON persistence, readiness
+Implementation status: mixed. Current repo runs the v2-only map-build pipeline
+(the v1 write path was removed on 2026-08-07; v1 is retained for read and
+migration only); Phase2 build lineage, local JSON persistence, readiness
 sidecars and static execution artifacts are accepted targets.
 
 Owner: Timmy
@@ -206,8 +207,10 @@ Current backend 可確認狀態：
     必須改為 immutable child build。
   - Query Trace 是 explicit runtime endpoint probe，已具備 timeout、egress guard、masking 與
     no map mutation 測試；Phase2 target 要改為 build-scoped transient session overlay。
-  - Viewer API 目前回傳 `ViewerPayload` / `GraphViewModel` for v1；frontend zod types 也以
-    current payload 為主。
+  - Viewer 讀取端已收斂為 build-scoped：回 `MapBuildScopedResponse`（內含
+    `ViewerLoadResult` / `GraphViewModel`）；backend 的 `ViewerPayload` 包裝層與
+    session store 旁路槽已於 Plan 08 移除。frontend zod types 仍以 current
+    payload 為主。
 - Current safety：
   - Tests 已覆蓋 secret masking、absolute path rejection、snapshot safety、filesystem provider
     read-only 行為、provider partial failure、cross-platform relative path。
@@ -461,9 +464,7 @@ flowchart TB
     S8c["8-3 load / validate<br/>ViewerLoadResult + GraphViewModel"]
     S8d["8-4 React 渲染<br/>點 unmapped → 觸發 review"]
     S8note["— 無 TOML"]:::noToml
-    S8compat["GET /api/map<br/>demo / legacy compatibility only"]:::noToml
     S8a --> S8b --> S8c --> S8d
-    S8compat -.-> S8d
   end
 
   subgraph S9["Step 9 · Review 可選 · MappingProposal（active · 非 ai deferred）"]
@@ -974,11 +975,13 @@ PostgreSQL / SQLite，只換 adapter，業務層與 API 不改。
 
 ## 16. API/CLI 與 compatibility paths
 
-Current API supports two flows:
+Current API supports exactly one flow:
 
 - Project session: `POST /api/projects/import` → `POST /api/scans` → project-scoped detail scan,
   mapping proposal, manual mappings.
-- Viewer demo: `POST /api/map/build` → `GET /api/map`; no project session.
+
+There is no second flow. The process-wide demo surface (`POST /api/map/build`, `GET /api/map`,
+`GET /map`) is retired; every read needs a `project_id` or a `build_id`.
 
 Phase2 primary API surface:
 
@@ -995,7 +998,8 @@ POST /api/map-builds/{build_id}/trace
 
 Compatibility rules：
 
-- `POST /api/map/build` and process-wide `GET /api/map` remain demo/compatibility paths.
+- The process-wide demo surface is fully retired: `POST /api/map/build`, `GET /api/map` and
+  `GET /map` all answer 404.
 - Project-scoped APIs must use `project_id` / `build_id`, not global latest process state.
 - Current CLI builds v1 artifacts; Phase2 CLI must preserve v1 compatibility while adding explicit v2
   build/load/validate commands.
@@ -1198,7 +1202,7 @@ Contract drift decisions to apply when regenerating plans：
 - Replace v1 slot-missing readiness with generic capability/readiness findings.
 - Replace legacy extension product surface with non-baseline capability candidate overlay.
 - Treat frontend handoff JSON as target samples until validated by backend schemas/tests.
-- Treat `POST /api/map/build` as demo/compatibility path, not project-scoped persistence.
+- Treat every map read as project-scoped or build-scoped; there is no process-wide read path.
 - Treat dynamic runtime trace plan as deferred implementation.
 
 Plan regeneration rules：
@@ -1232,7 +1236,6 @@ Repository policy and prompt rules：
 
 Spec inputs：
 
-- `docs/spec/draft/epic1-phase2.md`
 - `docs/spec/erm.dbml`
 - `docs/spec/.clarify/overview.md`
 - `docs/spec/.clarify/resolved/` 23 resolved decision files
@@ -1288,7 +1291,7 @@ Phase2 plan folder：
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/12-add-runtime-component-trace-contract.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/13-retire-legacy-extension-contract.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/14-local-project-import-and-test.md`
-- `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/15-complete-legacy-v1-retirement-after-compatibility.md`
+- `docs/work/Timmy/schedule/plan/unfinish/refactor/15-complete-legacy-v1-retirement-after-compatibility.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/16-implement-understand-anything-sidecar-service.md`
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/17-implement-assessment-orchestrator-candidate-flow.md`（deferred）
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/18-retire-systograph-scan-toml-providers-after-parity.md`

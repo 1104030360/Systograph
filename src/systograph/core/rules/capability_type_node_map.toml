@@ -4,6 +4,16 @@
 # assessment lookup. Every node id must exist in the 52-node
 # capability reference catalog (capability_reference_map.toml).
 # Duplicate keys are rejected by the TOML parser itself.
+#
+# ARRAY ORDER IS SEMANTIC: the first node decides the projection
+# plane. A canonical type may reach several nodes, and those nodes may
+# sit on different planes (api_input reaches user_input on the
+# input/intent plane and api_server on the deployment/topology plane).
+# CanonicalTypePlaneResolver reads element [0] as the primary node and
+# projects the component onto that node's plane_id, so reordering a row
+# moves components between bands in the viewer. Step 6 assessment still
+# consumes the whole array -- order changes nothing there. Put the node
+# that best describes where the component belongs on the map first.
 
 [canonical_type_nodes]
 agent_loop = ["agent_loop", "agent_runtime"]

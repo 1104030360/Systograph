@@ -4,7 +4,7 @@
 > assessments、15 profiles、five-state validation、related refs、Mapping Completeness 與
 > sidecar/API serialization 已完成並測試。Frontend Zod／degraded UI 已依使用者要求還原，
 > 對應 frontend-only checkboxes 保持未完成；後端證據見
-> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+> `docs/work/Timmy/schedule/report/2026-07-11/2026-07-11-phase2-s1-pipeline-core-REP.md`。
 
 > **執行者注意：** 逐 task 實作本計畫。步驟以 checkbox（`- [ ]`）語法追蹤進度。
 
@@ -383,7 +383,7 @@ Detection threshold：
 Frontend 檔案、Zod contract、renderer、layout、detail panel、filter 與 trace replay 工作不屬
 本計畫；由 Plan 06 與對應 Meeting-Sync/Hardy plan 擁有：
 
-- `docs/work/Meeting-Sync/meeting_sync_2026_07_05/frontend-profile-attachment-ui.md`
+- `docs/work/Meeting-Sync/meeting_sync_2026_07_07/frontend-profile-attachment-ui.md`
 
 本計畫不修改：
 

@@ -1,0 +1,560 @@
+{
+  "schema_version": "ai-system-map/v1",
+  "system_type": "rag",
+  "classification": {
+    "mode": "user_selected_or_default",
+    "selected_template": "rag-core-v1",
+    "future_layer": null
+  },
+  "project": {
+    "name": "openai_external_provider_rag",
+    "root_path": "<project_root>",
+    "root_path_redacted": "<project_root>",
+    "path_mode": "redacted",
+    "system_map_schema_version": "ai-system-map/v1"
+  },
+  "reference_architecture": {
+    "id": "rag-core-v1",
+    "version": "1.0.0",
+    "slots": [
+      "data_sources",
+      "document_loader",
+      "chunking",
+      "embedding_model",
+      "vector_store",
+      "app_api_or_orchestrator",
+      "query_processing",
+      "retriever",
+      "prompt_builder",
+      "llm",
+      "citation_or_response_composer",
+      "guardrails",
+      "observability"
+    ],
+    "flows": [
+      "indexing",
+      "query_answer"
+    ]
+  },
+  "scan_depth": "system",
+  "scan_summary": {
+    "status": "ok",
+    "files_scanned": 5,
+    "files_skipped": 0,
+    "detected_slots": 3,
+    "missing_slots": 7,
+    "not_configured_slots": 0,
+    "unmapped_components": 2,
+    "risk_hints": 9,
+    "secret_masking_applied": true
+  },
+  "components_by_slot": {
+    "data_sources": {
+      "slot": "data_sources",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "document_loader": {
+      "slot": "document_loader",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "chunking": {
+      "slot": "chunking",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "embedding_model": {
+      "slot": "embedding_model",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:embedding_model:openai",
+          "slot": "embedding_model",
+          "kind": "embedding_provider",
+          "name": "OpenAI Embeddings",
+          "description": null,
+          "provider": "openai",
+          "evidence_ids": [
+            "evidence:code_pattern_embedding_openai_sdk_create:src/app.py:49d340e0e963",
+            "evidence:config_env_value_detected:.env.example:20283f5ed514",
+            "evidence:config_env_value_detected:.env.example:4ddabf3b615a",
+            "evidence:config_env_value_detected:.env.example:80426048d6ac",
+            "evidence:config_env_value_detected:.env.example:c2503ae642a1",
+            "evidence:config_yaml_value_detected:config.yaml:b00cfddba6b0"
+          ]
+        }
+      ]
+    },
+    "vector_store": {
+      "slot": "vector_store",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "app_api_or_orchestrator": {
+      "slot": "app_api_or_orchestrator",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:app_api_or_orchestrator:application_api",
+          "slot": "app_api_or_orchestrator",
+          "kind": "api_route",
+          "name": "Application API",
+          "description": null,
+          "provider": null,
+          "evidence_ids": [
+            "evidence:code_pattern_route_fastapi:src/app.py:f62e7429652b"
+          ]
+        }
+      ]
+    },
+    "query_processing": {
+      "slot": "query_processing",
+      "required_for_rag": false,
+      "status": "not_applicable",
+      "instances": []
+    },
+    "retriever": {
+      "slot": "retriever",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "prompt_builder": {
+      "slot": "prompt_builder",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "llm": {
+      "slot": "llm",
+      "required_for_rag": true,
+      "status": "detected",
+      "instances": [
+        {
+          "id": "component:llm:openai",
+          "slot": "llm",
+          "kind": "external_llm_provider",
+          "name": "OpenAI",
+          "description": null,
+          "provider": "openai",
+          "evidence_ids": [
+            "evidence:config_env_value_detected:.env.example:20283f5ed514",
+            "evidence:config_env_value_detected:.env.example:4ddabf3b615a",
+            "evidence:config_env_value_detected:.env.example:80426048d6ac",
+            "evidence:config_env_value_detected:.env.example:c2503ae642a1",
+            "evidence:config_yaml_value_detected:config.yaml:1e64591a714a",
+            "evidence:config_yaml_value_detected:config.yaml:edc676ba71a8"
+          ]
+        }
+      ]
+    },
+    "citation_or_response_composer": {
+      "slot": "citation_or_response_composer",
+      "required_for_rag": true,
+      "status": "missing",
+      "instances": []
+    },
+    "guardrails": {
+      "slot": "guardrails",
+      "required_for_rag": false,
+      "status": "not_applicable",
+      "instances": []
+    },
+    "observability": {
+      "slot": "observability",
+      "required_for_rag": false,
+      "status": "not_applicable",
+      "instances": []
+    }
+  },
+  "evidence": [
+    {
+      "id": "evidence:code_pattern_embedding_openai_sdk_create:src/app.py:49d340e0e963",
+      "kind": "embedding",
+      "file": "src/app.py",
+      "path": "line[10]",
+      "value": "client.embeddings.create(",
+      "rule_id": "code_pattern_embedding_openai_sdk_create",
+      "line_start": 10,
+      "line_end": 10,
+      "snippet": "    client.embeddings.create("
+    },
+    {
+      "id": "evidence:code_pattern_route_fastapi:src/app.py:f62e7429652b",
+      "kind": "route_endpoint",
+      "file": "src/app.py",
+      "path": "line[7]",
+      "value": "@app.post(\"/ask\"",
+      "rule_id": "code_pattern_route_fastapi",
+      "line_start": 7,
+      "line_end": 7,
+      "snippet": "@app.post(\"/ask\")"
+    },
+    {
+      "id": "evidence:config_env_value_detected:.env.example:20283f5ed514",
+      "kind": "config_value",
+      "file": ".env.example",
+      "path": "OPENAI_CHAT_MODEL",
+      "value": "gpt-4o-mini",
+      "rule_id": "config_env_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_env_value_detected:.env.example:4ddabf3b615a",
+      "kind": "config_value",
+      "file": ".env.example",
+      "path": "OPENAI_EMBEDDING_MODEL",
+      "value": "text-embedding-3-small",
+      "rule_id": "config_env_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_env_value_detected:.env.example:80426048d6ac",
+      "kind": "config_value",
+      "file": ".env.example",
+      "path": "OPENAI_BASE_URL",
+      "value": "https://api.openai.example/v1",
+      "rule_id": "config_env_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_env_value_detected:.env.example:c2503ae642a1",
+      "kind": "config_value",
+      "file": ".env.example",
+      "path": "OPENAI_API_KEY",
+      "value": "sk-t...mple",
+      "rule_id": "config_env_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_yaml_value_detected:config.yaml:1e64591a714a",
+      "kind": "config_value",
+      "file": "config.yaml",
+      "path": "providers.llm.base_url",
+      "value": "https://api.openai.example/v1",
+      "rule_id": "config_yaml_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_yaml_value_detected:config.yaml:b00cfddba6b0",
+      "kind": "config_value",
+      "file": "config.yaml",
+      "path": "providers.embedding.provider",
+      "value": "openai",
+      "rule_id": "config_yaml_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_yaml_value_detected:config.yaml:b23f7802cee6",
+      "kind": "config_value",
+      "file": "config.yaml",
+      "path": "providers.llm.model",
+      "value": "gpt-4o-mini",
+      "rule_id": "config_yaml_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_yaml_value_detected:config.yaml:e6e7e3f8bd3d",
+      "kind": "config_value",
+      "file": "config.yaml",
+      "path": "providers.embedding.model",
+      "value": "text-embedding-3-small",
+      "rule_id": "config_yaml_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:config_yaml_value_detected:config.yaml:edc676ba71a8",
+      "kind": "config_value",
+      "file": "config.yaml",
+      "path": "providers.llm.provider",
+      "value": "openai-compatible",
+      "rule_id": "config_yaml_value_detected",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:dependency_external_llm_embedding_openai:requirements.txt:5ae3d09e2364",
+      "kind": "dependency_candidate",
+      "file": "requirements.txt",
+      "path": "line[2]",
+      "value": "openai",
+      "rule_id": "dependency_external_llm_embedding_openai",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    },
+    {
+      "id": "evidence:dependency_rag_framework_llama_index:requirements.txt:aeca08c19259",
+      "kind": "dependency_candidate",
+      "file": "requirements.txt",
+      "path": "line[3]",
+      "value": "llama-index-core",
+      "rule_id": "dependency_rag_framework_llama_index",
+      "line_start": null,
+      "line_end": null,
+      "snippet": null
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "endpoint:external:openai:embedding_model",
+      "value": "https://api.openai.com/v1",
+      "endpoint_type": "external",
+      "method": null,
+      "slot": "embedding_model",
+      "component_instance_id": "component:embedding_model:openai",
+      "evidence_id": "evidence:config_env_value_detected:.env.example:4ddabf3b615a"
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow:indexing",
+      "name": "Indexing",
+      "flow_type": "indexing",
+      "edges": []
+    },
+    {
+      "id": "flow:query_answer",
+      "name": "Query Answer",
+      "flow_type": "query_answer",
+      "edges": []
+    }
+  ],
+  "extensions": [],
+  "unmapped_components": [
+    {
+      "id": "unmapped:requirements_txt:line_2:dependency_external_llm_embedding_openai",
+      "source_file": "requirements.txt",
+      "observed_kind": "dependency_candidate",
+      "status": "needs_confirmation",
+      "reason": "Detected dependency_candidate, but no safe canonical component mapping exists yet.",
+      "evidence_ids": [
+        "evidence:dependency_external_llm_embedding_openai:requirements.txt:5ae3d09e2364"
+      ],
+      "suggested_actions": [
+        "confirm_mapping",
+        "mark_not_applicable"
+      ]
+    },
+    {
+      "id": "unmapped:requirements_txt:line_3:dependency_rag_framework_llama_index",
+      "source_file": "requirements.txt",
+      "observed_kind": "dependency_candidate",
+      "status": "needs_confirmation",
+      "reason": "Detected dependency_candidate, but no safe canonical component mapping exists yet.",
+      "evidence_ids": [
+        "evidence:dependency_rag_framework_llama_index:requirements.txt:aeca08c19259"
+      ],
+      "suggested_actions": [
+        "confirm_mapping",
+        "mark_not_applicable"
+      ]
+    }
+  ],
+  "detail_scans": [],
+  "risk_hints": [
+    {
+      "id": "risk:external_provider_detected:endpoint_external_openai_embedding_model",
+      "type": "external_provider",
+      "target": "endpoint:external:openai:embedding_model",
+      "target_type": "endpoint",
+      "evidence_id": "evidence:config_env_value_detected:.env.example:4ddabf3b615a",
+      "rule_id": "external_provider_detected",
+      "rationale": "External provider endpoint detected; review data egress, retention, and provider configuration.",
+      "uncertainty": "Static scan identifies provider configuration but does not observe actual runtime requests or payload contents.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:chunking",
+      "type": "missing_component",
+      "target": "chunking",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_embedding_openai_sdk_create:src/app.py:49d340e0e963",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'chunking'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:citation_or_response_composer",
+      "type": "missing_component",
+      "target": "citation_or_response_composer",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_embedding_openai_sdk_create:src/app.py:49d340e0e963",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'citation_or_response_composer'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:data_sources",
+      "type": "missing_component",
+      "target": "data_sources",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_embedding_openai_sdk_create:src/app.py:49d340e0e963",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'data_sources'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:document_loader",
+      "type": "missing_component",
+      "target": "document_loader",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_embedding_openai_sdk_create:src/app.py:49d340e0e963",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'document_loader'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:prompt_builder",
+      "type": "missing_component",
+      "target": "prompt_builder",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_embedding_openai_sdk_create:src/app.py:49d340e0e963",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'prompt_builder'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:retriever",
+      "type": "missing_component",
+      "target": "retriever",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_embedding_openai_sdk_create:src/app.py:49d340e0e963",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'retriever'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:missing_required_slot:vector_store",
+      "type": "missing_component",
+      "target": "vector_store",
+      "target_type": "component_slot",
+      "evidence_id": "evidence:code_pattern_embedding_openai_sdk_create:src/app.py:49d340e0e963",
+      "rule_id": "missing_required_slot",
+      "rationale": "Required rag-core-v1 slot was not detected in the available evidence. Missing slot: 'vector_store'.",
+      "uncertainty": "Missing detection may mean the project lacks this component or the current static scan rules did not recognize it.",
+      "severity_hint": "medium"
+    },
+    {
+      "id": "risk:secret_like_config_key_detected:evidence_config_env_value_detected_env_example_c2503ae642a1",
+      "type": "secret_config",
+      "target": "evidence:config_env_value_detected:.env.example:c2503ae642a1",
+      "target_type": "evidence",
+      "evidence_id": "evidence:config_env_value_detected:.env.example:c2503ae642a1",
+      "rule_id": "secret_like_config_key_detected",
+      "rationale": "Secret-like configuration key detected; ensure masking, storage, and access controls are reviewed.",
+      "uncertainty": "Key name is a heuristic and does not prove whether the value is a live credential.",
+      "severity_hint": "medium"
+    }
+  ],
+  "recommended_next_checks": [
+    {
+      "id": "check:privacy_exposure:component-instance:component-embedding-model-openai",
+      "target_type": "component_instance",
+      "target": "component:embedding_model:openai",
+      "reason": "Static scan found potential data egress, published port, secret-like config, or local persistence evidence.",
+      "action": "Review data flow, access control, retention, and whether sensitive data can leave the local environment."
+    },
+    {
+      "id": "check:privacy_exposure:system:system",
+      "target_type": "system",
+      "target": "system",
+      "reason": "Static scan found potential data egress, published port, secret-like config, or local persistence evidence.",
+      "action": "Review data flow, access control, retention, and whether sensitive data can leave the local environment."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:chunking",
+      "target_type": "component_slot",
+      "target": "chunking",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:citation-or-response-composer",
+      "target_type": "component_slot",
+      "target": "citation_or_response_composer",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:data-sources",
+      "target_type": "component_slot",
+      "target": "data_sources",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:document-loader",
+      "target_type": "component_slot",
+      "target": "document_loader",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:prompt-builder",
+      "target_type": "component_slot",
+      "target": "prompt_builder",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:rag_knowledge_trust:component-slot:retriever",
+      "target_type": "component_slot",
+      "target": "retriever",
+      "reason": "Static scan found incomplete evidence for RAG knowledge source, retrieval, citation, guardrails, or response composition.",
+      "action": "Review source trust, retrieval quality, citation traceability, and answer reliability before release."
+    },
+    {
+      "id": "check:runtime_readiness:component-instance:component-embedding-model-openai",
+      "target_type": "component_instance",
+      "target": "component:embedding_model:openai",
+      "reason": "Static scan found runtime-dependent services, endpoints, or missing runtime-critical RAG slots.",
+      "action": "Verify required services start successfully and configured endpoints are reachable in the intended runtime environment."
+    },
+    {
+      "id": "check:runtime_readiness:component-slot:retriever",
+      "target_type": "component_slot",
+      "target": "retriever",
+      "reason": "Static scan found runtime-dependent services, endpoints, or missing runtime-critical RAG slots.",
+      "action": "Verify required services start successfully and configured endpoints are reachable in the intended runtime environment."
+    },
+    {
+      "id": "check:runtime_readiness:component-slot:vector-store",
+      "target_type": "component_slot",
+      "target": "vector_store",
+      "reason": "Static scan found runtime-dependent services, endpoints, or missing runtime-critical RAG slots.",
+      "action": "Verify required services start successfully and configured endpoints are reachable in the intended runtime environment."
+    }
+  ],
+  "query_trace_events": []
+}

@@ -1,5 +1,22 @@
 # GitHub #140 Viewer Map Loading Path Oracle Implementation Plan
 
+Status: **superseded**（由 `plan/finish/refactor/05-retire-api-viewer-load.md`
+＋ umbrella issue #277 取代，2026-08-07）
+
+> **2026-08-07 — 本計畫不再執行。**
+> `POST /api/viewer/load` 已於 refactor Plan 05 整支退役（route 檔、
+> `ViewerLoadMapRequest` schema、trace script、API-GUIDE 章節一併移除；
+> `tests/web/test_retired_endpoints.py` 以 404 regression 鎖住）。本計畫的
+> Goal 是「**限制**該端點只能讀受控 map」，端點不存在後已無標的：H-2 的
+> path oracle 風險改以**移除**方式消解，而非加固。載入既有
+> `ai_system_map.json` 的能力保留在 CLI `systograph validate-map`
+> （`cli/viewer_command.py` → `ViewerSessionService.load_map`），該路徑是
+> operator 在本機自行指定檔案，不是遠端可觸發的 oracle。
+> issue #140 依此結論關閉並於 issue 上註明。
+> **本檔保留作為決策軌跡，不得刪除。**若日後需要 HTTP 版載圖能力，應以
+> build-scoped artifact API ＋ 白名單重新設計，不要恢復本端點、也不要沿用
+> 以下 Task。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **GitHub Issue:** https://github.com/1104030360/Systograph/issues/140

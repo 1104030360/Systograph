@@ -34,7 +34,7 @@ HTTP endpoint 契約見 [`API-GUIDE.md`](API-GUIDE.md)。本文件定義欄位�
 | 項目 | 規則 |
 |------|------|
 | 輸入 | AI system repo / workflow artifact；**不**假設一定是 RAG |
-| Active public schema | `ai-system-map/v2`；v1 僅保留 historical read/migration 與預設關閉的 operator rollback writer |
+| Active public schema | `ai-system-map/v2`（唯一 writer）；v1 僅保留 historical read/migration，已無任何寫入路徑 |
 | Build scope | `scan_id`（immutable snapshot）+ `build_id`（一次 materialization）+ `environment_id` + `artifact_set_version` |
 | `environment_id` | Phase2 固定 `environment:default-static` |
 | **禁止** | 獨立 `snapshot_id`；數值 `confidence` |
@@ -302,13 +302,54 @@ Plan 13 已切換的 active public contract；正常 CLI/API build 只能產生 
 | `system_type` | `"ai_system"` |
 | `scan_id` / `build_id` / `environment_id` / `artifact_set_version` / `generated_from_build_id` | scope + lineage |
 | `project` | 專案 metadata |
-| `components[]` | `component_id`, `display_name`, `canonical_type`, `layer`, `status`, `activation`, `evidence_ids`, `metadata` |
+| `components[]` | `component_id`, `display_name`, `canonical_type`, `layer`, `status`, `activation`, `evidence_ids`, `metadata`；`layer` 的推導見 §5.1.1 |
 | `edges[]` | `edge_id`, `source`, `target`, `relationship`, `status`, `evidence_ids` |
 | `evidence[]` | canonical evidence refs |
 | `endpoints[]` | API entrypoints |
 | `risk_hints[]` | risk hints |
 | `unmapped_components[]` | 待使用者決策的 ambiguous components |
 | `recommended_next_checks[]` | deterministic scan-fact checks；見 §5.3 |
+
+### 5.1.1 `components[].layer` 的來源（type-driven，非 slot）
+
+`layer` 是 repo component 的**投影平面**：`GraphProjectionService` 直接把
+`component.layer` 當成 `GraphNodeModel.plane_id`（subtitle 同源），所以這個欄位
+決定元件畫在 viewer 的哪一帶。
+
+**`layer` 有第二個消費者：plane-based lens 成員資格。** `graph_lens_projector`
+用 `GraphNodeModel.plane_id` 決定 `filters.lenses[]` 的 membership（`lens:data`
+＝ ingestion_indexing / retrieval / memory_state；`lens:control` ＝ control；
+`lens:governance` ＝ governance_observability，見 §9.3）。改一個元件的 `layer`
+同時改它的帶位**與**它出現在哪些 lens——六個 lens 沒有 deployment topology 這
+一個，所以移進該 plane 的 **repo component**（`reference_node_id` 為 null）會
+退出所有 plane-based lens，只剩 signal-based 的 `lens:evidence` / `lens:risk` /
+`lens:source`；reference node 另有 `reference_node_id` 分支可留在 lens 內
+（例：deployment_topology 上的 `agent_runtime` 仍屬 `lens:control`）。此耦合由
+`tests/integration/test_map_build_service.py` 的兩條 lens regression 鎖住。
+
+推導鏈（`CanonicalTypePlaneResolver`，由 `SystemMapV2NormalizeService` 呼叫）：
+
+```text
+component.canonical_type
+  → capability_type_node_map.toml  [canonical_type_nodes]
+  → primary capability node（陣列第一個元素）
+  → 該 node 在 52-node catalog 的 plane_id
+```
+
+| 規則 | 說明 |
+|------|------|
+| 值域 | 10 個 canonical plane id + `undetermined`；與 §4.2 的 plane 表同一組值 |
+| **primary node** | 一個 type 可對到多個 node（`api_input = ["user_input", "api_server"]`），**陣列第一個 node 決定平面**。順序即語意：重排 `capability_type_node_map.toml` 的陣列會移動元件帶位。Step 6 assessment 仍消費整個陣列，不受順序影響 |
+| **fallback** | `canonical_type` 不在表裡 → `"undetermined"`。manual mapping 的 `component_kind` 是自由文字，未列出的 type 會顯性落在 undetermined 帶，**不得**改回查 slot |
+| slot 的角色 | legacy `rag-core-v1` slot **對投影平面已無任何影響**，只留在 `metadata.legacy_slot`（graph node id slug、`GraphNodeModel.slot` 標籤、detail scan `component_slot` target）|
+| `SLOT_LAYER_BY_ID` | `legacy_slot_layer_map.py` 降為 **migration-only**，唯一消費者是 v1→v2 adapter（只有 slot 詞彙的 legacy v1 map 讀入時補 layer）；active v2 路徑零 import |
+
+**兩條路徑自此可能對同類元件給出不同 plane（預期，非 bug）：** v1 migration
+路徑走 `SLOT_LAYER_BY_ID`（slot→layer），v2 active 路徑走
+type→node→plane。同一個 `vector_store` slot 的元件，讀 legacy v1 artifact 會得到
+`retrieval`，重新掃描則得到 `ingestion_indexing`。v1 讀取屬**歷史 artifact 的忠實
+呈現**——那份 map 當初就是用 slot 語意產生的——因此**不回溯對齊**；要拿到 type-driven
+的帶位，重新 build 即可。
 
 ### 5.2 Step 4 Bridge Pipeline
 
@@ -328,7 +369,7 @@ Canonical map 只含 evidence-backed facts。Grounding readiness、profiles、`p
 
 ### 5.3 `recommended_next_checks[]`（System 1 · scan-fact checks）
 
-由 `RecommendedNextCheckService` 從 normalized scan signals（components / endpoints / risk hints）deterministic 推導；reason / action 文案來自 `recommended_next_check_rules.toml`，v1（rollback writer）與 v2（active writer）兩條 build 路徑共用同一個 derive。
+由 `RecommendedNextCheckService` 從 normalized scan signals（components / endpoints / risk hints）deterministic 推導；reason / action 文案來自 `recommended_next_check_rules.toml`；derive 本身版本中立，由唯一的 v2 build 路徑呼叫。
 
 | 欄位 | 說明 |
 |------|------|
@@ -590,9 +631,10 @@ type MapBuildScopedResponse = {
 Plan 06 後續 safe lazy-load contract，尚未放進 current response。Viewer **不得**在 load
 時重算 profile inference。Sidecar 缺/invalid → base graph + `build_result.warnings`。
 成功的 public build 之 `requested_schema_version` 固定為 v2；要求 v1 會先回
-`legacy_output_not_selectable`。Operator rollback 只能由 process env 啟用，並以
-`active_schema_version`、`source_schema_version`、`operator_rollback_active` 與 migration
-warnings 稽核。Detail Scan 若讀不到 parent profile sidecar，
+`legacy_output_not_selectable`。build 只有一條 v2 產出路徑，因此
+`active_schema_version` 恆為 v2、`operator_rollback_active` 恆為 `false`（欄位為契約
+相容保留）；`source_schema_version` 仍可為 v1，用來記錄該 map 由 historical v1
+artifact migrate 而來。Detail Scan 若讀不到 parent profile sidecar，
 回 `409 profile_sidecar_unavailable`，不可把未知 candidates 靜默當成空集合發布 child。
 
 `evidence_table.json` 與 `ai_system_map.json.evidence[]` 目的不同：前者為 flattened query-friendly table。
@@ -754,7 +796,7 @@ Planned `TraceComponentRef` / `QueryTraceEvent` 擴充見 deferred Plan 12。Cur
 
 | # | 規則 |
 |---|------|
-| 1 | canonical `ai_system_map.json` 預設是 v2；v1 只可 historical read 或 operator rollback |
+| 1 | canonical `ai_system_map.json` 一律是 v2；v1 只可 historical read |
 | 2 | `profile_signals.json` = read-only enrichment；缺 sidecar 仍可 render base graph |
 | 3 | Canvas 來自 `GraphViewModel`；**禁止** frontend 推 topology / 五態 |
 | 4 | 顯示 backend 提供的五態 + 六 activation + evidence kind legend |

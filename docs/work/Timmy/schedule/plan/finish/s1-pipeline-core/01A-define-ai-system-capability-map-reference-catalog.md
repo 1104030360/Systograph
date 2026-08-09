@@ -3,7 +3,7 @@
 > **2026-07-11 backend execution status：** package-bundled 10-plane/52-node catalog、
 > strict loader、forbidden-key/dependency guards 與 backend overlay boundary 已完成並測試。
 > Frontend projection 實作不在本次 backend-only 範圍；完成證據見
-> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+> `docs/work/Timmy/schedule/report/2026-07-11/2026-07-11-phase2-s1-pipeline-core-REP.md`。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:test-driven-development` to implement this plan task-by-task. Steps use

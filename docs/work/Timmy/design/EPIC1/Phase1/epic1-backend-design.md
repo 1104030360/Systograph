@@ -2296,7 +2296,7 @@ Schedule 對應：
 - query trace request result。
 - unmapped components and mapping proposal result。
 - detail scan request/result。
-- `docs/work/Timmy/design/epic1-local-api-guide.md` 作為 local web UI、desktop app、CLI adapter 共用的 API contract guide。
+- `docs/API-GUIDE.md` 作為 local web UI、desktop app、CLI adapter 共用的 API contract guide。
 
 前端不可以假設：
 
@@ -2316,7 +2316,7 @@ Schedule 對應：
 
 Local API guide 維護規則：
 
-- Task 16 第一次建立 `docs/work/Timmy/design/epic1-local-api-guide.md`。
+- Task 16 第一次建立 Phase1 local API guide；該檔已退役，現以 `docs/API-GUIDE.md` 為準。
 - Task 18 / 22 / 24 若新增或修改 endpoint，必須同步更新 API guide。
 - 任何 task 若改動 request、response、error format、status code、endpoint path、local-only policy，都必須同步更新 API guide。
 - FastAPI OpenAPI docs 可以輔助測試與探索，但 Markdown API guide 才記錄設計意圖、相容性規則與 frontend / desktop 協作約定。

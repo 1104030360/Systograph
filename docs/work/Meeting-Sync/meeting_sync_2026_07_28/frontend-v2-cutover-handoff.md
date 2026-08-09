@@ -12,7 +12,7 @@ Last updated: 2026-07-29（合併原 `frontend-stop-new-extension-component.md`�
 **來源**（backend 計畫已把前端職責抽離到本文件）：
 
 - Plan 13.5（`docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-v2-cutover/13.5.md`）
-  ＋殘留稽核 `docs/work/Timmy/schedule/report/2026-07-28-plan13-residue/residue-C-frontend.md`（RC-1..RC-16）
+  ＋殘留稽核 `docs/work/Timmy/schedule/report/2026-07-28/2026-07-28-plan13-residue/residue-C-frontend.md`（RC-1..RC-16）
 - Plan 13.6（`.../s1-v2-cutover/13.6.md`）抽離的 zod 契約修復（原 phase2.5 Plan 2 Task 9）
 - 前次：`../meeting_sync_2026_07_15/frontend-ai-system-map-v2-cutover.md`（4 檔清單已知漏檔，以本文為準）
 - 前次：`../meeting_sync_2026_07_07/frontend-legacy-extension-retirement.md`
@@ -395,7 +395,7 @@ describe("scanCreateResponseSchema", () => {
 
 ## Source of truth
 
-- 逐條細節與證據：`docs/work/Timmy/schedule/report/2026-07-28-plan13-residue/residue-C-frontend.md`（RC-1..RC-16）
+- 逐條細節與證據：`docs/work/Timmy/schedule/report/2026-07-28/2026-07-28-plan13-residue/residue-C-frontend.md`（RC-1..RC-16）
 - 原始 backend 計畫：`docs/work/Timmy/schedule/plan/unfinish/phase2.5/2.md`（Task 9）、
   `.../s1-v2-cutover/13.5.md`、`.../s1-v2-cutover/13.6.md`
 - 契約：`frontend/API_CONTRACT.md:256`（pending 無 scan_id）、`:301-309`（SSE highlight）、

@@ -17,12 +17,12 @@ def test_large_request_returns_413_with_cors_header() -> None:
     )
 
     response = client.post(
-        "/api/map/build",
+        "/api/scans",
         headers={
             "Origin": "http://localhost:5173",
             "Content-Type": "application/json",
         },
-        content=b'{"project_path":"' + (b"x" * 80) + b'"}',
+        content=b'{"project_id":"' + (b"x" * 80) + b'"}',
     )
 
     assert response.status_code == 413

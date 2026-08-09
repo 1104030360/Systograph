@@ -232,7 +232,7 @@ Backend 已經用同一個 build 的 evidence 產生 projection、profile 與 re
 
 - [API Guide](../../../API-GUIDE.md)
 - [Model Contract](../../../MODEL-CONTRACT.md)
-- [Plan 13](../../Timmy/schedule/plan/unfinish/phase2/static-trace-plan/s1-v2-cutover/13-retire-legacy-extension-contract.md)
+- [Plan 13](../../Timmy/schedule/plan/finish/s1-v2-cutover/13-retire-legacy-extension-contract.md)
 
 若本文件與 current backend code、API Guide 或 Model Contract 衝突，以 current backend code 與
 canonical contract 文件為準。

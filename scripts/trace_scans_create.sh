@@ -2,15 +2,17 @@
 # Trace: POST /api/scans
 #
 # Input  : {project_id, scan_depth:"system", output, redact_root_path,
-#          no_snippets, boundary_decisions?}
+#          no_snippets, preflight_request_id, boundary_decisions?}
 # Output : ScanCreateResponse {scan_id, project_id, status, build_result,
 #          boundary_proposals, available_boundary_actions}
 #          build_result includes Track A viewer_load_result / graph projection
 #          when status=completed.
 #          404 "Project not found" when the project_id was never imported.
+#          422 "preflight_request_id_required" when no preflight was opened.
 #
-# A project_id must be imported first, so this script imports the project then
-# starts a scan (unless --project-id is supplied).
+# A project_id must be imported first and every scan needs a preflight, so this
+# script imports the project (unless --project-id is supplied), opens a
+# preflight, then starts the scan with that preflight_request_id.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -57,9 +59,23 @@ if [[ -z "$PROJECT_ID" ]]; then
   PROJECT_ID="$(systograph_import_project)"
 fi
 
+systograph_section "未帶 preflight_request_id：預期 422 preflight_request_id_required"
+MISSING_PREFLIGHT_BODY="$(jq -n --arg id "$PROJECT_ID" --arg out "$OUTPUT_DIR" \
+  '{project_id:$id, scan_depth:"system", output:$out}')"
+api_call POST "/api/scans" "$MISSING_PREFLIGHT_BODY"
+[[ "$LAST_STATUS" == "422" ]] \
+  || systograph_die "Expected 422 without preflight_request_id: $LAST_STATUS"
+[[ "$(jq -r '.detail.code' <<<"$LAST_BODY")" == \
+  "preflight_request_id_required" ]] \
+  || systograph_die "Expected preflight_request_id_required error code"
+
+systograph_section "先開 preflight：POST /api/projects/{id}/scan-preflights"
+PREFLIGHT_ID="$(systograph_open_scan_preflight "$PROJECT_ID")"
+
 systograph_section "建立掃描：POST /api/scans"
 REQUEST_BODY="$(jq -n --arg id "$PROJECT_ID" --arg out "$OUTPUT_DIR" \
-  '{project_id:$id, scan_depth:"system", output:$out, redact_root_path:true, no_snippets:false}')"
+  --arg preflight_id "$PREFLIGHT_ID" \
+  '{project_id:$id, scan_depth:"system", output:$out, redact_root_path:true, no_snippets:false, preflight_request_id:$preflight_id, boundary_decisions:[]}')"
 systograph_progress "現在要建立 scan（系統掃描）..."
 api_call POST "/api/scans" "$REQUEST_BODY"
 

@@ -1,5 +1,5 @@
 // Systograph Epic 1 Phase 2 specification model
-// Source: docs/spec/draft/epic1-phase2.md
+// Source: docs/design/epic1-phase2.md
 
 Table Project {
   project_id string [primary key, note: '本機 project registry 的穩定識別碼。']

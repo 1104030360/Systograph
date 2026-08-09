@@ -19,6 +19,7 @@ from systograph.core.services.risk_hint_service import (
     RiskHintMetadataError,
     RiskHintService,
 )
+from systograph.core.services.rule_catalog_loader import RuleCatalogLoader
 
 ParseStage = Literal[
     "config_parse",
@@ -418,6 +419,39 @@ def test_missing_required_slot_creates_component_slot_hint() -> None:
     }
     assert "llm" in missing_slots
     assert "vector_store" not in missing_slots
+
+
+def test_packaged_risk_copy_never_names_the_legacy_template() -> None:
+    """Given risk hint rationales are user-visible copy,
+    When they are assembled from the real packaged catalog,
+    Then none of them names the legacy `rag-core-v1` template.
+
+    This reads the shipped `risk_hint_rules.toml` on purpose -- every
+    other test in this file feeds a hand-written minimal catalog, so
+    none of them would notice the brand string being written back in.
+    """
+    # Given
+    qdrant_image = fact_with_evidence(
+        kind="docker_service",
+        file="docker-compose.yml",
+        path="services.qdrant.image",
+        value="qdrant/qdrant:v1.12.1",
+        rule_id="docker_qdrant_image_detected",
+    )
+
+    # When: default service == the packaged catalog.
+    risks = derive_risks([qdrant_image])
+    packaged_rules = RuleCatalogLoader().load_risk_hint_rules(None)
+
+    # Then
+    assert any(risk.rule_id == "missing_required_slot" for risk in risks)
+    assert all("rag-core-v1" not in risk.rationale for risk in risks)
+    assert all("rag-core-v1" not in (risk.uncertainty or "") for risk in risks)
+    assert all(
+        "rag-core-v1" not in rule.rationale
+        and "rag-core-v1" not in rule.uncertainty
+        for rule in packaged_rules
+    )
 
 
 def test_chroma_hints_cover_http_persistence_and_server_port() -> None:

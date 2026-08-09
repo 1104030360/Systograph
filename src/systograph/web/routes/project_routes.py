@@ -18,11 +18,19 @@ from systograph.web.session_store import SessionStore
 router = APIRouter(tags=["projects"])
 
 
+# Has no frontend caller today, and is deliberately kept anyway: it is the
+# only side-effect-free way to ask whether a project_id is still valid.
+# `map-builds/latest` cannot stand in — it needs an existing build, so it
+# fails for a project that was imported but never scanned. Restart-recovery
+# tests assert project identity survives a process restart through this
+# route (tests/web/test_local_json_restart_recovery.py), and the planned
+# resume-last-project UX enters here before loading a map.
 @router.get("/api/projects/{project_id}", response_model=ProjectResponse)
 def get_project(
     project_id: str,
     store: Annotated[SessionStore, Depends(session_store)],
 ) -> ProjectResponse:
+    """回傳 project 身分與顯示用 metadata；不含本機路徑。"""
     record = store.project(project_id)
     if record is None:
         raise HTTPException(status_code=404, detail="project_not_found")

@@ -190,4 +190,4 @@ contract 透明。
 
 - `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/03A-implement-apply-build-lineage-and-local-json-persistence.md`
 - `docs/work/Timmy/design/EPIC1/frontend-json-handoff/step-09-review-apply/README.md`
-- `docs/work/Meeting-Sync/meeting_sync_2026_07_05/frontend-mapping-capability-candidates.md`
+- `docs/work/Meeting-Sync/meeting_sync_2026_07_07/frontend-mapping-capability-candidates.md`

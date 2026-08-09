@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
+from tests.helpers.web_flows import scan_project
 from tests.web.test_detail_scan_build_binding import prepare_detail_scan
 from tests.web.test_map_build_apply_routes import apply, prepare_apply
 
@@ -112,14 +113,12 @@ def test_v2_active_metadata_survives_restart(tmp_path: Path) -> None:
         "/api/projects/import",
         json={"source_type": "local_path", "project_path": str(project_root)},
     ).json()["project_id"]
-    original = first.post(
-        "/api/scans",
-        json={
-            "project_id": project_id,
-            "output": str(tmp_path / "output"),
-            "system_map_schema_version": "ai-system-map/v2",
-        },
-    ).json()["build_result"]
+    original = scan_project(
+        first,
+        project_id,
+        output=str(tmp_path / "output"),
+        system_map_schema_version="ai-system-map/v2",
+    )["build_result"]
 
     second = TestClient(create_app(state_dir=state_dir))
     recovered = second.get(

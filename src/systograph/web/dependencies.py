@@ -40,9 +40,6 @@ from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
 from systograph.core.services.scan_snapshot_service import ScanSnapshotService
-from systograph.core.services.viewer_session_service import (
-    ViewerSessionService,
-)
 from systograph.web.session_store import SessionStore
 
 
@@ -122,13 +119,6 @@ def scan_boundary_review_service(
     return cast(
         ScanBoundaryReviewService,
         request.app.state.scan_boundary_review_service,
-    )
-
-
-def viewer_session_service(request: Request) -> ViewerSessionService:
-    return cast(
-        ViewerSessionService,
-        request.app.state.viewer_session_service,
     )
 
 

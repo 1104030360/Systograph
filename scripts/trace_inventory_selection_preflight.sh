@@ -1,4 +1,16 @@
 #!/usr/bin/env bash
+# Trace: POST /api/projects/{project_id}/scan-preflights (+ the scan it gates)
+#
+# Input  : InventoryPreflightApiRequest {requested_paths, reviewable_excluded_*}
+# Output : InventoryPreflightResponse {preflight_request_id, summary,
+#          required_boundary_proposals, requested_target_results, ...}
+#          422 inventory_selection_path_invalid on an escaping path.
+#
+# Verifies that the preflight is metadata-only (never returns a scan_id, never
+# leaks directory entries), that a one-run directory selection plus an exact
+# child skip is honoured by the follow-up scan, and that the target project is
+# byte-identical before and after. Builds its own temp fixture, so
+# --project-path is ignored here.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

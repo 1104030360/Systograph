@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
+from tests.helpers.web_flows import scan_project
 
 from systograph.core.models.map_build import SystemMapSchemaSelection
 from systograph.web.app import create_app
@@ -29,14 +30,12 @@ def prepare_apply(
         json={"source_type": "local_path", "project_path": str(project_root)},
     ).json()
     project_id = str(imported["project_id"])
-    scan = client.post(
-        "/api/scans",
-        json={
-            "project_id": project_id,
-            "output": str(tmp_path / "output"),
-            "system_map_schema_version": schema_version,
-        },
-    ).json()
+    scan = scan_project(
+        client,
+        project_id,
+        output=str(tmp_path / "output"),
+        system_map_schema_version=schema_version,
+    )
     build_id = str(scan["build_result"]["lineage"]["build_id"])
     unmapped = scan["build_result"]["ai_system_map"]["unmapped_components"][0]
     mapping = client.post(

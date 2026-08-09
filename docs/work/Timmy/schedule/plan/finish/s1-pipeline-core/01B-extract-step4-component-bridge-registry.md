@@ -3,7 +3,7 @@
 > **2026-07-11 backend execution status：** typed Python bridge registry、rule extraction、
 > weak/ambiguous evidence boundary、multi-instance merge 與 injection tests 已完成；未新增
 > TOML executable DSL。完成證據見
-> `docs/work/Timmy/schedule/report/2026-07-11-phase2-s1-pipeline-core-REP.md`。
+> `docs/work/Timmy/schedule/report/2026-07-11/2026-07-11-phase2-s1-pipeline-core-REP.md`。
 
 > **執行者注意：** 逐 task 實作本計畫。步驟使用 checkbox（`- [ ]`）
 > 語法以便追蹤。

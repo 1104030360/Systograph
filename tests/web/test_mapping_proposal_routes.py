@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from tests.helpers.web_flows import scan_project
 
 from systograph.core.models.mapping import MappingEvidencePacket
 from systograph.core.services.manual_mapping_service import (
@@ -49,13 +50,11 @@ def import_and_scan_weak_project(
             "project_path": str(project_root),
         },
     ).json()["project_id"]
-    scan_payload = client.post(
-        "/api/scans",
-        json={
-            "project_id": project_id,
-            "output": str(tmp_path / "outputs"),
-        },
-    ).json()
+    scan_payload = scan_project(
+        client,
+        project_id,
+        output=str(tmp_path / "outputs"),
+    )
     unmapped_id = scan_payload["build_result"]["ai_system_map"][
         "unmapped_components"
     ][0]["unmapped_id"]
@@ -81,7 +80,12 @@ def test_proposal_routes_create_and_list_pending_proposal(
 ) -> None:
     client = create_deterministic_test_app()
     project_id, unmapped_id = import_and_scan_weak_project(client, tmp_path)
-    before = client.get("/api/map").json()
+    latest_url = f"/api/projects/{project_id}/map-builds/latest"
+    before = client.get(latest_url).json()
+    # Pin the baseline as a real projection: without this, a latest that
+    # degraded to 404 would make both sides equal error bodies and pass.
+    assert before["viewer_load_result"]["loaded"] is True
+    assert before["viewer_load_result"]["graph_view_model"]["nodes"]
 
     response = client.post(
         "/api/mapping-proposals",
@@ -91,7 +95,7 @@ def test_proposal_routes_create_and_list_pending_proposal(
             "user_description": "This may be the vector store client.",
         },
     )
-    after = client.get("/api/map").json()
+    after = client.get(latest_url).json()
 
     assert response.status_code == 200
     payload = response.json()
