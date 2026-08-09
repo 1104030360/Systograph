@@ -70,13 +70,15 @@ export default function App() {
   const appState: ViewerState =
     dataSourceMode === "sample"
       ? "loaded"
-      : payloadQuery.isError
-        ? "error"
-        : !data
-          ? "loading"
-          : data.viewer_load_result.loaded === false
-            ? "pending"
-            : "loaded";
+      : activeProjectId == null && activeBuildId == null
+        ? "empty"
+        : payloadQuery.isError
+          ? "error"
+          : !data
+            ? "loading"
+            : data.viewer_load_result.loaded === false
+              ? "pending"
+              : "loaded";
   const dataAvailable = appState === "loaded";
   const showOverlay = appState !== "loaded";
 
@@ -168,8 +170,8 @@ export default function App() {
 
   const completeScanFlow = useCallback(
     async (projectId: string, isCurrent: () => boolean) => {
-      // Inventory Scan success is project/build scoped. Do not fall through to
-      // the process-wide /api/map compatibility route.
+      // Inventory Scan success is project/build scoped, so refresh the exact
+      // project's latest published build.
       const latest = await loadLatestMapBuild(apiBaseUrl, projectId);
       // A cancel or a newly started scan during the fetch above owns the
       // session now; publishing this build would point the viewer at the

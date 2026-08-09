@@ -36,8 +36,8 @@ GET /map
 latest viewer payload, carrying no `project_id`. Both were removed on
 2026-08-07, together with the demo writer `POST /api/map/build` that fed them
 and the arbitrary-path loader `POST /api/viewer/load`; the backend answers 404
-on all four. Loading a map is now always build-scoped and always requires a
-`project_id`.
+on all four. Loading a map is now always build-scoped: latest-project reads
+require a `project_id`, while pinned historical reads require a `build_id`.
 
 Removing `POST /api/viewer/load` **is** the fix for the #140 path oracle. The
 endpoint took a client-supplied `map_json_path` and read that file off the
@@ -48,9 +48,10 @@ an existing `ai_system_map.json` now lives only in the CLI command
 `systograph validate-map`, where an operator names a local file and no remote
 caller can reach it.
 
-The frontend still contains the fallback branch that tries these two paths
-after the build-scoped request fails. It is dead code — every attempt hits a
-404 — and its removal belongs to the FE-2 work package. Do not build on it.
+The frontend never calls these retired endpoints. API mode remains idle until
+a project or immutable build is selected, then calls exactly one of the two
+build-scoped endpoints above. A failed build-scoped request is surfaced to the
+user and is never replaced by process-wide or sample data.
 
 Both build-scoped endpoints above (`map-builds/latest` and
 `map-builds/{build_id}`) answer with the same envelope,

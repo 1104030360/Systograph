@@ -69,7 +69,6 @@ describe("viewerApi build identity", () => {
 
     const payload = await loadApiViewerPayload(
       "http://127.0.0.1:8000/",
-      undefined,
       "project:sample-ai-health-rag",
     );
 
@@ -80,6 +79,21 @@ describe("viewerApi build identity", () => {
     expect(payload.viewer_load_result.project_id).toBe("project:sample-ai-health-rag");
     expect(payload.viewer_load_result.build_id).toBe("build:sample-b2");
     expect(payload.viewer_load_result.readiness_report?.build_id).toBe("build:sample-b2");
+  });
+
+  it("surfaces a project-scoped load failure without calling a retired fallback", async () => {
+    const failure = new Error("Latest build is unavailable.");
+    vi.mocked(fetchJson).mockRejectedValue(failure);
+
+    await expect(
+      loadApiViewerPayload("http://127.0.0.1:8000", "project:sample-ai-health-rag"),
+    ).rejects.toBe(failure);
+
+    expect(fetchJson).toHaveBeenCalledOnce();
+    expect(fetchJson).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/api/projects/project%3Asample-ai-health-rag/map-builds/latest",
+      { signal: undefined },
+    );
   });
 
   it("loads the explicitly selected historical build without falling back to latest", async () => {
