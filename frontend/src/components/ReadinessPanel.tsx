@@ -19,8 +19,8 @@ import {
 import type { GraphViewModel } from "../types";
 import { titleCase } from "../utils/format";
 import {
+  downloadMapReport,
   loadMapReport,
-  mapReportDownloadUrl,
   MapReportUnavailableError,
 } from "../services/mapReportApi";
 
@@ -203,6 +203,8 @@ function LatestMapReport({
 }) {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<MapReportState>({ status: "loading" });
+  const [downloadState, setDownloadState] = useState<"idle" | "loading" | "error">("idle");
+  const downloadControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!enabled || isHistoricalBuild) return;
@@ -224,6 +226,38 @@ function LatestMapReport({
 
     return () => controller.abort();
   }, [apiBaseUrl, attempt, enabled, isHistoricalBuild]);
+
+  useEffect(() => () => downloadControllerRef.current?.abort(), []);
+
+  async function handleDownload() {
+    const controller = new AbortController();
+    downloadControllerRef.current?.abort();
+    downloadControllerRef.current = controller;
+    setDownloadState("loading");
+    try {
+      const blob = await downloadMapReport(apiBaseUrl, controller.signal);
+      if (controller.signal.aborted) return;
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = "ai_system_map.md";
+        anchor.click();
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+      setDownloadState("idle");
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (error instanceof MapReportUnavailableError) {
+        setState({ status: "missing" });
+      } else {
+        setDownloadState("error");
+      }
+    } finally {
+      if (downloadControllerRef.current === controller) downloadControllerRef.current = null;
+    }
+  }
 
   if (!enabled) {
     return (
@@ -295,14 +329,21 @@ function LatestMapReport({
         </span>
       </div>
       <div className="readiness-map-report-actions">
-        <a
+        <button
           className="btn primary"
-          href={mapReportDownloadUrl(apiBaseUrl)}
-          download="ai_system_map.md"
+          type="button"
+          disabled={downloadState === "loading"}
+          onClick={() => void handleDownload()}
         >
-          <Download aria-hidden="true" size={14} /> Download ai_system_map.md
-        </a>
+          <Download aria-hidden="true" size={14} />
+          {downloadState === "loading" ? "Downloading…" : "Download ai_system_map.md"}
+        </button>
       </div>
+      {downloadState === "error" ? (
+        <p className="readiness-map-report-download-error" role="alert">
+          Download failed. Check the local API server and try again.
+        </p>
+      ) : null}
       <pre className="readiness-markdown-source" aria-label="Latest scan report Markdown">
         {state.markdown}
       </pre>

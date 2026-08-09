@@ -110,4 +110,56 @@ describe("fetchText", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await expectation;
   });
+
+  it("keeps the timeout active until a successful text body is consumed", async () => {
+    vi.useFakeTimers();
+    let requestSignal: AbortSignal | undefined;
+    let releaseBody: (value: string) => void = () => {};
+    const body = new Promise<string>((resolve) => {
+      releaseBody = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        requestSignal = init?.signal ?? undefined;
+        return Promise.resolve({ ok: true, text: () => body } as Response);
+      }),
+    );
+
+    const request = fetchText("http://127.0.0.1:8000/api/map/report", { timeoutMs: 1_000 });
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1_000);
+    const bodyWasAborted = requestSignal?.aborted;
+    releaseBody("# late report");
+    await request.catch(() => undefined);
+
+    expect(bodyWasAborted).toBe(true);
+  });
+
+  it("keeps caller cancellation connected while a JSON body is being consumed", async () => {
+    let requestSignal: AbortSignal | undefined;
+    let releaseBody: (value: unknown) => void = () => {};
+    const body = new Promise<unknown>((resolve) => {
+      releaseBody = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        requestSignal = init?.signal ?? undefined;
+        return Promise.resolve({ ok: true, json: () => body } as Response);
+      }),
+    );
+    const controller = new AbortController();
+
+    const request = fetchJson("http://127.0.0.1:8000/api/projects/p/map-builds/latest", {
+      signal: controller.signal,
+    });
+    await Promise.resolve();
+    controller.abort();
+    const bodyWasAborted = requestSignal?.aborted;
+    releaseBody({ loaded: true });
+    await request.catch(() => undefined);
+
+    expect(bodyWasAborted).toBe(true);
+  });
 });

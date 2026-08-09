@@ -1,15 +1,20 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { graphViewModelSchema } from "../types";
-import { loadMapReport, MapReportUnavailableError } from "../services/mapReportApi";
+import {
+  downloadMapReport,
+  loadMapReport,
+  MapReportUnavailableError,
+} from "../services/mapReportApi";
 import { ReadinessPanel } from "./ReadinessPanel";
 
 vi.mock("../services/mapReportApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../services/mapReportApi")>();
-  return { ...actual, loadMapReport: vi.fn() };
+  return { ...actual, downloadMapReport: vi.fn(), loadMapReport: vi.fn() };
 });
 
 const loadMapReportMock = vi.mocked(loadMapReport);
+const downloadMapReportMock = vi.mocked(downloadMapReport);
 
 const graph = graphViewModelSchema.parse({
   nodes: [],
@@ -64,6 +69,15 @@ const report = {
 describe("ReadinessPanel", () => {
   beforeEach(() => {
     loadMapReportMock.mockReset();
+    downloadMapReportMock.mockReset();
+    downloadMapReportMock.mockResolvedValue(
+      new Blob(["# Downloaded report"], { type: "text/markdown" }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("renders backend grounding summary, five-state chips, and next checks", () => {
@@ -118,10 +132,22 @@ describe("ReadinessPanel", () => {
       expect.any(AbortSignal),
     );
     expect(screen.getByText(/process-wide and is not tied/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Download ai_system_map.md/ })).toHaveAttribute(
-      "href",
-      "http://127.0.0.1:9000/api/map/report?download=true",
+    const createObjectURL = vi.fn(() => "blob:map-report");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    fireEvent.click(screen.getByRole("button", { name: /Download ai_system_map.md/ }));
+
+    await waitFor(() => expect(downloadMapReportMock).toHaveBeenCalledOnce());
+    expect(downloadMapReportMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:9000/",
+      expect.any(AbortSignal),
     );
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(anchorClick).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:map-report");
+    expect(screen.queryByRole("link", { name: /Download ai_system_map.md/ })).not.toBeInTheDocument();
   });
 
   it("shows a clear no-report state for the backend 404", async () => {
@@ -138,7 +164,7 @@ describe("ReadinessPanel", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Latest map report" }));
 
     expect(await screen.findByText(/No latest scan report is available yet/)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Download ai_system_map.md/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Download ai_system_map.md/ })).not.toBeInTheDocument();
   });
 
   it("blocks the process-wide report while a historical build is open", () => {
@@ -157,7 +183,26 @@ describe("ReadinessPanel", () => {
     expect(screen.getByText(/disabled while viewing a historical build/)).toBeInTheDocument();
     expect(screen.getByText(/not the build shown here/)).toBeInTheDocument();
     expect(loadMapReportMock).not.toHaveBeenCalled();
-    expect(screen.queryByRole("link", { name: /Download ai_system_map.md/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Download ai_system_map.md/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps the preview open when downloading fails", async () => {
+    loadMapReportMock.mockResolvedValue("# Latest report remains visible");
+    downloadMapReportMock.mockRejectedValue(new Error("network unavailable"));
+    render(
+      <ReadinessPanel
+        report={report}
+        graph={graph}
+        mapReportEnabled
+        onClose={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Latest map report" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Download ai_system_map.md/ }));
+
+    expect(await screen.findByText(/Download failed/)).toBeInTheDocument();
+    expect(screen.getByText(/# Latest report remains visible/)).toBeInTheDocument();
   });
 
   it("offers retry after a report request fails", async () => {

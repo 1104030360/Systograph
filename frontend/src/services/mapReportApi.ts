@@ -13,9 +13,9 @@ export function mapReportDownloadUrl(baseUrl: string): string {
   return `${normalizeBaseUrl(baseUrl)}${MAP_REPORT_PATH}?download=true`;
 }
 
-export async function loadMapReport(baseUrl: string, signal?: AbortSignal): Promise<string> {
+async function fetchMapReport(url: string, signal?: AbortSignal): Promise<string> {
   try {
-    return await fetchText(`${normalizeBaseUrl(baseUrl)}${MAP_REPORT_PATH}`, {
+    return await fetchText(url, {
       signal,
       headers: { Accept: "text/markdown" },
     });
@@ -29,4 +29,13 @@ export async function loadMapReport(baseUrl: string, signal?: AbortSignal): Prom
     }
     throw error;
   }
+}
+
+export function loadMapReport(baseUrl: string, signal?: AbortSignal): Promise<string> {
+  return fetchMapReport(`${normalizeBaseUrl(baseUrl)}${MAP_REPORT_PATH}`, signal);
+}
+
+export async function downloadMapReport(baseUrl: string, signal?: AbortSignal): Promise<Blob> {
+  const markdown = await fetchMapReport(mapReportDownloadUrl(baseUrl), signal);
+  return new Blob([markdown], { type: "text/markdown;charset=utf-8" });
 }

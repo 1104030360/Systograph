@@ -28,11 +28,12 @@ export function normalizeBaseUrl(baseUrl: string) {
 
 type RequestOptions = RequestInit & { timeoutMs?: number };
 
-async function fetchResponse(
+async function fetchBody<T>(
   url: string,
   options: RequestOptions = {},
   accept: string,
-): Promise<Response> {
+  readBody: (response: Response) => Promise<T>,
+): Promise<T> {
   const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, signal, headers, ...requestOptions } = options;
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -58,7 +59,9 @@ async function fetchResponse(
       throw new ApiRequestError(error.message, response.status, error.detail);
     }
 
-    return response;
+    // Await body consumption inside this lifecycle so timeout and caller
+    // cancellation remain connected after response headers arrive.
+    return await readBody(response);
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       // The caller's signal aborting means cancellation (unmount, newer
@@ -76,13 +79,11 @@ async function fetchResponse(
 }
 
 export async function fetchJson(url: string, options: RequestOptions = {}): Promise<unknown> {
-  const response = await fetchResponse(url, options, "application/json");
-  return response.json();
+  return fetchBody(url, options, "application/json", (response) => response.json());
 }
 
 export async function fetchText(url: string, options: RequestOptions = {}): Promise<string> {
-  const response = await fetchResponse(url, options, "text/plain");
-  return response.text();
+  return fetchBody(url, options, "text/plain", (response) => response.text());
 }
 
 async function responseError(response: Response): Promise<{

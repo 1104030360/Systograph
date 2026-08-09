@@ -1362,7 +1362,7 @@ h1, h2, h3 { margin: 0; }
   border-radius: var(--radius-sm);
 }
 .readiness-map-report-actions { display: flex; justify-content: flex-end; }
-.readiness-map-report-actions .btn { text-decoration: none; }
+.readiness-map-report-download-error { margin: 0; color: var(--error); font-size: var(--fs-sm); text-align: right; }
 .readiness-map-report-state {
   min-height: 180px; padding: 28px;
   display: flex; align-items: flex-start; justify-content: center; gap: 10px;
