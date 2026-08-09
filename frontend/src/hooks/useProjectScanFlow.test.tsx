@@ -140,10 +140,22 @@ describe("useProjectScanFlow", () => {
     );
   });
 
-  it("never resubmits stale decisions and requires an explicit preflight reload", async () => {
+  it.each([
+    "inventory_preflight_stale",
+    "inventory_selection_target_changed",
+    "inventory_selection_target_missing",
+  ])("automatically reloads a fresh preflight for %s without resubmitting stale decisions", async (code) => {
+    const freshPreflight = {
+      ...samplePreflight,
+      preflight_request_id: `preflight:fresh:${code}`,
+      candidate_set_digest: `sha256:candidates-fresh:${code}`,
+    };
+    vi.mocked(createScanPreflight)
+      .mockResolvedValueOnce(samplePreflight)
+      .mockResolvedValueOnce(freshPreflight);
     vi.mocked(startProjectScan).mockRejectedValue(
       new ApiRequestError("Scan selection changed. Refresh the file review.", 409, {
-        code: "inventory_preflight_stale",
+        code,
         retryable: true,
         context: null,
       }),
@@ -158,20 +170,17 @@ describe("useProjectScanFlow", () => {
     });
 
     await act(async () => result.current.submit());
-    expect(result.current.status).toBe("stale");
-    expect(result.current.decisionsByIdentity).toEqual({});
-    expect(createScanPreflight).toHaveBeenCalledTimes(1);
-    expect(startProjectScan).toHaveBeenCalledTimes(1);
-
-    vi.mocked(createScanPreflight).mockResolvedValue({
-      ...samplePreflight,
-      preflight_request_id: "preflight:fresh",
-    });
-    await act(async () => result.current.retryPreflight());
-    expect(createScanPreflight).toHaveBeenCalledTimes(2);
-    expect(startProjectScan).toHaveBeenCalledTimes(1);
     expect(result.current.status).toBe("reviewing");
+    expect(result.current.preflight?.preflight_request_id).toBe(freshPreflight.preflight_request_id);
     expect(result.current.decisionsByIdentity).toEqual({});
+    expect(result.current.notice).toMatch(/fresh review was loaded/);
+    expect(createScanPreflight).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(createScanPreflight).mock.lastCall?.[1]).toMatchObject({
+      projectId: session.project_id,
+      requestedPaths: [],
+      reviewableExcludedCursor: null,
+    });
+    expect(startProjectScan).toHaveBeenCalledTimes(1);
   });
 
   it.each(["inventory_rules_unavailable", "inventory_rules_invalid"])(
@@ -336,7 +345,10 @@ describe("useProjectScanFlow", () => {
     expect(result.current.notice).toMatch(/dropped because the backend inventory changed/);
   });
 
-  it("does not restore superseded review controls when a stale reload fails", async () => {
+  it("fails closed when the automatic stale reload fails", async () => {
+    vi.mocked(createScanPreflight)
+      .mockResolvedValueOnce(samplePreflight)
+      .mockRejectedValueOnce(new ApiRequestError("Network request failed."));
     vi.mocked(startProjectScan).mockRejectedValue(
       new ApiRequestError("Scan selection changed. Refresh the file review.", 409, {
         code: "inventory_preflight_stale",
@@ -353,15 +365,13 @@ describe("useProjectScanFlow", () => {
       result.current.setDecision(directory, "skip_this_run");
     });
     await act(async () => result.current.submit());
-    expect(result.current.status).toBe("stale");
 
-    vi.mocked(createScanPreflight).mockRejectedValueOnce(new ApiRequestError("Network request failed."));
-    await act(async () => result.current.retryPreflight());
-
-    // A failed reload must stay on the blocking screen. Keeping the old
+    // A failed automatic reload must stay on the blocking screen. Keeping the old
     // preflight would let the user submit a known-superseded request id.
     expect(result.current.status).toBe("error");
     expect(result.current.preflight).toBeNull();
+    expect(result.current.decisionsByIdentity).toEqual({});
+    expect(createScanPreflight).toHaveBeenCalledTimes(2);
     expect(startProjectScan).toHaveBeenCalledTimes(1);
   });
 

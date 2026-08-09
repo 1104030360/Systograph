@@ -277,6 +277,7 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
         appendExcluded: boolean;
         preserveDecisions: boolean;
         keepReviewOnError?: boolean;
+        preparingMessage?: string;
         epoch: number;
       },
     ): Promise<PreflightOutcome> => {
@@ -285,7 +286,9 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
       onProgress({
         running: true,
         stage: "inventory",
-        message: cursor ? "Loading more backend inventory candidates." : "Preparing scan inventory.",
+        message:
+          options.preparingMessage ??
+          (cursor ? "Loading more backend inventory candidates." : "Preparing scan inventory."),
         percent: 12,
         status: "running",
       });
@@ -588,16 +591,24 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
       if (epoch !== operationEpoch.current) return;
       const normalized = flowError(caught);
       if (normalized.code && STALE_ERROR_CODES.has(normalized.code)) {
+        // The scan endpoint revalidates the preflight immediately before it
+        // creates a build. Once that validation says the inventory moved, the
+        // old request id and every choice keyed to its fingerprints are
+        // unusable. Fetch a new review automatically, but never resubmit the
+        // scan or carry old choices into the new baseline.
+        setPreflight(null);
         setDecisions({});
-        setError({ ...normalized, kind: "stale" });
-        setStatus("stale");
-        onProgress({
-          running: false,
-          stage: "inventory",
-          message: "The inventory changed. Reload and confirm a new preflight.",
-          percent: 15,
-          status: "waiting",
+        const outcome = await requestPreflight(session, requestedPathsRef.current, null, {
+          appendExcluded: false,
+          preserveDecisions: false,
+          preparingMessage: "The inventory changed. Preparing a fresh scan review.",
+          epoch,
         });
+        if (outcome === "accepted" && epoch === operationEpoch.current) {
+          setNotice(
+            "The inventory changed, so a fresh review was loaded. Confirm your choices again before starting the scan.",
+          );
+        }
       } else if (normalized.code && BASELINE_ERROR_CODES.has(normalized.code)) {
         clearOneRunState();
         setError({ ...normalized, kind: "baseline" });
@@ -631,9 +642,11 @@ export function useProjectScanFlow({ apiBaseUrl, onCompleted, onProgress }: Opti
     onCompleted,
     onProgress,
     preflight,
+    requestPreflight,
     serializedDecisions,
     session,
     setDecisions,
+    setPreflight,
   ]);
 
   const cancel = useCallback(() => {
