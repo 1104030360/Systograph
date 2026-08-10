@@ -146,7 +146,37 @@ Q1 Plan 14 是否硬性要求 16D；Q2 CI fixture 是否預設 `off`；Q3 前端
 | — | （先前已完成） | boundary doc 全文重寫、ref-opensource/CLAUDE.md 全文重寫、根 CLAUDE.md 加 anti-test-gaming 原則、Meeting-Sync 前端計畫 | ✅ |
 | — | 主 agent 收尾（2026-08-10） | s2 README:228 錨點 :153→:183；「Phase4 31 fixtures」→「Phase4 Plan 31 fixtures」（16:342／18:319／本檔）；16E §9 補 16H 列；全 tree 殘留掃描（舊名／舊錨點／小寫開關名＝0，僅本檔歷史引述合法保留）；git status 確認本批只動 .md（工作區其餘 src/tests/scripts 變更屬 owner 另一 session 的 download.md 批次，未觸碰） | ✅ |
 
-**批次完成（2026-08-10）。** 18 題全數裁定、13+4 份文件落實、零程式碼變更、零 commit——由 owner 複核後自行提交。
+**批次完成（2026-08-10）。** 18 題全數裁定、13+4 份文件落實、零程式碼變更——已於 PR #280 提交。
+
+---
+
+## 3. PR #280 review 回應（2026-08-10 追加）
+
+**R1. 16H Task 1 會造成循環相依（Codex review，屬實）** — `✅ 已修`
+原 Task 1 只列「`system_map.py` 加欄位」，但欄位型別 `AssessmentEvidenceKind` 住在
+`ai_system_map_v2.py:57`，而該模組已在 `:31` import `system_map.Evidence`——反向 import
+即循環相依，**兩個 model 模組都載不進來、掃描器起不來**。計畫本身的步驟缺漏，非程式碼問題。
+**處置（owner 核可）：** Task 1 拆為三步——①`AssessmentEvidenceKind` 移入新中立 module
+`core/models/evidence_kind.py`（不 import 任何 systograph model）→ ②`ai_system_map_v2.py`
+改 re-export（既有兩個消費者零改動）→ ③`Evidence` 加欄位。另加「中立 module 不得有
+model 相依」的迴圈防護測試。判例＝07-28 `RecommendedNextCheck` 同型死結的既有解法。
+
+**釐清紀錄（owner 提問串，供 Plan 15 動工時參考）：**
+- **兩個 model 檔不是「新舊版本」，是流水線兩階段**：`Evidence`（掃描時的事實，21 個
+  active 檔在用）→ `canonical_evidence_from_scan()` → `CanonicalEvidence`（發布時的契約）。
+  轉換過程會**加上掃描器無從得知的資訊**：`evidence_kind` 判定、`no_snippets` build 選項、
+  `json_pointer`/`config_key` 拆解——故不可由 provider 直接產出 v2 型別。
+- **不可全併入 `ai_system_map_v2.py`**：①分層倒轉（Step 3 掃描器將相依輸出契約模組）
+  ②快照被綁上輸出版本（Apply 重放的基礎）③出 v3 時三條路都不好走。若確定 v2 為終局契約
+  而選擇合併，**檔名必須改為版本中立**，否則重演今天「`Evidence` 住在 v1 檔」的誤導。
+- **Plan 15 待搬清單的判準（owner 提出，本次實證）：** 問「拿掉 rag-core-v1 之後它還在嗎？」
+  - 還在 → 中立，搬家：`Evidence`／`Endpoint`／`RiskHint`／`DetailScanResult`／
+    `QueryTraceEvent`／`CodePathStep`／`UnmappedComponent`
+    （實證：三個 provider 與 `ProjectScanService` 提及 template 次數皆為 0）
+  - 不在 → 模板鷹架，隨 16G／C1 死，**不該進待搬清單**：`ComponentSlot`／`Flow`／`Edge`
+    （實證：`ai_system_map_v2.py` 查無 `components_by_slot`／`flows` 欄位，v2 輸出早已
+    攤平成 `components[]`／`edges[]`；此三者只是 Step 4 內部鷹架）
+  → Plan 15 現行清單把 `Flow`／`Edge` 列為待搬中立 symbol，動工重新推導時應套用此判準。
 
 ---
 

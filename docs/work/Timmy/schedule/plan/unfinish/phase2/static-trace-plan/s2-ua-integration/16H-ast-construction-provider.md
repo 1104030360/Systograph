@@ -131,10 +131,33 @@ def matches(self, fact: ScanFact) -> bool:
 > 這同時也是 [`16C`](./16C-component-attribution-and-edge-derivation.md)
 > L1/L2 分級的正確性前提（16C §5 末段已標明「不屬本計畫，但屬本計畫的正確性前提」）。
 
+> **⚠️ 動工順序更正（2026-08-10，PR #280 review）：加欄位之前必須先搬型別別名。**
+> `AssessmentEvidenceKind` 現住 `ai_system_map_v2.py:57`，而該模組已在
+> `:31` `from systograph.core.models.system_map import Evidence`。若直接讓
+> `system_map.py` 反向 import 它，兩個 model 模組會**循環相依、載入即失敗**，
+> 掃描器整個起不來。故 Task 1 拆為三步：**先搬別名 → 再加欄位 → 最後改判定**。
+>
+> **判例：** 07-28 的 `RecommendedNextCheck` 遇過同一個死結，解法相同——
+> 移到中立 module、原模組 re-export 綁名字
+> （`core/models/recommended_next_check.py` 檔頭記錄了完整理由）。
+>
+> **與 Plan 15 的關係：** 這個中立 module 即 Plan 15「把版本中立 symbol 拆出
+> `system_map.py`」的落腳處（Plan 15 §Task 2 前置清單）。本 task 只搬一個型別
+> 別名，是該拆分的第一小步，方向一致、不製造需要回頭的中間態。
+> **本 task 不搬 `Evidence` 本體**（37 個 import 點，屬 Plan 15 範圍）。
+
 **Files**
 
+- Add: `src/systograph/core/models/evidence_kind.py`
+  （**中立 module**：只放 `AssessmentEvidenceKind`；刻意不 import 任何其他
+  systograph model，確保不可能產生循環相依——同
+  `core/models/recommended_next_check.py` 的既有慣例）
+- Modify: `src/systograph/core/models/ai_system_map_v2.py`
+  （`:57` 的定義改為 `from ...evidence_kind import AssessmentEvidenceKind` re-export，
+  維持既有兩個消費者 `canonical_evidence_service.py` /
+  `system_map_v1_to_v2_adapter.py` 零改動）
 - Modify: `src/systograph/core/models/system_map.py`
-  （`Evidence`（`:117`）新增 `evidence_kind_hint` 欄位）
+  （`Evidence`（`:117`）新增 `evidence_kind_hint` 欄位，型別自中立 module import）
 - Modify: `src/systograph/core/services/canonical_evidence_service.py`
   （`:26-31` 的形狀判定改為「有 hint 時優先採 hint」）
 - Add: `tests/contracts/test_evidence_kind_hint_contract.py`
@@ -142,15 +165,25 @@ def matches(self, fact: ScanFact) -> bool:
 
 **Steps**
 
-- [ ] `Evidence` 加**加性**欄位（只加不改，既有 provider 全部不設此欄，行為不變）：
+- [ ] **步驟 ①（必須最先）** 新增 `core/models/evidence_kind.py`，把
+      `AssessmentEvidenceKind = Literal["direct", "indirect", "explicit_negative"]`
+      從 `ai_system_map_v2.py:57` 移入；該檔**不得 import 任何其他 systograph
+      model**（檔頭比照 `recommended_next_check.py` 寫明此紀律與理由）
+- [ ] **步驟 ②** `ai_system_map_v2.py` 改為 re-export 綁名字；驗證
+      `canonical_evidence_service.py` 與 `system_map_v1_to_v2_adapter.py`
+      **一行都不用改**（字彙不變、值域不變）
+- [ ] **步驟 ③** `Evidence` 加**加性**欄位（只加不改，既有 provider 全部不設此欄，行為不變）：
 
       ```python
       # core/models/system_map.py — Evidence
+      from systograph.core.models.evidence_kind import AssessmentEvidenceKind
+      ...
       evidence_kind_hint: AssessmentEvidenceKind | None = None
       ```
 
-      型別沿用 `ai_system_map_v2.py:57` 的
-      `Literal["direct", "indirect", "explicit_negative"]`，**不新增字彙**
+      值域沿用既有三值，**不新增字彙**
+- [ ] 迴圈防護測試：斷言 `evidence_kind.py` 的 import 集合為空（或不含任何
+      `systograph.core.models.*`），避免日後有人往中立 module 加相依
 - [ ] `canonical_evidence_service` 改為 hint 優先：
 
       ```python
@@ -460,6 +493,9 @@ def matches(self, fact: ScanFact) -> bool:
 | `src/systograph/core/services/code_path_scan_service.py` | `:176-181` 的 `ast.walk` 無 scope guard、`:227-237` 的 `_call_symbol` 遞迴解點分名（現成參考） |
 | `src/systograph/core/services/canonical_evidence_service.py` | `:26-31` 形狀判定 direct/indirect（Task 1 改動點） |
 | `src/systograph/core/models/system_map.py` | `Evidence`（`:117`）——Task 1 加欄位處 |
+| `src/systograph/core/models/ai_system_map_v2.py` | `AssessmentEvidenceKind`（`:57`）現址、`Evidence`（`:31`）import 處——Task 1 步驟①②的循環相依來源 |
+| `src/systograph/core/models/recommended_next_check.py` | **中立 module 判例**：07-28 同型死結的既有解法與檔頭紀律 |
+| `../../../refactor/15-complete-legacy-v1-retirement-after-compatibility.md` | Plan 15：版本中立 symbol 拆出 `system_map.py` 的完整清單；本 task 的中立 module 即其落腳處 |
 | `src/systograph/core/models/scan.py` | `ScanFact`（`:92`）／`ParseIssue`（`:103`，`scan_stage` 封閉 Literal 在 `:107-114`） |
 | `src/systograph/core/services/rule_catalog_loader.py` | `CodePatternRule`（`:52-60`）／`load_code_pattern_rules`（`:164-233`）——Task 2 改動點 |
 | `src/systograph/core/rules/code_pattern_rules.toml` | 13 列 regex 目錄；Task 2 在此加 `symbol` 欄 |
