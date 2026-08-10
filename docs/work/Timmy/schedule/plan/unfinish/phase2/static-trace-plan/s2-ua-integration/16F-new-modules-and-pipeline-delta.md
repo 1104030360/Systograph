@@ -4,14 +4,21 @@
 > **白話一句話：** 這批計畫做完後，管線上「多出來的東西」總共有哪些、各自歸誰管。
 > **這份不是實作計畫**，是查詢用的清單 + 兩張前後對照圖。
 
-Status: reference（2026-08-04 建立）— 內容全部從 `16` / `16C` / `16D` / `16E` 抽取，
-不新增任何決策。四份計畫任一有變更時，以計畫本體為準，本檔跟改。
+Status: reference（2026-08-04 建立）— **2026-08-10 同步（Task 8／16H／裁定收斂）**。
+內容全部從 `16` / `16C` / `16D` / `16E` / `16H` 抽取，不新增任何決策。
+任一計畫本體有變更時，以計畫本體為準，本檔跟改。
+
+> **2026-08-10 注記：** 本次同步補入 Plan 16 Task 8（CLI 非互動 gate＋snapshot）與
+> [`16H`](./16H-ast-construction-provider.md)（`ast_construction_provider.py` 的實作計畫，
+> 承接 G1/G2/G3），並把 16B §6 的「剩餘未裁定」敘述改為已收斂。
+> 裁定出處見 [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md)（Q1／Q2／Q11）。
 
 ---
 
 ## 1. 為什麼需要這份
 
-`16` / `16C` / `16D` / `16E` 四份合計 1600+ 行，**新增的模組散落在各自的 Task 清單裡**，
+`16` / `16C` / `16D` / `16E`（＋2026-08-10 新增的 `16H`）合計 1600+ 行，
+**新增的模組散落在各自的 Task 清單裡**，
 沒有任何一處可以一眼看出「這批做完，codebase 到底多了什麼」。
 Review 時最常問的三個問題——
 
@@ -65,7 +72,7 @@ Step 4  MATERIALIZE = BRIDGE 1 (Python)                   <<< WEAK SPOT 2
 | 4-4  risk_hints[]                    [risk_hint_rules.toml = text only]|
 | 4-5  edges / flows  FlowDerivationService                              |
 |         12 HARDWIRED relations, zero repo code involved                |
-|         normalize:153 stamps EVERY edge status="observed"  <-- lying   |
+|         normalize:183 stamps EVERY edge status="observed"  <-- lying   |
 | 4-6  assemble draft   4-7  mask paths   4-8  schema validate           |
 +------------------------------------------------------------------------+
      |
@@ -108,7 +115,7 @@ Step 9  REVIEW (optional)
      +----------------------------> back to Step 4-2
 ```
 
-### 2.2 做完後（Plan 16 + 16C + 16D + 16E G3 · Phase B/C）
+### 2.2 做完後（Plan 16 + 16C + 16D + 16H · Phase B/C）
 
 ```text
 Step 1  IMPORT                          unchanged
@@ -127,7 +134,7 @@ Step 3  SCAN -- UA becomes primary                          [Plan 16]
 |                                                                        |
 |        spawns the 3 scripts directly -- no .mjs wrapper                |
 |          extract-import-map.mjs    who imports whom                    |
-|          compute-batches.mjs       Louvain grouping  (Systograph patch)       |
+|          compute-batches.mjs       Louvain grouping  (Systograph patch)|
 |          extract-structure.mjs     functions / classes / call hints    |
 |          file-analyzer (LLM)       DEFERRED -- never executed          |
 |        work-dir = system temp, deleted when the scan ends              |
@@ -137,7 +144,7 @@ Step 3  SCAN -- UA becomes primary                          [Plan 16]
 |        ua_import_*   file -> file, NO line number                      |
 |        ua_symbol_*   function spans, startLine / endLine               |
 |        ua_call_hint_*  caller -> callee @ line   <-- DIRECT evidence   |
-|      + G3 external imports (16E, do this first)                        |
+|      + G3 external imports (16H, do this first)                        |
 |                                                                        |
 | OLD TOML providers demoted to parity comparison only                   |
 | fail-closed: bad schema / missing Node / failed batch -> STOP          |
@@ -192,16 +199,29 @@ Step 9  REVIEW / APPLY                  unchanged; Apply still skips UA
 +------------------------------------------------------------------------+
 ```
 
-### 2.3 兩條執行路徑（前後相同，不受本批影響）
+### 2.3 執行路徑（Rescan / Apply 前後相同；CLI 於本批被拉齊）
 
 ```text
 Rescan   new preflight -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8   new snapshot, new scan_id
 Apply    no preflight, no repo read -> 4-2 -> 5 -> 6 -> 7 -> 8  same scan_id, new build_id
+
+CHANGED BY THIS BATCH                                            [16 Task 8]
+CLI  before  systograph map -> MapBuildService.build() directly
+             no boundary gate, no snapshot  <-- UA whitelist premise missing
+CLI  after   systograph map -> non-interactive Step 2 gate -> 3 -> ... -> 7
+             default policy auto-decide; blocked => fail-closed to Web review
+             persists ScanSnapshot, same scan_id / lineage semantics as Web
 ```
+
+> **Plan 16 Task 8（2026-08-05 Q4 裁定）：** CLI 立刻補 gate、直接走 UA，不留過渡期分歧。
+> **已知代價（裁定時已接受）：本 task 進入 Gate-2 關鍵路徑**——Gate-2 的定義必須含 Task 8。
 
 ---
 
-## 3. 圖上標 `NEW` 的四項（主清單）
+## 3. 主清單（N1～N6）
+
+N1～N4 是 §2.2 圖上標 `NEW` 的四項；**N5／N6 為 2026-08-10 補列**，
+§2.2 的方框圖尚未重繪（N5 見 §2.3 的 CLI 對照，N6 落在 Step 3 的 provider 層）。
 
 | # | 名稱 | 檔案 | Step | Owner | 種類 |
 |---|------|------|------|-------|------|
@@ -209,6 +229,8 @@ Apply    no preflight, no repo read -> 4-2 -> 5 -> 6 -> 7 -> 8  same scan_id, ne
 | N2 | `UnderstandAnythingAnalysisService` | `core/services/understand_anything_analysis_service.py` | 3 | [`16`](./16-implement-understand-anything-sidecar-service.md) Task 3 | **新檔** |
 | N3 | `UaStructuralAdapter` | `core/services/ua_structural_adapter.py` | 3 | [`16`](./16-implement-understand-anything-sidecar-service.md) Task 3 | **新檔** |
 | N4 | `ComponentResidenceIndex` | `core/services/component_residence_index.py` | 4 | [`16C`](./16C-component-attribution-and-edge-derivation.md) Task 1 | **新檔** |
+| N5 | CLI 非互動 boundary gate + snapshot | `cli/main.py` / CLI map 命令模組<br>`tests/cli/test_map_command_boundary_gate.py` | 2→3 | [`16`](./16-implement-understand-anything-sidecar-service.md) **Task 8** | **改既有檔**（＋新測試） |
+| N6 | `ast_construction_provider.py`（G1 + G2 + G3） | `core/providers/ast_construction_provider.py`<br>`core/models/system_map.py`（`Evidence.evidence_kind_hint`，:117 一帶）<br>`core/rules/code_pattern_rules.toml`（新增 `symbol` 欄；今天零 `symbol` 鍵） | 3 | [`16H`](./16H-ast-construction-provider.md) | **新檔＋改既有檔** |
 
 ### N1 — inventory enrichment（Step 2）
 
@@ -274,6 +296,40 @@ UnderstandAnythingResultValidator
 - 找不到函式 → `span=None`，代表模組頂層宣告（見 16C §5 風險 1）
 - 服務檔頭要補「責任 / 呼叫鏈」結構化註解（`core/services/` 慣例）
 
+### N5 — CLI 非互動 boundary gate + snapshot（Step 2→3）
+
+`16` Task 8。今天 CLI map 命令直接呼叫 `MapBuildService.build()`，沒有 boundary gate、
+沒有 snapshot；而 UA request 的白名單前提**就是** Step 2 的 `FileInventory`——
+不補這一段，CLI 這條入口拿不到合法的 UA 輸入。
+
+- 非互動模式：全部採 default policy 自動決策；`blocked` / 需人工決策時 **fail-closed**，
+  錯誤訊息指向 Web review 流程
+- CLI 產生並持久化 `ScanSnapshot`，與 Web 同一套機制（Apply / lineage 語意一致）
+- **不得**在 CLI 複製 `inventory_*` 的邏輯，也不得自行 walk 檔案樹
+- **排程影響：本項在 Gate-2 關鍵路徑上**（2026-08-05 Q4 裁定已接受此代價）
+
+### N6 — `ast_construction_provider.py`（Step 3）
+
+Owner 為 [`16H`](./16H-ast-construction-provider.md)（2026-08-10 Q1 裁定新開的實作計畫；
+規格自 16E §2.3／§4.3／§7 抽取）。形狀對齊 `code_pattern_provider.py`，**零 LLM**。
+
+```text
+G3  外部 import 邊撈回        indirect -> direct，投報率最高，先做
+G1  函式外的建構              繞開 UA extractor 的 functionStack 守衛
+G2  工廠 / 間接建構           確定性 AST 推論（追進工廠函式，MAX_FACTORY_HOPS=3 起）
+```
+
+- **G2 為 2026-08-10 新裁定**（Q2）：取代 16E 決策 2 的「人工確認為主」——改走確定性程式推論，
+  **非 LLM**；人工確認通道不刪，降為可選旁路
+- **`Evidence.evidence_kind_hint` 是 G2 的必需前置**（16H Task 1，加性欄位）：
+  誠實性三鎖＝分支不塌縮／全部標推論（hint→`indirect`）／
+  節點最多 `partial`、邊為 `undetermined` 加專屬 `undetermined_reason`（如 `factory_inference`），
+  不進 profile 接線證據（`profile_finding_assembler.py:214` 閘門不變）
+- `code_pattern_rules.toml` 的 `symbol` 欄併入 16H PR 落地（Q4）——
+  它是「符號 → (rule_id, kind) 身份證」的共用翻譯字典，供 regex／AST／UA adapter 三個生產者共用；
+  沿用既有 `rule_id` / `kind` 即可讓 `component_bridge_rules.py` 的 13 條規則零改動
+- 明示後果（owner 已知悉）：推論邊買到的是**圖的完整性**（虛線），卡片翻綠仍靠 L1 真呼叫點
+
 ---
 
 ## 4. 同批新增、但圖上未標 `NEW` 的（次清單）
@@ -287,7 +343,7 @@ UnderstandAnythingResultValidator
 | UA result schema | `schemas/systograph-ua-result.v1.schema.json` | 3 | `16` Task 1 | 禁 raw source / 絕對路徑 / secret |
 | `compute-batches` patch | `sidecar/patches/compute-batches-workdir.patch` | 3 | `16` Task 4 | 唯一的 vendored 樹改動；不複製檔案 |
 | sidecar 安裝腳本 | `scripts/setup_ua_sidecar.sh` | 3 | `16` Task 4 | submodule init → pnpm install → core build → `git apply` |
-| `ast_construction_provider.py` | `core/providers/ast_construction_provider.py` | 3 | `16E` §2.3 / §4.3（G1 + G3） | 形狀對齊 `code_pattern_provider.py` |
+| `ast_construction_provider.py` | `core/providers/ast_construction_provider.py` | 3 | [`16H`](./16H-ast-construction-provider.md)（G1 + G2 + G3） | 已升為主清單 **N6**；規格出處仍是 `16E` §2.3 / §4.3 / §7，形狀對齊 `code_pattern_provider.py` |
 | relationship 規則表 | `core/rules/edge_relationship_rules.toml` | 4 | `16C` Task 2 | 用既有 `RuleCatalogLoader`，不新造 loader |
 | `UaEdgeDerivationService` | `core/services/ua_edge_derivation_service.py` | 4 | `16C` Task 3～5 | L1 `observed` / L2 `undetermined` 邊推導（+ 過渡期 L3 降級） |
 
@@ -303,9 +359,13 @@ UnderstandAnythingResultValidator
 >
 > **已知副作用：** `git status` 會顯示 submodule modified。**不得 stage gitlink。**
 
-> ⚠️ **`ast_construction_provider.py` 可以先做。** 它是 16E 裁定中唯一「不必等 Gate」的項目，
-> 而且照 16E §2.7，只要沿用既有 `rule_id` / `kind`，`component_bridge_rules.py` 的
+> ⚠️ **`ast_construction_provider.py` 可以先做（＝ [`16H`](./16H-ast-construction-provider.md)，見 N6）。**
+> 它是唯一「不必等 Gate」的項目——2026-08-10 Q1 裁定後由 16H 承接並**立即可開工**。
+> 照 16E §2.7，只要沿用既有 `rule_id` / `kind`，`component_bridge_rules.py` 的
 > 13 條規則**一行都不用改**。
+>
+> **但 G3 那半是 `16` Task 3 的硬前置（Q6）**：G3 會把外部 import 從 `indirect` 升成 `direct`，
+> 落在 parity 基線之後做會污染 diff。先做零成本，後做要重測基線。
 
 ---
 
@@ -318,11 +378,13 @@ UnderstandAnythingResultValidator
 | [`16D`](./16D-call-priority-consumer-cutover.md) 全篇 | `system_map_v2_materialization_service.py`、`map_build_pipeline.py`、`system_map_v2_normalize_service.py`、靜態執行產出檔 | **全部否** |
 | `16D` Task 6 | 前端只做冒煙測試 + 可選視覺微調 | **否**，不改 GraphViewModel 欄位 |
 | `16C` 的資料模型 | `CanonicalEdge.status` / `undetermined_reason` / `evidence_ids` / `relationship` 四個欄位都已存在 | **否**，不改 schema |
-| `16E` G1 的 bridge 規則 | `component_bridge_rules.py` 13 條規則 | **否**，零改動 |
+| `16H` G1/G2 的 bridge 規則 | `component_bridge_rules.py` 13 條規則 | **否**，零改動（前提＝沿用既有 `rule_id` / `kind`，見 N6） |
 | `16` Task 4 的 JS 面 | 三支 UA script 留在 vendored 樹原位執行 | **否**，Systograph 自有 `.mjs` = 0，只有一份 patch |
+| `16` Task 8 的 CLI 面 | `cli/main.py` 接既有 `inventory_*` services | **否**（**除**新增的 CLI gate 測試檔）；不得複製邏輯進 CLI |
 
 **一句話：** 這批的新模組全部集中在 Step 3 與 Step 4；Step 5～9 只有行為變準，
 沒有新檔案，前端契約完全不動（16A 的核心論點）。
+**Task 8（N5）是唯一動到 Step 2 入口的項目，但它也只改既有 CLI adapter，不新造服務。**
 
 ---
 
@@ -330,28 +392,37 @@ UnderstandAnythingResultValidator
 
 ```text
 可以現在做（不等 Gate）
-  16E G3 + G1   ast_construction_provider.py
-                外部 import 邊：indirect -> direct，零 LLM
+  16H          ast_construction_provider.py             N6
+               Task 1  Evidence.evidence_kind_hint（G2 的必需前置）
+               G3  外部 import 邊：indirect -> direct，零 LLM
+               G1  函式外的建構
+               G2  工廠 / 間接建構：確定性 AST 推論，非 LLM
+               + code_pattern_rules.toml 的 symbol 欄（同一 PR）
        |
+       |  G3 那半是 16 Task 3 的硬前置（parity 基線一致性）
        v
 Gate-1 通過後
   16 Task 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7      N1 / N2 / N3 落地
+     Task 8（CLI 非互動 gate + snapshot）      N5，Gate-2 關鍵路徑
        |
-       |  併行前置（不依賴 UA，可提前完成）
-       |    13.7  bridge kind -> 52 格字彙對齊
-       |    13.8  profile relationship 端點約束
+       |  併行前置：13.7 / 13.8 皆已完成（2026-07-29），不再擋路
        v
   16C Task 1 -> 7                              N4 + 邊推導落地
        |
        v
   16D Task 1 -> 7                              下游改「呼叫優先」
+       |
+       v
+  16G                                          刪 FlowDerivationService
 ```
 
-| 前置 | 不做的後果（已實測） |
-|------|----------------------|
-| 13.7 | UA 掃得再準，52 格照樣點不亮（今天 4/52 靠 legacy slot 撐，拆掉後 1/52） |
-| 13.8 | 邊從 12 條放大到數百條，無端點約束時假陽性同步放大 |
-| 16E §5 證據來源硬化 | 16C 的兩級證據分級失去正確性前提 |
+| 前置 | 狀態 | 不做的後果（已實測） |
+|------|------|----------------------|
+| 13.7 | **✅ 已滿足（2026-07-29 done）** | UA 掃得再準，52 格照樣點不亮（當時 4/52 靠 legacy slot 撐，拆掉後 1/52） |
+| 13.8 | **✅ 已滿足（2026-07-29 done；由回歸測試守護）** | 邊從 12 條放大到數百條，無端點約束時假陽性同步放大 |
+| 16H Task 1（`evidence_kind_hint`） | 待做，**16H 內部第一項** | 16C 的兩級證據分級失去正確性前提；G2 的推論結果會謊稱 `direct`（規格出處 16E §5） |
+| 16H 的 G3 | 待做，**`16` Task 3 硬前置** | parity 基線在 G3 前後不一致，diff 被污染（Q6） |
+| `16` Task 8（CLI） | 待做，**Gate-2 關鍵路徑** | CLI 這條入口沒有 `FileInventory`，拿不到合法 UA 輸入（Q4） |
 
 ---
 
@@ -360,10 +431,11 @@ Gate-1 通過後
 | 檔案 | 為什麼要知道 |
 |------|--------------|
 | [`README.md`](./README.md) | 本資料夾閱讀指南 + 名詞對照表 |
-| [`16`](./16-implement-understand-anything-sidecar-service.md) | N1 / N2 / N3 的 Task 本體 |
-| [`16B`](./16B-ua-sidecar-io-adapter-reference.md) | 三支 script 實測 I/O、adapter 三條硬規則、§6 裁定紀錄與剩餘 Q3～Q5 |
+| [`16`](./16-implement-understand-anything-sidecar-service.md) | N1 / N2 / N3 / **N5（Task 8）** 的 Task 本體 |
+| [`16B`](./16B-ua-sidecar-io-adapter-reference.md) | 三支 script 實測 I/O、adapter 三條硬規則、§6 裁定紀錄——**§6 已全數裁定（2026-08-05）**，無剩餘未決項 |
 | [`16C`](./16C-component-attribution-and-edge-derivation.md) | N4 與兩級證據設計（L1=`observed` 算接線／L2=`undetermined` 不算） |
-| [`16E`](./16E-ua-coverage-gaps-and-llm-boundary.md) | `ast_construction_provider` 的裁定與 LLM 邊界 |
+| [`16E`](./16E-ua-coverage-gaps-and-llm-boundary.md) | G1/G2/G3 缺口分析與 LLM 邊界＝**16H 的規格出處**（16E 本身非實作計畫；決策 2／決策 4 已被 2026-08-10 Q2 取代） |
+| [`16H`](./16H-ast-construction-provider.md) | N6 的 Task 本體：`ast_construction_provider.py`＋`evidence_kind_hint`＋`symbol` 欄 |
 | [`16G`](./16G-retire-template-flow-derivation.md) | 本檔的反向操作：這批之後要**刪掉**什麼（模板猜測邊） |
 | [`../../../phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md`](../../../phase4-scanner-expansion/00-phase2-pipeline-ascii-map.md) | Step 1～9 的視覺 source of truth（本檔兩張圖與它對齊） |
 | `ref-opensource/systograph-understand-anything-integration-boundary.md` | **最高權威**，任何衝突以它為準 |

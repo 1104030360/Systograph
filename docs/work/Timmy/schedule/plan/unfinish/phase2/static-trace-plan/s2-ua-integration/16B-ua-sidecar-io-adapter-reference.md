@@ -14,6 +14,8 @@ Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件�
 > **權威順序：** `ref-opensource/systograph-understand-anything-integration-boundary.md`
 > （Accepted）> [`16`](./16-implement-understand-anything-sidecar-service.md) > 本檔。
 > 本檔只記「實測為何」；若與 boundary doc 衝突，以 boundary doc 為準並回報。
+> **2026-08-10 行號校正**（#277 合併後 `src/` 行號漂移，§2.1／§2.2 已更新）；
+> 裁定補充見 [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md)。
 
 ---
 
@@ -70,11 +72,11 @@ Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件�
 
 | 錨點 | 位置 | 現況 |
 |------|------|------|
-| `ScanSnapshot.ua_analysis_result` | `core/models/analysis_history.py:55` | `dict[str, Any] \| None = None` |
-| `ScanSnapshotManifest.ua_analysis_available` | `core/models/analysis_history.py:86` | boolean，manifest 只暴露有無 |
+| `ScanSnapshot.ua_analysis_result` | `core/models/analysis_history.py:57` | `dict[str, Any] \| None = None` |
+| `ScanSnapshotManifest.ua_analysis_available` | `core/models/analysis_history.py:88` | boolean，manifest 只暴露有無 |
 | `scan_and_save(..., ua_analysis_result=)` | `core/services/scan_snapshot_service.py:61,116` | 參數已通到 snapshot |
-| Web 路由的孔位 | `web/routes/scan_routes.py:294` | 字面 `ua_analysis_result=None`——**這行就是 Plan 16 要換掉的地方** |
-| Approved `FileInventory` 誕生點 | `core/services/inventory_selection_materializer.py:182-207` | 唯一產生處；`scan_routes.py:261-264` 取用 |
+| Web 路由的孔位 | `web/routes/scan_routes.py` 中字面 `ua_analysis_result=None` 那行（現行 `:210`） | **這行就是 Plan 16 要換掉的地方**（行號易漂移，以字面錨點定位） |
+| Approved `FileInventory` 誕生點 | `core/services/inventory_selection_materializer.py:182-207` | 唯一產生處；`scan_routes.py:186-188`（`selection.inventory` 取用處）接手 |
 
 `src/` 目前沒有任何模組 import `ref-opensource/`；`UnderstandAnythingAnalysisService`
 與 `UaStructuralAdapter` 皆尚未存在。
@@ -89,7 +91,7 @@ class ScanResultProvider(Protocol):
 ```
 
 四個 TOML providers 都只實作這個介面，理論上 UA 也能直接插進 provider tuple——但
-`ProjectScanService` 的 loop 會**吞掉 provider 例外**（`:155-161` 降級成
+`ProjectScanService` 的 loop 會**吞掉 provider 例外**（`:157-163` 降級成
 `ParseIssue("project_scan_provider_failed")` + warning 繼續跑），與 Plan 16 Task 6
 的 fail-closed 要求相反。**所以 UA 必須由 `UnderstandAnythingAnalysisService` 在
 provider loop 之上包住，失敗直接 raise，不得依賴 provider 例外路徑。**
@@ -329,6 +331,11 @@ UA batching 全程 byte-for-byte 決定性（§3.2），穩定 id 有基礎。
 > **2026-08-05（§6 Q6）：** 上表的 `ua_*` 前綴已正式裁定（不沿用 legacy id）。
 > `ua_*` ↔ legacy `rule_id` 對照併入語彙目錄，每列同載兩組 id；
 > parity 的 provenance 判定即以前綴為準。
+
+> **2026-08-10（裁定 Q3）：** 上表 `warnings / filesSkipped / stderr 截斷訊息` 一列
+> 產生的 `ParseIssue` 使用 `scan_stage="ua_structural_scan"`——
+> `ParseIssue.scan_stage` Literal 的第 7 個值，由 Plan 16 Task 1 一併加入；
+> AST provider（16H）依 16E 既有裁定沿用 `code_pattern_scan`。
 
 ### 5.3 白名單與安全（Task 5 輸入）
 

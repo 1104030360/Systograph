@@ -222,6 +222,7 @@ highlight/dim，**不得**自行推導 `matches_node_ids` / `matches_edge_ids`�
 ```text
 static-trace-plan/
 ├── README.md
+├── download.md                      ← 獨立小切片：build-scoped Markdown report 下載（不 gate 主線）
 ├── s0-contract-compatibility/       ← S0；Gate-0 前
 ├── s1-pipeline-core/                ← S1 主線（01→01B→01A→02→03→03A→04）
 ├── s1-track-a-index-projection/     ← S1 並行 Track-A（05→09）
@@ -229,9 +230,9 @@ static-trace-plan/
 ├── s1-track-d-inventory/            ← S1 並行 Track-D（19；建議 Plan 16 前）
 ├── s1-track-d-inventory-review/     ← S1 Track-D 後續（20；依 19；UA-independent）
 ├── s1-v2-cutover/                   ← S1 收尾（13）；Gate-1 前
-├── s2-ua-integration/               ← S2（16）；Gate-1 後
+├── s2-ua-integration/               ← S2（16 系列：16／16C／16D／16G／16H）；16H 不等 Gate，其餘 Gate-1 後
 ├── s3-validation/                   ← S3 驗證（14）；Gate-2 後
-├── s3-retirement/                   ← S3 退役（18→15）；Gate-3 / Gate-4 後
+├── s3-retirement/                   ← S3 退役（18；15 已於 2026-08-06 搬至 `refactor/`）；Gate-3 / Gate-4 後
 └── deferred/                        ← 不阻擋 Plan 14（12、17）
 ```
 
@@ -255,13 +256,18 @@ static-trace-plan/
 7. `s1-v2-cutover/`：在 compatibility gate 通過後，正式把 active surface 切到 v2，退役
    legacy extension output。
 8. `s2-ua-integration/`：導入 Understand-Anything structural sidecar，讓 UA 成為 Step 3 primary，
-   同時保留 TOML parity report 與 fail-closed 邊界。
+   同時保留 TOML parity report 與 fail-closed 邊界；另含 16H（補 UA 三個盲點的 Python provider，
+   **不等 Gate**）與 2026-08-10 的裁定紀錄。
 9. `s3-validation/`：用本機真實專案與 fixtures 做 final validation，確認 Apply、UA parity、
    static execution artifacts 與安全邊界都可回溯。
-10. `s3-retirement/`：在驗證報告保存後，退役 Systograph scan TOML providers 主掃描路徑，最後完成
-   legacy v1 compatibility retirement。
+10. `s3-retirement/`：在驗證報告保存後，退役 Systograph scan TOML providers 主掃描路徑（Plan 18）；
+    收尾的 Plan 15（legacy v1 compatibility retirement）已於 2026-08-06 搬至 `refactor/`，
+    本資料夾只留 18。
 11. `deferred/`：放 Phase2 static MVP 不阻擋的項目，例如 runtime boundary 文件與 AI
     `AssessmentOrchestrator` candidate flow。
+12. [`download.md`](./download.md)（根目錄單檔）：build-scoped Markdown report 下載端點
+    （`GET /api/map-builds/{build_id}/artifacts/ai_system_map.md`）取代 process-wide
+    `GET /api/map/report` 的最小切片；**status: done（2026-08-10）**，不 gate 主線。
 
 ## 計畫一覽（依執行順序）
 
@@ -321,15 +327,23 @@ static-trace-plan/
 
 ### S2 — `s2-ua-integration/`
 
+> **2026-08-10 裁定紀錄：** [`s2-ua-integration/CLARIFICATIONS-2026-08-10.md`](./s2-ua-integration/CLARIFICATIONS-2026-08-10.md)
+> ——動工前 18 題釐清與拍板（新開 16H、G2 改走確定性推論、Plan 14 硬性要求 16D、
+> Gate-1／Gate-2 範圍界定等）。S2 排程敘述與下表若有出入，以該檔為準。
+
 | # | 檔案 | 主題 | Gate |
 |---:|---|---|---|
-| 16 | [16-implement-understand-anything-sidecar-service.md](./s2-ua-integration/16-implement-understand-anything-sidecar-service.md) | UA sidecar service、request/result schema、Step 2 enrichment、parity harness | 依 `00A`, `01B`, `03A` 且需 Gate-1 |
+| 16 | [16-implement-understand-anything-sidecar-service.md](./s2-ua-integration/16-implement-understand-anything-sidecar-service.md) | UA sidecar service、request/result schema、Step 2 enrichment、parity harness、CLI 非互動 boundary gate（共 8 個 Task） | 依 `00A`, `01B`, `03A` 且需 Gate-1；Task 3 另依 16H 的 G3 |
 | 16A | [16A-q3-lv2-call-graph-flow-visualization.md](./s2-ua-integration/16A-q3-lv2-call-graph-flow-visualization.md) | Q3 決策：選 Lv2（UA call graph → flow 可視化）；一份 call 資料餵 ①context_flow ②FlowDerivation ③static execution ④frontend ⑤flow 敘事 | 決策紀錄；實作仍依 16／16C／16D |
 | 16B | [16B-ua-sidecar-io-adapter-reference.md](./s2-ua-integration/16B-ua-sidecar-io-adapter-reference.md) | 技術參考（2026-07-29 查核）：三支 UA script 實測 I/O 與 runtime 需求、Systograph 側接縫錨點、adapter 三條硬規則（四元組對齊／direct 門檻／evidence id 穩定）、open questions | 參考附件；Plan 16 Task 1/3/4/6 實作前先讀 |
-| 16C | [16C-component-attribution-and-edge-derivation.md](./s2-ua-integration/16C-component-attribution-and-edge-derivation.md) | 檔案層→元件層：residence index、L1 call / L2 import / L3 模板降級、relationship TOML | 依 Plan 16 Task 3 + 13.7/13.8；Gate-2 後 |
-| 16D | [16D-call-priority-consumer-cutover.md](./s2-ua-integration/16D-call-priority-consumer-cutover.md) | 消費者改 call 優先：materialization 合併、static execution 同源、profile/G5c、可選關 L3、viewer 煙測 | 依 16C；建議納入 Plan 14 驗證語意 |
-| 16E | [16E-ua-coverage-gaps-and-llm-boundary.md](./s2-ua-integration/16E-ua-coverage-gaps-and-llm-boundary.md) | UA 三個覆蓋缺口（函式外建構／工廠間接／外部 import）根因與確定性解法；LLM 不得進掃描路徑之裁定；證據來源硬化 | 決策 + 參考；**G3 建議先於 Plan 16 adapter 完成**，G1 影響 Plan 18 退役準則 |
-| — | [s2-ua-integration/README.md](./s2-ua-integration/README.md) | 該資料夾的閱讀指南：六份文件索引、依目的的閱讀順序、名詞對照表、review 檢查點 | 入口文件；第一次接觸 S2 先讀 |
+| 16C | [16C-component-attribution-and-edge-derivation.md](./s2-ua-integration/16C-component-attribution-and-edge-derivation.md) | 檔案層→元件層：residence index、L1 call / L2 import / L3 模板降級、relationship TOML | 依 Plan 16 Task 3 + 16H（G3）；Gate-2 後（13.7/13.8 已於 2026-07-29 滿足） |
+| 16D | [16D-call-priority-consumer-cutover.md](./s2-ua-integration/16D-call-priority-consumer-cutover.md) | 消費者改 call 優先：materialization 合併、static execution 同源、profile/G5c、可選關 L3、viewer 煙測 | 依 16C；**Plan 14 final validation 的硬前置**（2026-08-10 由「建議」改判） |
+| 16E | [16E-ua-coverage-gaps-and-llm-boundary.md](./s2-ua-integration/16E-ua-coverage-gaps-and-llm-boundary.md) | UA 三個覆蓋缺口（函式外建構／工廠間接／外部 import）根因與確定性解法；LLM 不得進掃描路徑之裁定；證據來源硬化 | 決策 + 參考；G1/G2/G3 實作歸 16H（2026-08-10），16H 的 G3 為 Plan 16 Task 3 硬前置 |
+| 16F | [16F-new-modules-and-pipeline-delta.md](./s2-ua-integration/16F-new-modules-and-pipeline-delta.md) | 這批做完 codebase 多了什麼：新增模組主清單 + 管線前後對照 ASCII 圖 | 參考附件；16／16C／16D／16E／16H 任一變更時要跟改 |
+| 16G | [16G-retire-template-flow-derivation.md](./s2-ua-integration/16G-retire-template-flow-derivation.md) | 模板猜測邊退役：確認 UA 真實邊夠用後刪掉 `FlowDerivationService`（刪 code，不是關掉） | 實作計畫；依 16D + §5 六道門檻全過 |
+| 16H | [16H-ast-construction-provider.md](./s2-ua-integration/16H-ast-construction-provider.md) | 補 UA 三個盲點的 Python provider：G1 函式外建構／G2 工廠確定性推論／G3 外部 import，含 `evidence_kind_hint` 與 `symbol` 欄前置 | 實作計畫；**不等 Gate，立即可做**；G3 為 Plan 16 Task 3 硬前置 |
+| — | [s2-ua-integration/README.md](./s2-ua-integration/README.md) | 該資料夾的閱讀指南：十份文件索引、依目的的閱讀順序、名詞對照表、review 檢查點 | 入口文件；第一次接觸 S2 先讀 |
+| — | [s2-ua-integration/CLARIFICATIONS-2026-08-10.md](./s2-ua-integration/CLARIFICATIONS-2026-08-10.md) | 2026-08-10 動工前 18 題釐清與裁定紀錄（含 16H 新開、G2 改確定性推論、Gate 範圍界定） | 裁定紀錄；S2 敘述與本 README 排程以它為準 |
 
 ### S3 驗證 — `s3-validation/`
 
@@ -378,17 +392,21 @@ S1  TOML-primary pipeline（Step 3 = 現有 Systograph scan TOML providers）
          P0 static execution artifacts；`ua_analysis_result=None`；`runtime_verified=false`]──►
 
 S2  s2-ua-integration/
-    16（UA structural primary + TOML parity harness）
-    ──[Gate-2: UA structural + snapshot sidecar + fail-closed + parity report]──►
+    16H（補 UA 三個盲點 G1/G2/G3 的 Python provider；Gate-1 前即可動工，
+         其中 G3 必須先於 16 Task 3 完成——parity 基線一致性，2026-08-10 裁定）
+    16（UA structural primary + TOML parity harness；含 Task 8 CLI 非互動 boundary gate）
+    ──[Gate-2: UA structural + snapshot sidecar + fail-closed + parity report
+         + Plan 16 Task 8 CLI 非互動 gate]──►
     16C（檔案→元件邊推導 L1/L2/L3）
-    16D（消費者 call 優先 cutover；可與 14 驗證重疊）
+    16D（消費者 call 優先 cutover；可與 14 驗證重疊；為 Plan 14 硬前置）
+    16G（模板猜測邊退役：刪 FlowDerivationService；依 16D + 16G §5 六道門檻全過）
 
 S3  s3-validation/ + s3-retirement/
-    14（含 UA parity；建議含 16D call-priority 證據；不要求 Plan 17）
+    14（含 UA parity；硬性要求 16D 完成（2026-08-10 裁定，原為「建議」）；不要求 Plan 17）
     ──[Gate-3: Plan 14 validation + UA parity report]──►
     18（退役 Systograph TOML providers 主掃描路徑）
     ──[Gate-4: Plan 18 通過 + Plan 14 report 已保存]──►
-    15（退役 legacy v1 compatibility）
+    15（退役 legacy v1 compatibility；計畫檔已於 2026-08-06 搬至 refactor/）
 
 deferred/
     17 = AssessmentOrchestrator / AI semantic candidate flow
@@ -404,9 +422,9 @@ deferred/
 | Gate | 通過條件 | 解鎖 |
 |---|---|---|
 | Gate-0 | Plan 00 legacy characterization 與 Plan 00A v2 compatibility gate 完成 | S1 正式 v2 consumer work、Plan 13 |
-| Gate-1 | **B1 path：** TOML-primary Step 1～7 publish + Step 8 viewer（**initial scan 不必跑 Step 9**）。**Inventory path：** Plan 19 default policy + Plan 20 metadata-only preflight / exact-file與bounded recursive-directory one-run decision / hard-safety revalidation 完成；current providers只讀同一final inventory，pending/stale不建立`scan_id`，target repo不被修改；**Plan 20不建立或呼叫UA request/service/parity**。**Apply path（Gate-1 必驗）：** Step 9 decision + Apply B1→B2（跳 Step 3/UA；**4-1 bridge replay → 4-2 overlay** → Step 4～7）；共用 snapshot；`ua_analysis_result=None` 可通過。Track-C `dynamic/00` 已接入 Step 6，同一 validated build 產出 P0 static execution artifacts（`call_graph.json`、`dataflow_hints.json`、`execution_paths.json`、`evidence_table.json`、`execution_map.mmd`），皆標 `runtime_verified=false` / static inferred，**不得宣稱 runtime proof** | Plan 16（另行接 UA） |
-| Gate-2 | Plan 16 UA structural path、snapshot internal sidecar、fail-closed 與 parity harness 通過 | Plan 14 |
-| Gate-3 | Plan 14 final validation 完成並保存 UA parity / no-UA-rerun report | Plan 18 |
+| Gate-1 | **B1 path：** TOML-primary Step 1～7 publish + Step 8 viewer（**initial scan 不必跑 Step 9**）。**Inventory path：** Plan 19 default policy + Plan 20 metadata-only preflight / exact-file與bounded recursive-directory one-run decision / hard-safety revalidation 完成；current providers只讀同一final inventory，pending/stale不建立`scan_id`，target repo不被修改；**Plan 20不建立或呼叫UA request/service/parity**。**Apply path（Gate-1 必驗）：** Step 9 decision + Apply B1→B2（跳 Step 3/UA；**4-1 bridge replay → 4-2 overlay** → Step 4～7）；共用 snapshot；`ua_analysis_result=None` 可通過。Track-C `dynamic/00` 已接入 Step 6，同一 validated build 產出 P0 static execution artifacts（`call_graph.json`、`dataflow_hints.json`、`execution_paths.json`、`evidence_table.json`、`execution_map.mmd`），皆標 `runtime_verified=false` / static inferred，**不得宣稱 runtime proof**。**範圍界定：** Step 9 decision 驗收**不含** reject/skip 持久化路徑——該缺口屬 Plan 01 Task 8，不擋本 gate（2026-08-10 裁定；已知風險：修復前同一提案可能在後續 build 反覆冒出、拒絕決策無 audit trail） | Plan 16（另行接 UA） |
+| Gate-2 | Plan 16 UA structural path、snapshot internal sidecar、fail-closed 與 parity harness 通過；**含 Plan 16 Task 8（CLI 非互動 boundary gate）——2026-08-05 Q4 裁定進入關鍵路徑** | Plan 14 |
+| Gate-3 | Plan 14 final validation 完成並保存 UA parity / no-UA-rerun report；**Plan 14 前置：16D 完成（硬性，2026-08-10 裁定；原為「建議」）** | Plan 18 |
 | Gate-4 | Plan 18 provider retirement 通過，且 Plan 14 report 可回溯 | Plan 15 |
 
 **Scheduling override：** 個別 plan 內容保持不變；若既有 dependency 敘事把 Plan 17 列為

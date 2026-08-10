@@ -6,6 +6,15 @@ Status: planned（Plan 14 UA parity gate 通過後執行）
 > 並釐清「Python provider（掃描機制）」與「TOML（語彙目錄）」是兩件事。
 > Status 語意不變，仍是 planned、仍等 Plan 14 gate。
 
+> **2026-08-10 注記：** 本檔已依
+> [`CLARIFICATIONS-2026-08-10.md`](../s2-ua-integration/CLARIFICATIONS-2026-08-10.md)
+> 的 **Q17** 裁定修訂——`ua_*` ↔ legacy 對照表產出者更正為 **Plan 16 Task 3**、
+> 「Tier A」改用 Plan 14 的唯一定義（＝外部真實 repo，不再用來稱呼 fixtures）、
+> 退役報告格式與 Plan 14 對齊（分類由 14 產出、18 消費）；並依 16E 移交（經 Q17 裁定）
+> 補上「函式外建構（G1）parity」退役準則。Task 3／Task 5 Files 的三處舊套件死路徑
+> 與 Task 6 的舊 env 名一併更正為 `src/systograph/` 與 `SYSTOGRAPH_*`（#277 後的唯一命名）。
+> 裁定軌跡以該檔為準。
+
 > **執行者注意：** 本計畫只能在 Plan 14 留下通過的 UA parity / fail-closed /
 > Apply no-UA-rerun validation report 後執行。逐 task、逐 provider 退役，不得一次刪光。
 
@@ -79,8 +88,20 @@ After Plan 18
 
 [16E §2.7](../s2-ua-integration/16E-ua-coverage-gaps-and-llm-boundary.md) 進一步規劃在每列加上
 optional `symbol` 欄位（如 `symbol = "qdrant_client.QdrantClient"`），
-供 `ast_construction_provider`（16E G1/G3 的 Python 補丁，**不在本計畫退役範圍**）
+供 [`16H`](../s2-ua-integration/16H-ast-construction-provider.md) 的
+`ast_construction_provider`（G1/G2/G3 的 Python 補充 provider，**不在本計畫退役範圍**）
 與 regex 目錄共用同一 source of truth。**這是加性擴充，方向與退役相反。**
+
+**退役準則：函式外建構（G1）parity（16E §2 移交，2026-08-10 經 Q17 裁定）**
+
+`def` 之外的建構——模組頂層與 class body 頂層——**今天正是靠 `code_pattern` 的 regex 掃到的**
+（regex 無作用域概念，照樣命中並產出帶 file+line 的 `direct` evidence）；UA extractor 受
+`functionStack.length > 0` 守衛，這一類建構全部看不到。RAG 專案的設定類別寫法極常見，
+所以這不是邊角案例。
+
+因此：**16H `ast_construction_provider` 的 G1 產出必須先納入 parity 對比，才可退役
+`code_pattern` provider**（已列入「Parity Gate 標準」）。未納入即退役＝靜默丟失一整類
+今天就拿得到的 direct evidence，違反 accepted degradation 必須書面化的原則。
 
 ### `docker_image` —— 半退，且退役前必須先做 consumer audit
 
@@ -160,8 +181,14 @@ UA `extract-structure` 的 `services[]` 只輸出 `name` / `image` / `ports` / `
 - 依賴 Plan 16 UA structural path 已覆蓋主掃描 facts。
 - 依賴 Plan 01B bridge registry 已支援 UA `rule_id`。
 - **依賴 `ua_*` ↔ legacy `rule_id` 對照表已產出**（2026-08-05 新增，見下節 provenance 兩難）。
-  產出者為 [Plan 16 Task 7 parity harness](../s2-ua-integration/16-implement-understand-anything-sidecar-service.md)
-  / [Plan 01B](../../../../finish/s1-pipeline-core/01B-extract-step4-component-bridge-registry.md)，
+  產出者為 **[Plan 16 Task 3](../s2-ua-integration/16-implement-understand-anything-sidecar-service.md)
+  （語彙目錄＋bridge 鏡射）**——對照表併入 `code_pattern_rules.toml` 演進版，每列同載
+  legacy id / kind / symbol / ua id，bridge 的 `ua_*` 鏡射項隨同一 task 落地。
+  （2026-08-10 更正 Q17③：原標「Task 7 / Plan 01B」有誤，與下節 2026-08-05 裁定敘述不一致。）
+  [Plan 16 Task 7](../s2-ua-integration/16-implement-understand-anything-sidecar-service.md)
+  parity harness **只消費**該對照欄做 equivalence 判定與 provenance 標示；
+  [Plan 01B](../../../../finish/s1-pipeline-core/01B-extract-step4-component-bridge-registry.md)
+  是「bridge registry 支援 UA `rule_id`」這條依賴的來源，不是對照表產出者。
   本計畫只消費不產出。
 
 ### rule_id provenance 兩難（2026-08-05 新增）
@@ -187,15 +214,22 @@ parity diff 要有意義，前提是能分辨「這筆 fact 是誰掃出來的�
 
 Plan 14 report 必須至少包含：
 
+> **語料用語（2026-08-10 裁定 Q17①）：** 本檔「Tier A」一律採
+> [Plan 14「語料唯一定義」](../s3-validation/14-local-project-import-and-test.md) 的定義＝
+> **外部真實 repo（釘 SHA）**，**不含任何內部 fixture**。內部語料請直呼其名
+> （Phase4 Plan 31 parity corpus／`tests/fixtures/rag_projects/`），不得寫成「Tier A fixtures」。
+
 | 指標 | Gate |
 |---|---|
-| 覆蓋率 | Tier A fixtures 代表性 facts 必須有 UA 等價輸出；缺口需有 accepted degradation 理由 |
+| 覆蓋率 | **Tier A**（外部真實 repo、釘 SHA）代表性 facts 必須有 UA 等價輸出；缺口需有 accepted degradation 理由 |
 | Evidence 等價性 | UA facts 必須能對回 project-relative path + line/config/json pointer evidence |
 | 安全性 | UA output 不含 unmasked secrets、raw source、absolute local paths |
 | Fail-closed | invalid schema / Node missing / required batch failed 不進 Step 4 |
 | Apply regression | B1→B2 不重跑 UA 或 parity providers，只使用 `ScanSnapshot.scan_result` 重跑 Step 4～7；semantic sidecar 不消費 |
 | Rule id migration | Step 4 bridge registry 可處理代表性 UA `rule_id` |
 | **Rule id 對照 + provenance** | **`ua_*` ↔ legacy `rule_id` 對照表存在；parity report 每筆 fact 可標示來源（UA / legacy provider）。缺此項無法判讀 diff，gate 不通過**（2026-08-05 新增） |
+| **per-provider 分類表** | **Plan 14 報告含固定第二張表「per-provider parity 分類表」，每個 Systograph provider rule 都有五分類之一（`covered_by_ua`／`accepted_gap`／`needs_ua_adapter_fix`／`retain_as_vocabulary`／`retain_as_mechanism`）與 provenance 欄。未分類或存在 `needs_ua_adapter_fix` 時 gate 不通過**（2026-08-10 裁定 Q17③） |
+| **函式外建構（G1）parity** | **[16H](../s2-ua-integration/16H-ast-construction-provider.md) `ast_construction_provider` 的產出須納入 parity 對比，作為 `code_pattern` provider 退役的前提之一**（16E §2 移交，2026-08-10 經 Q17 裁定）。理由見上方「`code_pattern` —— 全退機制，TOML 升格」節 |
 
 任何 blocker 未解時，本計畫維持 pending。
 
@@ -207,13 +241,24 @@ Plan 14 report 必須至少包含：
 - Create: `docs/work/Timmy/schedule/report/ua-parity-retirement-YYYY-MM-DD.md`
 - Test: documentation review
 
+> **報告格式分工（2026-08-10 裁定 Q17③）：** per-provider 五分類表**由 Plan 14 產出、本計畫消費**。
+> Plan 14 的本地 parity report 固定含第二張表「per-provider parity 分類表」（欄位：
+> provider rule / provider / provenance / UA 等價 `rule_id` / 分類 / 依據，格式見
+> [Plan 14 Task 7](../s3-validation/14-local-project-import-and-test.md)）。
+> 本計畫的 `ua-parity-retirement-YYYY-MM-DD.md` **不重新分類**，只原樣凍結該表，
+> 再加上本計畫自有的決策紀錄（docker fact 四類裁定、回退方案、owner、fallback status）。
+
 **Steps**
 
 - [ ] 收集 Plan 14 parity report 路徑、執行日期、target / fixture 清單。
 - [ ] 確認 `ua_*` ↔ legacy `rule_id` 對照表已存在，且 parity report 可標示 fact provenance；
   缺任一項則本 task 停止（gate 必要輸入，見「rule_id provenance 兩難」）。
-- [ ] 將每個 Systograph provider rule 分類為 `covered_by_ua`、`accepted_gap`、`needs_ua_adapter_fix`、
-  `retain_as_vocabulary`（語彙目錄續留）、`retain_as_mechanism`（機制續留，如 `dependency_manifest`）。
+- [ ] **確認 Plan 14 報告的「per-provider parity 分類表」覆蓋全部 Systograph provider rule**，
+  分類值唯五：`covered_by_ua`、`accepted_gap`、`needs_ua_adapter_fix`、
+  `retain_as_vocabulary`（語彙目錄續留）、`retain_as_mechanism`（機制續留，如
+  `dependency_manifest`）；覆蓋不全或出現自創分類值，本 task 停止。
+- [ ] 將該表**原樣凍結**進 `ua-parity-retirement-YYYY-MM-DD.md`；
+  **本計畫不重新分類**（分類的 source of truth 是 Plan 14 報告）。
 - [ ] 未分類或 `needs_ua_adapter_fix` 不得退役。
 - [ ] 記錄回退方案與 owner。
 
@@ -245,8 +290,8 @@ Plan 14 report 必須至少包含：
 
 **Files**
 
-- Modify: `src/kai_mind/core/services/project_scan_service.py`
-- Modify: `src/kai_mind/core/services/ua_structural_adapter.py`
+- Modify: `src/systograph/core/services/project_scan_service.py`
+- Modify: `src/systograph/core/services/ua_structural_adapter.py`
 - Test: `tests/unit/core/test_project_scan_service.py`
 - Test: `tests/integration/test_map_build_service.py`
 
@@ -271,7 +316,7 @@ Plan 14 report 必須至少包含：
 
 **Steps**
 
-- [ ] Phase4 31 fixtures 轉成 UA parity corpus；保留 old/new expected facts 對照。
+- [ ] Phase4 Plan 31（`31-expand-advanced-rag-fixtures.md`）的 fixtures 轉成 UA parity corpus；保留 old/new expected facts 對照。
 - [ ] 將 tests 中直接 assert 舊 TOML `rule_id` 的地方改為 UA `rule_id` 或 migration alias。
 - [ ] `component_bridge_registry.py` 支援必要 UA `rule_id`。
 - [ ] **同步更新 `component_bridge_rules.py` 寫死的 legacy `rule_id` 字串**（見 R2）——
@@ -284,7 +329,7 @@ Plan 14 report 必須至少包含：
 
 **Files**
 
-- Modify: `src/kai_mind/core/services/rule_catalog_loader.py`（只有必要時）
+- Modify: `src/systograph/core/services/rule_catalog_loader.py`（只有必要時）
 - Test: `tests/unit/core/test_rule_catalog_loader.py`
 - Test: `tests/unit/core/test_scan_provider_retirement_boundaries.py`
 
@@ -310,7 +355,9 @@ Plan 14 report 必須至少包含：
 
 **Steps**
 
-- [ ] 定義暫時恢復 providers 的 feature flag / config，例如 `KAI_MIND_ENABLE_LEGACY_SCAN_PROVIDERS`。
+- [ ] 定義暫時恢復 providers 的 feature flag / config，例如
+  `SYSTOGRAPH_ENABLE_LEGACY_SCAN_PROVIDERS`（沿用 `canonical_output_configuration.py` 的
+  `SYSTOGRAPH_*` env 慣例；2026-08-10 由舊命名更正）。
 - [ ] 回退預設為 off；啟用時必須在 logs / build warnings 明確標示 legacy scan fallback。
 - [ ] 回退不得繞過 UA fail-closed；只有 UA 重大缺陷且經明確風險決策時可使用。
 - [ ] 回退路徑有測試，並不更新 Plan 18 retirement report 為完成。
@@ -331,7 +378,10 @@ Plan 14 report 必須至少包含：
 - [ ] 跑 source guardrail，確認 retired providers 不在 default scan path，
   且**續留 provider 未被誤擋**。
 - [ ] 跑 secret/path safety tests，確認退役後沒有 masking regression。
-- [ ] 跑 Plan 14 Tier A fixture subset，確認 results deterministic。
+- [ ] 跑 **Plan 14 的內部 fixture 子集**（`tests/fixtures/rag_projects/` 邊推導基線 +
+  Phase4 Plan 31 parity corpus 的代表列），確認 results deterministic。
+  （2026-08-10 更正 Q17①：原寫「Tier A fixture subset」；Tier A 依 Plan 14 唯一定義＝
+  外部真實 repo，不得用來稱呼 fixtures。Tier A 本身的覆蓋率判定在「Parity Gate 標準」。）
 - [ ] 確認 `dependency_candidate` → `UNMAPPED_REVIEW_ITEM` 路徑仍有 review items 產出，
   沒有因退役而靜默歸零。
 - [ ] 更新 retirement report，記錄 retained 語彙 / metadata catalogs、
@@ -340,7 +390,12 @@ Plan 14 report 必須至少包含：
 ## Acceptance Criteria
 
 - [ ] Plan 14 parity report 通過且被本計畫引用。
-- [ ] `ua_*` ↔ legacy `rule_id` 對照表存在，且 parity report 每筆 fact 可標示 provenance。
+- [ ] `ua_*` ↔ legacy `rule_id` 對照表存在（產出者＝Plan 16 Task 3），
+  且 parity report 每筆 fact 可標示 provenance。
+- [ ] Plan 14 的 **per-provider parity 分類表**已原樣凍結進 retirement report，
+  且無未分類、無自創分類值、無 `needs_ua_adapter_fix` 殘留（Q17③）。
+- [ ] **`code_pattern` 退役前，16H `ast_construction_provider` 的 G1（函式外建構）產出
+  已納入 parity 對比**（16E 移交，2026-08-10 經 Q17 裁定）。
 - [ ] Default Step 3 main scan path 不再執行 `code_pattern`、config patterns providers。
 - [ ] `docker_image` provider 已依 Task 2 consumer audit 結果處置：
   image 偵測改由 UA 提供；`environment` / `env_file` / `volumes` / `depends_on`
@@ -358,7 +413,7 @@ Plan 14 report 必須至少包含：
 
 ### R1：語言缺口——「12 語言」效益會被語彙目錄卡住（不在本計畫 scope）
 
-UA 提供 12 語言的**結構事實**，但 KAI 的**符號語彙**幾乎只有 Python：
+UA 提供 12 語言的**結構事實**，但 Systograph 的**符號語彙**幾乎只有 Python：
 `code_pattern_rules.toml` 13 條中 11 條是 python-only，
 1 條 `["python","javascript","typescript"]`（`embedding_openai_sdk_create`），
 1 條 `["javascript","typescript"]`（`route_express`）。
@@ -392,5 +447,7 @@ UA 提供 12 語言的**結構事實**，但 KAI 的**符號語彙**幾乎只有
 - 不擴充符號語彙的語言覆蓋（見 R1），也不實作 16E §2.7 的 `symbol` 欄位。
 - 不更動 `ProfileInferenceService` 五態語意。
 - 不新增 public artifact 或 frontend 欄位。
-- 不產出 `ua_*` ↔ legacy `rule_id` 對照表；本計畫只消費它（產出者見「依賴」）。
+- 不產出 `ua_*` ↔ legacy `rule_id` 對照表；本計畫只消費它（產出者＝Plan 16 Task 3，見「依賴」）。
+- 不產出 per-provider parity 分類表，也不重新分類；本計畫只凍結 Plan 14 的表（Q17③）。
+- 不實作 16H `ast_construction_provider`；只把它的 G1 產出列為 `code_pattern` 退役前提。
 - 不把 Plan 18 當成 Plan 14 的替代；沒有 Plan 14 parity report 不得執行。

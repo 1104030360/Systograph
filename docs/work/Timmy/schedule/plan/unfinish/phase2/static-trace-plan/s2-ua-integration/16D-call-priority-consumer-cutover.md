@@ -7,6 +7,10 @@
 
 Status: planned — **依賴 Plan 16 Gate-2 structural path + [`16C`](./16C-component-attribution-and-edge-derivation.md) L1/L2/L3 邊推導落地之後**
 
+> **2026-08-10 裁定併入：** Q12（合併鍵改 `(from, to)`）／Q14（Plan 14 硬前置、CI fixture
+> 預設 `off`、前端虛線另開）／Q15（開關名凍結），見
+> [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md)。
+
 > **執行者注意：** 逐 task 實作；步驟使用 checkbox（`- [ ]`）以便追蹤。
 >
 > **本檔補的缺口：** [`16A`](./16A-q3-lv2-call-graph-flow-visualization.md) §3.2 右欄寫
@@ -98,12 +102,12 @@ ScanSnapshot.scan_result
 
 **硬前置（缺一不可）**
 
-| 前置 | 原因 |
-|------|------|
-| Plan 16 Gate-2 | 沒有穩定 `ua_call_hint_*` 就沒有可優先的 call 邊 |
-| 16C Task 3～5 完成 | 需已有 L1/L2 邊與 L3 `undetermined` 標籤 |
-| 13.8 Task 1 端點約束 | call 邊量級上升後，無端點約束會假陽性翻綠 |
-| 13.7 bridge 字彙 | 元件對不到 52 格則邊推再準也點不亮 |
+| 前置 | 狀態 | 原因 |
+|------|------|------|
+| Plan 16 Gate-2 | ⏳ 未完成 | 沒有穩定 `ua_call_hint_*` 就沒有可優先的 call 邊 |
+| 16C Task 3～5 完成 | ⏳ 未完成 | 需已有 L1/L2 邊與 L3 `undetermined` 標籤 |
+| 13.8 Task 1 端點約束 | ✅ **已滿足（2026-07-29 done；回歸測試守護）** | call 邊量級上升後，無端點約束會假陽性翻綠。約束已落地於 `profile_finding_assembler.py:214-217`，由 `tests/unit/core/test_profile_finding_endpoint_constraint.py` 守護 |
+| 13.7 bridge 字彙 | ✅ **已滿足（2026-07-29 done；回歸測試守護）** | 元件對不到 52 格則邊推再準也點不亮 |
 
 **建議排程位置（static-trace README）**
 
@@ -116,7 +120,10 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 ```
 
 - **不阻擋** Plan 14 開跑的最低條件：仍是 Gate-2。  
-- **建議**：Plan 14 final report 若宣稱 Lv2 flow，應附 16D 驗收證據；否則報告只能寫「structural UA 已接、flow 仍部分模板」。
+- **Plan 14 final validation 硬性要求 16D 完成**（2026-08-10 裁定 Q14①，與先前
+  「建議」語氣相反，屬正式改判）：final report 必須附 16D 驗收證據才能出，
+  **報告不再允許「structural UA 已接、flow 仍部分模板」這類降級宣稱**。
+  排程後果（owner 已知悉）：S3（14→18→15）整條被 16D 拖住。
 
 ---
 
@@ -134,7 +141,9 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 **Steps**
 
 - [ ] 確認 16C 的 `UaEdgeDerivationService`（或等價）在 materialize 路徑被呼叫。
-- [ ] Canonical `edges[]` 合併規則固定為 **L1 > L2 > L3**；同 `(from, to, relationship)` 只留最高級。
+- [ ] Canonical `edges[]` 合併規則固定為 **L1 > L2 > L3**；同 **`(from, to)`** 只留最高級
+      （2026-08-10 裁定 Q12；`relationship` 取勝出邊的值。16C Task 2 的 TOML 約束保證同一
+      `(from_kind, to_kind)` 只有一個 `relationship`，因此不會與三元組寫法分岔）。
 - [ ] `FlowDerivationService.derive` **不再**是唯一寫入 canonical edges 的來源；它只供應 L3。
 - [ ] 當 L1/L2 為空時，仍可輸出 L3——除非 Task 4 flag 關閉 L3。
       （**注意**：L3 不是「骨架」來源，52 格底圖由 Step 7 永遠 emit；理由見
@@ -180,20 +189,29 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 > 整支刪掉（連同這個開關本身）。所以本 task 的測試要留下**可重跑的對照資料**，
 > 不只是斷言「off 時沒有 L3 邊」。
 
-**決策預設（可在動工前覆寫）：**
+**決策預設：**
 
-- 預設：**保留 L3**（與 16C §3.5 一致：本階段還沒有 L1/L2 的實測覆蓋數據，
+- 產品預設：**保留 L3**（與 16C §3.5 一致：本階段還沒有 L1/L2 的實測覆蓋數據，
   不宜同步拔掉舊來源）。
   **注意**：舊文寫的「空 repo 仍有參考骨架」理由已於 2026-08-04 作廢——
   骨架來自 Step 7 永遠 emit 的 52 格底圖，不是 L3。
-- 增加明確開關（建議 env 或 build option，名稱待實作時定，例如 `SYSTOGRAPH_TEMPLATE_FLOW_EDGES=off`）：
-  - `on`（預設）：L3 作為 `undetermined` fallback  
+- 開關名**已凍結**為 env `SYSTOGRAPH_TEMPLATE_FLOW_EDGES`（2026-08-10 裁定 Q15）；
+  實作照 `canonical_output_configuration.py` 的 env 模式（模組常數 +
+  `os.environ.get(...)` 帶預設值），不得另立拼法：
+  - `on`（產品預設）：L3 作為 `undetermined` fallback  
   - `off`：不輸出 L3；僅 L1/L2  
+- **CI fixture 預設 `off`**（2026-08-10 裁定 Q14②；產品預設維持 `on` 不動），
+  讓 UA／16H 的覆蓋退化當天現形，並由 CI 常態產生 16G 六道門檻的 off/on 對照數據。
 
 **Steps**
 
-- [ ] 實作開關；預設 `on`。
+- [ ] 實作 `SYSTOGRAPH_TEMPLATE_FLOW_EDGES` 開關；產品預設 `on`，CI fixture 設 `off`。
 - [ ] 測試：`off` 時無 `template_adjacency_only` 邊；`on` 時行為同 16C。
+- [ ] CI 切 `off` 的一次性成本＝既有斷言基線調整。**⚠️ 嚴重警告（已寫入根
+      CLAUDE.md Engineering Principles）：`off` 模式暴露缺口時，禁止以「為了讓測試過」
+      的 code 應對**——不得寫 fixture 特化 hack、不得捏造 facts/evidence、不得在掃描器
+      加只為過測試的路徑；**唯二合法解＝真實能力改進，或明文記錄的基線調整**；
+      違者 review P1。誠實的空圖勝過造假的滿圖。
 - [ ] Plan 14 / demo 腳本註明何時建議 `off`（例如 call 覆蓋已足夠的內部 fixture）。
 
 ### Task 5 — Profile / G5c（rag-grounding · `context_flow`）收斂
@@ -219,11 +237,15 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 
 **契約原則：** 不新增 GraphViewModel 欄位也可完成 MVP（沿用 `status`）。
 
+> **虛線 polish 已移出本計畫（2026-08-10 裁定 Q14③）：** 另開 frontend-only task，
+> 計畫在 `docs/work/Meeting-Sync/meeting_sync_2026_08_10/frontend-edge-status-dashed-rendering.md`
+> （觸發點＝16C Task 5 合併後；含 `types.ts:74` 舊註解修正項）。本 task 只做煙測。
+
 **Steps**
 
 - [ ] API mode 載入含 L1/L2/L3 的 build：Flow filter / execution 圖有邊，且無前端 schema 錯誤。
-- [ ] （可選 polish）`undetermined` 邊虛線或降透明度；`observed` 實線——**僅 CSS／render，不改契約**。
-- [ ] `git diff` 若改 frontend：限於 render 層；禁止前端自組 nodes/edges。
+- [ ] `git diff frontend/` 應為空——虛線／透明度 polish 歸上述 frontend-only task，
+      不在本 PR；若真的動到 frontend，限於 render 層，且禁止前端自組 nodes/edges。
 
 ### Task 7 — Apply（重放快照）／Rescan（重新掃描）回歸測試
 
@@ -263,11 +285,26 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 
 ---
 
-## 8. 待裁定問題（Open Questions；動工前拍板）
+## 8. 待裁定問題（2026-08-10 全數拍板）
 
-- [ ] Q1：Plan 14 final validation 是否 **硬性要求** 16D 完成，還是允許報告標記「flow 仍部分 L3」？
-- [ ] Q2：預設環境要不要在 CI fixture 上開 `template_flow_edges=off`，強制暴露 call 覆蓋缺口？
-- [ ] Q3：Frontend 虛線 polish 是否納入本 PR，或另開 frontend-only task？
+> 三題於 2026-08-10 由 plan owner 一次裁定，記錄見
+> [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md) Q14。
+
+- [x] Q1：Plan 14 final validation 是否 **硬性要求** 16D 完成，還是允許報告標記「flow 仍部分 L3」？
+      → **裁定：硬性要求**。Plan 14 final validation 必須等 16D 完成才能出報告；
+      報告不得再宣稱「flow 仍部分模板」的降級結論。落實見 §4 排程段；
+      Plan 14 的依賴區補列 16D。排程後果：S3（14→18→15）整條被 16D 拖住。
+- [x] Q2：預設環境要不要在 CI fixture 上開 `SYSTOGRAPH_TEMPLATE_FLOW_EDGES=off`，強制暴露 call 覆蓋缺口？
+      → **裁定：CI fixture 預設 `off`**（產品預設維持 `on`）。UA／16H 退化當天現形，
+      16G 六道門檻的 off/on 對照數據由 CI 常態產生；一次性成本＝既有斷言基線調整。
+      **⚠️ 附嚴重警告（已寫入根 CLAUDE.md）：`off` 暴露缺口時禁止寫「為了讓測試過」的 code**
+      ——fixture 特化 hack／捏造 facts 或 evidence／掃描器裡只為過測試的路徑，一律禁止；
+      **唯二合法解＝真實能力改進，或明文記錄的基線調整**；違者 review P1。
+      誠實的空圖勝過造假的滿圖。落實見 Task 4。
+- [x] Q3：Frontend 虛線 polish 是否納入本 PR，或另開 frontend-only task？
+      → **裁定：另開 frontend-only task**，計畫在
+      `docs/work/Meeting-Sync/meeting_sync_2026_08_10/frontend-edge-status-dashed-rendering.md`
+      （觸發點＝16C Task 5 合併後；含 `types.ts:74` 舊註解修正項）。落實見 Task 6。
 
 ---
 
@@ -279,5 +316,5 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 | [`16A-q3-lv2-call-graph-flow-visualization.md`](./16A-q3-lv2-call-graph-flow-visualization.md) | 決策：Lv2；§3.2 / §6 定義本檔範圍 |
 | [`16B-ua-sidecar-io-adapter-reference.md`](./16B-ua-sidecar-io-adapter-reference.md) | Adapter 硬規則 |
 | [`16C-component-attribution-and-edge-derivation.md`](./16C-component-attribution-and-edge-derivation.md) | 邊推導本體（本檔的直接上游） |
-| [`../s3-validation/14-local-project-import-and-test.md`](../s3-validation/14-local-project-import-and-test.md) | 建議納入 call-priority 驗證證據 |
+| [`../s3-validation/14-local-project-import-and-test.md`](../s3-validation/14-local-project-import-and-test.md) | **硬性依賴本檔**：final validation 須等 16D 完成才能出報告（2026-08-10 裁定 Q14①） |
 | `docs/MODEL-CONTRACT.md` | 邊 status／evidence 語意 |
