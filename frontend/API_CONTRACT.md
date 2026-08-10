@@ -126,6 +126,58 @@ fields: `scan_id` and `build_id` from the envelope, `environment_id` and
 
 The frontend treats `graph_view_model` as the rendering input. It does not rescan files and does not infer canonical facts.
 
+## Build Artifact Download
+
+The rendered Markdown report is read per build, through the `build_id` the
+viewer already holds:
+
+```http
+GET /api/map-builds/{build_id}/artifacts/{file_name}
+Accept: text/markdown
+```
+
+`file_name` is a backend whitelist with exactly one entry today:
+
+| `file_name` | Response `Content-Type` |
+| --- | --- |
+| `ai_system_map.md` | `text/markdown; charset=utf-8` |
+
+Call it with the `build_id` currently on screen — the same one the identity
+strip renders — never with a project id and never with a path. Reading an older
+build returns *that* build's report; a newer build never wins. The response
+body is the file's bytes, and no response, success or failure, carries a
+server-local path, so there is nothing for the frontend to resolve or join.
+
+One optional query parameter, `download`. Omit it (or send `download=false`) to
+read the report for inline preview. Send `download=true` to get
+`Content-Disposition: attachment; filename="ai_system_map.md"` and let the
+browser save it; that filename comes from the backend whitelist, so the
+frontend must not derive one from user input or send one of its own.
+
+Apart from the standard `422` that a malformed `download` value draws (FastAPI
+query validation, where `detail` is an array rather than a string), every error
+is a `404` in the plain-string form `{"detail": "<code>"}` — not the
+`{detail:{code,message,retryable,context}}` envelope — and the three codes call
+for different handling:
+
+| `detail` | What happened | Frontend handling |
+| --- | --- | --- |
+| `artifact_not_found` | `file_name` is not on the whitelist | A caller bug. The frontend sends a hardcoded whitelist name, so a shipped flow must never produce this; do not offer a retry. |
+| `build_not_found` | No committed build for that `build_id` | The pinned build is gone or was never committed. Reload the build history / project latest instead of retrying the same id. |
+| `artifact_not_available` | The build exists, but the artifact has no recorded path or its file left the disk | Expected, non-retryable for this build: disable the download affordance and say the report is unavailable. Never fall back to another build's report. |
+
+The backend checks in that fixed order (`artifact_not_found` →
+`build_not_found` → `artifact_not_available`), so an unknown file name is
+reported before the build id is ever looked up. A 404 whose `detail` is none of
+the three (for example FastAPI's routing-level `"Not Found"`) must be handled
+as a generic failure, not mapped onto one of these cases.
+
+This endpoint closes only part of issue #219. The `.mmd` renders
+(`system_map.mmd`, `execution_map.mmd`), the `artifact_refs[]` field on the
+build-scoped envelope (#219 is what makes the response carry refs; their shape
+is defined by Plan 06), and the in-app artifact preview UI are still OPEN: the
+whitelist has one row, so there is no build-scoped way to fetch a `.mmd` yet.
+
 ## Project-Scoped Scan Flow
 
 The API mode can start a scan from a local project path. The frontend first imports the project path, then starts a scan with the returned project id. This is the only HTTP path that scans a project from scratch. `POST /api/detail-scans` and `POST /api/map-builds/{base_build_id}/apply` also mint new build ids, but both work inside an existing `scan_id` rather than starting a new scan.

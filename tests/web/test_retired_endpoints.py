@@ -14,6 +14,7 @@ from systograph.web.app import create_app
 RETIRED_VIEWER_LOAD_PATH = "/api/viewer/load"
 RETIRED_MAP_BUILD_PATH = "/api/map/build"
 RETIRED_PROCESS_WIDE_MAP_PATH = "/api/map"
+RETIRED_PROCESS_WIDE_MAP_REPORT_PATH = "/api/map/report"
 RETIRED_MAP_FALLBACK_PATH = "/map"
 LIVE_CONTROL_PATH = "/api/scans"
 
@@ -93,6 +94,29 @@ def test_app_registers_no_route_for_retired_process_wide_map_path() -> None:
     no method is bound to the retired process-wide map path."""
 
     assert_path_is_unregistered(RETIRED_PROCESS_WIDE_MAP_PATH)
+
+
+def test_get_api_map_report_returns_404_after_retirement() -> None:
+    """Given the retired process-wide report read, when a client asks for
+    the latest Markdown report without a build, then the API answers 404
+    instead of serving whichever build the process happened to see last."""
+
+    client = TestClient(create_app())
+
+    response = client.get(RETIRED_PROCESS_WIDE_MAP_REPORT_PATH)
+
+    assert response.status_code == 404
+
+
+def test_app_registers_no_route_for_retired_map_report_path() -> None:
+    """Given the assembled app, when its routing table is inspected, then
+    no method is bound to the retired process-wide map report path.
+
+    The 404 check above cannot carry this on its own: the live route also
+    answered 404 whenever no build existed yet, so only the routing table
+    tells a retired path apart from an empty one."""
+
+    assert_path_is_unregistered(RETIRED_PROCESS_WIDE_MAP_REPORT_PATH)
 
 
 def test_get_map_fallback_returns_404_after_retirement() -> None:

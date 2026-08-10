@@ -162,7 +162,8 @@ JSON（7）
   evidence_table.json         ← Step 6-6
 
 Render（3）— export / report；不參與 scoring；Viewer 主畫布不依賴
-  ai_system_map.md            ← Epic 1 人類可讀報告（Plan 17 / `GET /api/map/report`）
+  ai_system_map.md            ← Epic 1 人類可讀報告（Plan 17 /
+                                `GET /api/map-builds/{build_id}/artifacts/ai_system_map.md`）
   system_map.mmd              ← Plan 06 架構 Mermaid export（lazy `artifact_refs`）
   execution_map.mmd           ← dynamic 00 static execution Mermaid export（lazy）
 ```

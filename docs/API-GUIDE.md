@@ -56,7 +56,6 @@
 | POST | `/api/projects/{project_id}/scan-preflights` | project | current | 1 |
 | POST | `/api/scans` | project | current | 1 |
 | GET | `/api/scan/events` | project | current | 1 |
-| GET | `/api/map/report` | process-wide | current | 2 |
 | POST | `/api/detail-scans` | project | current | 3 |
 | GET | `/api/detail-scans/{id}` | project | current | 3 |
 | POST | `/api/trace` | project | current | 4 |
@@ -65,13 +64,17 @@
 | GET | `/api/projects/{id}/map-builds` | build | current | 2 |
 | GET | `/api/projects/{id}/map-builds/latest` | build | current | 2 |
 | GET | `/api/map-builds/{build_id}` | build | current | 2 |
+| GET | `/api/map-builds/{build_id}/artifacts/{file_name}` | build | current | 2 |
 | POST | `/api/map-builds/{base_build_id}/apply` | build | current | 2 |
 | POST | `/api/map-builds/{build_id}/detail-scans` | build | **[phase2-later]** | 2 |
 | POST | `/api/map-builds/{build_id}/trace` | build | **[phase2-later]** | 2 |
 
-「流程」欄的取值：`project` 需要 `project_id`、`build` 需要 `build_id`（或 project latest
-指標）、`process-wide` 不帶任何 id，讀的是本 process 最新一次成功 build。目前只有
-`GET /api/map/report` 還是 `process-wide`，接上 build-scoped 由 issue #219 處理。
+「流程」欄的取值只剩兩種：`project` 需要 `project_id`、`build` 需要 `build_id`（或
+project latest 指標）。**已無 `process-wide` 端點**——最後一支於 2026-08-10 退役（見
+下方五支退役清單），由 build-scoped 的
+`GET /api/map-builds/{build_id}/artifacts/{file_name}` 取代。issue #219 的其餘範圍仍
+OPEN：`.mmd` render、build-scoped response 的 `artifact_refs[]`（#219 負責讓回應帶
+refs；形狀由 Plan 06 定義）、以及 artifact preview UI。
 
 ## 快速開始
 
@@ -101,10 +104,12 @@ curl -s "http://127.0.0.1:8000/api/projects/project%3A<uuid>/map-builds/latest" 
   | jq '.viewer_load_result.loaded'
 ```
 
-> **舊的 demo surface 四支已全數移除**（皆回 `404`，由
+> **舊的 demo / process-wide 端點五支已全數移除**（皆回 `404`，由
 > `tests/web/test_retired_endpoints.py` 的 regression 鎖住）：建圖端
 > `POST /api/map/build`、讀取端 `GET /api/map` 與其 legacy fallback `GET /map`、
-> 任意路徑載圖端 `POST /api/viewer/load`（2026-08-07 移除）。
+> 任意路徑載圖端 `POST /api/viewer/load`（2026-08-07 移除）、
+> process-wide 報告讀取端 `GET /api/map/report`（2026-08-10 移除，改用
+> build-scoped 的 `GET /api/map-builds/{build_id}/artifacts/{file_name}`）。
 > HTTP 建圖一律走上面的 project session 流程，讀圖一律走 build-scoped 端點；
 > 一次掃一個路徑就出圖的等價能力在 CLI `systograph map`。
 >
@@ -486,7 +491,8 @@ type ArtifactRef = {
 | `readiness_report.json` | `build_result.readiness_report` | inline |
 | current base projection | `viewer_load_result.graph_view_model` | inline（ephemeral） |
 | static execution 四件套 | — | current 不 inline；Plan 06 `artifact_refs[]` lazy load |
-| `*.md` / `*.mmd` render | — | current 不 inline；Plan 06 `artifact_refs[]` lazy load |
+| `ai_system_map.md` render | — | current 不 inline；改由 `GET /api/map-builds/{build_id}/artifacts/ai_system_map.md`（current）按 build 讀取 |
+| `*.mmd` render | — | current 不 inline；Plan 06 `artifact_refs[]` lazy load |
 
 **主畫布 ≠ merge 六份 Step 6 JSON**。Current canvas 由 backend 將 normalized v2 與
 6-1 Profile Inference 透過 `GraphProjectionService` 投影，不由 frontend 重建。
@@ -538,27 +544,64 @@ Apply publish 失敗時：**不得**切換 `latest_build_id`；pending confirmat
 對指定 build 執行 opt-in query trace overlay。Current runtime 等價路徑為 `POST /api/trace`（`project_id`）。
 Trace overlay 不得寫回 canonical map / profile artifacts。
 
-### GET /api/map/report
+### GET /api/map-builds/{build_id}/artifacts/{file_name}（current）
 
-回傳目前 process 最新一次成功 build 寫出的 Markdown report（讀該 build 的
-`map_markdown_path`，不接受任意路徑）。這是唯一還沒 build-scoped 的讀取端；
-接上 build-scoped artifact preview 由 issue #219 處理。
+讀取**指定 build** 已 publish 的單一 render artifact，只回內容、不回路徑。`build_id`
+是呼叫端本來就持有的（來自 scan / apply 回應或 build history），所以讀舊 build 拿到的
+就是那個 build 自己的檔案，不會被後來的 build 蓋掉。
+
+`file_name` 走**白名單**，目前只有一列：
+
+| `file_name` | 後端解析到的路徑欄位（不外露） | `Content-Type` |
+| --- | --- | --- |
+| `ai_system_map.md` | `MapBuildResult.map_markdown_path` | `text/markdown; charset=utf-8` |
+
+白名單是「caller 提供的名稱」通往檔案的唯一橋樑：不在表上的名稱永遠到不了檔案系統，
+path traversal 也就無處可 traverse。issue #219 的其餘範圍仍 OPEN：`.mmd` render
+（`system_map.mmd`、`execution_map.mmd`）、build-scoped response 的 `artifact_refs[]`
+（形狀由 Plan 06 定義，見 §2 前段的 `ArtifactRef`）、以及 artifact preview UI。
 
 ```http
-GET /api/map/report            # 行內檢視
-GET /api/map/report?download=true   # 觸發附件下載
+GET /api/map-builds/{build_id}/artifacts/ai_system_map.md                # 行內檢視
+GET /api/map-builds/{build_id}/artifacts/ai_system_map.md?download=true  # 觸發附件下載
 ```
 
-Response `200`：`Content-Type: text/markdown; charset=utf-8`（純文字）。
+Response `200`：body 是該檔案的**原始 bytes**（不做換行轉換——Windows build 寫出的
+CRLF 原樣回傳，與磁碟上的檔案 byte-identical），`Content-Type` 取自上表。
+`?download=true` 時額外送
+`Content-Disposition: attachment; filename="ai_system_map.md"`——檔名取自白名單，不是
+request 文字；不帶 `download`（或 `download=false`）時**不**送這個 header。
+所有回應（含 404）都不含 server-local absolute path。
 
 Report 的 `## Recommended Next Checks` 底下**並列兩段**：`### Scan-fact checks`（map 的
 `recommended_next_checks[]`）與 `### Capability review checks`（profile 評估的 per-node
 checks）。兩段各自去重、互不遮蔽；任一段為空時仍保留標題並標示 no checks（見
 MODEL-CONTRACT §5.3）。
 
+```bash
+# 行內讀取（path 中的 ":" 需 URL-encode 為 "%3A"）
+curl -s "http://127.0.0.1:8000/api/map-builds/build%3A<uuid>/artifacts/ai_system_map.md"
+
+# 附件下載：檢查 Content-Disposition
+curl -sD - -o /dev/null \
+  "http://127.0.0.1:8000/api/map-builds/build%3A<uuid>/artifacts/ai_system_map.md?download=true"
+```
+
 | 錯誤 | 狀態 | 說明 |
 | --- | --- | --- |
-| `map_markdown_not_available` | 404 | 尚無成功的 build，或檔案不存在 |
+| `artifact_not_found` | 404 | `file_name` 不在白名單（含 traversal 形狀的名稱） |
+| `build_not_found` | 404 | 沒有這個 `build_id` 的 committed build |
+| `artifact_not_available` | 404 | 該 build 沒有這個 artifact 的路徑，或檔案已不在磁碟 |
+
+三態的**檢查順序固定**為 `artifact_not_found` → `build_not_found` →
+`artifact_not_available`：名稱先被白名單擋掉，未知名稱因此不會拿去探測 build 儲存。
+
+> `..%2Fai_system_map.md` 這種把 encode 過的路徑分隔符塞進 `file_name` 的請求，在
+> routing 階段就不匹配本 route，回 FastAPI 預設的 `404 {"detail": "Not Found"}`，
+> 根本不會進到 handler。
+
+可執行範例：`scripts/trace_map_build_artifact.sh`（`--download` 跑附件版、`--no-setup`
+跑 `build_not_found` 的 404 arm）。
 
 ---
 
@@ -941,7 +984,7 @@ Response `200`：
 | 狀態 | 意義 | 常見 `detail` |
 | --- | --- | --- |
 | 200 | 成功（含「map 無效」這類明確的 loaded:false 狀態） | — |
-| 404 | 目標不存在 | `resource_not_found`（malformed typed state id）、`project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`map_markdown_not_available` |
+| 404 | 目標不存在 | `resource_not_found`（malformed typed state id）、`project_not_found`、`map_not_loaded`、`unmapped_not_found`、`proposal_not_found`、`detail_scan_not_found`、`mapping_not_found`、`build_not_found`、`artifact_not_found`、`artifact_not_available` |
 | 409 | 狀態衝突 | `base_build_not_latest`、`latest_build_changed`、`scan_snapshot_stale`、`profile_sidecar_unavailable` |
 | 413 | request body 超過本機 API resource limit | `request_too_large` |
 | 422 | 輸入不合法 / 驗證失敗 | `legacy_output_not_selectable`、`legacy_mapping_type_read_only`、`target_not_found`、`profile_sidecar_contract_invalid`（strict mode）、Apply 跨 project / unconfirmed / duplicate `mapping_ids`、validation 陣列 |

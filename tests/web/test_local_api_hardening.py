@@ -10,6 +10,18 @@ from systograph.core.providers.local_json_state_errors import (
 from systograph.web.app import create_app
 
 
+def test_local_api_cors_does_not_use_wildcard_origin() -> None:
+    """Pin the allowlist the echoed CORS headers below are measured
+    against: a wildcard would make every one of them pass while opening
+    the local API to any origin."""
+
+    app = create_app()
+
+    origins = app.allowed_origins
+    assert "*" not in origins
+    assert "http://127.0.0.1:5173" in origins
+
+
 def test_large_request_returns_413_with_cors_header() -> None:
     client = TestClient(
         create_app(max_request_body_bytes=32),

@@ -1,0 +1,800 @@
+diff --git a/frontend/src/App.tsx b/frontend/src/App.tsx
+index b274b3e..2a5f86e 100644
+--- a/frontend/src/App.tsx
++++ b/frontend/src/App.tsx
+@@ -590,6 +590,7 @@ export default function App() {
+         <ReadinessPanel
+           report={payload.viewer_load_result.readiness_report}
+           graph={graph}
++          buildId={payload.viewer_load_result.build_id}
+           onClose={() => setReadinessOpen(false)}
+         />
+       ) : null}
+diff --git a/frontend/src/components/ReadinessPanel.test.tsx b/frontend/src/components/ReadinessPanel.test.tsx
+index 714ffb8..497aa11 100644
+--- a/frontend/src/components/ReadinessPanel.test.tsx
++++ b/frontend/src/components/ReadinessPanel.test.tsx
+@@ -1,5 +1,6 @@
+-import { fireEvent, render, screen } from "@testing-library/react";
+-import { describe, expect, it, vi } from "vitest";
++import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import { useViewerStore } from "../store/viewerStore";
+ import { graphViewModelSchema } from "../types";
+ import { ReadinessPanel } from "./ReadinessPanel";
+ 
+@@ -54,8 +55,16 @@ const report = {
+ };
+ 
+ describe("ReadinessPanel", () => {
++  beforeEach(() => {
++    useViewerStore.setState({
++      dataSourceMode: "api",
++      apiBaseUrl: "http://127.0.0.1:8000",
++      activeBuildId: null,
++    });
++  });
++
+   it("renders backend grounding summary, five-state chips, and next checks", () => {
+-    render(<ReadinessPanel report={report} graph={graph} onClose={() => {}} />);
++    render(<ReadinessPanel report={report} graph={graph} buildId={null} onClose={() => {}} />);
+ 
+     expect(screen.getByRole("dialog", { name: "Readiness" })).toBeInTheDocument();
+     expect(screen.getAllByText("Undetermined").length).toBeGreaterThan(0);
+@@ -68,7 +77,7 @@ describe("ReadinessPanel", () => {
+   });
+ 
+   it("explains a missing report instead of fabricating findings", () => {
+-    render(<ReadinessPanel report={null} graph={graph} onClose={() => {}} />);
++    render(<ReadinessPanel report={null} graph={graph} buildId={null} onClose={() => {}} />);
+ 
+     expect(screen.getByText(/does not include a readiness report/)).toBeInTheDocument();
+     expect(screen.getByText(/UI example only/)).toBeInTheDocument();
+@@ -76,28 +85,152 @@ describe("ReadinessPanel", () => {
+   });
+ 
+   it("switches to safe plain-text Markdown source", () => {
+-    render(<ReadinessPanel report={report} graph={graph} onClose={() => {}} />);
++    render(<ReadinessPanel report={report} graph={graph} buildId={null} onClose={() => {}} />);
+ 
+     fireEvent.click(screen.getByRole("tab", { name: "Generated Markdown" }));
+ 
+     expect(screen.getByText(/^# Readiness report/)).toBeInTheDocument();
+     expect(screen.getByText(/build:sample/)).toBeInTheDocument();
+     expect(screen.getByText(/generated from the inline/)).toBeInTheDocument();
+-    expect(screen.getByText(/No standalone Markdown artifact preview or download/)).toBeInTheDocument();
++    /* The build's own Markdown artifact is a different document, not this one. */
++    expect(screen.getByText(/is a separate document/)).toBeInTheDocument();
++    expect(screen.queryByText(/No standalone Markdown artifact preview or download/)).toBeNull();
+   });
+ 
+   it("degrades on an unsupported report contract", () => {
+-    render(<ReadinessPanel report={{ schema_version: "readiness-report/v99" }} graph={graph} onClose={() => {}} />);
++    render(<ReadinessPanel report={{ schema_version: "readiness-report/v99" }} graph={graph} buildId={null} onClose={() => {}} />);
+ 
+     expect(screen.getByText(/contract this viewer version does not support/)).toBeInTheDocument();
+   });
+ 
+   it("closes with Escape", () => {
+     const onClose = vi.fn();
+-    render(<ReadinessPanel report={report} graph={graph} onClose={onClose} />);
++    render(<ReadinessPanel report={report} graph={graph} buildId={null} onClose={onClose} />);
+ 
+     fireEvent.keyDown(window, { key: "Escape" });
+ 
+     expect(onClose).toHaveBeenCalledOnce();
+   });
+ });
++
++/* jsdom implements neither object-URL method, and following a download anchor
++   is likewise not implemented; both are stubbed so the save path can run. */
++function stubBrowserSave() {
++  URL.createObjectURL = vi.fn(() => "blob:systograph/ai-system-map");
++  URL.revokeObjectURL = vi.fn();
++  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
++}
++
++function stubFetch(response: Response) {
++  const fetchMock = vi.fn().mockResolvedValue(response);
++  vi.stubGlobal("fetch", fetchMock);
++  return fetchMock;
++}
++
++function markdownResponse() {
++  return new Response("# AI System Map\n", {
++    status: 200,
++    headers: { "Content-Type": "text/markdown; charset=utf-8" },
++  });
++}
++
++function notFoundResponse(detail: string) {
++  return new Response(JSON.stringify({ detail }), {
++    status: 404,
++    headers: { "Content-Type": "application/json" },
++  });
++}
++
++const downloadButton = { name: /Download report/ };
++
++describe("ReadinessPanel build report download", () => {
++  beforeEach(() => {
++    useViewerStore.setState({
++      dataSourceMode: "api",
++      apiBaseUrl: "http://127.0.0.1:8000",
++      activeBuildId: null,
++    });
++    stubBrowserSave();
++  });
++
++  afterEach(async () => {
++    // The save path releases its object URL on the next macrotask; let that
++    // land before the stub it calls is removed.
++    await new Promise((resolve) => setTimeout(resolve, 0));
++    vi.unstubAllGlobals();
++    Reflect.deleteProperty(URL, "createObjectURL");
++    Reflect.deleteProperty(URL, "revokeObjectURL");
++  });
++
++  it("downloads the build the viewer is following", async () => {
++    const fetchMock = stubFetch(markdownResponse());
++    render(<ReadinessPanel report={report} graph={graph} buildId="build:latest" onClose={() => {}} />);
++
++    fireEvent.click(screen.getByRole("button", downloadButton));
++
++    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
++    expect(String(fetchMock.mock.calls[0][0])).toBe(
++      "http://127.0.0.1:8000/api/map-builds/build%3Alatest/artifacts/ai_system_map.md",
++    );
++    expect(await screen.findByText(/Saved ai_system_map\.md/)).toBeInTheDocument();
++  });
++
++  it("downloads the pinned historical build rather than the envelope build", async () => {
++    useViewerStore.setState({ activeBuildId: "build:a" });
++    const fetchMock = stubFetch(markdownResponse());
++    render(<ReadinessPanel report={report} graph={graph} buildId="build:latest" onClose={() => {}} />);
++
++    fireEvent.click(screen.getByRole("button", downloadButton));
++
++    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
++    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/map-builds/build%3Aa/artifacts/");
++  });
++
++  it("names the missing artifact instead of leaking a network error", async () => {
++    stubFetch(notFoundResponse("artifact_not_available"));
++    render(<ReadinessPanel report={report} graph={graph} buildId="build:latest" onClose={() => {}} />);
++
++    fireEvent.click(screen.getByRole("button", downloadButton));
++
++    expect(await screen.findByText(/did not publish a Markdown report/)).toBeInTheDocument();
++    expect(screen.queryByText(/artifact_not_available/)).toBeNull();
++    // Non-retryable for this build: the affordance must not invite a retry.
++    expect(screen.getByRole("button", downloadButton)).toBeDisabled();
++  });
++
++  it("sends a vanished build back to the build history", async () => {
++    stubFetch(notFoundResponse("build_not_found"));
++    render(<ReadinessPanel report={report} graph={graph} buildId="build:gone" onClose={() => {}} />);
++
++    fireEvent.click(screen.getByRole("button", downloadButton));
++
++    expect(await screen.findByText(/no longer available/)).toBeInTheDocument();
++    expect(screen.queryByText(/build_not_found/)).toBeNull();
++  });
++
++  it("forgets a settled failure when the viewer moves to another build", async () => {
++    stubFetch(notFoundResponse("artifact_not_available"));
++    render(<ReadinessPanel report={report} graph={graph} buildId="build:latest" onClose={() => {}} />);
++
++    fireEvent.click(screen.getByRole("button", downloadButton));
++    await waitFor(() => expect(screen.getByRole("button", downloadButton)).toBeDisabled());
++
++    act(() => useViewerStore.setState({ activeBuildId: "build:a" }));
++
++    expect(screen.getByRole("button", downloadButton)).toBeEnabled();
++    expect(screen.queryByText(/did not publish a Markdown report/)).toBeNull();
++  });
++
++  it("offers no download in Sample mode", () => {
++    useViewerStore.setState({ dataSourceMode: "sample" });
++    render(<ReadinessPanel report={report} graph={graph} buildId="build:latest" onClose={() => {}} />);
++
++    expect(screen.queryByRole("button", downloadButton)).toBeNull();
++  });
++
++  it("offers no download without a build id", () => {
++    render(<ReadinessPanel report={report} graph={graph} buildId={null} onClose={() => {}} />);
++
++    expect(screen.queryByRole("button", downloadButton)).toBeNull();
++  });
++});
+diff --git a/frontend/src/components/ReadinessPanel.tsx b/frontend/src/components/ReadinessPanel.tsx
+index 2bc8e4d..e15e7f8 100644
+--- a/frontend/src/components/ReadinessPanel.tsx
++++ b/frontend/src/components/ReadinessPanel.tsx
+@@ -1,10 +1,17 @@
+ import { useEffect, useRef, useState } from "react";
+-import { CircleSlash2, ClipboardCheck, Eye, FileText, FlaskConical, X } from "lucide-react";
++import { CircleSlash2, ClipboardCheck, Download, Eye, FileText, FlaskConical, X } from "lucide-react";
+ import {
+   readinessReportSchema,
+   type ReadinessFinding,
+   type ReadinessReport,
+ } from "../contracts/viewer";
++import {
++  MAP_REPORT_FILE_NAME,
++  MapReportError,
++  downloadMapBuildReport,
++  type MapReportErrorReason,
++} from "../services/mapReportApi";
++import { useViewerStore } from "../store/viewerStore";
+ import type { GraphViewModel } from "../types";
+ import { titleCase } from "../utils/format";
+ 
+@@ -12,6 +19,12 @@ type Props = {
+   /** Raw backend readiness report; unsupported payloads never become findings. */
+   report: Record<string, unknown> | null;
+   graph: GraphViewModel;
++  /**
++   * Build id of the loaded envelope (`viewer_load_result.build_id`). A build
++   * pinned in the store wins over it, so the download always follows the build
++   * on screen.
++   */
++  buildId: string | null;
+   onClose: () => void;
+ };
+ 
+@@ -99,6 +112,70 @@ function buildReadinessMarkdown(report: ReadinessReport, graph: GraphViewModel):
+   return lines.join("\n").trim();
+ }
+ 
++type DownloadState =
++  | { status: "idle" | "loading" | "done" }
++  | { status: "error"; reason: MapReportErrorReason };
++
++/* Every message is derived from the contract reason, so no raw transport or
++   backend error string is ever rendered. */
++const DOWNLOAD_ERROR_COPY: Record<MapReportErrorReason, string> = {
++  build_not_found: "This build is no longer available. Reload the build history, then download from a build that still exists.",
++  artifact_not_available: "This build did not publish a Markdown report.",
++  artifact_not_found: "This viewer asked for a report file the backend does not publish.",
++  unknown: "The report download failed. Check that the local API server is running.",
++};
++
++function downloadNote(state: DownloadState): string {
++  switch (state.status) {
++    case "loading":
++      return `Reading ${MAP_REPORT_FILE_NAME} for this build…`;
++    case "done":
++      return `Saved ${MAP_REPORT_FILE_NAME} for this build.`;
++    case "error":
++      return DOWNLOAD_ERROR_COPY[state.reason];
++    default:
++      return `Saves ${MAP_REPORT_FILE_NAME}, the Markdown report of the build on screen.`;
++  }
++}
++
++/**
++ * Downloads the report of one build — the pinned historical build when there is
++ * one, otherwise the loaded build. Each of the three contract 404s is settled
++ * for that build, so only an unknown failure is worth retrying.
++ */
++function BuildReportDownload({ apiBaseUrl, buildId }: { apiBaseUrl: string; buildId: string }) {
++  const [state, setState] = useState<DownloadState>({ status: "idle" });
++  const settled = state.status === "error" && state.reason !== "unknown";
++
++  async function save() {
++    setState({ status: "loading" });
++    try {
++      await downloadMapBuildReport(apiBaseUrl, buildId);
++      setState({ status: "done" });
++    } catch (error) {
++      setState({
++        status: "error",
++        reason: error instanceof MapReportError ? error.reason : "unknown",
++      });
++    }
++  }
++
++  return (
++    <div className="readiness-download">
++      <button
++        className="btn"
++        type="button"
++        onClick={() => void save()}
++        disabled={state.status === "loading" || settled}
++      >
++        <Download aria-hidden="true" size={14} />
++        {state.status === "loading" ? "Downloading…" : "Download report (.md)"}
++      </button>
++      <p className="readiness-download-note" role="status">{downloadNote(state)}</p>
++    </div>
++  );
++}
++
+ function FindingCard({ finding, graph }: { finding: ReadinessFinding; graph: GraphViewModel }) {
+   return (
+     <article className="readiness-finding" aria-label={finding.title}>
+@@ -167,12 +244,17 @@ function RenderedReport({ report, graph }: { report: ReadinessReport; graph: Gra
+   );
+ }
+ 
+-export function ReadinessPanel({ report, graph, onClose }: Props) {
++export function ReadinessPanel({ report, graph, buildId, onClose }: Props) {
+   const parsed = report == null ? null : readinessReportSchema.safeParse(report);
+   const isSample = report == null;
+   const displayReport = parsed?.success ? parsed.data : isSample ? SAMPLE_READINESS_REPORT : null;
+   const [mode, setMode] = useState<"preview" | "source">("preview");
+   const closeButtonRef = useRef<HTMLButtonElement>(null);
++  const dataSourceMode = useViewerStore((state) => state.dataSourceMode);
++  const apiBaseUrl = useViewerStore((state) => state.apiBaseUrl);
++  const activeBuildId = useViewerStore((state) => state.activeBuildId);
++  // Sample mode has no backend to read an artifact from.
++  const downloadBuildId = dataSourceMode === "api" ? (activeBuildId ?? buildId) : null;
+ 
+   useEffect(() => {
+     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+@@ -201,6 +283,12 @@ export function ReadinessPanel({ report, graph, onClose }: Props) {
+           </button>
+         </header>
+ 
++        {downloadBuildId ? (
++          // Keyed by build: a settled failure belongs to that build alone and
++          // must never disable the download of a different one.
++          <BuildReportDownload key={downloadBuildId} apiBaseUrl={apiBaseUrl} buildId={downloadBuildId} />
++        ) : null}
++
+         {isSample ? (
+           <div className="readiness-sample-note" role="note">
+             <FlaskConical aria-hidden="true" size={15} />
+@@ -225,7 +313,7 @@ export function ReadinessPanel({ report, graph, onClose }: Props) {
+                 <div className="readiness-source-view">
+                   <div className="readiness-sample-note" role="note">
+                     <FileText aria-hidden="true" size={15} />
+-                    <span>This plain text is generated from the inline <code>readiness-report/v1</code> payload. No standalone Markdown artifact preview or download is available without a safe build-scoped artifact endpoint.</span>
++                    <span>This plain text is generated from the inline <code>readiness-report/v1</code> payload. The build's own map artifact, <code>ai_system_map.md</code>, is a separate document with its own download, not this text.</span>
+                   </div>
+                   <pre className="readiness-markdown-source">{buildReadinessMarkdown(displayReport, graph)}</pre>
+                 </div>
+diff --git a/frontend/src/services/http.test.ts b/frontend/src/services/http.test.ts
+index 8c8c1b0..8d2a4f1 100644
+--- a/frontend/src/services/http.test.ts
++++ b/frontend/src/services/http.test.ts
+@@ -1,5 +1,5 @@
+ import { afterEach, describe, expect, it, vi } from "vitest";
+-import { ApiRequestError, fetchJson } from "./http";
++import { ApiRequestError, fetchJson, fetchText } from "./http";
+ 
+ function pendingFetch() {
+   return vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+@@ -51,3 +51,84 @@ describe("fetchJson cancellation", () => {
+     await expectation;
+   });
+ });
++
++describe("fetchText", () => {
++  afterEach(() => {
++    vi.useRealTimers();
++    vi.unstubAllGlobals();
++  });
++
++  it("returns the response body verbatim instead of parsing JSON", async () => {
++    const markdown = "# AI System Map\n\n- build: `build:b1`\n";
++    vi.stubGlobal(
++      "fetch",
++      vi.fn().mockResolvedValue(
++        new Response(markdown, {
++          status: 200,
++          headers: { "Content-Type": "text/markdown; charset=utf-8" },
++        }),
++      ),
++    );
++
++    await expect(fetchText("http://127.0.0.1:8000/artifact.md")).resolves.toBe(markdown);
++  });
++
++  it("raises the same ApiRequestError shape as fetchJson for a non-2xx response", async () => {
++    vi.stubGlobal(
++      "fetch",
++      vi.fn().mockResolvedValue(
++        new Response(JSON.stringify({ detail: "artifact_not_available" }), { status: 404 }),
++      ),
++    );
++
++    await expect(fetchText("http://127.0.0.1:8000/artifact.md")).rejects.toMatchObject({
++      name: ApiRequestError.name,
++      message: "artifact_not_available",
++      status: 404,
++    });
++  });
++
++  it("reports a timeout when its bounded timer aborts the request", async () => {
++    vi.useFakeTimers();
++    vi.stubGlobal("fetch", pendingFetch());
++
++    const request = fetchText("http://127.0.0.1:8000/artifact.md", { timeoutMs: 1_000 });
++    const expectation = expect(request).rejects.toMatchObject({
++      name: ApiRequestError.name,
++      message: "Request timed out. Check that the local API server is running.",
++    });
++
++    await vi.advanceTimersByTimeAsync(1_000);
++    await expectation;
++  });
++
++  it("distinguishes caller cancellation from a timeout", async () => {
++    vi.useFakeTimers();
++    vi.stubGlobal("fetch", pendingFetch());
++    const controller = new AbortController();
++
++    const request = fetchText("http://127.0.0.1:8000/artifact.md", {
++      signal: controller.signal,
++      timeoutMs: 15_000,
++    });
++    const expectation = expect(request).rejects.toMatchObject({
++      name: ApiRequestError.name,
++      message: "Request was cancelled.",
++    });
++
++    controller.abort();
++    await expectation;
++  });
++
++  it("lets the caller state the media type it expects", async () => {
++    const fetchMock = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
++    vi.stubGlobal("fetch", fetchMock);
++
++    await fetchText("http://127.0.0.1:8000/artifact.md", {
++      headers: { Accept: "text/markdown" },
++    });
++
++    const init = fetchMock.mock.calls[0][1] as RequestInit;
++    expect(new Headers(init.headers).get("Accept")).toBe("text/markdown");
++  });
++});
+diff --git a/frontend/src/services/http.ts b/frontend/src/services/http.ts
+index fbb2589..70d1baf 100644
+--- a/frontend/src/services/http.ts
++++ b/frontend/src/services/http.ts
+@@ -16,15 +16,32 @@ export function normalizeBaseUrl(baseUrl: string) {
+   return baseUrl.replace(/\/+$/, "");
+ }
+ 
+-export async function fetchJson(
++export type RequestOptions = RequestInit & { timeoutMs?: number };
++
++export async function fetchJson(url: string, options: RequestOptions = {}): Promise<unknown> {
++  return request(url, options, "application/json", (response) => response.json());
++}
++
++/**
++ * Same timeout, cancellation and ApiRequestError contract as fetchJson; the
++ * body is read as text instead of parsed. Callers that expect a narrower media
++ * type (build artifacts ask for text/markdown) pass their own Accept header.
++ */
++export async function fetchText(url: string, options: RequestOptions = {}): Promise<string> {
++  return request(url, options, "text/plain", (response) => response.text());
++}
++
++async function request<T>(
+   url: string,
+-  options: RequestInit & { timeoutMs?: number } = {},
+-): Promise<unknown> {
++  options: RequestOptions,
++  defaultAccept: string,
++  readBody: (response: Response) => Promise<T>,
++): Promise<T> {
+   const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, signal, headers, ...requestOptions } = options;
+   const controller = new AbortController();
+   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+   const requestHeaders = new Headers(headers);
+-  if (!requestHeaders.has("Accept")) requestHeaders.set("Accept", "application/json");
++  if (!requestHeaders.has("Accept")) requestHeaders.set("Accept", defaultAccept);
+ 
+   if (signal) {
+     if (signal.aborted) controller.abort();
+@@ -42,7 +59,8 @@ export async function fetchJson(
+       throw new ApiRequestError(await errorMessage(response), response.status);
+     }
+ 
+-    return response.json();
++    // Still inside the bounded timer: a stalled body must time out too.
++    return await readBody(response);
+   } catch (error) {
+     if (error instanceof DOMException && error.name === "AbortError") {
+       // The caller's signal aborting means cancellation (unmount, newer
+diff --git a/frontend/src/services/mapReportApi.test.ts b/frontend/src/services/mapReportApi.test.ts
+new file mode 100644
+index 0000000..d172ac2
+--- /dev/null
++++ b/frontend/src/services/mapReportApi.test.ts
+@@ -0,0 +1,167 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++import {
++  MAP_REPORT_FILE_NAME,
++  MapReportError,
++  downloadMapBuildReport,
++  loadMapBuildReport,
++} from "./mapReportApi";
++
++const BASE_URL = "http://127.0.0.1:8000";
++const MARKDOWN = "# AI System Map\n\n- Build: `build:b1`\n";
++
++function markdownResponse(body = MARKDOWN) {
++  return new Response(body, {
++    status: 200,
++    headers: { "Content-Type": "text/markdown; charset=utf-8" },
++  });
++}
++
++/* The backend's 404s are the plain-string {"detail": "<code>"} form. */
++function detailResponse(detail: unknown, status = 404) {
++  return new Response(JSON.stringify({ detail }), {
++    status,
++    headers: { "Content-Type": "application/json" },
++  });
++}
++
++function stubFetch(response: Response) {
++  const fetchMock = vi.fn().mockResolvedValue(response);
++  vi.stubGlobal("fetch", fetchMock);
++  return fetchMock;
++}
++
++/* jsdom implements neither object-URL method; the save path is their only user. */
++function stubObjectUrls(objectUrl = "blob:systograph/ai-system-map") {
++  const createObjectURL = vi.fn<(blob: Blob) => string>(() => objectUrl);
++  const revokeObjectURL = vi.fn<(url: string) => void>();
++  URL.createObjectURL = createObjectURL;
++  URL.revokeObjectURL = revokeObjectURL;
++  return { createObjectURL, revokeObjectURL, objectUrl };
++}
++
++function stubAnchorClick() {
++  const clicks: { download: string; href: string; connected: boolean }[] = [];
++  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
++    this: HTMLAnchorElement,
++  ) {
++    clicks.push({ download: this.download, href: this.href, connected: this.isConnected });
++  });
++  return clicks;
++}
++
++/** Lets the deferred revoke (a macrotask after the click) run. */
++function flushMacrotasks() {
++  return new Promise((resolve) => setTimeout(resolve, 0));
++}
++
++afterEach(() => {
++  vi.unstubAllGlobals();
++  Reflect.deleteProperty(URL, "createObjectURL");
++  Reflect.deleteProperty(URL, "revokeObjectURL");
++});
++
++describe("loadMapBuildReport", () => {
++  it("reads the build-scoped artifact with an encoded build id", async () => {
++    const fetchMock = stubFetch(markdownResponse());
++
++    await expect(loadMapBuildReport(BASE_URL, "build:b1")).resolves.toBe(MARKDOWN);
++
++    expect(String(fetchMock.mock.calls[0][0])).toBe(
++      "http://127.0.0.1:8000/api/map-builds/build%3Ab1/artifacts/ai_system_map.md",
++    );
++    const init = fetchMock.mock.calls[0][1] as RequestInit;
++    expect(new Headers(init.headers).get("Accept")).toBe("text/markdown");
++  });
++
++  it("never asks for the attachment variant, because it saves the bytes itself", async () => {
++    const fetchMock = stubFetch(markdownResponse());
++
++    await loadMapBuildReport(BASE_URL, "build:b1");
++
++    expect(String(fetchMock.mock.calls[0][0])).not.toContain("download");
++  });
++
++  it.each([
++    ["build_not_found"],
++    ["artifact_not_available"],
++    ["artifact_not_found"],
++  ])("classifies the %s 404 instead of leaving it a network error", async (detail) => {
++    stubFetch(detailResponse(detail));
++
++    await expect(loadMapBuildReport(BASE_URL, "build:b1")).rejects.toMatchObject({
++      name: "MapReportError",
++      reason: detail,
++      status: 404,
++    });
++  });
++
++  it("treats a 404 outside the three contract codes as unknown", async () => {
++    stubFetch(detailResponse("Not Found"));
++
++    await expect(loadMapBuildReport(BASE_URL, "build:b1")).rejects.toMatchObject({
++      name: "MapReportError",
++      reason: "unknown",
++      status: 404,
++    });
++  });
++
++  it("treats the 422 array-detail form as unknown rather than crashing on it", async () => {
++    stubFetch(detailResponse([{ loc: ["query", "download"], msg: "bool parsing failed" }], 422));
++
++    await expect(loadMapBuildReport(BASE_URL, "build:b1")).rejects.toMatchObject({
++      name: "MapReportError",
++      reason: "unknown",
++      status: 422,
++    });
++  });
++
++  it("wraps transport failures so callers only ever handle MapReportError", async () => {
++    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
++
++    const error = await loadMapBuildReport(BASE_URL, "build:b1").catch((caught) => caught);
++    expect(error).toBeInstanceOf(MapReportError);
++    expect(error.reason).toBe("unknown");
++  });
++});
++
++describe("downloadMapBuildReport", () => {
++  it("saves the fetched markdown through a released object URL", async () => {
++    stubFetch(markdownResponse());
++    const { createObjectURL, revokeObjectURL, objectUrl } = stubObjectUrls();
++    const clicks = stubAnchorClick();
++
++    await downloadMapBuildReport(BASE_URL, "build:b1");
++
++    // Revoking in the click's own task can cancel the download, so the release
++    // must still be pending here and only land after the macrotask flush below.
++    expect(revokeObjectURL).not.toHaveBeenCalled();
++
++    expect(createObjectURL).toHaveBeenCalledOnce();
++    const blob = createObjectURL.mock.calls[0][0];
++    expect(blob).toBeInstanceOf(Blob);
++    expect(blob.type).toBe("text/markdown");
++    await expect(blob.text()).resolves.toBe(MARKDOWN);
++
++    // The anchor must carry the backend's whitelist name and be in the
++    // document at click time, or Firefox drops the download.
++    expect(clicks).toEqual([{ download: MAP_REPORT_FILE_NAME, href: objectUrl, connected: true }]);
++    expect(document.querySelector("a[download]")).toBeNull();
++
++    await flushMacrotasks();
++    expect(revokeObjectURL).toHaveBeenCalledWith(objectUrl);
++  });
++
++  it("reports the build-scoped 404 and never opens an object URL", async () => {
++    stubFetch(detailResponse("artifact_not_available"));
++    const { createObjectURL } = stubObjectUrls();
++    const clicks = stubAnchorClick();
++
++    await expect(downloadMapBuildReport(BASE_URL, "build:b1")).rejects.toMatchObject({
++      name: "MapReportError",
++      reason: "artifact_not_available",
++    });
++
++    expect(createObjectURL).not.toHaveBeenCalled();
++    expect(clicks).toEqual([]);
++  });
++});
+diff --git a/frontend/src/services/mapReportApi.ts b/frontend/src/services/mapReportApi.ts
+new file mode 100644
+index 0000000..9ab6ef3
+--- /dev/null
++++ b/frontend/src/services/mapReportApi.ts
+@@ -0,0 +1,100 @@
++import { ApiRequestError, fetchText, normalizeBaseUrl } from "./http";
++
++/**
++ * The one entry on the backend's artifact whitelist. It is hardcoded on
++ * purpose: the frontend never derives an artifact name from user input, and
++ * the saved file must carry the same name the backend publishes.
++ */
++export const MAP_REPORT_FILE_NAME = "ai_system_map.md";
++const MAP_REPORT_MEDIA_TYPE = "text/markdown";
++
++/**
++ * The three documented 404 codes of
++ * `GET /api/map-builds/{build_id}/artifacts/{file_name}`, plus `unknown` for
++ * everything else (transport failure, timeout, a 404 outside the contract).
++ * The UI turns a reason into its own copy, so no raw error text reaches
++ * the screen.
++ */
++export type MapReportErrorReason =
++  | "build_not_found"
++  | "artifact_not_available"
++  | "artifact_not_found"
++  | "unknown";
++
++const CONTRACT_REASONS: MapReportErrorReason[] = [
++  "artifact_not_found",
++  "build_not_found",
++  "artifact_not_available",
++];
++
++export class MapReportError extends Error {
++  reason: MapReportErrorReason;
++  status?: number;
++
++  constructor(reason: MapReportErrorReason, message: string, status?: number) {
++    super(message);
++    this.name = "MapReportError";
++    this.reason = reason;
++    this.status = status;
++  }
++}
++
++/**
++ * Read one build's rendered Markdown map. The caller passes the build id it
++ * already has on screen, so an older build returns that build's report and a
++ * newer build never wins.
++ */
++export async function loadMapBuildReport(
++  baseUrl: string,
++  buildId: string,
++  signal?: AbortSignal,
++): Promise<string> {
++  const url = `${normalizeBaseUrl(baseUrl)}/api/map-builds/${encodeURIComponent(buildId)}/artifacts/${MAP_REPORT_FILE_NAME}`;
++
++  try {
++    // No `download=true`: that variant only sets Content-Disposition for a
++    // browser navigation, and this path saves the bytes itself.
++    return await fetchText(url, { signal, headers: { Accept: MAP_REPORT_MEDIA_TYPE } });
++  } catch (error) {
++    throw asMapReportError(error);
++  }
++}
++
++/**
++ * Fetch the build's report and hand it to the browser as a file. Going through
++ * fetch instead of a plain link keeps the 404 codes visible to the UI, which a
++ * navigation would swallow.
++ */
++export async function downloadMapBuildReport(
++  baseUrl: string,
++  buildId: string,
++  signal?: AbortSignal,
++): Promise<void> {
++  const markdown = await loadMapBuildReport(baseUrl, buildId, signal);
++  const objectUrl = URL.createObjectURL(new Blob([markdown], { type: MAP_REPORT_MEDIA_TYPE }));
++  const anchor = document.createElement("a");
++  anchor.href = objectUrl;
++  anchor.download = MAP_REPORT_FILE_NAME;
++  // Firefox only follows a download anchor that is in the document.
++  document.body.append(anchor);
++
++  try {
++    anchor.click();
++  } finally {
++    anchor.remove();
++    // Releasing the object URL in the same task can cancel the download the
++    // click just started; hand it back on the next one instead.
++    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
++  }
++}
++
++function asMapReportError(error: unknown): MapReportError {
++  if (error instanceof MapReportError) return error;
++  if (error instanceof ApiRequestError) {
++    const reason = CONTRACT_REASONS.find(
++      (candidate) => error.status === 404 && error.message === candidate,
++    );
++    return new MapReportError(reason ?? "unknown", error.message, error.status);
++  }
++  return new MapReportError("unknown", error instanceof Error ? error.message : String(error));
++}
+diff --git a/frontend/src/styles.css b/frontend/src/styles.css
+index eb56692..95a9318 100644
+--- a/frontend/src/styles.css
++++ b/frontend/src/styles.css
+@@ -1016,6 +1016,12 @@ h1, h2, h3 { margin: 0; }
+   border: 1px solid color-mix(in srgb, var(--dr-orange) 30%, var(--line));
+   border-radius: var(--radius-sm);
+ }
++.readiness-download {
++  display: flex; align-items: center; gap: 10px; padding: 10px 18px;
++  border-bottom: 1px solid var(--line); background: var(--panel);
++}
++.readiness-download .btn { flex: none; }
++.readiness-download-note { margin: 0; min-width: 0; color: var(--text-3); font-size: var(--fs-sm); line-height: 1.4; }
+ .readiness-view-tabs { display: flex; gap: 4px; padding: 8px 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
+ .readiness-view-tabs button {
+   display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
