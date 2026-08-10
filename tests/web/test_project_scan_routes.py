@@ -323,6 +323,25 @@ def test_committed_scan_survives_session_projection_failure(
     assert client.get(f"/api/map-builds/{build_id}").status_code == 200
 
 
+def test_scan_events_returns_sse_completed_event() -> None:
+    """`GET /api/scan/events` is the progress side of the same scan
+    router, so its stream headers and terminal event are pinned here with
+    the scan routes they report on."""
+
+    client = TestClient(create_app())
+
+    with client.stream("GET", "/api/scan/events") as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert response.headers["cache-control"] == "no-cache"
+    assert response.headers["x-accel-buffering"] == "no"
+    assert "event: scan_progress" in body
+    assert "data:" in body
+    assert '"status":"completed"' in body
+
+
 def test_scan_create_rejects_unknown_project() -> None:
     client = TestClient(create_app())
 

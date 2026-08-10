@@ -64,7 +64,6 @@ from systograph.web.middleware import (
 from systograph.web.routes import (
     detail_scan_routes,
     map_build_routes,
-    map_routes,
     mapping_proposal_routes,
     mapping_routes,
     project_routes,
@@ -241,7 +240,6 @@ def create_app(
         RequestSizeLimitMiddleware,
         max_request_body_bytes=max_request_body_bytes,
     )
-    app.include_router(map_routes.router)
     app.include_router(map_build_routes.router)
     app.include_router(detail_scan_routes.router)
     app.include_router(mapping_proposal_routes.router)

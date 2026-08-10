@@ -39,8 +39,6 @@ class SessionStore(Protocol):
         self, result: MapBuildResult, *, project_id: str | None = None
     ) -> None: ...
 
-    def latest_build_result(self) -> MapBuildResult | None: ...
-
     def build_result(self, project_id: str) -> MapBuildResult | None: ...
 
     def build_results(self) -> tuple[tuple[str, MapBuildResult], ...]: ...
@@ -68,7 +66,6 @@ class InMemorySessionStore:
 
     def __init__(self) -> None:
         self._projects: dict[str, ProjectRecord] = {}
-        self._latest_build_result: MapBuildResult | None = None
         self._build_results_by_project: dict[str, MapBuildResult] = {}
 
     def import_project(
@@ -95,12 +92,8 @@ class InMemorySessionStore:
         *,
         project_id: str | None = None,
     ) -> None:
-        self._latest_build_result = result
         if project_id is not None:
             self._build_results_by_project[project_id] = result
-
-    def latest_build_result(self) -> MapBuildResult | None:
-        return self._latest_build_result
 
     def build_result(self, project_id: str) -> MapBuildResult | None:
         return self._build_results_by_project.get(project_id)
@@ -118,7 +111,6 @@ class PersistentSessionStore:
     ) -> None:
         self._repository = repository
         self._manifest_service = manifest_service
-        self._latest_build_result: MapBuildResult | None = None
 
     def import_project(
         self,
@@ -155,23 +147,15 @@ class PersistentSessionStore:
         *,
         project_id: str | None = None,
     ) -> None:
-        self._latest_build_result = result
+        """Accept the projection and keep nothing: durability is elsewhere.
 
-    def latest_build_result(self) -> MapBuildResult | None:
-        if self._latest_build_result is not None:
-            return self._latest_build_result
-        candidates = []
-        for project in self._repository.list_projects():
-            pointer = self._repository.get_latest_pointer(project.project_id)
-            if pointer is not None:
-                candidates.append(pointer)
-        if not candidates:
-            return None
-        pointer = max(
-            candidates,
-            key=lambda item: (item.updated_at, item.latest_build_id),
-        )
-        return self.build_result(pointer.project_id)
+        The method stays because the `SessionStore` contract declares it and
+        `save_committed_build_projection` still calls it, but this store has
+        no session-scoped copy to update — the build pipeline already wrote
+        the manifest through the repository, and `build_result` reads from
+        there. Persisting a second copy here would only add a way for the
+        two to disagree.
+        """
 
     def build_result(self, project_id: str) -> MapBuildResult | None:
         pointer = self._repository.get_latest_pointer(project_id)
@@ -183,9 +167,7 @@ class PersistentSessionStore:
         )
         if manifest is None:
             return None
-        result = self._manifest_service.load(manifest)
-        self._latest_build_result = result
-        return result
+        return self._manifest_service.load(manifest)
 
     def build_results(self) -> tuple[tuple[str, MapBuildResult], ...]:
         results: list[tuple[str, MapBuildResult]] = []

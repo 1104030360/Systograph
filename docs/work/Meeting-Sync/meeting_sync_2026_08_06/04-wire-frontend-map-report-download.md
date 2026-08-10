@@ -1,6 +1,18 @@
 # 前端接上 `GET /api/map/report`（Markdown report 預覽／下載）實作計畫
 
-Status: **planned**（2026-08-06 起草；GitHub issue 待開。相關 issue #219
+Status: **superseded**（2026-08-10）
+
+> **⚠️ SUPERSEDED — 本計畫不再執行。** 2026-08-10 決策改走 build-scoped
+> 下載端點，取代「前端接 process-wide `/api/map/report`」的本方案；
+> `/api/map/report` 將由後端直接退役。後繼計畫：
+> 後端主計畫
+> `docs/work/Timmy/schedule/plan/unfinish/phase2/static-trace-plan/download.md`、
+> 前端計畫
+> `docs/work/Meeting-Sync/meeting_sync_2026_08_10/frontend-build-scoped-report-download.md`
+> （本檔 Task 1 `fetchText` 與 Task 3 UI 骨架由後繼前端計畫承接）。
+> 以下原文保留備考。
+
+原 Status: planned（2026-08-06 起草；GitHub issue 待開。相關 issue #219
 `[Frontend][Blocked] feat: connect safe build-scoped artifact preview and
 download` 仍 OPEN——本計畫是它的**縮小範圍先行版**：只接現有的
 process-wide Markdown 端點，不等 build-scoped artifact API）
