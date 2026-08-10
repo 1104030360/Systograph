@@ -1,7 +1,7 @@
 # Build-scoped Markdown Report 下載 — 實作計畫
 
-Status: **done**（2026-08-10 起草並於同日實作完成；GitHub issue／PR
-開立後回填編號）
+Status: **done**（2026-08-10 起草並於同日實作完成；PR #281。
+GitHub issue 待開，開立後回填編號）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (recommended) or
@@ -310,6 +310,15 @@ ReadinessPanel 下載入口（effective build id =
   §10），前端從未接上（FE-3 未實作），無外部消費者。
 - **與 FE-2/FE-3 的協調**：FE-3 已 superseded；FE-2（拔 `/api/map`
   fallback）與本計畫無依賴關係，可各自進行。
+- **已知限制（2026-08-10 Codex review P1，owner 裁定 deferred）**：
+  下載端點回傳前**不驗 manifest digest**——build 後被改動的
+  `ai_system_map.md` 會被原樣送出（`BuildManifestService.load` 對
+  optional artifact 的 digest 不符只記 `optional_artifact_invalid`
+  warning、路徑照回），檔案被換成 symlink 時亦會跟隨讀取。觸發前提是
+  對 outputs 目錄有寫入權；local-first 單人情境風險受控，故 deferred。
+  修法（對實際回傳的 bytes 驗 sha256 比對 `manifest.artifact_digests`、
+  以 lstat 拒絕 symlink）列入 #219 後續切片；完整分析見 PR #281 的
+  review thread。
 
 ---
 
