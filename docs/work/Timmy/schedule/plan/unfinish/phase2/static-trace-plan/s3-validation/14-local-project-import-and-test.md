@@ -5,6 +5,11 @@
 > contract migration 混在同一支 PR。`12-add-runtime-component-trace-contract.md` 與 Plan 17
 > 都是 deferred boundary，不是本計畫前置條件。
 
+> **2026-08-10 注記：** 本檔已依
+> [`CLARIFICATIONS-2026-08-10.md`](../s2-ua-integration/CLARIFICATIONS-2026-08-10.md)
+> 的 **Q14①**（16D 為 final validation 硬前置）與 **Q17**（Tier A 唯一定義、計數器歸屬、
+> per-provider 報告欄位）裁定修訂。裁定軌跡以該檔為準。
+
 **來源：** 使用者需求、`epic1-phase2-design.md` 的 target repository boundary、`MODEL-CONTRACT.md` 的 registry-driven capability overlay catalog，以及 2026-07-03 對公開 GitHub repo / 官方 README 的外部查詢。
 
 **目標：** 在 00A compatibility gate 與 Plan 13 active v2 cutover 完成後，以固定
@@ -64,6 +69,17 @@ Plan 14 新增 UA parity gate，作為 Plan 18 退役 Systograph scan TOML provi
   internal sidecar 僅保存、不消費。
 - Plan 18 只能在本計畫 parity / fail-closed / no-UA-rerun regression 都通過後執行。
 
+**16D 硬前置（2026-08-10 裁定 Q14①）：**
+[`16D` call-priority consumer cutover](../s2-ua-integration/16D-call-priority-consumer-cutover.md)
+完成是本計畫 **final validation 的硬前置**——先前 16D §8 Q1／16D 排程節的「建議」語氣正式
+改判為硬性。具體約束：
+
+- 16D 未完成前，本計畫可執行前置 task，但**不得出具 final validation report**。
+- Final report **不得**以「structural UA 已接、flow 仍部分模板」這類降級措辭宣稱出具；
+  沒有 16D 驗收證據就沒有 final report，不存在降級版本。
+- 連帶效果：Plan 18 的退役 gate 也不成立（Plan 18 只認通過的 final report）。
+- 排程後果（owner 已知悉）：S3（14→18→15）整條被 16D 拖住。
+
 **外部 clone 目錄決策：** direct targets 固定 clone 到 repo-relative
 `/tests/fixtures/external_projects/`。實作 Plan 14 前必須先把此目錄加入 `.gitignore` 並以
 測試確認不會被追蹤；本次只更新 plan 文件，不修改 `.gitignore`。
@@ -102,7 +118,7 @@ Import/scan API 已存在，profile sidecar/overlay 與 frontend integration 尚
 
 ### 驗收標準
 
-Tier A deterministic fixtures 與小型 targets 全部通過；Tier B 至少兩個大型 app
+Tier A direct targets（外部真實 repo，釘 SHA）全部通過；Tier B 至少兩個大型 app
 bounded scan 通過；每個 active registry profile 有 direct 或 fixture evidence；v1
 migration 與 active v2 outputs 全部通過。
 
@@ -206,6 +222,21 @@ E2E hard gate）。
 | A: deterministic direct gate | Backblaze starter kit + 至少兩個固定 SHA 的小型 app/curated app subdir | 必須全部通過；適合放 CI 或 release checklist |
 | B: real-world bounded app gate | PrivateGPT、Kotaemon、Neo4j Graph Builder、Khoj、Langchain-Chatchat、Quivr | 至少兩個通過；其餘可為 documented gap，不得 silent pass |
 | C: scale calibration | Onyx 或其他超大型 platform-like repo | 非 blocking；只量測 scan boundary、耗時、記憶體與 false positives |
+
+### 語料唯一定義（2026-08-10 裁定 Q17①）
+
+**本計畫全文與下游（[Plan 18](../s3-retirement/18-retire-systograph-scan-toml-providers-after-parity.md)）
+所稱「Tier A」＝ 外部真實 repo（釘 SHA）**，不含任何內部 fixture。內部 fixtures 一律以自己的
+語料名稱呼，**不得**以「Tier A fixtures」指涉；三套語料用途固定，不得互換：
+
+| 語料 | 內容 | 用途（唯一） | 不得用於 |
+|---|---|---|---|
+| **Tier A**（外部真實 repo，釘 SHA） | 上表 Tier A 的 direct targets：Backblaze starter kit + 至少兩個固定 SHA 的小型 app / curated app subdir | **退役門檻**——UA parity 覆蓋率判定基準；Plan 18 的 gate 只認這一套 | 不是日常單元回歸基線 |
+| **Phase4 Plan 31 fixtures**（`phase4-scanner-expansion/31-expand-advanced-rag-fixtures.md`） | 進階 RAG fixture 集；由 [Plan 16 Task 7](../s2-ua-integration/16-implement-understand-anything-sidecar-service.md) 轉為 parity corpus 的第一批資料來源 | **parity 對比語料**——UA facts ↔ legacy provider facts 的 old/new expected facts 對照 | 不計入 direct import success rate；不得稱 Tier A |
+| **`tests/fixtures/rag_projects/`** | repo 內既有 RAG 專案 fixtures | **邊推導基線**——16C L1/L2/L3 邊推導與 16D cutover 的回歸基線，兼日常掃描基線 | 不作退役門檻依據；不得稱 Tier A |
+
+本計畫 Task 2 新建的 `tests/fixtures/ai_systems/` 五象限 fixtures 屬 Plan 14 自有 fixture，
+同樣不得冠上「Tier A」。
 
 ---
 
@@ -378,8 +409,11 @@ E2E hard gate）。
 - [ ] 每次執行 direct import 或 fixture validation 後，產生一張簡潔結果表。
 - [ ] 結果表可先存在本地 Markdown，例如
   `docs/work/Timmy/schedule/report/local-project-import-results-YYYY-MM-DD.md`。
+- [ ] **本地報告必須另含固定第二張表：per-provider parity 分類表**（2026-08-10 裁定 Q17③），
+  格式見下方；Plan 18 的退役 gate 直接判讀本表，本計畫是唯一產出者。
 - [ ] 將最新摘要用 comment 貼到本 plan 對應的 GitHub sub-issue，讓測試結果可追蹤。
-- [ ] comment 不貼完整 logs，不貼 secrets，不貼過長 JSON，只貼 pass/fail/gap 與 artifact path。
+- [ ] comment 不貼完整 logs，不貼 secrets，不貼過長 JSON，只貼 pass/fail/gap 與 artifact path；
+  per-provider 分類表留在本地報告，comment 只貼各分類的計數與報告路徑。
 
 建議 issue comment 格式：
 
@@ -400,8 +434,35 @@ Summary:
 - Schema validation: pass/fail
 - Secret masking: pass/fail
 - Read-only check: pass/fail
+- Parity 分類: covered_by_ua=X / accepted_gap=X / needs_ua_adapter_fix=X /
+  retain_as_vocabulary=X / retain_as_mechanism=X（明細見本地報告 `<path>`）
 - Follow-up issues: #...
 ```
+
+#### per-provider parity 分類表（2026-08-10 裁定 Q17③）
+
+上表的列單位是 target，裝不下 per-provider 的 provenance 與分類，因此本地報告固定再放一張
+**per-provider parity 分類表**。做法二選一時本專案選定：**由 Plan 14 產出、Plan 18 消費**——
+[Plan 18](../s3-retirement/18-retire-systograph-scan-toml-providers-after-parity.md) Task 1
+**不重新分類**，只確認本表覆蓋完整後原樣凍結進 retirement report。
+
+```markdown
+## UA Parity — per-provider 分類表
+
+| Provider rule (`rule_id`) | Provider | Provenance | UA 等價 `rule_id` | 分類 | 依據 / 備註 |
+|---|---|---|---|---|---|
+| `code_pattern_vector_store_qdrant` | `code_pattern` | ua + legacy | `ua_symbol_...` | `covered_by_ua` | 語料：Tier A `<repo>@<sha>` |
+| `docker_env_file_detected` | `docker_image` | legacy only | — | `accepted_gap` | 書面理由 + Plan 18 Task 2 consumer audit ref |
+| `dependency_*` | `dependency_manifest` | legacy only | — | `retain_as_mechanism` | 無 UA 等價機制 |
+```
+
+- 分類值唯五，不得自創：`covered_by_ua`／`accepted_gap`／`needs_ua_adapter_fix`／
+  `retain_as_vocabulary`（語彙目錄續留）／`retain_as_mechanism`（機制續留）。
+- `Provenance` 欄由 `rule_id` 前綴決定（`ua_*` vs legacy），資料來自
+  [Plan 16 Task 7](../s2-ua-integration/16-implement-understand-anything-sidecar-service.md)
+  parity harness 的逐筆 provenance 標示。
+- **未分類或 `needs_ua_adapter_fix` 的 rule 不得退役**；出現任一未分類列即視為 parity gate
+  未通過（與 Plan 18 Task 1 同步條款）。
 
 ### Task 8: 驗證 Apply、Build Lineage 與 Restart Recovery
 
@@ -409,6 +470,10 @@ Summary:
   B1→Apply→B2 測試；Apply 不得再次執行 filesystem scan、UA sidecar 或 parity providers。
 - [ ] 同一測試必須證明 Apply 不重跑 UA sidecar，也不重跑 parity providers；B2 只讀
   B1 `ScanSnapshot.scan_result`，不消費 `ua-analysis-result` semantic internal sidecar。
+- [ ] **計數器由 [Plan 16 Task 7](../s2-ua-integration/16-implement-understand-anything-sidecar-service.md)
+  （parity harness）實作**（2026-08-10 裁定 Q17②）：檔案系統掃描／UA sidecar／parity providers
+  於 B1→B2 全程**各只跑 1 次**。本計畫**引用其輸出**當驗收證據，不自行另建計數機制；
+  計數器未落地時，本項驗收不得以人工判讀代替。
 - [ ] 驗證 B1 與 B2 artifacts 都保留，B2 的 `scan_id` 與 B1 相同、`build_id` 不同，
   且 `based_on_build_id`、`applied_mapping_ids` 完整可追溯。
 - [ ] 驗證 B2 的 map、profile、readiness、GraphViewModel、Markdown、Mermaid 與 static
@@ -453,9 +518,14 @@ Summary:
 - [ ] B1→B2 Apply 的量測證明 filesystem scan、UA sidecar 與 parity providers 總呼叫次數
   維持一次，但 component detection 會從同一 `ScanSnapshot` replay，並重新計算 normalization、assessment、static
   execution、GraphViewModel、Mapping Completeness 與 sibling artifacts；explicit rescan 則
-  必須重新通過 boundary gate，建立新 `scan_id` 與新 snapshot。
+  必須重新通過 boundary gate，建立新 `scan_id` 與新 snapshot。量測數據**引用 Plan 16 Task 7
+  parity harness 的計數器輸出**（2026-08-10 裁定 Q17②），本計畫不另建計數機制。
 - [ ] UA parity gate、UA fail-closed 行為、Apply 不重跑 UA regression 全部通過，且結果
   報告明確列為 Plan 18 的退役前置條件。
+- [ ] Parity report 含 **per-provider parity 分類表**，每個 Systograph provider rule 都有五分類
+  之一與 provenance 標示；未分類或 `needs_ua_adapter_fix` 存在時本項不通過（Q17③）。
+- [ ] **16D 已完成**——final validation report 只在 16D cutover 驗收證據齊備後出具；
+  不得以「flow 仍部分模板」的降級措辭代替（Q14①）。
 
 ---
 
@@ -463,6 +533,10 @@ Summary:
 
 - **Hard gate：Gate-2 必須先通過。** Plan 16 structural path、snapshot internal sidecar、
   fail-closed 與 parity harness 任一未完成時，不得開始本計畫。
+- **Hard gate：[16D](../s2-ua-integration/16D-call-priority-consumer-cutover.md)
+  （call-priority consumer cutover）必須先完成，才能出具 final validation report**
+  （2026-08-10 裁定 Q14①，先前的「建議」語氣正式改判為硬前置）。16D 未完成前可跑前置 task，
+  但 **final report 不得以「flow 仍部分模板」降級宣稱出具**；Plan 18 的退役 gate 連帶不成立。
 - 依賴 00A compatibility gate 與 Plan 13 active v2 cutover。`12` 是 deferred
   boundary，不作為前置條件。
 - 依賴 Plan 16 UA sidecar structural path；本計畫的 parity report 是 Plan 18 的 gate。
@@ -514,7 +588,8 @@ Plan 14 final validation 必須有**單一** E2E hard gate，對齊 `MODEL-CONTR
 | **Public sibling artifacts** | **10** | 7 JSON（`ai_system_map`、`profile_signals`、`readiness_report`、`call_graph`、`dataflow_hints`、`execution_paths`、`evidence_table`）+ 3 render（`ai_system_map.md`、`system_map.mmd`、`execution_map.mmd`）；atomic publish；**不含** `snapshot.json` / `mappings/*.json` |
 | **Ephemeral API projection** | **1** | `ViewerLoadResult.graph_view_model`（inline；非磁碟 sibling） |
 
-- [ ] 至少一個 Tier A fixture **與** 一條 Apply B1→B2 regression 必須通過上述 **10 + 1** gate。
+- [ ] 至少一個 **Tier A direct target**（外部真實 repo、釘 SHA；依「語料唯一定義」，
+      **不是**內部 fixture）**與** 一條 Apply B1→B2 regression 必須通過上述 **10 + 1** gate。
 - [ ] `GET /api/map-builds/{build_id}` 的 inline 欄位與 lazy `artifact_refs` 分派符合
       `API-GUIDE.md` / `MODEL-CONTRACT.md` §9.1。
 - [ ] 不得把 P0 execution JSON 與 core 7 JSON 混成不同計數口径；本 gate 覆蓋 full publish set。

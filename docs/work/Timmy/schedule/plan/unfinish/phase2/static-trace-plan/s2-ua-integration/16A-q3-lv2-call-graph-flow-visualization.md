@@ -10,6 +10,9 @@ Status: **decision recorded**（2026-07-29）— 產品／架構洞察，非正�
 > **對象：** Plan 16 執行者、討論「接 UA 之後能畫什麼 flow」的人
 > **性質：** 決策紀錄 + 現況對照；**不**改產品碼
 > **來源：** 2026-07-29 UA 整合對話 Q3（選 Lv2）
+> **2026-08-10 注記：** §2.4 的端點約束缺口**已修復**、§7.1 兩份前置**已滿足**，
+> 行號已對 HEAD `52931d6` 校正；裁定出處見
+> [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md)（F1／Q5）。
 > **證據交叉驗證（寫入當日）：** `FlowDerivationService`、`rag-core-v1.json` flows、`profile_rule_definitions.py`（`rag-grounding` → `context_flow`）、static-trace README P0 artifacts
 
 ---
@@ -88,6 +91,15 @@ query_answer:
 call hints 是唯一能同時提供**新語意**與**真實 call-site 證據**的來源。
 
 ### 2.4 ⚠️ 前置條件：端點約束（Plan 13.8 Task 1）
+
+> **✅ 2026-08-10 注記：本節描述的缺口已修復**——[`13.8`](../../../../finish/s1-v2-cutover/13.8.md)
+> Task 1 已落地：`profile_finding_assembler.py` 現行 `:198-205` 為
+> `_relationship_evidence()` 定義、`:214-217` 為端點檢查
+> （`required_component_ids.isdisjoint((edge.source, edge.target))`），
+> 回歸測試 `tests/unit/core/test_profile_finding_endpoint_constraint.py` 守著它。
+> **下文的 rerank alias 假陽性示範已不可重現。保留原文供決策脈絡**——它是「為什麼 UA
+> 落地前必須先有端點約束」這條論證的原始證據，也是 [`16G`](./16G-retire-template-flow-derivation.md)
+> §5 門檻 2 引用 `:214` 閘門的由來。
 
 查核發現 `_relationship_evidence()`（`profile_finding_assembler.py:196-205`）
 **只用關係名查邊，完全不驗邊的 source/target 是否落在該卡的
@@ -199,16 +211,17 @@ Gate 仍以 static-trace README 為準：Gate-1 後才開 Plan 16；Gate-2 要 s
 | 對話中的「G5c」完整 finding 編號 | 本檔當 **rag-grounding / `context_flow` 缺口** 的別名使用；已正式化為 [`../../../../finish/s1-v2-cutover/13.8.md`](../../../../finish/s1-v2-cutover/13.8.md) |
 | Lv1 / Lv3 完整定義 | 未完整寫入本檔；**已拍板的是選 Lv2（call graph 槓桿）** |
 | 今日 `execution_paths`「只有成對的點」 | **已量化**，見 §2.3；實作時仍以具體 artifact 對照為準 |
-| FlowDerivation 是否在 v2 materialization 路徑仍為 primary | **已確認為 primary 且是唯一 canonical edge 來源**（`system_map_v2_materialization_service.py:124` → `system_map_v2_normalize_service.py:136-158`），見 §2.3 |
+| FlowDerivation 是否在 v2 materialization 路徑仍為 primary | **已確認為 primary 且是唯一 canonical edge 來源**（`system_map_v2_materialization_service.py:126` derive 呼叫 → `system_map_v2_normalize_service.py:165-186` `_edges`，其中 `status="observed"` 在 `:183`），見 §2.3。行號對 HEAD `52931d6` 校正（2026-08-10） |
 
-## 7.1 相依計畫（2026-07-29 新增）
+## 7.1 相依計畫（2026-07-29 新增；2026-08-10 狀態更新）
 
-UA 落地前必須完成的兩份前置計畫，否則 UA 的成果無法在 52 格／15 張卡上顯現：
+UA 落地前必須完成的兩份前置計畫，否則 UA 的成果無法在 52 格／15 張卡上顯現。
+**兩份皆已完成**，本表自 2026-08-10 起是**已結案紀錄**，不再是擋路清單。
 
-| 計畫 | 為什麼是 UA 的前置 |
-|------|--------------------|
-| [`../../../../finish/s1-v2-cutover/13.7.md`](../../../../finish/s1-v2-cutover/13.7.md) | UA 只替換 fact 來源；元件仍以 bridge kind 字彙表示，若 `_TYPE_TO_NODES` 未補齊，UA 掃得再準 52 格照樣點不亮（實測今天 4/52，拆 legacy 表後 1/52） |
-| [`../../../../finish/s1-v2-cutover/13.8.md`](../../../../finish/s1-v2-cutover/13.8.md) | 端點約束缺口；UA 產出的邊數量級遠大於現有 12 條，無約束時假陽性風險放大（見 §2.4） |
+| 計畫 | 狀態 | 為什麼是 UA 的前置 |
+|------|------|--------------------|
+| [`../../../../finish/s1-v2-cutover/13.7.md`](../../../../finish/s1-v2-cutover/13.7.md) | **✅ 已滿足（2026-07-29 done）** | UA 只替換 fact 來源；元件仍以 bridge kind 字彙表示，若對照表未補齊，UA 掃得再準 52 格照樣點不亮（實測當時 4/52，拆 legacy 表後 1/52）。交付物＝`capability_type_node_map.toml`＋清除 `_LEGACY_SLOT_TO_NODES` |
+| [`../../../../finish/s1-v2-cutover/13.8.md`](../../../../finish/s1-v2-cutover/13.8.md) | **✅ 已滿足（2026-07-29 done；由回歸測試守護）** | 端點約束缺口；UA 產出的邊數量級遠大於現有 12 條，無約束時假陽性風險放大（見 §2.4）。守護者＝`tests/unit/core/test_profile_finding_endpoint_constraint.py` |
 
 ## 7.2 給 Plan 16 的驗收輸入：12 張卡的關係語意需求
 

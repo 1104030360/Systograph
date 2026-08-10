@@ -7,6 +7,9 @@
 
 Status: planned — **依賴 Plan 16 Task 3（`UaStructuralAdapter`）產出穩定 fact/evidence 之後**
 
+> **2026-08-10 裁定併入：** Q12（合併鍵）／Q13（敗者 evidence 不合併）／Q16（上限為規範值）
+> 與行號校正，見 [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md)。
+
 > **執行者注意：** 逐 task 實作本計畫。步驟使用 checkbox（`- [ ]`）語法以便追蹤。
 >
 > **本檔補的缺口：** [`16A`](./16A-q3-lv2-call-graph-flow-visualization.md) §6 第 2 步只寫
@@ -17,11 +20,11 @@ Status: planned — **依賴 Plan 16 Task 3（`UaStructuralAdapter`）產出穩�
 >
 > **⚠️ 硬前置（缺一不可）：**
 >
-> | 前置 | 為什麼是前置 |
-> |------|--------------|
-> | Plan 16 Task 3 `UaStructuralAdapter` | 本檔消費 `ua_call_hint_*` / `ua_import_*` / `ua_symbol_*` 三類 fact；沒有它就沒有輸入 |
-> | [`../../../../finish/s1-v2-cutover/13.8.md`](../../../../finish/s1-v2-cutover/13.8.md) Task 1 — 端點約束 | `_relationship_evidence()`（`profile_finding_assembler.py:196-205`）只用關係名查邊、**不驗端點**。本檔會把邊從 12 條放大到數百條，無端點約束時假陽性同步放大 |
-> | [`../../../../finish/s1-v2-cutover/13.7.md`](../../../../finish/s1-v2-cutover/13.7.md) — bridge kind → 52 格字彙 | 邊推得再準，元件字彙沒對齊 52 格仍然點不亮 |
+> | 前置 | 狀態 | 為什麼是前置 |
+> |------|------|--------------|
+> | Plan 16 Task 3 `UaStructuralAdapter` ＋ **[`16H`](./16H-ast-construction-provider.md)（G1/G2/G3 provider，2026-08-10 裁定 Q1 新開）** | ⏳ 未完成 | 本檔消費 `ua_call_hint_*` / `ua_import_*` / `ua_symbol_*` 三類 fact；沒有 Task 3 就沒有輸入。16H 補的是 `def` 之外的建構（G1）與工廠推論（G2）、外部 import（G3），缺它時大量元件的居所停在 `span=None`（見 §5 風險 1） |
+> | [`../../../../finish/s1-v2-cutover/13.8.md`](../../../../finish/s1-v2-cutover/13.8.md) Task 1 — 端點約束 | ✅ **已滿足（2026-07-29 done）** | `_relationship_evidence()`（`profile_finding_assembler.py:198-205` 定義、`:214-217` 檢查）**已加端點驗證**——`required_component_ids.isdisjoint((edge.source, edge.target))` 擋掉「關係名對得上但兩端都不是卡片必要元件」的邊，回歸測試 `tests/unit/core/test_profile_finding_endpoint_constraint.py` 守護。本檔會把邊從 12 條放大到數百條，正是靠這道既有約束擋住同步放大的假陽性（與 §2.2 對該閘門的敘述一致） |
+> | [`../../../../finish/s1-v2-cutover/13.7.md`](../../../../finish/s1-v2-cutover/13.7.md) — bridge kind → 52 格字彙 | ✅ **已滿足（2026-07-29 done）** | 邊推得再準，元件字彙沒對齊 52 格仍然點不亮 |
 
 ---
 
@@ -43,10 +46,10 @@ UA 給的（檔案 / 函式層）
 ### 1.1 好消息：反查鏈已經存在，不需新增資料
 
 ```text
-ComponentInstance.evidence_ids          system_map.py:101
+ComponentInstance.evidence_ids          system_map.py:100
         │
         ▼
-Evidence.file / line_start / line_end    system_map.py:114+
+Evidence.file / line_start / line_end    system_map.py:117-132（class Evidence）
         │
         ▼
 「Vector Store 元件住在 src/store.py 第 12 行」
@@ -88,8 +91,8 @@ artifact 讀不回來），但 Phase2 不產生 `detected` 邊——這點要有
 
 ### 2.1 這順手修掉一個現存缺陷
 
-`system_map_v2_normalize_service.py:153` 今天把**每一條邊**硬寫成
-`status="observed"`：
+`system_map_v2_normalize_service.py` 的 `CanonicalEdge(...)` 組裝處（現行 `:183`）
+今天把**每一條邊**硬寫成 `status="observed"`：
 
 ```python
 CanonicalEdge(
@@ -129,6 +132,12 @@ L2 邊**不進入 profile 卡的接線證據**。卡片要動，必須有真實�
 > 是 UA 的先天缺口，會產生「有元件證據但沒有呼叫點」的 repo。這類 repo 在
 > 新規則下，依賴 relationship 的卡片會停在 `undetermined`——**這是刻意的**，
 > 但 16D Task 5 的驗收必須明確記錄哪些 fixture 因此不再前進，避免被誤判成回歸。
+>
+> **2026-08-10 起 G2 改由 16H 確定性推論補**（裁定 Q2，取代 16E 決策 2 的「人工確認為主」）：
+> 16H 追進工廠函式產出的 facts 一律帶 `evidence_kind_hint=indirect`；本計畫消費後，
+> 該類邊為 `undetermined` ＋專屬 `undetermined_reason`（如 `factory_inference`），
+> **仍不進 profile 接線證據**——`profile_finding_assembler.py:214-217` 的閘門不變。
+> 買到的是圖的完整性（虛線），卡片翻綠仍只靠 L1 真呼叫點。
 
 **安全網已經在了，兩層都在：** 就算 L2 有資格進第 214 行的閘門，
 `reference_capability_assessment_service.py:147-151` 的 `direct` 也只從
@@ -256,8 +265,8 @@ relationship = "context_flow"        # ← rag-grounding 卡要求的關係
 
 查不到 `(from_kind, to_kind)` 組合 → **不畫邊**，並記一筆
 `recommended_next_check`，而不是 fallback 到 `connects_to`。
-（`flow_derivation_service.py:51` 的 `connects_to` fallback 經 16A §2.3 查核
-確認為死碼，本計畫不繼承這個設計。）
+（`flow_derivation_service.py` 的 `RELATIONSHIPS.get(..., "connects_to")` fallback
+（現行 `:87-90`）經 16A §2.3 查核確認為死碼，本計畫不繼承這個設計。）
 
 ### 3.5 L3：模板邊降級（過渡期措施，最終由 16G 刪除）
 
@@ -286,19 +295,25 @@ L1/L2 已產出的 (a, b) 配對，L3 不再重複輸出。
 | call hint 的 caller 落不進任何元件居所 | 丟棄 + 計數 | 不得歸給「最近的」元件 |
 | import 兩端非單一元件 | 不畫邊 + 記 ambiguous 計數 | 不得 N×M 展開 |
 | `(from_kind, to_kind)` 查無關係名 | 不畫邊 + 發 `recommended_next_check` | 不得 fallback `connects_to` |
-| 同一對元件 L1 與 L2 都成立 | 取 L1（`observed`），evidence 合併 | 不得產生兩條平行邊 |
+| 同一對元件 L1 與 L2 都成立 | 取 L1（`observed`），**evidence 不合併**——勝出邊只帶自己的 `evidence_ids`，被淘汰級別記 warnings 計數（2026-08-10 裁定 Q13） | 不得產生兩條平行邊；不得把敗者級別的 evidence 併進勝出邊 |
 | 元件居所 `span=None`（只知檔案） | 只能參與 L2，不得參與 L1 | 不得用檔案級當 call-site 證據 |
 
 所有丟棄與歧義計數必須進 `ProjectScanResult.warnings` 或
 `recommended_next_check`——**不得靜默丟棄**（16B §5.2 末列）。
 
+**合併鍵＝`(from, to)` 元件對**（2026-08-10 裁定 Q12）：一對元件最多一條邊、
+最高級勝出，`relationship` 取勝出邊的值。Task 2 的 TOML 約束保證同一
+`(from_kind, to_kind)` 只有一個 `relationship`，因此 `(from, to)` 與
+`(from, to, relationship)` 兩種寫法永久等價。
+
 ### 4.1 邊的數量上限（避免圖爆炸）
 
-UA 產出的邊數量級遠大於現有 12 條（16A §2.4）。需設上限並在超限時
-明確 log 被丟棄的數量（"No silent caps" 原則）：
+UA 產出的邊數量級遠大於現有 12 條（16A §2.4）。**以下兩個數字為規範常數
+（2026-08-10 裁定 Q16，非建議值；日後調整需留文字紀錄）**，超限時必須
+明確 log 被丟棄的數量與級別（"No silent caps" 原則）：
 
-- 單一元件對外邊數上限：建議 50（與 UA `MAX_NEIGHBORS` 同量級）
-- 全圖邊數上限：建議 2000，超限時保留 L1 > L2 > L3 優先序
+- 單一元件對外邊數上限：**50**（與 UA `MAX_NEIGHBORS` 同量級）
+- 全圖邊數上限：**2000**；超限時保留序 **L1 ＞ L2 ＞ L3**
 
 ---
 
@@ -327,11 +342,13 @@ UA 的 call graph **兩種都不記錄**。守衛是 `functionStack.length > 0`
 3. → 相關邊最多到 L2（`undetermined`），永遠到不了 `observed`，也進不了 profile 接線證據
 
 **解法已確定，但不在本計畫內**（2026-08-04 三方專家查核結論，完整分析見
-[`16E`](./16E-ua-coverage-gaps-and-llm-boundary.md) §2）：新增一個
-Python-only 的補充 provider（建議 `core/providers/ast_construction_provider.py`），
+[`16E`](./16E-ua-coverage-gaps-and-llm-boundary.md) §2；**owner＝
+[`16H`](./16H-ast-construction-provider.md)，2026-08-10 裁定 Q1**）：新增一個
+Python-only 的補充 provider（`core/providers/ast_construction_provider.py`），
 用 stdlib `ast` 以 scope-depth 計數器走訪，depth 0 的 `Call` 即為 import-time
-建構。現成參考在 repo 內：`code_path_scan_service.py:174-176` 的 `ast.walk`
-**完全沒有 scope guard**，且 `_call_symbol`（`:225-235`）已能遞迴解 dotted name。
+建構。現成參考在 repo 內：`code_path_scan_service.py` 的 `for node in ast.walk(tree)`
+迴圈（現行 `:176-181`）**完全沒有 scope guard**，且 `_call_symbol`
+（現行 `:227-237`）已能遞迴解 dotted name。
 
 **本計畫的責任不變：遇到 `span=None` 時誠實降級為 L2，不假裝。**
 補上該 provider 後，這些元件自然取得 span 並升級到 L1，本計畫的演算法無需修改。
@@ -355,17 +372,17 @@ Python-only 的補充 provider（建議 `core/providers/ast_construction_provide
 
 **風險 3 — 外部服務邊畫不出來**
 
-`extract-import-map.mjs:1789` 過濾掉所有專案外邊
-（`if (out && ctx.fileSet.has(out))`），所以「app → OpenAI API」這條線在
+`extract-import-map.mjs` 的 `if (out && ctx.fileSet.has(out))`（現行 `:1790`）
+過濾掉所有專案外邊，所以「app → OpenAI API」這條線在
 L1/L2 都不存在。這類邊仍由 `EndpointDetectionService` 負責，本計畫不接管。
 
 補充（2026-08-04 查核）：資料其實沒有丟失在解析階段——tree-sitter
 早已把 `import openai` 連同行號解析出來，是 UA 的**兩條輸出路徑各自丟棄**：
-`extract-import-map.mjs:1789` 的 fileSet 過濾，以及
+`extract-import-map.mjs` 的 fileSet 過濾（現行 `:1790`），以及
 `extract-structure-result.mjs:106-111` 只輸出經相對路徑過濾後的
 `metrics.importCount`、完全不輸出來源字串。撈回來屬 Plan 16 adapter 範疇。
 
-**⚠️ 證據來源硬化（本計畫落地前建議先補）**
+**⚠️ 證據來源硬化（本計畫落地前的**必需**前置；owner 見本段末）**
 
 `canonical_evidence_service.py:26-31` 判定 `direct` / `indirect`
 **純粹看形狀**（有 `file` 且有 `line_start` 就是 `direct`），全函式沒有任何
@@ -386,7 +403,9 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
 建議的加性修法（向後相容，既有 provider 全部不受影響）：
 `Evidence` 新增 `evidence_kind_hint: AssessmentEvidenceKind | None = None`，
 `canonical_evidence_service` 有 hint 時優先採用。此變更**不屬本計畫**，
-但屬本計畫的正確性前提。
+但屬本計畫的正確性前提；**owner＝16H Task 1**（2026-08-10 裁定 Q2——G2 改走
+確定性工廠推論後，hint 從「保險」升級為必需前置，含「推論不得宣告 `direct`」
+的反向斷言契約測試）。
 
 ---
 
@@ -409,6 +428,9 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
 - [ ] 表中每個 `relationship` 值必須存在於
       `profile_rule_definitions.py` 的 `required_relationship` 集合或
       13.8 alias 表 → 加一個 contract 測試守住這件事
+- [ ] **TOML 約束＋契約測試：同一 `(from_kind, to_kind)` 只准一個
+      `relationship`**（2026-08-10 裁定 Q12）——這是「合併鍵＝`(from, to)`」
+      成立的前提，也讓 `(from, to)` 與 `(from, to, relationship)` 兩種寫法永久等價
 - [ ] 查無組合時不 fallback；測試覆蓋此路徑
 
 ### Task 3 — L1 call-hint 邊推導
@@ -417,6 +439,9 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
 - [ ] 實作 `resolve_callee` 兩條路徑（rule 命中 / 專案內符號反查）
 - [ ] 產出 `Edge` 時 `status="observed"`、evidence 指向 call hint
 - [ ] 元件內部呼叫（src == dst）不畫邊
+- [ ] **敗者 evidence 不合併**（2026-08-10 裁定 Q13）：L1 勝出時只帶自己的
+      call-site `evidence_ids`，被淘汰的 L2/L3 evidence **一律不併入**，
+      改記 warnings 計數（可觀測、不靜默）
 - [ ] 測試：跨檔案 call、同檔案跨元件 call、callee 解不出、self-loop
 
 ### Task 4 — L2 import 邊推導
@@ -426,7 +451,11 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
       `undetermined_reason="import_only_no_call_site"`、
       evidence 為 import fact（indirect）
 - [ ] L1 已有的配對不重複產出
-- [ ] 測試：單一對單一、N 對 M（不畫）、與 L1 重疊（取 L1）
+- [ ] **敗者 evidence 不合併**（2026-08-10 裁定 Q13）：與 L1 重疊時 L2 直接 skip，
+      **不得把 import fact 的 evidence 併進 L1 邊**（否則 `observed` 邊會混入
+      indirect 證據）；被淘汰的 L2 計數進 warnings
+- [ ] 測試：單一對單一、N 對 M（不畫）、與 L1 重疊（取 L1，且 L1 邊的
+      `evidence_ids` 不含 import fact）
 - [ ] **契約測試：L2 邊不得出現在 profile 卡的 relationship evidence 裡**
       （`profile_finding_assembler.py:214` 的閘門行為）
 
@@ -443,10 +472,10 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
 
 - [ ] `FlowDerivationService` 輸出的邊改標
       `status="undetermined"` + `undetermined_reason="template_adjacency_only"`
-- [ ] 移除 `system_map_v2_normalize_service.py:153` 的無條件
-      `status="observed"`，改為沿用 `Edge` 帶進來的狀態
-- [ ] `Edge`（`system_map.py:154`）新增 `status` 與 `undetermined_reason`
-      欄位以承載分級（**這是本計畫唯一的 model 變更**）
+- [ ] 移除 `system_map_v2_normalize_service.py` 的 `CanonicalEdge(...)` 組裝處
+      （現行 `:183`）的無條件 `status="observed"`，改為沿用 `Edge` 帶進來的狀態
+- [ ] `Edge`（`system_map.py` 的 `class Edge`，現行 `:153`）新增 `status` 與
+      `undetermined_reason` 欄位以承載分級（**這是本計畫唯一的 model 變更**）
 - [ ] 更新既有測試中對 `status` 的斷言
 - [ ] 契約測試：`observed` 與 `undetermined` 各一；**外加一條「不得產生
       `detected` 邊」的斷言**（該值保留在 enum 只為既有 artifact 相容）
@@ -486,6 +515,8 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
 | 6 | 歧義與丟棄全部可見 | warnings 非空且數字與實際相符 |
 | 7 | Apply 重放不變 | 同 `scan_id` 重放，邊集合與 evidence id 逐位元相同（16B 規則 C） |
 | 8 | 前端未改任何檔 | `git diff frontend/` 為空 |
+| 9 | `observed` ⇒ **全部**證據皆為 call-site direct（不只「至少一個」） | 契約測試；由 Q13「敗者 evidence 不合併」保證可斷言 |
+| 10 | 超限時 warnings 記錄丟棄的**數量與級別** | §4.1 兩層上限各造一個超限 fixture，斷言 warnings 內含數字與 L1/L2/L3 標記（No silent caps） |
 
 ---
 
@@ -493,11 +524,11 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
 
 | 項目 | 歸屬 |
 |------|------|
-| 模組頂層呼叫的補抓（風險 1） | Plan 16 adapter 層，或獨立的 Python AST 掃描 |
+| 模組頂層呼叫的補抓（風險 1） | **[`16H`](./16H-ast-construction-provider.md)**（`ast_construction_provider`；2026-08-10 裁定 Q1） |
 | 外部服務邊（風險 3） | `EndpointDetectionService`，既有職責 |
 | profile 五態判定 | Step 6 `ProfileInferenceService` 獨佔，本計畫只供邊 |
 | `plane_id` / reference node id | Step 6；本計畫**不得**輸出（16B §5.2 禁止清單） |
-| runtime 驗證 | 永遠不做；`runtime_verified=false`（16A §5.3） |
+| runtime 驗證 | 永遠不做；`runtime_verified=false`（16A §5） |
 
 ---
 
@@ -511,6 +542,6 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
 | [`../../../../finish/s1-v2-cutover/13.7.md`](../../../../finish/s1-v2-cutover/13.7.md) / [`13.8.md`](../../../../finish/s1-v2-cutover/13.8.md) | 硬前置 |
 | `src/systograph/core/services/component_detection_service.py` | `EvidenceLookup` 四元組 join（Task 1 輸入） |
 | `src/systograph/core/services/flow_derivation_service.py` | 今日模板邊（Task 5 改造對象） |
-| `src/systograph/core/services/system_map_v2_normalize_service.py` | `status="observed"` 無條件寫入處（Task 5） |
-| `src/systograph/core/models/system_map.py` | `ComponentInstance:94` / `Edge:154`（Task 5 model 變更） |
+| `src/systograph/core/services/system_map_v2_normalize_service.py` | `status="observed"` 無條件寫入處（`CanonicalEdge(...)` 組裝，現行 `:183`；Task 5） |
+| `src/systograph/core/models/system_map.py` | `ComponentInstance`（現行 `:93`，`evidence_ids` 在 `:100`）／`Evidence`（`:117-132`）／`Edge`（`:153`，Task 5 model 變更） |
 | `src/systograph/core/services/canonical_evidence_service.py` | direct/indirect 判定（L1/L2 分級依據） |

@@ -13,6 +13,26 @@ Status: **decision recorded + 技術參考**（2026-08-04）— 非實作 plan
 > **證據等級：** 本檔所有 `file:line` 引用均**逐條開檔驗證**，非記憶推測。
 > 未經驗證的推論一律標示。
 
+> **⚠️ 2026-08-10 取代性修訂（本檔部分結論已被改判）**
+>
+> plan owner 於 2026-08-10 裁定變更 **G2 的路線**與**補充 provider 的範圍**，
+> 出處見 [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md) Q1／Q2。
+> 受影響的是 §7 的**決策 2 與決策 4**（該兩列已就地標記）：
+>
+> | 原決策 | 2026-08-10 改判為 |
+> |--------|-------------------|
+> | 決策 2：G2 殘量走既有人工確認通道，不新建子系統 | **G2 改走確定性程式推論**——追進工廠函式、`MAX_FACTORY_HOPS=3`、分支不塌縮、全部標 `indirect`；**仍然零 LLM**。人工確認通道**不刪**，**降為可選旁路**（推論仍解不出、或使用者要否決推論時使用） |
+> | 決策 4：Python-only 補充 provider 範圍**嚴格限於 G1 + G3** | 範圍**擴為 G1 + G2 + G3** |
+>
+> **實作歸屬：** 三者全部由新開的
+> [`16H-ast-construction-provider.md`](./16H-ast-construction-provider.md) 承接
+> （本檔仍是它的規格來源，但本檔列的待辦不再無主）。
+> 連帶：§5 的 `evidence_kind_hint` 因 G2 改判而**從保險升為必需前置**，
+> owner ＝ 16H Task 1。
+>
+> **本檔其餘結論不受影響**——尤其 §6 的 LLM 邊界裁定（LLM 不得進掃描路徑）
+> 與決策 1／3／5 原封不動。
+
 ---
 
 ## 0. 一句話結論
@@ -52,14 +72,18 @@ class Settings:
     EMBEDDING = OpenAIEmbeddings()        # class body 頂層 — 同樣看不到
 ```
 
-第二種是 RAG 專案極常見的設定類別寫法。同一守衛存在於全部 12 個 extractor
+第二種是 RAG 專案極常見的設定類別寫法。同一守衛存在於 **11 個 extractor**
 （`cpp` / `csharp` / `dart` / `go` / `java` / `kotlin` / `php` / `python` /
 `ruby` / `rust` / `typescript` 皆驗證過有 `functionStack.length > 0`）。
 
+> **修正（2026-08-10 實查）：** 原文寫「全部 12 個」，實際是 **11 個**——
+> `swift-extractor.ts` 沒有 `functionStack` 守衛（該檔零出現）。
+> 括號內列出的語言本來就只有 11 個，是敘述的數字寫錯，不影響結論。
+
 ### 2.2 這是「未來會退步」的風險，不是今天的能力缺口
 
-**今天抓得到。** `code_pattern_provider.py:122` 是
-`rule.regex.finditer(text)` 掃整個檔案文字——regex 沒有作用域概念，
+**今天抓得到。** `code_pattern_provider.py` 的
+`rule.regex.finditer(text)`（`:128`）掃整個檔案文字——regex 沒有作用域概念，
 `code_pattern_rules.toml` 的 `\bQdrantClient\s*\(` 照樣命中模組頂層那行，
 產出帶 file+line 的 evidence，經 `canonical_evidence_service.py:26-31`
 歸為 `direct`。
@@ -69,16 +93,18 @@ class Settings:
 取代一個現在就能用的確定性偵測。
 
 - [ ] **把「函式外建構 parity」寫進 Plan 18 的退役準則**（現在寫最便宜）
+      ——**2026-08-10 Q17 裁定：由 Plan 16 Task 7（parity harness）的 Files
+      承接 Plan 18 修訂**，本項不再無主
 
 ### 2.3 確定性解法：解法已經在 repo 裡
 
-`code_path_scan_service.py:174-176`：
+`code_path_scan_service.py` 的 `ast.walk` 迴圈（`:176-181`）：
 
 ```python
 for node in ast.walk(tree):
     if not isinstance(node, ast.Call):
         continue
-    symbol = _call_symbol(node.func)      # :225-235 遞迴解 dotted name
+    symbol = _call_symbol(node.func)      # _call_symbol :227-237 遞迴解 dotted name
 ```
 
 `ast.walk` **完全沒有 scope guard**，模組頂層與 class body 的呼叫全數抓得到；
@@ -121,7 +147,7 @@ UA 的 `extract-structure` 已經給每個函式的 `lineRange`。
 現有 regex `\bQdrantClient\s*\(` **完全無效**；AST 經 `alias.name` /
 `alias.asname` 解得出來。
 
-而 **UA 自己解不出來**：`extractFromImport`（`python-extractor.ts:294-333`）
+而 **UA 自己解不出來**：`python-extractor.ts` 的 `extractFromImport`（`:297-337`）
 處理 `from X import Y as Z` 時只把本地別名 `Z` 推進 `specifiers`，
 **原始名 `Y` 直接蒸發**。這是「符號解析該在 Python 端做，而不是後處理 UA
 JSON」最具體的技術論據。
@@ -227,7 +253,7 @@ else:
 ### 4.1 兩個丟棄點（不是一個）
 
 ```text
-丟棄點 1：extract-import-map.mjs:1789 / :1781 / :1800
+丟棄點 1：extract-import-map.mjs 的 fileSet 過濾 :1790 / :1781 / :1800
           if (out && ctx.fileSet.has(out)) resolvedSet.add(out)
           → 解析成功但不在專案內的路徑，全部靜默丟棄
 
@@ -326,7 +352,17 @@ evidence_kind = (
 
 既有 provider 全部不設此欄，行為完全不變。
 
-- [ ] 此變更同時是 [`16C`](./16C-component-attribution-and-edge-derivation.md)
+### 5.3 Owner（2026-08-10 裁定）：[`16H`](./16H-ast-construction-provider.md) **Task 1**
+
+本項原本雙方 disclaim、無人排程（16C 稱它是正確性前提但明言不屬該計畫；本檔給了
+完整 diff 但非實作計畫）。**2026-08-10 Q2 裁定歸 16H Task 1**，並因 G2 改判而
+**從「保險」升為「必需前置」**——改判後的 G2（確定性工廠推論）產出的正是
+「帶行號但屬推論」的 fact，沒有 hint 就會被上面那段形狀啟發式自動升成 `direct`。
+16H 把它列為**必須第一個做**的內部硬前置，契約測試含兩條反向斷言：
+「任何推論型 fact 必須申報 `hint=indirect`」與「LLM 產出不得宣告 `direct`」。
+
+- [ ] **（owner：16H Task 1）** 此變更同時是
+      [`16C`](./16C-component-attribution-and-edge-derivation.md)
       L1/L2 分級的正確性前提
 
 ---
@@ -382,7 +418,7 @@ diff。對非確定性來源做 diff，**真實退化與取樣雜訊分不出來
 
 **④ 額外的 fail-closed 陷阱**
 
-`project_scan_service.py:151-161` 會把 provider 例外吞成 `ParseIssue` +
+`project_scan_service.py` 的 provider loop（`:153-163`）會把 provider 例外吞成 `ParseIssue` +
 warning 然後 `continue`。LLM 若當一般 provider 插進去會繼承這個吞噬行為——
 **模型 timeout 時掃描靜悄悄降級，但 build 照樣發布**。
 
@@ -456,9 +492,9 @@ LLM 提議 → 人工採納 → ManualMapping → CapabilityCandidateComponent �
 | # | 決策 | 理由 |
 |---|------|------|
 | 1 | G1 / G3 走確定性解法，**零 LLM** | 解法已存在或成本極低；用 LLM 取代會是退步 |
-| 2 | G2 殘量走既有人工確認通道，**不新建子系統** | boundary doc §9 明定 `AssessmentOrchestrator` 為 Plan 17 deferred |
+| 2 | ~~G2 殘量走既有人工確認通道，**不新建子系統**~~ **（2026-08-10 取代，見檔頭）** | boundary doc §9 明定 `AssessmentOrchestrator` 為 Plan 17 deferred；**改判為確定性程式推論（仍零 LLM、不新建子系統），人工確認降為可選旁路，實作歸 16H Task 5** |
 | 3 | UA 維持 12 語言 primary，**不倒轉為 Python-primary** | 避免兩套結構不同的 fact 產生管線，違反「core engine 平台獨立」原則 |
-| 4 | 新增 Python-only **補充** provider，範圍嚴格限於 G1 + G3 | 只補 UA 架構上（`functionStack` 守衛、`fileSet` 過濾）先天做不到的兩件事 |
+| 4 | ~~新增 Python-only **補充** provider，範圍嚴格限於 G1 + G3~~ **（2026-08-10 取代，見檔頭）** | 只補 UA 架構上（`functionStack` 守衛、`fileSet` 過濾）先天做不到的兩件事；**改判為範圍擴為 G1 + G2 + G3，實作歸 [`16H`](./16H-ast-construction-provider.md)** |
 | 5 | **NIM → local model 延後，本階段不做** | 2026-08-04 使用者裁定：**本機硬體不足**。此項與三個缺口完全脫鉤，日後獨立 PR 處理即可，不阻塞任何 gate |
 
 ### 7.1 關於決策 5 的補充
@@ -485,26 +521,40 @@ LLM 提議 → 人工採納 → ManualMapping → CapabilityCandidateComponent �
 
 ## 8. 建議執行順序
 
+> **2026-08-10 更新：G1／G2／G3 全部歸
+> [`16H`](./16H-ast-construction-provider.md)，且 16H 不等任何 Gate、立即可動工**
+> （Q1／Q2 裁定）。以下步驟編號依 16H 的 Task 編號，避免兩份文件的順序打架。
+
 ```text
-1. G3 撈回外部 import              零 LLM，投報率最高，證據等級升 direct
+1. 16H Task 1  Evidence.evidence_kind_hint   加性；16C L1/L2 與 G2 推論的正確性前提
+        │                                     16H 內部硬前置——必須第一個做
         │
-2. G1 新增 ast_construction_provider   沿用既有 rule_id → bridge 零改動
-   + 把 parity 寫進 Plan 18 退役準則
+2. 16H Task 2  code_pattern_rules.toml 加 symbol 欄
+        │                                     regex 目錄與 AST 符號目錄單一真相源
         │
-3. 補 Evidence.evidence_kind_hint     加性；16C 與 G2 的正確性前提
+3. 16H Task 3  G1 函式外建構                  沿用既有 rule_id → bridge 13 條零改動
+        │                                     （綁定表在這裡建立，Task 4 直接吃）
         │
-4. 完成 Plan 16 到 Gate-2             semantic = null；建立確定性基準線
+4. 16H Task 4  G3 撈回外部 import             零 LLM，投報率最高，證據等級升 direct
+        │                                     ★ Plan 16 Task 3（adapter）的【硬前置】
+        │                                       理由＝parity 基線一致性：G3 若落在
+        │                                       基線之後，升級會混進 parity diff，
+        │                                       真實退化與基線位移分不出來
         │
-5. 落地 #161                          修好既有 LLM 路徑的注入防護
+5. 16H Task 5  G2 工廠確定性推論               分支不塌縮、全部 indirect、防假陽性測試
+        │                                     （人工確認通道保留為可選旁路）
         │
-6. G2 走人工確認通道                   + 用 Plan 14 真實 repo 量工廠模式的
-                                       實際頻率（唯一能證明風險值不值得的數字）
+6. 完成 Plan 16 到 Gate-2                     semantic = null；建立確定性基準線
         │
-7.（延後）NIM → local model            硬體就緒後獨立 PR，不阻塞任何 gate
+7. 落地 #161                                  修好既有 LLM 路徑的注入防護
+        │
+8.（延後）NIM → local model                   硬體就緒後獨立 PR，不阻塞任何 gate
 ```
 
-**第 6 步的「量」是關鍵**：現在沒有人知道工廠模式在真實 RAG repo 裡出現的
-頻率。在拿到那個數字之前，任何「為 G2 引入新子系統」的提案都缺少論證基礎。
+**Plan 14 的「量」仍然要拿**：現在沒有人知道工廠模式在真實 RAG repo 裡出現的
+頻率。16H Task 5 落地後，這個數字由 Plan 14 的真實 repo 語料回填，用來量測
+確定性推論的覆蓋率與**剩餘殘量**（＝人工確認旁路真正要處理的量）。
+在拿到那個數字之前，任何「為 G2 再引入新子系統」的提案仍然缺少論證基礎。
 
 ---
 
@@ -517,6 +567,7 @@ LLM 提議 → 人工採納 → ManualMapping → CapabilityCandidateComponent �
 | [`16B-ua-sidecar-io-adapter-reference.md`](./16B-ua-sidecar-io-adapter-reference.md) | UA I/O 實測 + adapter 三條硬規則 |
 | [`16C-component-attribution-and-edge-derivation.md`](./16C-component-attribution-and-edge-derivation.md) | 檔案層→元件層歸屬與邊推導（消費本檔的 G1 產物） |
 | [`16D-call-priority-consumer-cutover.md`](./16D-call-priority-consumer-cutover.md) | Step 4～7 消費順序改 call 優先（接在 16C 之後） |
+| [`16H-ast-construction-provider.md`](./16H-ast-construction-provider.md) | **本檔 G1/G2/G3 裁定的實作 owner**（2026-08-10；含 `evidence_kind_hint` 與 `symbol` 欄前置） |
 | `ref-opensource/systograph-understand-anything-integration-boundary.md` | §8 read-only/安全邊界（最高權威，§6.1 引用來源） |
 | `../../../final-phase-hardening/161-*.md` | 既有 LLM 路徑的注入防護（§6.6 前置） |
 | `src/systograph/core/services/code_path_scan_service.py` | `ast.walk` 無 scope guard（G1 現成參考） |
