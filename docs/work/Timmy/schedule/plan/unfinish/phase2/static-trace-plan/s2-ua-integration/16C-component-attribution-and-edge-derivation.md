@@ -5,9 +5,26 @@
 > 「Retriever 元件 → Vector Store 元件」。這份定義中間怎麼跨過去。
 > **Review 重點看 §2 的兩級證據表**——那是整份的核心設計（選項 B：L1=`observed`、L2=`undetermined`）。
 
-Status: planned — **依賴 Plan 16 Task 3（`UaStructuralAdapter`）產出穩定 fact/evidence 之後**
+Status: **completed（2026-08-11）** — Task 1～7 與 live Viewer smoke 均完成；
+pgvector fixture 在 API mode 顯示 60 nodes / 2 edges，L1 為 `observed`、L3 為
+`undetermined`，browser console 無 warning/error。
 
-> **2026-08-10 裁定併入：** Q12（合併鍵）／Q13（敗者 evidence 不合併）／Q16（上限為規範值）
+> **2026-08-10 Phase 12 契約校正（取代舊 Q12 合併鍵裁定）：** live `ScanFact`
+> 只有 `kind/file/path/value/rule_id/provider`，不足以承載本計畫演算法假設的 caller、
+> callee、symbol span、import endpoint 與 factory provenance。Plan 16 Task 1/3 必須先
+> 定義 frozen typed payload（call/import/symbol/factory inference）及 deterministic
+> serialization；16C 不解析自由格式 `value` 字串。
+>
+> `relationship` 也不能只由 `(from_kind, to_kind)` 猜測；同一對元件可能有不同合法
+> 呼叫語意。規則的 deterministic discriminant 至少包含 endpoint kinds、call kind、
+> normalized callee symbol／producer rule。合併鍵改為 `(from, to, relationship)`；
+> L1＞L2＞L3 只在**同一 relationship** 內競爭，敗者 evidence 不合併。規則表只禁止
+> 相同完整 discriminant 對應多個 relationship，不再禁止同 endpoint kinds 的不同
+> relationship。cap 前的排序鍵固定為 tier、source id、target id、relationship、
+> evidence id，確保 replay byte-stable。
+
+> **2026-08-10 裁定併入：** Q13（敗者 evidence 不合併）／Q16（上限為規範值）；
+> Q12 的舊 `(from,to)` 合併鍵已由上列 Phase 12 live-code 稽核取代
 > 與行號校正，見 [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md)。
 
 > **執行者注意：** 逐 task 實作本計畫。步驟使用 checkbox（`- [ ]`）語法以便追蹤。
@@ -207,7 +224,13 @@ for each ua_call_hint_* fact h:            # h = {file, caller, callee, line}
     if src_component == dst_component: continue          # 元件內部呼叫，不畫
     emit Edge(
         from=src_component, to=dst_component,
-        relationship=lookup_relationship(src.kind, dst.kind),   # §3.4
+        relationship=lookup_relationship(
+            src.kind,
+            dst.kind,
+            h.call_kind,
+            h.normalized_callee_symbol,
+            h.producer_rule_id,
+        ),                                                       # §3.4
         status="observed",
         evidence_ids=[h 對應的 evidence id],                     # 有行號 → direct
     )
@@ -255,15 +278,19 @@ UA 端自創同義名會重演 G5 字彙漂移。
 [[relationships]]
 from_kind = "retriever"
 to_kind = "vector_db"
+call_kind = "method"
+callee_symbols = ["query", "search", "similarity_search"]
 relationship = "queries_vector_store"
 
 [[relationships]]
 from_kind = "retriever"
 to_kind = "llm"
+call_kind = "method"
+callee_symbols = ["invoke", "generate"]
 relationship = "context_flow"        # ← rag-grounding 卡要求的關係
 ```
 
-查不到 `(from_kind, to_kind)` 組合 → **不畫邊**，並記一筆
+查不到完整 semantic discriminant → **不畫邊**，並記一筆
 `recommended_next_check`，而不是 fallback 到 `connects_to`。
 （`flow_derivation_service.py` 的 `RELATIONSHIPS.get(..., "connects_to")` fallback
 （現行 `:87-90`）經 16A §2.3 查核確認為死碼，本計畫不繼承這個設計。）
@@ -274,7 +301,8 @@ relationship = "context_flow"        # ← rag-grounding 卡要求的關係
 `undetermined_reason="template_adjacency_only"`。理由：
 
 - 保留但標記，符合「absence of evidence ≠ negative evidence」
-- 前端可用 `status` 畫實線／虛線，**契約不變、不必改前端**（16A ③④）
+- canonical status 必須由 16D 加性投影到 backend `GraphEdgeModel`；frontend Zod shape
+  已相容，Phase 12 不改 frontend production code（16A ③④）
 - 本計畫階段還沒有 L1/L2 的實測覆蓋數據，不宜同步拔掉舊來源
 
 L1/L2 已產出的 (a, b) 配對，L3 不再重複輸出。
@@ -294,17 +322,17 @@ L1/L2 已產出的 (a, b) 配對，L3 不再重複輸出。
 |------|------|--------|
 | call hint 的 caller 落不進任何元件居所 | 丟棄 + 計數 | 不得歸給「最近的」元件 |
 | import 兩端非單一元件 | 不畫邊 + 記 ambiguous 計數 | 不得 N×M 展開 |
-| `(from_kind, to_kind)` 查無關係名 | 不畫邊 + 發 `recommended_next_check` | 不得 fallback `connects_to` |
-| 同一對元件 L1 與 L2 都成立 | 取 L1（`observed`），**evidence 不合併**——勝出邊只帶自己的 `evidence_ids`，被淘汰級別記 warnings 計數（2026-08-10 裁定 Q13） | 不得產生兩條平行邊；不得把敗者級別的 evidence 併進勝出邊 |
+| 完整 semantic discriminant 查無關係名 | 不畫邊 + 發 `recommended_next_check` | 不得 fallback `connects_to` |
+| 同一 `(from, to, relationship)` 的 L1 與 L2 都成立 | 取 L1（`observed`），**evidence 不合併**——勝出邊只帶自己的 `evidence_ids`，被淘汰級別記 warnings 計數（2026-08-10 裁定 Q13） | 不得產生同 relationship 的平行 tier 邊；不得把敗者級別的 evidence 併進勝出邊 |
 | 元件居所 `span=None`（只知檔案） | 只能參與 L2，不得參與 L1 | 不得用檔案級當 call-site 證據 |
 
 所有丟棄與歧義計數必須進 `ProjectScanResult.warnings` 或
 `recommended_next_check`——**不得靜默丟棄**（16B §5.2 末列）。
 
-**合併鍵＝`(from, to)` 元件對**（2026-08-10 裁定 Q12）：一對元件最多一條邊、
-最高級勝出，`relationship` 取勝出邊的值。Task 2 的 TOML 約束保證同一
-`(from_kind, to_kind)` 只有一個 `relationship`，因此 `(from, to)` 與
-`(from, to, relationship)` 兩種寫法永久等價。
+**合併鍵＝`(from, to, relationship)`**（2026-08-10 Phase 12 live-code 稽核取代
+舊 Q12）：同一對元件可以有不同、各自有明確 call semantic 的合法 relationship；
+只禁止同 relationship 的不同 tier 平行存在。Task 2 的 TOML 約束保證相同完整
+semantic discriminant 只對應一個 relationship。
 
 ### 4.1 邊的數量上限（避免圖爆炸）
 
@@ -413,50 +441,50 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
 
 ### Task 1 — `ComponentResidenceIndex`
 
-- [ ] 新增 `core/services/component_residence_index.py`，含
+- [x] 新增 `core/services/component_residence_index.py`，含
       `Residence` frozen dataclass 與 `ComponentResidenceIndex`
-- [ ] 實作 `enclosing_function_span`：從 `ua_symbol_*` fact 找最小包含區間
-- [ ] 實作 `resolve_by_span(file, line) -> component_id | None`
-- [ ] 單元測試：單元件單檔、多元件同檔（用 span 區分）、`span=None`、
+- [x] 實作 `enclosing_function_span`：從 `ua_symbol_*` fact 找最小包含區間
+- [x] 實作 `resolve_by_span(file, line) -> component_id | None`
+- [x] 單元測試：單元件單檔、多元件同檔（用 span 區分）、`span=None`、
       巢狀函式取最內層
-- [ ] 服務檔頭補「責任 / 呼叫鏈」結構化註解（同 `core/services/` 慣例）
+- [x] 服務檔頭補「責任 / 呼叫鏈」結構化註解（同 `core/services/` 慣例）
 
 ### Task 2 — relationship 規則表
 
-- [ ] 新增 `core/rules/edge_relationship_rules.toml`
-- [ ] 用 `RuleCatalogLoader` 既有機制載入（不新造 loader）
-- [ ] 表中每個 `relationship` 值必須存在於
+- [x] 新增 `core/rules/edge_relationship_rules.toml`
+- [x] 用 `RuleCatalogLoader` 既有機制載入（不新造 loader）
+- [x] 表中每個 `relationship` 值必須存在於
       `profile_rule_definitions.py` 的 `required_relationship` 集合或
       13.8 alias 表 → 加一個 contract 測試守住這件事
-- [ ] **TOML 約束＋契約測試：同一 `(from_kind, to_kind)` 只准一個
-      `relationship`**（2026-08-10 裁定 Q12）——這是「合併鍵＝`(from, to)`」
-      成立的前提，也讓 `(from, to)` 與 `(from, to, relationship)` 兩種寫法永久等價
-- [ ] 查無組合時不 fallback；測試覆蓋此路徑
+- [x] **TOML 約束＋契約測試：相同完整 semantic discriminant 只准一個
+      `relationship`**；同 endpoint kinds 可依 call kind／callee symbol 對應不同
+      relationship。合併鍵固定為 `(from, to, relationship)`
+- [x] 查無組合時不 fallback；測試覆蓋此路徑
 
 ### Task 3 — L1 call-hint 邊推導
 
-- [ ] 新增 `core/services/ua_edge_derivation_service.py`
-- [ ] 實作 `resolve_callee` 兩條路徑（rule 命中 / 專案內符號反查）
-- [ ] 產出 `Edge` 時 `status="observed"`、evidence 指向 call hint
-- [ ] 元件內部呼叫（src == dst）不畫邊
-- [ ] **敗者 evidence 不合併**（2026-08-10 裁定 Q13）：L1 勝出時只帶自己的
+- [x] 新增 `core/services/ua_edge_derivation_service.py`
+- [x] 實作 `resolve_callee` 兩條路徑（rule 命中 / 專案內符號反查）
+- [x] 產出 `Edge` 時 `status="observed"`、evidence 指向 call hint
+- [x] 元件內部呼叫（src == dst）不畫邊
+- [x] **敗者 evidence 不合併**（2026-08-10 裁定 Q13）：L1 勝出時只帶自己的
       call-site `evidence_ids`，被淘汰的 L2/L3 evidence **一律不併入**，
       改記 warnings 計數（可觀測、不靜默）
-- [ ] 測試：跨檔案 call、同檔案跨元件 call、callee 解不出、self-loop
+- [x] 測試：跨檔案 call、同檔案跨元件 call、callee 解不出、self-loop
 
 ### Task 4 — L2 import 邊推導
 
-- [ ] 兩端單一元件才畫；否則記 ambiguous 計數
-- [ ] `status="undetermined"` +
+- [x] 兩端單一元件才畫；否則記 ambiguous 計數
+- [x] `status="undetermined"` +
       `undetermined_reason="import_only_no_call_site"`、
       evidence 為 import fact（indirect）
-- [ ] L1 已有的配對不重複產出
-- [ ] **敗者 evidence 不合併**（2026-08-10 裁定 Q13）：與 L1 重疊時 L2 直接 skip，
+- [x] L1 已有的配對不重複產出
+- [x] **敗者 evidence 不合併**（2026-08-10 裁定 Q13）：與 L1 重疊時 L2 直接 skip，
       **不得把 import fact 的 evidence 併進 L1 邊**（否則 `observed` 邊會混入
       indirect 證據）；被淘汰的 L2 計數進 warnings
-- [ ] 測試：單一對單一、N 對 M（不畫）、與 L1 重疊（取 L1，且 L1 邊的
+- [x] 測試：單一對單一、N 對 M（不畫）、與 L1 重疊（取 L1，且 L1 邊的
       `evidence_ids` 不含 import fact）
-- [ ] **契約測試：L2 邊不得出現在 profile 卡的 relationship evidence 裡**
+- [x] **契約測試：L2 邊不得出現在 profile 卡的 relationship evidence 裡**
       （`profile_finding_assembler.py:214` 的閘門行為）
 
 ### Task 5 — L3 模板邊降級
@@ -470,36 +498,36 @@ fact（如工廠模式兩跳解析的結果）都會被這個啟發式**自動�
 > `undetermined_reason`（`import_only_no_call_site` vs `template_adjacency_only`）。
 > 16D Task 4 的開關測試與 16G 的門檻量測都依賴這個欄位，**不得省略**。
 
-- [ ] `FlowDerivationService` 輸出的邊改標
+- [x] `FlowDerivationService` 輸出的邊改標
       `status="undetermined"` + `undetermined_reason="template_adjacency_only"`
-- [ ] 移除 `system_map_v2_normalize_service.py` 的 `CanonicalEdge(...)` 組裝處
+- [x] 移除 `system_map_v2_normalize_service.py` 的 `CanonicalEdge(...)` 組裝處
       （現行 `:183`）的無條件 `status="observed"`，改為沿用 `Edge` 帶進來的狀態
-- [ ] `Edge`（`system_map.py` 的 `class Edge`，現行 `:153`）新增 `status` 與
+- [x] `Edge`（`system_map.py` 的 `class Edge`，現行 `:153`）新增 `status` 與
       `undetermined_reason` 欄位以承載分級（**這是本計畫唯一的 model 變更**）
-- [ ] 更新既有測試中對 `status` 的斷言
-- [ ] 契約測試：`observed` 與 `undetermined` 各一；**外加一條「不得產生
+- [x] 更新既有測試中對 `status` 的斷言
+- [x] 契約測試：`observed` 與 `undetermined` 各一；**外加一條「不得產生
       `detected` 邊」的斷言**（該值保留在 enum 只為既有 artifact 相容）
-- [ ] `profile_finding_assembler.py:214` 的 `{"observed", "detected"}` 集合
+- [x] `profile_finding_assembler.py:214` 的 `{"observed", "detected"}` 集合
       **維持不動**（`detected` 已無生產者，留著只為讀回舊 artifact），
       但補一行註解說明為什麼不收斂成 `{"observed"}`
-- [ ] 更新 `docs/MODEL-CONTRACT.md`：邊的來源分級為兩級（`observed` /
+- [x] 更新 `docs/MODEL-CONTRACT.md`：邊的來源分級為兩級（`observed` /
       `undetermined`），`detected` 標記為 reserved-unused（schema 不變，語意變）
 
 ### Task 6 — 上限與可觀測性
 
-- [ ] 實作 §4.1 的兩層上限，超限時寫入 warnings（數量 + 被丟棄的級別）
-- [ ] 丟棄／歧義計數進 `ProjectScanResult.warnings`
-- [ ] 查無 relationship 的組合 → `recommended_next_check`
+- [x] 實作 §4.1 的兩層上限，超限時寫入 warnings（數量 + 被丟棄的級別）
+- [x] 丟棄／歧義計數進 `ProjectScanResult.warnings`
+- [x] 查無 relationship 的組合 → `recommended_next_check`
 
 ### Task 7 — 端到端驗證
 
-- [ ] 對 `tests/fixtures/rag_projects/basic_qdrant_ollama_rag` 跑全管線，
+- [x] 對 `tests/fixtures/rag_projects/basic_qdrant_ollama_rag` 跑全管線，
       記錄兩級邊數量（`observed` / `undetermined`；過渡期另計
       `template_adjacency_only`），對照 16A §2.3 基線
-- [ ] 對 `pgvector_openai_rag` 重複，確認不同 stack 也有 L1 邊
-- [ ] 確認 `call_graph.json` / `execution_paths.json` / `execution_map.mmd`
+- [x] 對 `pgvector_openai_rag` 重複，確認不同 stack 也有 L1 邊
+- [x] 確認 `call_graph.json` / `execution_paths.json` / `execution_map.mmd`
       三個 sibling 吃到同一批邊（16A ③）
-- [ ] Viewer 煙測：前端契約不變，只驗資料變真（16A ④）
+- [x] Viewer 煙測：前端契約不變，只驗資料變真（16A ④）
 
 ---
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -14,6 +14,8 @@ from systograph.core.models.inventory_selection import (
 )
 from systograph.core.models.scan import ProjectScanResult
 from systograph.core.models.system_map import DetailScanResult
+from systograph.core.models.ua_analysis import UaAnalysisResult
+from systograph.core.models.ua_parity import UaParityReport
 
 BuildReason = Literal[
     "initial_scan",
@@ -54,7 +56,8 @@ class ScanSnapshot(AnalysisHistoryModel):
     ) = None
     file_fingerprints: dict[str, str] = Field(default_factory=dict)
     inventory_selection_summary: InventorySelectionSummary | None = None
-    ua_analysis_result: dict[str, Any] | None = None
+    ua_analysis_result: UaAnalysisResult | None = None
+    ua_parity_report: UaParityReport | None = None
 
 
 class ScanSnapshotManifest(AnalysisHistoryModel):
@@ -86,6 +89,7 @@ class ScanSnapshotManifest(AnalysisHistoryModel):
     ) = None
     inventory_selection_summary: InventorySelectionSummary | None = None
     ua_analysis_available: bool = False
+    ua_parity_available: bool = False
 
 
 class MapBuildLineage(AnalysisHistoryModel):

@@ -4,6 +4,7 @@ import stat
 from os import stat_result
 from typing import Final
 
+from systograph.core.models.inventory_policy import InventoryPolicyAction
 from systograph.core.models.inventory_selection import (
     InventoryCandidate,
     InventoryCandidateOutcome,
@@ -80,6 +81,31 @@ class InventoryCandidateClassifier:
             )
 
         policy_match = self.matcher.match(path)
+        if policy_match.effective_action == InventoryPolicyAction.BLOCK:
+            # A blocked path is not reviewable: InventorySelection-
+            # PrecedenceService resolves HARD_BLOCKED before it consults
+            # any decision, so approving everything cannot pull a test
+            # fixture back into the delivered-system evidence base.
+            return InventoryCandidate(
+                path=path,
+                target_type=target_type,
+                size_bytes=size_bytes,
+                mtime_ns=mtime_ns,
+                base_outcome=InventoryCandidateOutcome.HARD_BLOCKED,
+                exclusion_sources=(
+                    InventorySelectionSource.SYSTOGRAPH_INVENTORY_CATALOG,
+                ),
+                matched_inventory_policy_ids=(
+                    policy_match.matched_inventory_policy_ids
+                ),
+                effective_inventory_policy_id=(
+                    policy_match.effective_inventory_policy_id
+                ),
+                reason_code=policy_match.effective_reason or "catalog_blocked",
+                decision_required=False,
+                override_allowed=False,
+                metadata_fingerprint=fingerprint,
+            )
         sources: list[InventorySelectionSource] = []
         reason = "included_by_default"
         if exclusion_source is not None:

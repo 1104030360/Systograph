@@ -15,7 +15,9 @@ from systograph.core.models.errors import (
     ScanInventoryRulesError,
     ScanInventoryRulesErrorCode,
 )
+from systograph.core.models.filesystem import FileInventory
 from systograph.core.models.inventory_policy import ScanInventoryPolicyCatalog
+from systograph.core.models.ua_analysis import UaAnalysisResult
 from systograph.core.providers.filesystem_provider import FilesystemProvider
 from systograph.core.providers.local_json_state_provider import (
     LocalJsonStateProvider,
@@ -25,6 +27,8 @@ from systograph.core.services.scan_inventory_rule_loader import (
     ScanInventoryRuleLoader,
 )
 from systograph.core.services.scan_snapshot_service import ScanSnapshotService
+from systograph.core.services.ua_sidecar_runtime import UaAnalysisError
+from systograph.core.services.ua_structural_adapter import UaStructuralAdapter
 from systograph.web.app import create_app
 
 
@@ -415,6 +419,61 @@ def test_scan_create_fails_closed_when_catalog_is_lost_after_preflight(
     }
     assert not list(state_dir.rglob("snapshot.json"))
     assert not (tmp_path / "outputs").exists()
+
+
+def test_scan_create_returns_stable_code_when_ua_preflight_fails(
+    tmp_path: Path,
+) -> None:
+    class FailingUaAnalysisService:
+        def analyze(
+            self,
+            project_root: Path,
+            inventory: FileInventory,
+        ) -> UaAnalysisResult:
+            del project_root, inventory
+            raise UaAnalysisError("ua_node_missing", "Node is unavailable")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "app.py").write_text("print('ok')\n", encoding="utf-8")
+    state_dir = tmp_path / "state"
+    scanner = ProjectScanService(providers=[])
+    snapshot_service = ScanSnapshotService(
+        project_scan_service=scanner,
+        repository=LocalJsonStateProvider(state_dir),
+        ua_analysis_service=FailingUaAnalysisService(),
+        ua_adapter=UaStructuralAdapter(),
+    )
+    client = TestClient(
+        create_app(
+            state_dir=state_dir,
+            scan_snapshot_service=snapshot_service,
+        )
+    )
+    project_id = client.post(
+        "/api/projects/import",
+        json={"source_type": "local_path", "project_path": str(project_root)},
+    ).json()["project_id"]
+    preflight = open_scan_preflight(client, project_id)
+
+    response = client.post(
+        "/api/scans",
+        json={
+            "project_id": project_id,
+            "scan_depth": "system",
+            "output": str(tmp_path / "outputs"),
+            "preflight_request_id": preflight["preflight_request_id"],
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "code": "ua_node_missing",
+        "message": "UA structural analysis is unavailable.",
+        "retryable": False,
+        "context": None,
+    }
+    assert not list(state_dir.rglob("snapshot.json"))
 
 
 def test_preflight_cannot_bypass_missing_catalog_with_exact_target(

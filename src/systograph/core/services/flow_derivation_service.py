@@ -88,10 +88,12 @@ class FlowDerivationService:
                         (from_slot, to_slot),
                         "connects_to",
                     ),
+                    status="undetermined",
                     evidence_ids=_edge_evidence_ids(
                         from_component,
                         to_component,
                     ),
+                    undetermined_reason="template_adjacency_only",
                 )
             )
         return edges

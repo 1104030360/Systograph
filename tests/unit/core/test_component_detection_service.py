@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 from systograph.core.models.scan import ScanFact
+from systograph.core.models.structural_fact import (
+    ImportStructuralFact,
+    SourceSpan,
+    StructuralFact,
+)
 from systograph.core.models.system_map import Evidence
 from systograph.core.services.component_detection_service import (
     ComponentDetectionResult,
@@ -459,3 +464,330 @@ def test_reranker_fact_becomes_non_baseline_confirmation_item() -> None:
     assert result.unmapped_components[0].observed_kind == "reranker_candidate"
     assert result.unmapped_components[0].status == "needs_confirmation"
     assert result.unmapped_components[0].evidence_ids
+
+
+def test_package_import_fact_detects_component_with_import_evidence() -> None:
+    import_fact = fact_with_evidence(
+        kind="external_import_declaration",
+        file="src/retriever.py",
+        path="line[1]",
+        value="ollama",
+        rule_id="ast_external_import",
+    )
+
+    result = detect([import_fact])
+
+    llm_slot = result.components_by_slot["llm"]
+    assert llm_slot.status == "detected"
+    assert llm_slot.instances[0].id == "component:llm:ollama"
+    assert llm_slot.instances[0].kind == "local_llm_runtime"
+    assert llm_slot.instances[0].evidence_ids == [import_fact[1].id]
+    assert result.unmapped_components == []
+
+
+def test_package_import_dedupes_with_other_evidence_families() -> None:
+    # The same component id from docker evidence and from the package
+    # identity layer must collapse to one instance with merged evidence.
+    docker_fact = fact_with_evidence(
+        kind="docker_service",
+        file="docker-compose.yml",
+        path="services.ollama.image",
+        value="ollama/ollama:0.5.4",
+        rule_id="docker_ollama_image_detected",
+    )
+    import_fact = fact_with_evidence(
+        kind="external_import_declaration",
+        file="src/retriever.py",
+        path="line[1]",
+        value="ollama",
+        rule_id="ast_external_import",
+    )
+
+    result = detect([docker_fact, import_fact])
+
+    llm_instances = result.components_by_slot["llm"].instances
+    assert [instance.id for instance in llm_instances] == [
+        "component:llm:ollama"
+    ]
+    assert set(llm_instances[0].evidence_ids) == {
+        docker_fact[1].id,
+        import_fact[1].id,
+    }
+
+
+def test_package_import_materializes_non_template_parser_slot() -> None:
+    # "parser" is not a rag-core-v1 template slot: the detection service
+    # must materialize it as a detected, non-required capability slot.
+    import_fact = fact_with_evidence(
+        kind="external_import_declaration",
+        file="src/ingest.py",
+        path="line[2]",
+        value="bs4.BeautifulSoup",
+        rule_id="ast_external_import",
+    )
+
+    result = detect([import_fact])
+
+    parser_slot = result.components_by_slot["parser"]
+    assert parser_slot.status == "detected"
+    assert parser_slot.required_for_rag is False
+    assert parser_slot.instances[0].id == "component:parser:beautifulsoup4"
+    assert parser_slot.instances[0].kind == "parser"
+    template = RagTemplateService.load("rag-core-v1")
+    assert "parser" not in {slot.id for slot in template.slots}
+
+
+def import_with_evidence(
+    *,
+    file: str,
+    line: int,
+    module: str,
+    symbol: str | None = None,
+    alias: str | None = None,
+) -> tuple[ScanFact, Evidence, ImportStructuralFact]:
+    """One external import as the AST provider emits it: fact,
+    mirrored indirect evidence row, and the structural fact carrying
+    symbol/alias."""
+    value = module if symbol is None else f"{module}.{symbol}"
+    path = f"line[{line}]"
+    return (
+        ScanFact(
+            kind="external_import_declaration",
+            file=file,
+            path=path,
+            value=value,
+            rule_id="ast_external_import",
+        ),
+        Evidence(
+            id=f"evidence:import:{file.replace('/', '_')}:{line}",
+            kind="external_import_declaration",
+            file=file,
+            path=path,
+            value=value,
+            rule_id="ast_external_import",
+            line_start=line,
+            line_end=line,
+            evidence_kind_hint="indirect",
+        ),
+        ImportStructuralFact(
+            identity_namespace="ua_external_import",
+            import_scope="external",
+            module=module,
+            symbol=symbol,
+            alias=alias,
+            span=SourceSpan(file=file, line_start=line, line_end=line),
+        ),
+    )
+
+
+def call_evidence(
+    *,
+    file: str,
+    line: int,
+    caller: str,
+    callee: str,
+) -> Evidence:
+    """One UA call evidence row as the UA structural adapter emits it."""
+    return Evidence(
+        id=f"evidence:ua:call:{file.replace('/', '_')}:{line}",
+        kind="call_hint",
+        file=file,
+        path=f"calls[{caller}->{callee}]",
+        value=callee,
+        rule_id="ua_call_hint_static",
+        line_start=line,
+        line_end=line,
+        evidence_kind_hint="direct",
+    )
+
+
+def detect_with_structural(
+    facts: list[ScanFact],
+    evidence: list[Evidence],
+    structural_facts: list[StructuralFact],
+) -> ComponentDetectionResult:
+    return ComponentDetectionService().detect(
+        template=RagTemplateService.load("rag-core-v1"),
+        facts=facts,
+        evidence=evidence,
+        structural_facts=structural_facts,
+    )
+
+
+def test_usage_join_attaches_same_file_call_evidence() -> None:
+    fact, import_evidence, structural = import_with_evidence(
+        file="backend/engine/engine.py",
+        line=10,
+        module="llama_index.core.memory",
+        symbol="ChatMemoryBuffer",
+    )
+    usage = call_evidence(
+        file="backend/engine/engine.py",
+        line=42,
+        caller="backend.engine.engine.get_chat_engine",
+        callee="ChatMemoryBuffer.from_defaults",
+    )
+
+    result = detect_with_structural(
+        [fact],
+        [import_evidence, usage],
+        [structural],
+    )
+
+    memory_slot = result.components_by_slot["working_memory"]
+    assert memory_slot.status == "detected"
+    instance = memory_slot.instances[0]
+    assert instance.id == "component:working_memory:llama_index"
+    assert set(instance.evidence_ids) == {import_evidence.id, usage.id}
+
+
+def test_usage_join_ignores_calls_in_other_files() -> None:
+    fact, import_evidence, structural = import_with_evidence(
+        file="backend/engine/engine.py",
+        line=10,
+        module="llama_index.core.memory",
+        symbol="ChatMemoryBuffer",
+    )
+    other_file_usage = call_evidence(
+        file="backend/workflows/single.py",
+        line=42,
+        caller="backend.workflows.single.plan",
+        callee="ChatMemoryBuffer.from_defaults",
+    )
+
+    result = detect_with_structural(
+        [fact],
+        [import_evidence, other_file_usage],
+        [structural],
+    )
+
+    instance = result.components_by_slot["working_memory"].instances[0]
+    assert instance.evidence_ids == [import_evidence.id]
+
+
+def test_usage_join_matches_alias_not_module_name() -> None:
+    # "import qdrant_client as qc": qc is the only name usable in code.
+    fact, import_evidence, structural = import_with_evidence(
+        file="src/store.py",
+        line=1,
+        module="qdrant_client",
+        alias="qc",
+    )
+    alias_usage = call_evidence(
+        file="src/store.py",
+        line=9,
+        caller="src.store.build_store",
+        callee="qc.QdrantClient",
+    )
+
+    result = detect_with_structural(
+        [fact],
+        [import_evidence, alias_usage],
+        [structural],
+    )
+
+    instance = result.components_by_slot["vector_store"].instances[0]
+    assert instance.id == "component:vector_store:qdrant"
+    assert set(instance.evidence_ids) == {import_evidence.id, alias_usage.id}
+
+
+def test_usage_join_requires_exact_name_or_attribute_extension() -> None:
+    # "ChatMemoryBufferFactory" must NOT match "ChatMemoryBuffer".
+    fact, import_evidence, structural = import_with_evidence(
+        file="backend/engine/engine.py",
+        line=10,
+        module="llama_index.core.memory",
+        symbol="ChatMemoryBuffer",
+    )
+    near_miss = call_evidence(
+        file="backend/engine/engine.py",
+        line=42,
+        caller="backend.engine.engine.get_chat_engine",
+        callee="ChatMemoryBufferFactory.build",
+    )
+
+    result = detect_with_structural(
+        [fact],
+        [import_evidence, near_miss],
+        [structural],
+    )
+
+    instance = result.components_by_slot["working_memory"].instances[0]
+    assert instance.evidence_ids == [import_evidence.id]
+
+
+def test_usage_join_module_only_import_matches_dotted_callee() -> None:
+    # "import llama_index.core.memory": the usable name is the full
+    # dotted module path itself.
+    fact, import_evidence, structural = import_with_evidence(
+        file="backend/engine/engine.py",
+        line=3,
+        module="llama_index.core.memory",
+    )
+    dotted_usage = call_evidence(
+        file="backend/engine/engine.py",
+        line=21,
+        caller="backend.engine.engine.get_chat_engine",
+        callee="llama_index.core.memory.ChatMemoryBuffer.from_defaults",
+    )
+
+    result = detect_with_structural(
+        [fact],
+        [import_evidence, dotted_usage],
+        [structural],
+    )
+
+    instance = result.components_by_slot["working_memory"].instances[0]
+    assert set(instance.evidence_ids) == {import_evidence.id, dotted_usage.id}
+
+
+def test_ragapp_shaped_imports_create_distinct_deduped_components() -> None:
+    # One engine file importing three capabilities plus a second file
+    # importing memory again: three distinct components, memory merged.
+    engine_agent = import_with_evidence(
+        file="backend/engine/engine.py",
+        line=7,
+        module="llama_index.core.agent",
+        symbol="AgentRunner",
+    )
+    engine_chat = import_with_evidence(
+        file="backend/engine/engine.py",
+        line=9,
+        module="llama_index.core.chat_engine",
+        symbol="CondensePlusContextChatEngine",
+    )
+    engine_memory = import_with_evidence(
+        file="backend/engine/engine.py",
+        line=10,
+        module="llama_index.core.memory",
+        symbol="ChatMemoryBuffer",
+    )
+    workflow_memory = import_with_evidence(
+        file="backend/workflows/single.py",
+        line=7,
+        module="llama_index.core.memory",
+        symbol="ChatMemoryBuffer",
+    )
+    pairs = [engine_agent, engine_chat, engine_memory, workflow_memory]
+
+    result = detect_with_structural(
+        [fact for fact, _evidence, _structural in pairs],
+        [evidence for _fact, evidence, _structural in pairs],
+        [structural for _fact, _evidence, structural in pairs],
+    )
+
+    assert result.components_by_slot["agent_loop"].instances[0].id == (
+        "component:agent_loop:llama_index"
+    )
+    assert result.components_by_slot["context_composer"].instances[0].id == (
+        "component:context_composer:llama_index"
+    )
+    memory_instances = result.components_by_slot["working_memory"].instances
+    assert [instance.id for instance in memory_instances] == [
+        "component:working_memory:llama_index"
+    ]
+    assert set(memory_instances[0].evidence_ids) == {
+        engine_memory[1].id,
+        workflow_memory[1].id,
+    }
+    assert result.unmapped_components == []

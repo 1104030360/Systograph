@@ -123,10 +123,10 @@ class InventoryBaseEnumerationService:
                     f"{relative}/",
                     active_rules,
                 )
-                policy_excluded = (
-                    policy_match.effective_action
-                    == InventoryPolicyAction.EXCLUDE
-                )
+                policy_excluded = policy_match.effective_action in {
+                    InventoryPolicyAction.EXCLUDE,
+                    InventoryPolicyAction.BLOCK,
+                }
                 if ignored or (
                     policy_excluded
                     and not classifier.matcher.has_include_rules

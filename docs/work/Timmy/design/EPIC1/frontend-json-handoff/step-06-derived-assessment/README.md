@@ -141,8 +141,8 @@ Current Gate-1 不輸出 `release_verdict`、`severity`、`finding_registry_vers
 
 ## frontend-execution-paths-sample.json
 
-`execution-paths/v1` — 靜態 component id 路徑。
+`execution-paths/v2` — 由 canonical edges 投影的靜態路徑紀錄；不是 runtime trace。
 
 | 欄位 | 白話 |
 |------|------|
-| `paths[][]` | ordered component ids；current Gate-1 每個 observed edge 形成一條兩點 path |
+| `paths[]` | 每筆保留 `edge_id`、source/target、relationship、status、undetermined reason 與 evidence ids；不得把 `undetermined` 誤讀成實際 call path |

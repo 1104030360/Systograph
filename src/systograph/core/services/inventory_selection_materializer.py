@@ -25,6 +25,10 @@ from systograph.core.models.inventory_selection import (
 from systograph.core.models.scan_boundary import (
     ScanBoundaryProposal,
 )
+from systograph.core.providers.filesystem_provider import (
+    detect_file_category,
+    detect_language,
+)
 from systograph.core.services.inventory_post_decision_safety_service import (
     InventoryPostDecisionSafetyService,
 )
@@ -126,6 +130,9 @@ class InventorySelectionMaterializer:
                         FileRecord(
                             path=candidate.path,
                             size_bytes=candidate.size_bytes or 0,
+                            language=detect_language(candidate.path),
+                            file_category=detect_file_category(candidate.path),
+                            size_lines=safety.size_lines or 0,
                             metadata_fingerprint=(
                                 candidate.metadata_fingerprint
                             ),

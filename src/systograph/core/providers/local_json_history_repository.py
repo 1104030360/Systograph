@@ -83,6 +83,7 @@ class LocalJsonHistoryRepository:
                         safe.inventory_selection_summary
                     ),
                     ua_analysis_available=safe.ua_analysis_result is not None,
+                    ua_parity_available=safe.ua_parity_report is not None,
                 ),
             )
         return safe

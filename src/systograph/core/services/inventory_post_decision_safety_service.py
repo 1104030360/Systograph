@@ -22,6 +22,7 @@ class InventoryPostDecisionSafetyResult:
     reason_code: str | None = None
     changed: bool = False
     content_fingerprint: str | None = None
+    size_lines: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,8 +132,14 @@ class InventoryPostDecisionSafetyService:
                 )
             digest = hashlib.sha256()
             digest.update(probe)
+            size_lines = probe.count(b"\n")
+            last_byte = probe[-1:]
             while chunk := os.read(handle, HASH_READ_BYTES):
                 digest.update(chunk)
+                size_lines += chunk.count(b"\n")
+                last_byte = chunk[-1:]
+            if opened.st_size > 0 and last_byte != b"\n":
+                size_lines += 1
         except OSError:
             return InventoryPostDecisionSafetyResult(
                 allowed=False,
@@ -143,6 +150,7 @@ class InventoryPostDecisionSafetyService:
         return InventoryPostDecisionSafetyResult(
             allowed=True,
             content_fingerprint="sha256:" + digest.hexdigest(),
+            size_lines=size_lines,
         )
 
     def _open_flags(self) -> _SafeOpenFlags | None:

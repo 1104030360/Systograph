@@ -1,0 +1,188 @@
+[[relationships]]
+from_kinds = ["retriever"]
+to_kinds = ["vector_db", "http_vector_store", "local_persistent_vector_store", "vector_db_config"]
+signal_kinds = ["call"]
+call_kinds = ["constructor"]
+callee_symbols = ["QdrantClient", "qdrant_client.QdrantClient"]
+producer_rule_ids = ["ua_call_hint_vector_store_qdrant", "code_pattern_vector_store_qdrant"]
+relationship = "queries_vector_store"
+
+[[relationships]]
+from_kinds = ["retriever"]
+to_kinds = ["vector_db", "http_vector_store", "local_persistent_vector_store"]
+signal_kinds = ["call"]
+call_kinds = ["constructor"]
+callee_symbols = ["Chroma", "chromadb.HttpClient", "chromadb.AsyncHttpClient", "chromadb.PersistentClient"]
+producer_rule_ids = ["ua_call_hint_static", "ua_call_hint_vector_store_chroma_http", "ua_call_hint_vector_store_chroma_async_http", "ua_call_hint_vector_store_chroma_persistent", "code_pattern_vector_store_chroma", "code_pattern_vector_store_chroma_http", "code_pattern_vector_store_chroma_async_http", "code_pattern_vector_store_chroma_persistent"]
+relationship = "queries_vector_store"
+
+[[relationships]]
+from_kinds = ["retriever"]
+to_kinds = ["vector_db"]
+signal_kinds = ["call"]
+call_kinds = ["method"]
+callee_symbols = ["conn.execute", "connection.execute", "cursor.execute"]
+producer_rule_ids = ["code_pattern_vector_store_pgvector_query"]
+relationship = "queries_vector_store"
+
+[[relationships]]
+from_kinds = ["retriever"]
+to_kinds = ["vector_db", "http_vector_store", "local_persistent_vector_store", "vector_db_config"]
+signal_kinds = ["factory_inference"]
+call_kinds = ["factory"]
+callee_symbols = ["qdrant_client.QdrantClient", "chromadb.HttpClient", "chromadb.AsyncHttpClient", "chromadb.PersistentClient"]
+producer_rule_ids = ["code_pattern_vector_store_qdrant", "code_pattern_vector_store_chroma_http", "code_pattern_vector_store_chroma_async_http", "code_pattern_vector_store_chroma_persistent"]
+relationship = "queries_vector_store"
+
+[[relationships]]
+from_kinds = ["api_route"]
+to_kinds = ["retriever"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["retrieve", "retrieve_context", "search"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "context_flow"
+
+[[relationships]]
+from_kinds = ["retriever", "prompt_template"]
+to_kinds = ["external_llm_provider", "local_llm_runtime"]
+signal_kinds = ["call"]
+call_kinds = ["constructor", "function", "method"]
+callee_symbols = ["ChatOpenAI", "invoke", "generate"]
+producer_rule_ids = ["ua_call_hint_static", "code_pattern_llm_chat_openai"]
+relationship = "context_flow"
+
+[[relationships]]
+from_kinds = ["api_route"]
+to_kinds = ["retriever"]
+signal_kinds = ["import"]
+call_kinds = ["import"]
+callee_symbols = ["internal_import"]
+producer_rule_ids = ["ua_import_internal"]
+relationship = "context_flow"
+
+[[relationships]]
+from_kinds = ["retriever"]
+to_kinds = ["vector_db", "http_vector_store", "local_persistent_vector_store", "vector_db_config"]
+signal_kinds = ["import"]
+call_kinds = ["import"]
+callee_symbols = ["internal_import"]
+producer_rule_ids = ["ua_import_internal"]
+relationship = "queries_vector_store"
+
+[[relationships]]
+from_kinds = ["retriever", "prompt_template"]
+to_kinds = ["external_llm_provider", "local_llm_runtime"]
+signal_kinds = ["import"]
+call_kinds = ["import"]
+callee_symbols = ["internal_import"]
+producer_rule_ids = ["ua_import_internal"]
+relationship = "context_flow"
+
+[[relationships]]
+from_kinds = ["agent_loop"]
+to_kinds = ["tool"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["call_tool", "execute_tool", "invoke_tool", "run_tool"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "tool_call"
+
+[[relationships]]
+from_kinds = ["orchestrator", "workflow_node"]
+to_kinds = ["orchestrator", "workflow_node"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["goto", "transition", "transition_to"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "workflow_transition"
+
+[[relationships]]
+from_kinds = ["retriever", "sparse_retriever", "vector_retriever"]
+to_kinds = ["hybrid_retriever"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["fuse_results", "merge_retrieval_results", "reciprocal_rank_fusion"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "retrieval_fusion"
+
+[[relationships]]
+from_kinds = ["retriever", "hybrid_retriever", "vector_retriever"]
+to_kinds = ["reranker", "reranker_candidate"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["rerank", "rerank_results"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "rerank"
+
+[[relationships]]
+from_kinds = ["conflict_checker"]
+to_kinds = ["router", "router_like_evidence"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["fallback", "fallback_route", "route_fallback"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "fallback_route"
+
+[[relationships]]
+from_kinds = ["conflict_checker"]
+to_kinds = ["agent_loop"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["critique", "reflect", "self_critique"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "self_critique"
+
+[[relationships]]
+from_kinds = ["api_route", "retriever", "router", "router_like_evidence"]
+to_kinds = ["graph_retriever"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["graph_retriever", "query_graph", "retrieve_graph"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "graph_retrieval"
+
+[[relationships]]
+from_kinds = ["vector_db", "vector_db_config", "index_builder"]
+to_kinds = ["context_composer"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["assemble_hierarchy", "retrieve_children", "retrieve_parent"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "hierarchical_flow"
+
+[[relationships]]
+from_kinds = ["metadata_extractor"]
+to_kinds = ["context_composer"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["compose_context", "enrich_context", "merge_metadata"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "context_enrichment"
+
+[[relationships]]
+from_kinds = ["api_route", "retriever", "router", "router_like_evidence"]
+to_kinds = ["rag_anything_system"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["multimodal_retrieve", "retrieve_multimodal", "retrieve_non_text"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "multimodal_retrieval"
+
+[[relationships]]
+from_kinds = ["orchestrator", "workflow_node"]
+to_kinds = ["router", "router_like_evidence"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["route_component", "select_component", "select_module"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "component_selection"
+
+[[relationships]]
+from_kinds = ["query_classifier"]
+to_kinds = ["router", "router_like_evidence"]
+signal_kinds = ["call"]
+call_kinds = ["function", "method"]
+callee_symbols = ["route_query", "select_retrieval_route"]
+producer_rule_ids = ["ua_call_hint_static"]
+relationship = "query_route"

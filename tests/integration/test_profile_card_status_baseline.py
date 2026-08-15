@@ -16,10 +16,10 @@ from systograph.core.services.map_build_service import MapBuildService
 #
 # - rag-grounding: dense_retriever is `detected` so the card is
 #   `partial`, but llm_answerer is only `partial` (indirect-only Ollama
-#   evidence) and the fixture emits a single `queries_vector_store`
-#   edge, so neither the node gate nor the `context_flow` relationship
-#   gate (alias-expanded to provides_retrieved_context / prompts_llm)
-#   is satisfied.
+#   evidence) and the fixture emits no edges (its lone candidate is a
+#   mirror-pair ambiguity, discarded), so neither the node gate nor the
+#   `context_flow` relationship gate (alias-expanded to
+#   provides_retrieved_context / prompts_llm) is satisfied.
 # - hierarchical-retrieval: index_builder is `detected` so the card is
 #   `partial`; context_composer is unreachable by auto-scan and no
 #   `hierarchical_flow` edge exists.

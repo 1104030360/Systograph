@@ -27,6 +27,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from systograph.core.models.evidence_kind import AssessmentEvidenceKind
+
 # RecommendedNextCheck 的 canonical home 在 models/recommended_next_check.py
 # （版本中立 DTO，v1 / v2 共用）。這裡 import 進來綁定名字，讓
 # RagSystemMap.recommended_next_checks 維持 v1 contract 不變。
@@ -45,6 +47,7 @@ EndpointType = Literal["local", "external"]
 RiskTargetType = Literal[
     "component_instance", "endpoint", "component_slot", "evidence", "file"
 ]
+EdgeObservationStatus = Literal["observed", "detected", "undetermined"]
 
 
 # 做什麼：所有 v1 contract model 的基底；禁止多出未知欄位（extra="forbid"）。
@@ -130,6 +133,7 @@ class Evidence(ContractModel):
     line_start: int | None = None
     line_end: int | None = None
     snippet: str | None = None
+    evidence_kind_hint: AssessmentEvidenceKind | None = None
 
 
 # 做什麼：偵測到的 API / service endpoint（local 或 external）。
@@ -158,7 +162,9 @@ class Edge(ContractModel):
     from_component_id: str | None = None
     to_component_id: str | None = None
     relationship: str
+    status: EdgeObservationStatus = "undetermined"
     evidence_ids: list[str] = Field(default_factory=list)
+    undetermined_reason: str | None = "template_adjacency_only"
 
 
 # 做什麼：一條資料流（例如 query → retrieve → generate），含多條 Edge。

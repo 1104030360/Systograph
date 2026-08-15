@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "FileCategory": {
+      "enum": [
+        "code",
+        "config",
+        "docs",
+        "infra",
+        "data",
+        "script",
+        "markup"
+      ],
+      "title": "FileCategory",
+      "type": "string"
+    },
+    "UaAnalysisRequestFile": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "language": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "size_lines": {
+          "minimum": 0,
+          "title": "Size Lines",
+          "type": "integer"
+        },
+        "file_category": {
+          "$ref": "#/$defs/FileCategory"
+        },
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "language",
+        "size_lines",
+        "file_category",
+        "digest"
+      ],
+      "title": "UaAnalysisRequestFile",
+      "type": "object"
+    },
+    "UaWorkDirectory": {
+      "additionalProperties": false,
+      "properties": {
+        "location": {
+          "const": "system_temporary_directory",
+          "title": "Location",
+          "type": "string"
+        },
+        "cleanup": {
+          "const": "after_analysis",
+          "title": "Cleanup",
+          "type": "string"
+        }
+      },
+      "required": [
+        "location",
+        "cleanup"
+      ],
+      "title": "UaWorkDirectory",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "systograph-ua-request/v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "project_root": {
+      "title": "Project Root",
+      "type": "string"
+    },
+    "inventory_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Inventory Digest",
+      "type": "string"
+    },
+    "work_dir": {
+      "$ref": "#/$defs/UaWorkDirectory"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/UaAnalysisRequestFile"
+      },
+      "title": "Files",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project_root",
+    "inventory_digest",
+    "work_dir",
+    "files"
+  ],
+  "title": "UaAnalysisRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://systograph.local/schemas/systograph-ua-request.v1.schema.json"
+}

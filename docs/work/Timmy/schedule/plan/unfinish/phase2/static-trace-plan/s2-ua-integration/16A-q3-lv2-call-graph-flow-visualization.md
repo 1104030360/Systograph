@@ -7,11 +7,19 @@
 Status: **decision recorded**（2026-07-29）— 產品／架構洞察，非正式實作 plan。
 實作仍以 [`16-implement-understand-anything-sidecar-service.md`](./16-implement-understand-anything-sidecar-service.md) 為主；本檔說明 **為什麼 call-graph 深度（Lv2）值得做，以及一份 UA 資料會餵飽哪些下游。**
 
+> **2026-08-10 Phase 12 現況校正（HEAD `da0d402`）：** Lv2 決策維持，但舊文把
+> 「canonical edge 已有 status」誤寫成「Viewer contract 已 ready」。live code 的
+> `CanonicalEdge` 確有 `status`／`undetermined_reason`，然而 backend
+> `GraphEdgeModel` 與 `GraphProjectionService` 目前會把兩欄丟掉；16D 必須做加性
+> backend projection/contract 變更與測試。frontend Zod shape 已允許 optional status，
+> 本階段 production frontend diff 仍應為空，只做 live `ArchitectureMap`／Flow drawer
+> smoke；現行 UI 沒有 `call_graph.json` artifact viewer，不得把 target feature 當成已完成。
+
 > **對象：** Plan 16 執行者、討論「接 UA 之後能畫什麼 flow」的人
 > **性質：** 決策紀錄 + 現況對照；**不**改產品碼
 > **來源：** 2026-07-29 UA 整合對話 Q3（選 Lv2）
 > **2026-08-10 注記：** §2.4 的端點約束缺口**已修復**、§7.1 兩份前置**已滿足**，
-> 行號已對 HEAD `52931d6` 校正；裁定出處見
+> 2026-08-10 本輪再於 HEAD `da0d402` 以 symbol 錨點重驗；裁定出處見
 > [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md)（F1／Q5）。
 > **證據交叉驗證（寫入當日）：** `FlowDerivationService`、`rag-core-v1.json` flows、`profile_rule_definitions.py`（`rag-grounding` → `context_flow`）、static-trace README P0 artifacts
 
@@ -211,7 +219,7 @@ Gate 仍以 static-trace README 為準：Gate-1 後才開 Plan 16；Gate-2 要 s
 | 對話中的「G5c」完整 finding 編號 | 本檔當 **rag-grounding / `context_flow` 缺口** 的別名使用；已正式化為 [`../../../../finish/s1-v2-cutover/13.8.md`](../../../../finish/s1-v2-cutover/13.8.md) |
 | Lv1 / Lv3 完整定義 | 未完整寫入本檔；**已拍板的是選 Lv2（call graph 槓桿）** |
 | 今日 `execution_paths`「只有成對的點」 | **已量化**，見 §2.3；實作時仍以具體 artifact 對照為準 |
-| FlowDerivation 是否在 v2 materialization 路徑仍為 primary | **已確認為 primary 且是唯一 canonical edge 來源**（`system_map_v2_materialization_service.py:126` derive 呼叫 → `system_map_v2_normalize_service.py:165-186` `_edges`，其中 `status="observed"` 在 `:183`），見 §2.3。行號對 HEAD `52931d6` 校正（2026-08-10） |
+| FlowDerivation 是否在 v2 materialization 路徑仍為 primary | **已確認為 primary 且是唯一 canonical edge 來源**（`SystemMapV2MaterializationService.materialize` → `FlowDerivationService.derive` → normalize `_edges` 無條件 `status="observed"`），見 §2.3；2026-08-10 於 HEAD `da0d402` 以 symbol 重驗 |
 
 ## 7.1 相依計畫（2026-07-29 新增；2026-08-10 狀態更新）
 

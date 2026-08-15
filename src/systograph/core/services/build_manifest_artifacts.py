@@ -4,11 +4,13 @@ import hashlib
 import json
 from pathlib import Path
 
+from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
 from systograph.core.models.analysis_history import (
     ArtifactManifestEntry,
     MapBuildManifest,
 )
 from systograph.core.models.execution_artifact import (
+    ArtifactEdge,
     CallGraphArtifact,
     DataflowHintsArtifact,
     EvidenceTableArtifact,
@@ -97,6 +99,7 @@ def validate_artifact_references(
         "readiness_report.json",
         "call_graph.json",
         "dataflow_hints.json",
+        "execution_paths.json",
         "evidence_table.json",
     ):
         payload = json.loads(paths[name].read_text(encoding="utf-8"))
@@ -134,12 +137,14 @@ def validate_artifact_references(
     execution = json.loads(
         paths["execution_paths.json"].read_text(encoding="utf-8")
     )
-    if any(
-        node_id not in known_components
-        for path in execution.get("paths", [])
-        for node_id in path
-    ):
-        raise ValueError("execution path references unknown component")
+    for edge in execution.get("paths", []):
+        if not isinstance(edge, dict):
+            raise ValueError("execution path edge is invalid")
+        if (
+            edge.get("source") not in known_components
+            or edge.get("target") not in known_components
+        ):
+            raise ValueError("execution path references unknown component")
 
 
 def artifact_manifest_entry(path: Path) -> ArtifactManifestEntry:
@@ -191,16 +196,53 @@ def _validate_json_schemas(
     ReadinessReport.model_validate(
         _json_object(paths["readiness_report.json"])
     )
-    CallGraphArtifact.model_validate(_json_object(paths["call_graph.json"]))
-    DataflowHintsArtifact.model_validate(
+    call_graph = CallGraphArtifact.model_validate(
+        _json_object(paths["call_graph.json"])
+    )
+    dataflow_hints = DataflowHintsArtifact.model_validate(
         _json_object(paths["dataflow_hints.json"])
     )
-    ExecutionPathsArtifact.model_validate(
+    execution_paths = ExecutionPathsArtifact.model_validate(
         _json_object(paths["execution_paths.json"])
+    )
+    validate_static_edge_parity(
+        loaded.normalized,
+        call_graph=call_graph,
+        dataflow_hints=dataflow_hints,
+        execution_paths=execution_paths,
     )
     EvidenceTableArtifact.model_validate(
         _json_object(paths["evidence_table.json"])
     )
+
+
+def validate_static_edge_parity(
+    system_map: AiSystemMapV2,
+    *,
+    call_graph: CallGraphArtifact,
+    dataflow_hints: DataflowHintsArtifact,
+    execution_paths: ExecutionPathsArtifact,
+) -> None:
+    expected = tuple(
+        ArtifactEdge(
+            edge_id=edge.edge_id,
+            source=edge.source,
+            target=edge.target,
+            relationship=edge.relationship,
+            status=edge.status,
+            undetermined_reason=edge.undetermined_reason,
+            evidence_ids=tuple(edge.evidence_ids),
+        )
+        for edge in system_map.edges
+    )
+    siblings = (
+        ("call_graph.json", call_graph.edges),
+        ("dataflow_hints.json", dataflow_hints.hints),
+        ("execution_paths.json", execution_paths.paths),
+    )
+    for name, edges in siblings:
+        if edges != expected:
+            raise ValueError(f"static artifact edge mismatch: {name}")
 
 
 def _json_object(path: Path) -> dict[str, object]:

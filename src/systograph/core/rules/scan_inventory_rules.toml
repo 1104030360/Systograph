@@ -1,5 +1,38 @@
 schema_version = "scan-inventory-policy/v1"
 
+# action = "block" is EXCLUDE that no runtime decision can reverse.
+# Systograph reports what the DELIVERED system contains; a test suite's
+# fixture config is not delivered, so it must never be able to light a
+# capability node as detected -- not even when a reviewer approves
+# everything in the Web boundary flow. Only DIRECTORY CONVENTIONS are
+# blocked: filename heuristics ("*test*") would cut product code such as
+# TokenChunker.py or testimonials.py, and a project whose wiring is only
+# visible in its tests is honestly undetermined, not detected.
+
+[[path_rules]]
+inventory_policy_id = "inventory.block.tests_directory"
+action = "block"
+pattern = "tests/"
+reason = "test_suite"
+category = "test"
+message = "Test suites are not part of the delivered system."
+
+[[path_rules]]
+inventory_policy_id = "inventory.block.test_directory"
+action = "block"
+pattern = "test/"
+reason = "test_suite"
+category = "test"
+message = "Test suites are not part of the delivered system."
+
+[[path_rules]]
+inventory_policy_id = "inventory.block.dunder_tests_directory"
+action = "block"
+pattern = "__tests__/"
+reason = "test_suite"
+category = "test"
+message = "Test suites are not part of the delivered system."
+
 [[path_rules]]
 inventory_policy_id = "inventory.exclude.node_modules"
 action = "exclude"

@@ -41,6 +41,20 @@ rationale = "A source file read error may make code-pattern component or endpoin
 uncertainty = "Static scan can only derive code facts from source files that were readable during the scan."
 
 [[risk_hints]]
+rule_id = "code_pattern_file_skipped"
+type = "partial_scan"
+default_severity_hint = "low"
+rationale = "A source file exceeded the code-pattern size limit and was skipped, so its component or endpoint evidence is missing from the map."
+uncertainty = "Static scan cannot tell whether the oversized file contains AI-system signals without reading it."
+
+[[risk_hints]]
+rule_id = "code_pattern_invalid_inventory_path"
+type = "partial_scan"
+default_severity_hint = "medium"
+rationale = "An inventory entry resolved outside the project root and was skipped, so its code facts are missing from the map."
+uncertainty = "Static scan refuses to read files outside the approved project root, so their contents stay unknown."
+
+[[risk_hints]]
 rule_id = "project_scan_provider_failed"
 type = "partial_scan"
 default_severity_hint = "medium"

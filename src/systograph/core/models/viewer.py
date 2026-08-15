@@ -20,6 +20,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from systograph.core.models.ai_system_map_v2 import EdgeObservationStatus
 from systograph.core.models.profile_signal import MappingCompleteness
 
 
@@ -123,6 +124,8 @@ class GraphEdgeModel(ViewerModel):
     to: str
     relationship: str | None = None
     label: str | None = None
+    status: EdgeObservationStatus | None = None
+    undetermined_reason: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
     risk_hint_ids: list[str] = Field(default_factory=list)
 

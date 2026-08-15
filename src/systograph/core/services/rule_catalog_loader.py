@@ -10,12 +10,31 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, Literal
 
+from systograph.core.services.edge_relationship_catalog import (
+    EdgeRelationshipCatalog,
+    EdgeRelationshipCatalogError,
+    parse_edge_relationship_catalog,
+)
+
 RULE_PACKAGE = "systograph.core.rules"
 DEPENDENCY_RULE_CATALOG = "dependency_manifest_rules.toml"
 DOCKER_IMAGE_RULE_CATALOG = "docker_image_rules.toml"
 CODE_PATTERN_RULE_CATALOG = "code_pattern_rules.toml"
 RISK_HINT_RULE_CATALOG = "risk_hint_rules.toml"
 RECOMMENDED_NEXT_CHECK_RULE_CATALOG = "recommended_next_check_rules.toml"
+EDGE_RELATIONSHIP_RULE_CATALOG = "edge_relationship_rules.toml"
+PACKAGE_CAPABILITY_RULE_CATALOG = "package_capability_rules.toml"
+ENDPOINT_CAPABILITY_RULE_CATALOG = "endpoint_capability_rules.toml"
+ENDPOINT_RULE_ID_PREFIX = "endpoint_vendor_"
+ENDPOINT_VENDOR_FACT_KIND = "endpoint_vendor"
+_HOST_PATTERN = re.compile(
+    r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(?:\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$"
+)
+_DOTTED_SYMBOL_PATTERN = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$"
+)
+_UA_RULE_ID_PATTERN = re.compile(r"^ua_[a-z0-9]+(?:_[a-z0-9]+)*$")
+_MODULE_SEGMENT_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class RuleCatalogError(ValueError):
@@ -58,6 +77,61 @@ class CodePatternRule:
     regex: re.Pattern[str]
     fact_kind: str
     snippet_group: str
+    symbol: str | None = None
+    ua_rule_id: str | None = None
+
+
+@dataclass(frozen=True)
+class EndpointCapabilityRule:
+    """One vendor API endpoint -> canonical component identity rule.
+
+    Exactly one of ``host`` (an exact hostname) or ``port`` (any host on
+    that port, for local runtimes) selects the match; ``path_prefix``
+    narrows a host that serves several capabilities, and the longest
+    matching prefix wins.
+    """
+
+    rule_id: str
+    slot: str
+    kind: str
+    name: str
+    provider: str
+    host: str | None = None
+    port: int | None = None
+    path_prefix: str | None = None
+
+    def matches(self, *, host: str, port: int | None, path: str) -> bool:
+        if self.host is not None and host != self.host.lower():
+            return False
+        if self.port is not None and port != self.port:
+            return False
+        if self.path_prefix is not None:
+            return path.startswith(self.path_prefix)
+        return True
+
+    @property
+    def specificity(self) -> int:
+        return len(self.path_prefix or "")
+
+
+@dataclass(frozen=True)
+class PackageCapabilityRule:
+    """One import-module -> canonical component identity rule.
+
+    ``module`` is an import module path as it appears in code: a
+    top-level package name (``qdrant_client``, ``PyPDF2``) or a dotted
+    submodule prefix (``llama_index.core.memory``) -- never a PyPI
+    distribution name. An import fact matches the LONGEST registry key
+    that prefixes its dotted module path on segment boundaries, so
+    top-level and dotted keys coexist deterministically. Matching is
+    case-sensitive, exactly like Python module resolution.
+    """
+
+    module: str
+    slot: str
+    kind: str
+    name: str
+    provider: str
 
 
 @dataclass(frozen=True)
@@ -102,6 +176,34 @@ class RuleCatalogLoader:
         self,
     ) -> tuple[RecommendedNextCheckRuleMetadata, ...]:
         return self.load_recommended_next_check_rules(None)
+
+    def load_default_package_capability_rules(
+        self,
+    ) -> tuple[PackageCapabilityRule, ...]:
+        return self.load_package_capability_rules(None)
+
+    def load_default_endpoint_capability_rules(
+        self,
+    ) -> tuple[EndpointCapabilityRule, ...]:
+        return self.load_endpoint_capability_rules(None)
+
+    def load_default_edge_relationship_rules(
+        self,
+    ) -> EdgeRelationshipCatalog:
+        return self.load_edge_relationship_rules(None)
+
+    def load_edge_relationship_rules(
+        self,
+        catalog_path: Path | str | None,
+    ) -> EdgeRelationshipCatalog:
+        loaded = self._load_toml(
+            catalog_path,
+            default_name=EDGE_RELATIONSHIP_RULE_CATALOG,
+        )
+        try:
+            return parse_edge_relationship_catalog(loaded)
+        except EdgeRelationshipCatalogError as exc:
+            raise RuleCatalogError(str(exc)) from exc
 
     def load_dependency_rules(
         self,
@@ -173,6 +275,8 @@ class RuleCatalogLoader:
         entries = self._section_list(loaded, "patterns")
         pattern_keys: set[tuple[tuple[str, ...], str]] = set()
         rule_ids: set[str] = set()
+        symbols: set[str] = set()
+        ua_rule_ids: set[str] = set()
         rules: list[CodePatternRule] = []
         for index, entry in enumerate(entries):
             section = f"patterns[{index}]"
@@ -202,6 +306,40 @@ class RuleCatalogLoader:
                 section=section,
                 allow_empty=True,
             )
+            symbol = self._optional_string(
+                entry,
+                "symbol",
+                section=section,
+            )
+            ua_rule_id = self._optional_string(
+                entry,
+                "ua_rule_id",
+                section=section,
+            )
+            if symbol is not None:
+                if _DOTTED_SYMBOL_PATTERN.fullmatch(symbol) is None:
+                    raise RuleCatalogError(
+                        f"{section}.symbol must be a dotted identifier"
+                    )
+                self._reject_duplicate(
+                    symbols,
+                    symbol,
+                    label="duplicate symbol",
+                )
+            if ua_rule_id is not None:
+                if _UA_RULE_ID_PATTERN.fullmatch(ua_rule_id) is None:
+                    raise RuleCatalogError(
+                        f"{section}.ua_rule_id must use a stable ua_* id"
+                    )
+                if symbol is None:
+                    raise RuleCatalogError(
+                        f"{section}.ua_rule_id requires symbol"
+                    )
+                self._reject_duplicate(
+                    ua_rule_ids,
+                    ua_rule_id,
+                    label="duplicate ua_rule_id",
+                )
             self._reject_duplicate(
                 rule_ids,
                 rule_id,
@@ -229,6 +367,8 @@ class RuleCatalogLoader:
                     regex=regex,
                     fact_kind=fact_kind,
                     snippet_group=snippet_group,
+                    symbol=symbol,
+                    ua_rule_id=ua_rule_id,
                 )
             )
         return tuple(rules)
@@ -316,6 +456,127 @@ class RuleCatalogLoader:
                     action=self._required_string(
                         entry,
                         "action",
+                        section=section,
+                    ),
+                )
+            )
+        return tuple(rules)
+
+    def load_endpoint_capability_rules(
+        self,
+        catalog_path: Path | str | None,
+    ) -> tuple[EndpointCapabilityRule, ...]:
+        loaded = self._load_toml(
+            catalog_path,
+            default_name=ENDPOINT_CAPABILITY_RULE_CATALOG,
+        )
+        self._reject_unknown_sections(loaded, {"endpoints", "schema_version"})
+        entries = self._section_list(loaded, "endpoints")
+        rule_ids: set[str] = set()
+        rules: list[EndpointCapabilityRule] = []
+        for index, entry in enumerate(entries):
+            section = f"endpoints[{index}]"
+            rule_id = self._required_string(entry, "rule_id", section=section)
+            if not rule_id.startswith(ENDPOINT_RULE_ID_PREFIX):
+                raise RuleCatalogError(
+                    f"{section}.rule_id must start with "
+                    f"{ENDPOINT_RULE_ID_PREFIX!r} so endpoint facts can "
+                    "never collide with another rule family"
+                )
+            self._reject_duplicate(
+                rule_ids,
+                rule_id,
+                label="duplicate endpoint rule id",
+            )
+            host = self._optional_string(entry, "host", section=section)
+            port = entry.get("port")
+            if port is not None and (
+                not isinstance(port, int)
+                or isinstance(port, bool)
+                or not 1 <= port <= 65535
+            ):
+                raise RuleCatalogError(f"{section}.port must be a TCP port")
+            if (host is None) == (port is None):
+                raise RuleCatalogError(
+                    f"{section} must set exactly one of host or port"
+                )
+            if host is not None and not _HOST_PATTERN.match(host):
+                raise RuleCatalogError(
+                    f"{section}.host must be an exact hostname"
+                )
+            path_prefix = self._optional_string(
+                entry,
+                "path_prefix",
+                section=section,
+            )
+            if path_prefix is not None and not path_prefix.startswith("/"):
+                raise RuleCatalogError(
+                    f"{section}.path_prefix must start with '/'"
+                )
+            rules.append(
+                EndpointCapabilityRule(
+                    rule_id=rule_id,
+                    host=host.lower() if host is not None else None,
+                    port=port,
+                    path_prefix=path_prefix,
+                    slot=self._required_string(entry, "slot", section=section),
+                    kind=self._required_string(entry, "kind", section=section),
+                    name=self._required_string(entry, "name", section=section),
+                    provider=self._required_string(
+                        entry,
+                        "provider",
+                        section=section,
+                    ),
+                )
+            )
+        return tuple(rules)
+
+    def load_package_capability_rules(
+        self,
+        catalog_path: Path | str | None,
+    ) -> tuple[PackageCapabilityRule, ...]:
+        loaded = self._load_toml(
+            catalog_path,
+            default_name=PACKAGE_CAPABILITY_RULE_CATALOG,
+        )
+        self._reject_unknown_sections(loaded, {"packages"})
+        entries = self._section_list(loaded, "packages")
+        modules: set[str] = set()
+        rules: list[PackageCapabilityRule] = []
+        for index, entry in enumerate(entries):
+            section = f"packages[{index}]"
+            module = self._required_string(entry, "module", section=section)
+            if not _is_module_key(module):
+                raise RuleCatalogError(
+                    f"{section}.module must be a dotted module path of "
+                    "Python identifiers"
+                )
+            self._reject_duplicate(
+                modules,
+                module,
+                label="duplicate module",
+            )
+            rules.append(
+                PackageCapabilityRule(
+                    module=module,
+                    slot=self._required_string(
+                        entry,
+                        "slot",
+                        section=section,
+                    ),
+                    kind=self._required_string(
+                        entry,
+                        "kind",
+                        section=section,
+                    ),
+                    name=self._required_string(
+                        entry,
+                        "name",
+                        section=section,
+                    ),
+                    provider=self._required_string(
+                        entry,
+                        "provider",
                         section=section,
                     ),
                 )
@@ -457,6 +718,22 @@ class RuleCatalogLoader:
             values.append(item)
         return tuple(values)
 
+    def _optional_string(
+        self,
+        entry: Mapping[str, Any],
+        field: str,
+        *,
+        section: str,
+    ) -> str | None:
+        if field not in entry:
+            return None
+        value = entry[field]
+        if not isinstance(value, str):
+            raise RuleCatalogError(f"{section}.{field} must be a string")
+        if not value.strip():
+            raise RuleCatalogError(f"{section}.{field} cannot be empty")
+        return value
+
     def _required_bool(
         self,
         entry: Mapping[str, Any],
@@ -490,3 +767,11 @@ class RuleCatalogLoader:
             raise RuleCatalogError(
                 f"{section}.snippet_group is not a named regex group"
             )
+
+
+def _is_module_key(module: str) -> bool:
+    """A module key is dot-separated Python identifiers, no empties."""
+    return all(
+        _MODULE_SEGMENT_PATTERN.fullmatch(segment) is not None
+        for segment in module.split(".")
+    )

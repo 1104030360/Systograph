@@ -41,7 +41,7 @@ from systograph.core.models.ai_system_map_v2 import (
 )
 from systograph.core.models.recommended_next_check import RecommendedNextCheck
 from systograph.core.models.scan import ProjectScanResult
-from systograph.core.models.system_map import Endpoint, Flow, RiskHint
+from systograph.core.models.system_map import Endpoint, RiskHint
 from systograph.core.services.canonical_evidence_service import (
     canonical_evidence_from_scan,
 )
@@ -70,7 +70,7 @@ class SystemMapV2NormalizeService:
         raw_scan: ProjectScanResult,
         components: ComponentDetectionResult,
         endpoints: Sequence[Endpoint],
-        flows: Sequence[Flow],
+        edges: Sequence[CanonicalEdge],
         risk_hints: Sequence[RiskHint],
         recommended_next_checks: Sequence[RecommendedNextCheck],
         no_snippets: bool,
@@ -91,7 +91,7 @@ class SystemMapV2NormalizeService:
                 path_mode="redacted",
             ),
             components=canonical_components,
-            edges=self._edges(flows, component_ids),
+            edges=self._edges(edges, component_ids),
             evidence=[
                 canonical_evidence_from_scan(
                     item,
@@ -163,28 +163,22 @@ class SystemMapV2NormalizeService:
 
     @staticmethod
     def _edges(
-        flows: Sequence[Flow],
+        edges: Sequence[CanonicalEdge],
         component_ids: set[str],
     ) -> list[CanonicalEdge]:
-        result: list[CanonicalEdge] = []
-        for flow in sorted(flows, key=lambda item: item.id):
-            for edge in sorted(flow.edges, key=lambda item: item.id):
-                if (
-                    edge.from_component_id not in component_ids
-                    or edge.to_component_id not in component_ids
-                ):
-                    continue
-                result.append(
-                    CanonicalEdge(
-                        edge_id=edge.id,
-                        source=edge.from_component_id,
-                        target=edge.to_component_id,
-                        relationship=edge.relationship,
-                        status="observed",
-                        evidence_ids=sorted(edge.evidence_ids),
-                    )
-                )
-        return result
+        return [
+            edge.model_copy(update={"evidence_ids": sorted(edge.evidence_ids)})
+            for edge in sorted(
+                edges,
+                key=lambda item: (
+                    item.source,
+                    item.target,
+                    item.relationship,
+                    item.edge_id,
+                ),
+            )
+            if edge.source in component_ids and edge.target in component_ids
+        ]
 
     @staticmethod
     def _endpoints(

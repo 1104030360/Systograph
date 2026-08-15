@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -32,11 +31,10 @@ class LocalJsonSnapshotSafety:
             workspace_root=workspace_root,
         )
         safe = ScanSnapshot.model_validate(payload)
-        SnapshotSafetyService(workspace_root=workspace_root).assert_safe_text(
-            json.dumps(
-                safe.model_dump(mode="json"),
-                sort_keys=True,
-            ),
+        SnapshotSafetyService(
+            workspace_root=workspace_root
+        ).assert_safe_json_like(
+            safe.model_dump(mode="json"),
             source="snapshot.json",
         )
         return safe

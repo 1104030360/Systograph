@@ -304,7 +304,7 @@ Plan 13 已切換的 active public contract；正常 CLI/API build 只能產生 
 | `scan_id` / `build_id` / `environment_id` / `artifact_set_version` / `generated_from_build_id` | scope + lineage |
 | `project` | 專案 metadata |
 | `components[]` | `component_id`, `display_name`, `canonical_type`, `layer`, `status`, `activation`, `evidence_ids`, `metadata`；`layer` 的推導見 §5.1.1 |
-| `edges[]` | `edge_id`, `source`, `target`, `relationship`, `status`, `evidence_ids` |
+| `edges[]` | `edge_id`, `source`, `target`, `relationship`, `status`, `undetermined_reason`, `evidence_ids` |
 | `evidence[]` | canonical evidence refs |
 | `endpoints[]` | API entrypoints |
 | `risk_hints[]` | risk hints |
@@ -351,6 +351,33 @@ type→node→plane。同一個 `vector_store` slot 的元件，讀 legacy v1 ar
 `retrieval`，重新掃描則得到 `ingestion_indexing`。v1 讀取屬**歷史 artifact 的忠實
 呈現**——那份 map 當初就是用 slot 語意產生的——因此**不回溯對齊**；要拿到 type-driven
 的帶位，重新 build 即可。
+
+### 5.1.2 `edges[]` 的證據分級與單一來源
+
+active v2 materialization 先從 typed UA structural facts 推導 L1/L2，再與 transitional
+L3 template edges 合併。相同 `(source, target, relationship)` 固定採
+**L1 > L2 > L3**；只有同級 edge 合併 evidence，敗者 evidence 不得混入勝者。
+
+| `status` | active 語意 | evidence 規則 |
+|---|---|---|
+| `observed` | L1：實際 call-site／constructor 目擊 | 非空，且**全部** `direct`；混入任何 indirect 即 validation fail |
+| `undetermined` | L2 import/factory inference，或尚未退役的 L3 template adjacency | `undetermined_reason` 必填來源語意；不算 profile relationship wiring |
+| `detected` | reserved-unused；只供已發布 legacy artifact 的 read-only migration | 必須有 evidence；current v2 edge producer 不得產生 |
+
+L2 的典型 reason 是 `import_only_no_call_site` 或 `factory_inference`；L3 固定為
+`template_adjacency_only`。`SYSTOGRAPH_TEMPLATE_FLOW_EDGES=off` 只移除 L3，產品預設
+仍為 `on`。2026-08-10 的 Plan 16G retirement gate 因 L1 relationship coverage
+不足而 NO-GO，因此 `FlowDerivationService`、L3 reason 與此 flag 目前都必須保留。
+
+v1 → v2 read adapter 不回寫舊 artifact：全 direct evidence 的 legacy edge 可保留
+`observed`；含 indirect evidence 的歷史 edge 降為 `detected`，避免把舊模板推定冒充
+active call-site proof。
+
+`call_graph.json`、`dataflow_hints.json`、`execution_paths.json` 與
+`GraphViewModel.edges[]` 都投影同一批 canonical edges，必須保留 `status`、
+`undetermined_reason` 與 evidence ids；任何 sibling 不得另算一套路徑。Build publish
+會把三份 typed sibling edge records 與磁碟上的 canonical map 做完整、有序比對；任一
+edge id、endpoint、relationship、status、reason 或 evidence 差異都 fail closed。
 
 ### 5.2 Step 4 Bridge Pipeline
 
@@ -648,14 +675,16 @@ Owner：`StaticExecutionArtifactService`。Phase2 P0 必填，內容語意固定
 deterministic static inference，**不是** runtime proof。
 
 共用 scope（`ScopedExecutionArtifact`）：`schema_version`, `scan_id`, `build_id`,
-`environment_id`, `artifact_set_version`, `generated_from_build_id`。Current schema 沒有 `runtime_verified` 或
-`limitations` 欄位；不得由欄位缺席反推 runtime 已驗證。
+`environment_id`, `artifact_set_version`, `generated_from_build_id`, `trace_kind`,
+`runtime_verified`。`trace_kind` 固定為 `static_inferred`，`runtime_verified` 固定為
+`false`；dynamic/runtime claims 無法通過 model validation。Current schema 沒有
+`limitations` 欄位。
 
 | 檔案 | 內容 |
 |------|------|
 | `call_graph.json` | `nodes[]` + `edges[]` — static inferred call graph |
 | `dataflow_hints.json` | `hints[]` — shallow dataflow edges |
-| `execution_paths.json` | `paths[][]` — ordered static component ids |
+| `execution_paths.json` | `execution-paths/v2` `paths[]` — canonical edge records；每筆保留 source/target/relationship/status/undetermined_reason/evidence ids；undetermined reason 必填 |
 | `evidence_table.json` | `rows[]` — flattened evidence + durable `review_state` |
 | `execution_map.mmd` | Mermaid render |
 

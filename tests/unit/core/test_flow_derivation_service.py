@@ -90,6 +90,8 @@ def test_derives_indexing_edge_only_between_detected_adjacent_slots() -> None:
     assert edge.from_component_id == embedding.id
     assert edge.to_component_id == vector_store.id
     assert edge.evidence_ids == ["evidence:embedding", "evidence:vector_store"]
+    assert edge.status == "undetermined"
+    assert edge.undetermined_reason == "template_adjacency_only"
 
 
 def test_derives_query_answer_edges_without_dangling_missing_slots() -> None:

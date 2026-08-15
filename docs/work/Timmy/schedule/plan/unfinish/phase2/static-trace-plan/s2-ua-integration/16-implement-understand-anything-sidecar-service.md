@@ -4,7 +4,36 @@
 > **白話一句話：** 怎麼把 UA 當外部程式叫起來、拿到結果、翻譯成 Systograph 自己的格式。
 > 這是本資料夾的**主計畫**，其他五份都圍繞它。
 
-Status: planned — **blocked until Gate-1 passes**（2026-07-07 UA-primary 決策）
+Status: **completed（2026-08-11）** — Gate-1、16H、UA sidecar、parity、CLI/Web
+共用管線、16C/16D call-priority cutover 與 live Viewer QA 均完成。16G 退役量測
+另為誠實 NO-GO，因此保留 L3 template fallback 與過渡開關。
+
+> **2026-08-10 Gate-1 closure：** inventory／snapshot／Apply／publish 的 94 個
+> focused tests 通過；真實 CLI 對 approved fixture 產出完整 P0 artifacts，四個 static
+> JSON 明示 `trace_kind=static_inferred`、`runtime_verified=false`，掃描前後 target
+> digest 不變。實際 Viewer 完成 import → metadata-only preflight → confirm → initial
+> build，畫面可操作 61 nodes／1 edge、Data Flow lens 與 Retriever details，console
+> 無 warning/error；`ua_analysis_result=None` 與 Apply B1→B2 由同組 E2E 覆蓋。
+> 可重現命令與首次發現、修復的 static metadata 缺口記錄於
+> `2026-08-10-phase12-gate1-REP.md`。
+
+> **2026-08-10 Phase 12 動工稽核（HEAD `da0d402`；Gate-1 closure 前歷史狀態）：**
+> 完整 Python（`1146 passed, 1 skipped`）與 frontend（`199 passed`）基線只證明既有
+> regression 綠，repo 內仍沒有 Gate-1 要求的 Viewer／E2E／人工驗收 artifact；不得以
+> targeted green 代替 Gate-1。先執行唯一 ungated 的 16H，再依 Gate-1 acceptance matrix
+> 補齊證據，本計畫才可轉為 `in progress`。本輪另確認：
+>
+> - inventory enrichment 的 owner 是 `core/models/filesystem.py::FileRecord`，不是
+>   `models/scan.py`；CLI production 入口是 `cli/map_command.py::map_project`。
+> - adapter 前必須先凍結 typed UA call/import/symbol payload 與 deterministic JSON
+>   encoding；現行 `ScanFact(kind/file/path/value/rule_id/provider)` 不足以承載 caller、
+>   callee、span 與 factory provenance。
+> - **取代舊的 G3「有行號即 direct」敘述：** external import declaration 一律是
+>   `indirect` / import-only；只有實際 symbol call/constructor 目擊可產 direct evidence。
+>   這避免未使用的 `import qdrant_client` 被 bridge 誤升成 detected component。
+> - pinned UA 已在本輪 materialize 並核對 `73559a160645...`；未套 patch 的
+>   `compute-batches.mjs` 會寫 target `.understand-anything/intermediate`，因此 Task 4
+>   安全 patch 是 sidecar 真實執行的硬前置，不能接線後補。
 
 > **2026-08-10 補強裁定：** 見
 > [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md)——
@@ -42,7 +71,7 @@ Status: planned — **blocked until Gate-1 passes**（2026-07-07 UA-primary 決�
 > `16H-ast-construction-provider.md`**（2026-08-10 裁定 Q1／Q2：G2 改走確定性 AST
 > 推論、非 LLM，故一併併入 16H）。
 > **16H 的 G3 部分為本 plan Task 3 的硬前置**（2026-08-10 裁定，理由＝parity 基線
-> 一致性——G3 會把外部 import 從 indirect 抬為 direct，若落在基線之後會污染 parity
+> 一致性——G3 會新增 typed import-only facts（維持 indirect），若落在基線之後會污染 parity
 > diff；見 [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md) Q6）。
 > G1 另影響 Plan 18 退役準則。
 > 見 [`16E-ua-coverage-gaps-and-llm-boundary.md`](./16E-ua-coverage-gaps-and-llm-boundary.md)。
@@ -152,22 +181,22 @@ script；Docker 化 deferred 另案評估，不是本計畫的前置或 scope。
 
 **Steps**
 
-- [ ] 定義 `UaAnalysisRequest`，包含 `schema_version`、`project_root`、`files[]`、
+- [x] 定義 `UaAnalysisRequest`，包含 `schema_version`、`project_root`、`files[]`、
   `inventory_digest` 與 work-dir safe metadata。
-- [ ] `files[]` 必須使用 project-relative path，含 `language`、`file_category`、
+- [x] `files[]` 必須使用 project-relative path，含 `language`、`file_category`、
   `size_lines`、content digest 或 fingerprint。
-- [ ] 定義 `UaAnalysisResult`，包含 `structural`、`semantic`、`warnings`、`stats` 與
+- [x] 定義 `UaAnalysisResult`，包含 `structural`、`semantic`、`warnings`、`stats` 與
   `status`；禁止 raw full source、absolute local path 與 secret values。
-- [ ] **`stats` / `warnings` 形狀（Q3 裁定 2026-08-05：定型核心 + `extra` 逃生欄）：**
+- [x] **`stats` / `warnings` 形狀（Q3 裁定 2026-08-05：定型核心 + `extra` 逃生欄）：**
   `stats` 必要欄位定型且 required（`filesScanned` / `filesWithImports` / `totalEdges` /
   `totalBatches` / `algorithm` / `filesAnalyzed` / per-batch 完成清單）；`warnings`
   結構化為 `{stage, message}`（已遮罩、限量）；另設一個 `extra` 開放物件——
   原樣傳遞、不驗證、**不消費**。
-- [ ] Schema validation fail closed；unknown fields 預設拒絕——**拒絕範圍是 `extra`
+- [x] Schema validation fail closed；unknown fields 預設拒絕——**拒絕範圍是 `extra`
   以外的所有層級**（`extra` 是唯一的開放容器）。
-- [ ] 契約測試：`extra` 內容不得流入 `ScanFact` / `Evidence` / 任何判定輸入
+- [x] 契約測試：`extra` 內容不得流入 `ScanFact` / `Evidence` / 任何判定輸入
   （防止它變成未驗證側通道）；Validator 的 fail-closed 檢查只以定型核心欄位為依據。
-- [ ] **`ParseIssue.scan_stage` Literal 加第 7 個值 `"ua_structural_scan"`**（一行加性
+- [x] **`ParseIssue.scan_stage` Literal 加第 7 個值 `"ua_structural_scan"`**（一行加性
   變更）——UA adapter 產生的 issues（warnings / `filesSkipped` / stderr 轉入）使用之；
   AST provider（16H）依 16E 既有裁定沿用 `code_pattern_scan`，不新增值。
   **（2026-08-10 裁定 Q3；不加這個值，adapter 第一筆 `ParseIssue` 即 ValidationError。）**
@@ -177,17 +206,17 @@ script；Docker 化 deferred 另案評估，不是本計畫的前置或 scope。
 **Files**
 
 - Modify: `src/systograph/core/providers/filesystem_provider.py`
-- Modify: `src/systograph/core/models/scan.py`
+- Modify: `src/systograph/core/models/filesystem.py`
 - Test: `tests/unit/core/test_filesystem_provider.py`
 - Test: `tests/contracts/test_secret_snapshot_safety.py`
 
 **Steps**
 
-- [ ] 將 `scan-project.mjs` 有價值的 enrichment 移植到 Python inventory：語言偵測、
+- [x] 將 `scan-project.mjs` 有價值的 enrichment 移植到 Python inventory：語言偵測、
   `file_category`、行數統計。
-- [ ] Enrichment 不改變 boundary policy；可掃描檔案仍由 Systograph Step 2 決定。
-- [ ] 對 binary、large、generated、ignored files 維持 skip audit trail。
-- [ ] Windows/macOS path normalization 與 encoding fallback 有 focused tests。
+- [x] Enrichment 不改變 boundary policy；可掃描檔案仍由 Systograph Step 2 決定。
+- [x] 對 binary、large、generated、ignored files 維持 skip audit trail。
+- [x] Windows/macOS path normalization 與 encoding fallback 有 focused tests。
 
 ## Task 3：建立 `UnderstandAnythingAnalysisService`
 
@@ -200,34 +229,34 @@ script；Docker 化 deferred 另案評估，不是本計畫的前置或 scope。
 
 **Steps**
 
-- [ ] `NodeRuntimePreflight` 檢查 Node executable、script path、版本與執行權限，
+- [x] `NodeRuntimePreflight` 檢查 Node executable、script path、版本與執行權限，
   以及 `@understand-anything/core` build 產物是否存在（submodule 目前未 build，
   `packages/core/dist/` 缺失時三支 script 必死於 module load，見 16B §3.4）；
   缺失時 fail closed。
-- [ ] `UnderstandAnythingSubprocessRunner` 使用固定 argument list、`shell=False`、timeout、
+- [x] `UnderstandAnythingSubprocessRunner` 使用固定 argument list、`shell=False`、timeout、
   bounded stdout/stderr 與 redaction。
-- [ ] `UnderstandAnythingResultValidator` 驗證 schema、path allowlist、line ranges、stats 與
+- [x] `UnderstandAnythingResultValidator` 驗證 schema、path allowlist、line ranges、stats 與
   batch completion。
-- [ ] `UaStructuralAdapter` 將 import map、symbols、endpoints、resources、call hints 轉成
+- [x] `UaStructuralAdapter` 將 import map、symbols、endpoints、resources、call hints 轉成
   Systograph `ScanFact` / `Evidence` / `Issue`。
-- [ ] UA structural facts 的 `rule_id` 使用穩定前綴，例如 `ua_import_*`、
+- [x] UA structural facts 的 `rule_id` 使用穩定前綴，例如 `ua_import_*`、
   `ua_symbol_*`、`ua_endpoint_*`、`ua_call_hint_*`。
   **（Q6 裁定 2026-08-05：確定用新 `ua_*` id，不沿用 legacy id。）**
   `ua_*` ↔ legacy `rule_id` 對照**併入語彙目錄**（`code_pattern_rules.toml` 演進版）：
   每列同時載 legacy id / kind / symbol / ua id，單一 source of truth（同 16E §2.7 的
   `symbol` 欄設計、13.7 的 TOML 單一真相源模式）。bridge 的 `ua_*` 鏡射項屬
   「01B bridge registry 支援 UA rule_id」依賴的具體化，隨本 task 一併落地。
-- [ ] **candidate observed_kind 字彙對位（2026-08-10 裁定 Q7）：**
+- [x] **candidate observed_kind 字彙對位（2026-08-10 裁定 Q7）：**
   `capability_type_node_map.toml` 補上兩列——`reranker_candidate = ["reranker"]`、
   `router_like_evidence = ["router"]`（`component_bridge_registry.py` 已在產出這兩個
   `observed_kind`，但 39 鍵的表查不到 → candidates 永遠靜默作廢）；並加**護欄測試**：
   bridge 產出的 `observed_kind` 必須全部可查表，或明文列名豁免。
   效果：此類弱訊號可把 `reranker` / `router` 兩格抬到 `partial`（candidate 封頂不變，
   不會抬到 `detected`）。此項即文末「Final review 移交補記」第一項的處置。
-- [ ] **Lv2（16A）：** call hints 必須帶可追溯 path/line，且可標成 `evidence_kind=direct`
+- [x] **Lv2（16A）：** call hints 必須帶可追溯 path/line，且可標成 `evidence_kind=direct`
   （真 call-site）；禁止用「兩端 component 證據聯集」假裝成 call wiring。call facts
   是後續 `context_flow` / FlowDerivation / static execution 的共同原料。
-- [ ] **Adapter 三條硬規則（16B §5.1，違反任一整條路白接）：**
+- [x] **Adapter 三條硬規則（16B §5.1，違反任一整條路白接）：**
   （A）每個 `ScanFact` 必須配一筆 `(file, path, kind, rule_id)` 四元組完全一致的
   `Evidence`——join 不到時 Step 4 bridge 回 `NO_MATCH`，fact 被**靜默丟棄**；
   （B）UA 自帶行號的欄位（functions/classes/exports/endpoints/services/callGraph）
@@ -257,28 +286,28 @@ script；Docker 化 deferred 另案評估，不是本計畫的前置或 scope。
 
 **Steps**
 
-- [ ] **Patch `compute-batches.mjs`**：加 `--input` / `--output` / `--work-dir`，把寫死的
+- [x] **Patch `compute-batches.mjs`**：加 `--input` / `--output` / `--work-dir`，把寫死的
   `<project-root>/.understand-anything/intermediate/`（`:364` 讀、`:550` 寫）改為參數。
   **必須保留 `<project-root>` positional 參數**——`extractExports()`（`:83`）真的會
   `readFile(join(projectRoot, file.path))` 讀原始碼跑 tree-sitter，它不只是 JSON 容器。
-- [ ] Patch **只以 `.patch` 檔形式存在 Systograph repo**，由 `setup_ua_sidecar.sh` 在安裝階段
+- [x] Patch **只以 `.patch` 檔形式存在 Systograph repo**，由 `setup_ua_sidecar.sh` 在安裝階段
   `git apply` 到 submodule 工作樹。**不得**把改動 commit 進 submodule、不得 bump gitlink
   （`ref-opensource/CLAUDE.md`：pinned commit 是刻意的）。
-- [ ] Patch 套用要 idempotent（重跑不炸）；套用失敗 → preflight fail closed，不得靜默跳過。
-- [ ] 三支 script **留在原位執行**（`skills/understand/`）。它們的 `pluginRoot` 是
+- [x] Patch 套用要 idempotent（重跑不炸）；套用失敗 → preflight fail closed，不得靜默跳過。
+- [x] 三支 script **留在原位執行**（`skills/understand/`）。它們的 `pluginRoot` 是
   `resolve(__dirname, '../..')`，複製出樹外會同時斷掉 `@understand-anything/core` 解析與
   `graphology` / `graphology-communities-louvain` 的 bare import（見 16B §6 Q2）。
-- [ ] Python 編排順序：`extract-import-map` → `compute-batches`(patched) →
+- [x] Python 編排順序：`extract-import-map` → `compute-batches`(patched) →
   `extract-structure`（逐 batch，以 `batchIndex` 為 key）。
-- [ ] Python 承接 16B §4 全部膠水責任：決定性合成 `scan-result.json`（`files` + `importMap`
+- [x] Python 承接 16B §4 全部膠水責任：決定性合成 `scan-result.json`（`files` + `importMap`
   原樣傳遞、不得增刪改）、`snake_case` ⇄ `camelCase` 轉換、每步呼叫前 `mkdir -p` work dir
   （三支 script 都不自建目錄）、以 `batchIndex` 收 per-batch 輸出、stderr 全量收集限量後
   轉入 warnings。
-- [ ] 只分析 request `files[]` allowlist；**絕不執行 `scan-project.mjs`**（它會自己 walk
+- [x] 只分析 request `files[]` allowlist；**絕不執行 `scan-project.mjs`**（它會自己 walk
   檔案樹，破壞「Systograph inventory 是唯一白名單」）。
-- [ ] `file-analyzer` bounded LLM / semantic graph 保持 deferred；本計畫只預留 nullable
+- [x] `file-analyzer` bounded LLM / semantic graph 保持 deferred；本計畫只預留 nullable
   sidecar slot，不執行 LLM（邊界理由見 [`16E`](./16E-ua-coverage-gaps-and-llm-boundary.md) §6）。
-- [ ] Intermediate artifacts 全部寫入系統暫存 work-dir，**掃完刪除**；不寫 target repo
+- [x] Intermediate artifacts 全部寫入系統暫存 work-dir，**掃完刪除**；不寫 target repo
   `.understand-anything/`。work-dir 生命週期要有測試（正常結束刪除、例外路徑也刪除、
   除錯環境變數下保留）。
 
@@ -293,11 +322,11 @@ script；Docker 化 deferred 另案評估，不是本計畫的前置或 scope。
 
 **Steps**
 
-- [ ] 驗證 UA result 所有 path 都落在 approved inventory。
-- [ ] 拒絕 `..`、absolute path injection、symlink escape、NUL 與跨 drive path。
-- [ ] stdout/stderr、warnings、semantic summaries 都套用 secret masking 與 path redaction。
-- [ ] Sidecar 不得把 full source、raw prompts、secret-like values 寫入 public artifact。
-- [ ] **契約測試逐條釘住 BD §4.2 禁輸出清單（2026-08-10 裁定 Q11①）：** adapter 輸出
+- [x] 驗證 UA result 所有 path 都落在 approved inventory。
+- [x] 拒絕 `..`、absolute path injection、symlink escape、NUL 與跨 drive path。
+- [x] stdout/stderr、warnings、semantic summaries 都套用 secret masking 與 path redaction。
+- [x] Sidecar 不得把 full source、raw prompts、secret-like values 寫入 public artifact。
+- [x] **契約測試逐條釘住 BD §4.2 禁輸出清單（2026-08-10 裁定 Q11①）：** adapter 輸出
   （`ScanFact` / `Evidence` / `Issue` 與 `ua_analysis_result` 留存內容）**不得**含
   ①`plane_id`、②reference node id、③profile 五態（`detected`/`partial`/…）、
   ④`confidence`、⑤runtime 結論。五項各一條斷言，不得只寫一條籠統檢查——
@@ -312,13 +341,14 @@ script；Docker 化 deferred 另案評估，不是本計畫的前置或 scope。
 
 **Steps**
 
-- [ ] Node runtime 缺失時，scan 不進 Step 4。
-- [ ] `ua-analysis-result` schema invalid 時，scan 不進 Step 4。
-- [ ] 必要 batch 失敗、missing output、dangling path 或 evidence mismatch 時，scan 不進 Step 4。
-- [ ] **`scriptCompleted: true` 不得單獨視為成功**：tree-sitter 全滅時 UA 仍 exit 0、
-  importMap 全空——Validator 需另以 `stats.totalEdges` 與 stderr warnings 判斷降級
-  並 fail closed（16B §3.4）。
-- [ ] Failures 回穩定 error code / finding，不產出可被 viewer 當成功載入的 partial build。
+- [x] Node runtime 缺失時，scan 不進 Step 4。
+- [x] `ua-analysis-result` schema invalid 時，scan 不進 Step 4。
+- [x] 必要 batch 失敗、missing output、dangling path 或 evidence mismatch 時，scan 不進 Step 4。
+- [x] **`scriptCompleted: true` 不得單獨視為成功**：tree-sitter 全滅時 UA 仍 exit 0。
+  Validator 需以 required batch completion、typed error markers、filesAnalyzed/filesScanned
+  consistency 與 stderr policy 判斷；`stats.totalEdges == 0` 單獨不構成失敗，因單檔／
+  empty／無 internal dependency 專案可合法零邊（16B live revalidation）。
+- [x] Failures 回穩定 error code / finding，不產出可被 viewer 當成功載入的 partial build。
 
 ## Task 7：對等性驗證工具（parity harness：比對 UA 與舊規則掃出來的結果）
 
@@ -334,13 +364,13 @@ script；Docker 化 deferred 另案評估，不是本計畫的前置或 scope。
 
 **Steps**
 
-- [ ] 過渡期並跑 Systograph `code_pattern`、`dependency_manifest`、`docker_image`、config patterns。
-- [ ] 將 UA structural facts 與 Systograph provider facts 分類為 equivalent / missing / extra /
+- [x] 過渡期並跑 Systograph `code_pattern`、`dependency_manifest`、`docker_image`、config patterns。
+- [x] 將 UA structural facts 與 Systograph provider facts 分類為 equivalent / missing / extra /
   intentionally-degraded。equivalence 判定使用語彙目錄的 `ua_*` ↔ legacy `rule_id`
   對照欄（Q6 裁定）；parity report 逐筆標示 fact provenance（rule_id 前綴即來源）。
-- [ ] Parity report 不影響 canonical facts，但會成為 Plan 14 gate 與 Plan 18 退役依據。
-- [ ] Phase4 Plan 31（`31-expand-advanced-rag-fixtures.md`）的 fixtures 轉為 parity corpus 的第一批資料來源。
-- [ ] **呼叫計數器（2026-08-10 裁定 Q17②）：** 實作「檔案系統掃描／UA sidecar／
+- [x] Parity report 不影響 canonical facts，但會成為 Plan 14 gate 與 Plan 18 退役依據。
+- [x] Phase4 Plan 31（`31-expand-advanced-rag-fixtures.md`）的 fixtures 轉為 parity corpus 的第一批資料來源。
+- [x] **呼叫計數器（2026-08-10 裁定 Q17②）：** 實作「檔案系統掃描／UA sidecar／
   parity providers 於 B1→B2 全程**各只跑 1 次**」的計數器並暴露為可斷言值，
   供 Plan 14 的 10+1 E2E gate 直接引用（Apply 不重跑 UA 的既有契約由此變成可測量，
   而非口頭約定）。
@@ -355,39 +385,39 @@ script；Docker 化 deferred 另案評估，不是本計畫的前置或 scope。
 
 **Files**
 
-- Modify: `src/systograph/cli/main.py` / CLI map 命令模組
+- Modify: `src/systograph/cli/map_command.py`（`main.py` 只負責命令註冊）
 - Modify: 對應的 core 服務接線（沿用既有 `inventory_*` services，不得複製邏輯進 CLI）
 - Test: `tests/cli/test_map_command_boundary_gate.py`
 - Test: `tests/cli/` 既有 map 命令測試更新
 
 **Steps**
 
-- [ ] CLI 執行 Step 2 inventory preflight 的**非互動模式**：全部採 default policy
+- [x] CLI 執行 Step 2 inventory preflight 的**非互動模式**：全部採 default policy
   自動決策，不進互動 review；`blocked` / 需人工決策時 fail-closed，
   錯誤訊息指向 Web review 流程。
-- [ ] CLI 產生並持久化 `ScanSnapshot`（`scan_id` 落地 state dir），
+- [x] CLI 產生並持久化 `ScanSnapshot`（`scan_id` 落地 state dir），
   與 Web 路徑同一套 snapshot 機制——Apply / lineage 語意一致。
-- [ ] UA request 的 `files[]` 來自同一 `FileInventory`；CLI 不得自行 walk 檔案樹。
-- [ ] 回歸測試：同一 fixture 下 CLI 與 Web 產出等價 facts / evidence
+- [x] UA request 的 `files[]` 來自同一 `FileInventory`；CLI 不得自行 walk 檔案樹。
+- [x] 回歸測試：同一 fixture 下 CLI 與 Web 產出等價 facts / evidence
   （允許的差異需列舉並說明）。
-- [ ] CLI `--help` 與相關文件同步：說明非互動 gate 行為與 blocked 時的處理方式。
+- [x] CLI `--help` 與相關文件同步：說明非互動 gate 行為與 blocked 時的處理方式。
 
 ## 驗收條件（Acceptance Criteria）
 
-- [ ] `UnderstandAnythingAnalysisService` 可從 Systograph approved inventory 產生 UA request。
-- [ ] 編排路徑不執行 `scan-project.mjs`，不寫 target repo；work-dir 於掃描結束刪除。
-- [ ] `systograph-ua-request/v1` 與 `systograph-ua-result/v1` schema 通過 contract tests。
-- [ ] Structural result 可轉成 Systograph facts / evidence / issues，且 evidence path/line 可追溯。
-- [ ] `ScanSnapshot.ua_analysis_result` 為 reserved nullable internal slot（`03A` 預留）；
+- [x] `UnderstandAnythingAnalysisService` 可從 Systograph approved inventory 產生 UA request。
+- [x] 編排路徑不執行 `scan-project.mjs`，不寫 target repo；work-dir 於掃描結束刪除。
+- [x] `systograph-ua-request/v1` 與 `systograph-ua-result/v1` schema 通過 contract tests。
+- [x] Structural result 可轉成 Systograph facts / evidence / issues，且 evidence path/line 可追溯。
+- [x] `ScanSnapshot.ua_analysis_result` 為 reserved nullable internal slot（`03A` 預留）；
   Phase2 active path **不產生、不消費** semantic payload；`semantic` 欄位維持 `null`。
-- [ ] Phase B/C 可選保存 structural wrapper JSON 於 snapshot 內供追溯，但 Step 4～7 / Apply /
+- [x] Phase B/C 可選保存 structural wrapper JSON 於 snapshot 內供追溯，但 Step 4～7 / Apply /
   Viewer 只讀 `ScanSnapshot.scan_result`，不列 public artifact、不新增 API artifact path。
-- [ ] Node 缺失、schema invalid、必要 batch 失敗全部 fail closed，不進 Step 4。
-- [ ] Parity harness 可產生可追溯 diff，供 Plan 14 / Plan 18 使用；diff 逐筆可辨
+- [x] Node 缺失、schema invalid、必要 batch 失敗全部 fail closed，不進 Step 4。
+- [x] Parity harness 可產生可追溯 diff，供 Plan 14 / Plan 18 使用；diff 逐筆可辨
   provenance（`ua_*` 前綴 vs legacy rule_id，Q6）。
-- [ ] CLI `systograph map` 與 Web 走同一條 Step 2 → 3 管線（非互動 gate + snapshot 落地，
+- [x] CLI `systograph map` 與 Web 走同一條 Step 2 → 3 管線（非互動 gate + snapshot 落地，
   Task 8）；同 fixture 下兩路徑產出等價 facts。
-- [ ] **Rescan 路徑驗收（2026-08-10 裁定 Q11②）：** 重掃（rescan）時**重跑 UA sidecar
+- [x] **Rescan 路徑驗收（2026-08-10 裁定 Q11②）：** 重掃（rescan）時**重跑 UA sidecar
   （＋16H providers）並產出新的 `ScanSnapshot`**（新 `scan_id`），不得沿用舊快照；
   對照 Apply（B1→B2）路徑則**不重跑** UA。兩者行為差異須有測試釘住
   （boundary doc §9／§10）。

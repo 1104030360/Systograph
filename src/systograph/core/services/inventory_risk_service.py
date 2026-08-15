@@ -29,6 +29,44 @@ SECRET_LIKE_MARKERS = (
     "api_key",
     "password",
 )
+# The name-marker heuristic asks "is this a secret-bearing artifact?".
+# A program source file answers no by construction: "token" is core AI
+# vocabulary (TokenChunker.py, tokenizers/, tokenizer_config.py) and a
+# module named credentials_loader.go implements handling rather than
+# storing a secret. Source CONTENT is still protected -- values are
+# masked by SecretMaskingService and never leave the boundary raw.
+# Shell scripts stay under the heuristic: they routinely inline
+# `export API_KEY=...`.
+PROGRAM_SOURCE_SUFFIXES = {
+    ".c",
+    ".cc",
+    ".cjs",
+    ".cpp",
+    ".cs",
+    ".go",
+    ".h",
+    ".hpp",
+    ".ipynb",
+    ".java",
+    ".js",
+    ".jsx",
+    ".kt",
+    ".kts",
+    ".m",
+    ".mjs",
+    ".mm",
+    ".php",
+    ".py",
+    ".pyi",
+    ".rb",
+    ".rs",
+    ".scala",
+    ".svelte",
+    ".swift",
+    ".ts",
+    ".tsx",
+    ".vue",
+}
 VECTOR_PERSISTENCE_MARKERS = {
     "chroma",
     "faiss",
@@ -91,13 +129,16 @@ class InventoryRiskService:
         return None
 
     def _is_secret_like(self, path: str) -> bool:
-        name = Path(path).name.lower()
+        path_obj = Path(path)
+        name = path_obj.name.lower()
+        if name in SECRET_LIKE_FILENAMES:
+            return True
+        if any(name.endswith(suffix) for suffix in SECRET_LIKE_SUFFIXES):
+            return True
+        if path_obj.suffix.lower() in PROGRAM_SOURCE_SUFFIXES:
+            return False
         normalized = path.lower().replace("-", "_")
-        return (
-            name in SECRET_LIKE_FILENAMES
-            or any(name.endswith(suffix) for suffix in SECRET_LIKE_SUFFIXES)
-            or any(marker in normalized for marker in SECRET_LIKE_MARKERS)
-        )
+        return any(marker in normalized for marker in SECRET_LIKE_MARKERS)
 
     def _is_vector_persistence(self, path: str) -> bool:
         path_obj = Path(path)

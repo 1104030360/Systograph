@@ -21,15 +21,17 @@ from systograph.core.services.map_build_service import MapBuildService
 # tests/unit/core/test_capability_type_node_map_loader.py, so an edit
 # that re-targets or widens the vocabulary has to be deliberate there.
 #
-# llm_answerer stays `partial` on purpose: the Ollama runtime is only
-# reachable through indirect evidence, and MODEL-CONTRACT caps
-# indirect-only evidence at partial. Pinning `detected` here would
-# write a five-state contract violation into the baseline.
+# llm_answerer is `detected`: the fixture's direct in-code
+# `ollama.embeddings(...)` call (src/retriever.py) is direct evidence
+# for the Ollama runtime via code_pattern_embedding_ollama, on top of
+# the indirect docker-compose service. Before that rule existed the
+# runtime was reachable only through indirect evidence and the
+# MODEL-CONTRACT indirect-only cap kept this node at `partial`.
 EXPECTED_BASELINE_STATES = {
     "index_builder": "detected",
     "api_server": "detected",
     "dense_retriever": "detected",
-    "llm_answerer": "partial",
+    "llm_answerer": "detected",
 }
 
 

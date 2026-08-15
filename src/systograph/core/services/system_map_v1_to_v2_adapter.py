@@ -128,6 +128,14 @@ class SystemMapV1ToV2Adapter:
             root_path = None
             warnings.append("absolute_root_path_redacted_for_canonical_v2")
 
+        canonical_evidence = [
+            self._to_canonical_evidence(item)
+            for item in compatibility_view.evidence
+        ]
+        evidence_kind_by_id = {
+            item.evidence_id: item.evidence_kind for item in canonical_evidence
+        }
+
         return AiSystemMapV2(
             schema_version=V2_SCHEMA_VERSION,
             system_type=V2_SYSTEM_TYPE,
@@ -161,15 +169,19 @@ class SystemMapV1ToV2Adapter:
                     source=item.source,
                     target=item.target,
                     relationship=item.relationship,
-                    status=item.status,
+                    status=(
+                        "observed"
+                        if all(
+                            evidence_kind_by_id[evidence_id] == "direct"
+                            for evidence_id in item.evidence_ids
+                        )
+                        else "detected"
+                    ),
                     evidence_ids=list(item.evidence_ids),
                 )
                 for item in compatibility_view.edges
             ],
-            evidence=[
-                self._to_canonical_evidence(item)
-                for item in compatibility_view.evidence
-            ],
+            evidence=canonical_evidence,
             endpoints=[
                 CanonicalEndpoint(
                     endpoint_id=item.endpoint_id,

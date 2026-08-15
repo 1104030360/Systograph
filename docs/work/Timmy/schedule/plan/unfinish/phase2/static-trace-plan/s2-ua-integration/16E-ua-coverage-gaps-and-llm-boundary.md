@@ -31,15 +31,17 @@ Status: **decision recorded + 技術參考**（2026-08-04）— 非實作 plan
 > owner ＝ 16H Task 1。
 >
 > **本檔其餘結論不受影響**——尤其 §6 的 LLM 邊界裁定（LLM 不得進掃描路徑）
-> 與決策 1／3／5 原封不動。
+> 與決策 3／5；決策 1 的 deterministic 路線不變，但 G3 evidence 等級已由本輪
+> live-code 稽核校正為 import-only indirect。
 
 ---
 
 ## 0. 一句話結論
 
-**三個缺口裡，零個需要 LLM 進掃描路徑。** 兩個是可以直接修的確定性缺口
-（其中一個的解法已經躺在 repo 裡），第三個的正確答案本來就是
-`undetermined` + 人工確認——那正是五態評估存在的理由。
+**三個缺口裡，零個需要 LLM 進掃描路徑。** G1/G3 用確定性目擊／宣告事實，
+G2 用深度有界、保留分支的確定性推論；仍解不出的 G2 殘量維持
+`undetermined`，人工確認只是可選旁路。這是 current target，取代舊版「G2 主要走
+人工確認」的敘述。
 
 ---
 
@@ -48,8 +50,8 @@ Status: **decision recorded + 技術參考**（2026-08-04）— 非實作 plan
 | # | 缺口 | 根因（已驗證） | 需要 LLM？ |
 |---|------|----------------|-----------|
 | G1 | 函式外的建構看不到 | `python-extractor.ts:167` 的 `functionStack.length > 0` 守衛 | **否** |
-| G2 | 工廠 / 間接建構解不出 | 靜態分析的固有邊界 | **否**（殘量走人工確認） |
-| G3 | 外部 import 邊消失 | UA 兩條輸出路徑各自主動丟棄 | **否** |
+| G2 | 工廠 / 間接建構解不出 | 靜態分析的固有邊界 | **否**（深度 ≤3 確定性推論；未解殘量可選人工確認） |
+| G3 | 外部 import declaration 消失 | UA 兩條輸出路徑各自主動丟棄 | **否**（import-only 必須維持 indirect） |
 
 ---
 
@@ -92,7 +94,7 @@ class Settings:
 把它講成「需要 LLM 才能看到頂層程式碼」是把因果講反——那等於用機率性方法
 取代一個現在就能用的確定性偵測。
 
-- [ ] **把「函式外建構 parity」寫進 Plan 18 的退役準則**（現在寫最便宜）
+- [x] **把「函式外建構 parity」寫進 Plan 18 的退役準則**（現在寫最便宜）
       ——**2026-08-10 Q17 裁定：由 Plan 16 Task 7（parity harness）的 Files
       承接 Plan 18 修訂**，本項不再無主
 
@@ -169,7 +171,7 @@ def matches(self, fact: ScanFact) -> bool:
 `code_pattern_vector_store_qdrant` / `vector_store_client`），
 `component_bridge_rules.py` 的 13 條規則**一行都不用改**。
 
-- [ ] 在 `code_pattern_rules.toml` 每列加可選 `symbol` 欄位
+- [x] 在 `code_pattern_rules.toml` 每列加可選 `symbol` 欄位
       （如 `symbol = "qdrant_client.QdrantClient"`），
       讓 regex 目錄與 AST 符號目錄共用同一 source of truth，避免兩表漂移。
       加性變更，既有列不需修改。
@@ -235,7 +237,7 @@ else:
 若別處另有獨立訊號證明同一格，那筆 fact 自行成立；若都沒有，
 `ProfileInferenceService` 既有的缺席處理會正確落在 `undetermined`。
 
-### 3.5 殘量的正確答案是「問問題」，不是「猜答案」
+### 3.5 殘量的正確答案是維持 undetermined；需要時再問問題
 
 一個 release gate 說
 
@@ -244,7 +246,9 @@ else:
 比說「大概是 Qdrant」**更站得住也更有用**。
 `undetermined` 在 mapping completeness 權重為 0，不會扭曲任何數字。
 
-殘量走既有的 `MappingProposalService` 人工確認通道（見 §5）。
+先執行 16H Task 5 的確定性 factory inference；仍解不出的殘量不發 component fact，
+維持 `undetermined`。既有 `MappingProposalService` 只保留為使用者主動確認或否決
+推論時的可選旁路（見 §5），不再是 Phase 12 的 primary path。
 
 ---
 
@@ -268,14 +272,16 @@ else:
 **資料沒有丟在解析階段。** tree-sitter 早就把 `import openai` 連同行號解析
 出來了，是 UA 的兩條輸出路徑各自主動丟棄。
 
-### 4.2 為什麼比現有訊號更強
+### 4.2 它比 manifest 更精確，但仍是 import-only
 
 | 來源 | 語意 | 證據等級 |
 |------|------|----------|
 | `dependency_manifest_rules.toml` | **宣告了**什麼依賴（requirements.txt） | indirect |
-| 外部 import 邊 | **哪一行實際用了**（帶行號） | **direct** |
+| 外部 import declaration | **哪一行宣告 import**（帶行號，但未證明 symbol 被使用） | **indirect** |
 
-修好之後不只補洞，是**實質升級評估品質**，零 LLM。
+修好之後可把 manifest 宣告縮小到實際 import 的檔案位置，是**可追溯性升級**，
+但不能單靠 import 點亮 component。只有後續實際 symbol call/constructor 目擊才可
+產生 direct evidence；未使用 import 的反向測試是硬驗收。
 
 ### 4.3 解法裁定：在 Python 端獨立掃一次，**不改 vendored tree（外部借用的原始碼）**
 
@@ -361,7 +367,7 @@ evidence_kind = (
 16H 把它列為**必須第一個做**的內部硬前置，契約測試含兩條反向斷言：
 「任何推論型 fact 必須申報 `hint=indirect`」與「LLM 產出不得宣告 `direct`」。
 
-- [ ] **（owner：16H Task 1）** 此變更同時是
+- [x] **（owner：16H Task 1）** 此變更同時是
       [`16C`](./16C-component-attribution-and-edge-derivation.md)
       L1/L2 分級的正確性前提
 
@@ -491,7 +497,7 @@ LLM 提議 → 人工採納 → ManualMapping → CapabilityCandidateComponent �
 
 | # | 決策 | 理由 |
 |---|------|------|
-| 1 | G1 / G3 走確定性解法，**零 LLM** | 解法已存在或成本極低；用 LLM 取代會是退步 |
+| 1 | G1 / G3 走確定性解法，**零 LLM**；G1 call/constructor 可 direct，G3 import-only 固定 indirect | 解法已存在或成本極低；用 LLM 取代會是退步，import declaration 也不能冒充實際使用 |
 | 2 | ~~G2 殘量走既有人工確認通道，**不新建子系統**~~ **（2026-08-10 取代，見檔頭）** | boundary doc §9 明定 `AssessmentOrchestrator` 為 Plan 17 deferred；**改判為確定性程式推論（仍零 LLM、不新建子系統），人工確認降為可選旁路，實作歸 16H Task 5** |
 | 3 | UA 維持 12 語言 primary，**不倒轉為 Python-primary** | 避免兩套結構不同的 fact 產生管線，違反「core engine 平台獨立」原則 |
 | 4 | ~~新增 Python-only **補充** provider，範圍嚴格限於 G1 + G3~~ **（2026-08-10 取代，見檔頭）** | 只補 UA 架構上（`functionStack` 守衛、`fileSet` 過濾）先天做不到的兩件事；**改判為範圍擴為 G1 + G2 + G3，實作歸 [`16H`](./16H-ast-construction-provider.md)** |
@@ -535,10 +541,10 @@ LLM 提議 → 人工採納 → ManualMapping → CapabilityCandidateComponent �
 3. 16H Task 3  G1 函式外建構                  沿用既有 rule_id → bridge 13 條零改動
         │                                     （綁定表在這裡建立，Task 4 直接吃）
         │
-4. 16H Task 4  G3 撈回外部 import             零 LLM，投報率最高，證據等級升 direct
+4. 16H Task 4  G3 撈回外部 import             零 LLM，import-only 一律 indirect
         │                                     ★ Plan 16 Task 3（adapter）的【硬前置】
         │                                       理由＝parity 基線一致性：G3 若落在
-        │                                       基線之後，升級會混進 parity diff，
+        │                                       基線之後，新增事實會混進 parity diff，
         │                                       真實退化與基線位移分不出來
         │
 5. 16H Task 5  G2 工廠確定性推論               分支不塌縮、全部 indirect、防假陽性測試

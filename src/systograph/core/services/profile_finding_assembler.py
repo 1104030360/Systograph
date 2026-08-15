@@ -211,6 +211,8 @@ def _relationship_evidence(
             evidence_id
             for name in names
             for edge in relationships.get(name, ())
+            # `detected` remains readable for published legacy artifacts;
+            # current Phase 12 edge producers do not emit that status.
             if edge.status in {"observed", "detected"}
             and not required_component_ids.isdisjoint(
                 (edge.source, edge.target)

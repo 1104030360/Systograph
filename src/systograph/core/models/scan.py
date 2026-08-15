@@ -14,6 +14,7 @@ from systograph.core.models.inventory_provenance import (
 from systograph.core.models.inventory_selection import (
     InventorySelectionSummary,
 )
+from systograph.core.models.structural_fact import StructuralFact
 from systograph.core.models.system_map import Evidence
 
 
@@ -110,6 +111,7 @@ class ParseIssue(ScanModel):
         "dependency_manifest_parse",
         "code_pattern_scan",
         "project_scan",
+        "ua_structural_scan",
         "workflow_json_parse",
     ]
     file: str
@@ -123,6 +125,7 @@ class ProviderScanResult(ScanModel):
     """Shared provider-local output before higher-level normalization."""
 
     facts: list[ScanFact] = Field(default_factory=list)
+    structural_facts: list[StructuralFact] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
     issues: list[ParseIssue] = Field(default_factory=list)
 
@@ -139,6 +142,7 @@ class ProjectScanResult(ScanModel):
     """Aggregated raw scanner output before component detection."""
 
     facts: list[ScanFact] = Field(default_factory=list)
+    structural_facts: list[StructuralFact] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
     issues: list[ParseIssue] = Field(default_factory=list)
     skipped_files: list[SkippedFileSummary] = Field(default_factory=list)

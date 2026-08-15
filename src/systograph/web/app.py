@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -56,6 +55,14 @@ from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
 from systograph.core.services.scan_snapshot_service import ScanSnapshotService
+from systograph.core.services.state_directory_service import (
+    default_state_dir as default_state_dir,
+)
+from systograph.core.services.ua_parity_service import UaParityService
+from systograph.core.services.ua_structural_adapter import UaStructuralAdapter
+from systograph.core.services.understand_anything_analysis_service import (
+    UnderstandAnythingAnalysisService,
+)
 from systograph.web.middleware import (
     DEFAULT_MAX_REQUEST_BODY_BYTES,
     RequestSizeLimitMiddleware,
@@ -79,13 +86,6 @@ DEFAULT_ALLOWED_ORIGINS = (
     "http://127.0.0.1:5173",
     "http://localhost:5173",
 )
-
-
-def default_state_dir() -> Path:
-    configured = os.environ.get("SYSTOGRAPH_STATE_DIR")
-    if configured:
-        return Path(configured).expanduser()
-    return Path.home() / ".systograph"
 
 
 class LocalApiApp:
@@ -199,6 +199,9 @@ def create_app(
         or ScanSnapshotService(
             project_scan_service=shared_scanner,
             repository=repository,
+            ua_analysis_service=UnderstandAnythingAnalysisService(),
+            ua_adapter=UaStructuralAdapter(),
+            ua_parity_service=UaParityService(),
         )
     )
     app.state.apply_confirmations_service = (

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -44,8 +45,40 @@ class SnapshotSafetyService:
         *,
         source: str,
     ) -> list[SnapshotSafetyFinding]:
-        text = json.dumps(value, sort_keys=True, default=str)
-        return self.scan_text(text, source=source)
+        # Scan raw strings (keys included), never the JSON-serialized
+        # text: escaping turns a captured "as f:" + newline into the
+        # literal `f:\n`, which reads as a Windows drive path and would
+        # fail an honest snapshot closed.
+        findings: list[SnapshotSafetyFinding] = []
+        for text in self._iter_strings(value):
+            findings.extend(self.scan_text(text, source=source))
+        return findings
+
+    def assert_safe_json_like(
+        self,
+        value: Any,
+        *,
+        source: str,
+    ) -> None:
+        findings = self.scan_json_like(value, source=source)
+        if findings:
+            summary = ", ".join(
+                f"{finding.source}:{finding.kind}" for finding in findings
+            )
+            raise SnapshotSafetyError(summary)
+
+    def _iter_strings(self, value: Any) -> Iterator[str]:
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for key, child in value.items():
+                yield str(key)
+                yield from self._iter_strings(child)
+        elif isinstance(value, (list, tuple)):
+            for child in value:
+                yield from self._iter_strings(child)
+        elif value is not None and not isinstance(value, (int, float, bool)):
+            yield json.dumps(value, default=str)
 
     def scan_text(
         self,

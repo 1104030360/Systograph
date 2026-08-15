@@ -74,6 +74,9 @@ class InventorySelectionErrorCode(StrEnum):
     TARGET_CHANGED = "inventory_selection_target_changed"
     POST_DECISION_BLOCKED = "inventory_selection_post_decision_blocked"
     CURSOR_INVALID = "inventory_preflight_cursor_invalid"
+    NON_INTERACTIVE_REVIEW_REQUIRED = (
+        "inventory_selection_noninteractive_review_required"
+    )
 
 
 class InventorySelectionError(Exception):

@@ -85,6 +85,8 @@ class StaticExecutionArtifactService:
                 source=item.source,
                 target=item.target,
                 relationship=item.relationship,
+                status=item.status,
+                undetermined_reason=item.undetermined_reason,
                 evidence_ids=tuple(item.evidence_ids),
             )
             for item in system_map.edges
@@ -111,6 +113,8 @@ class StaticExecutionArtifactService:
                 scan_id=scan_id,
                 environment_id=environment_id,
                 generated_from_build_id=build_id,
+                trace_kind="static_inferred",
+                runtime_verified=False,
                 nodes=nodes,
                 edges=edges,
             ),
@@ -119,6 +123,8 @@ class StaticExecutionArtifactService:
                 scan_id=scan_id,
                 environment_id=environment_id,
                 generated_from_build_id=build_id,
+                trace_kind="static_inferred",
+                runtime_verified=False,
                 hints=edges,
             ),
             execution_paths=ExecutionPathsArtifact(
@@ -126,13 +132,17 @@ class StaticExecutionArtifactService:
                 scan_id=scan_id,
                 environment_id=environment_id,
                 generated_from_build_id=build_id,
-                paths=tuple((item.source, item.target) for item in edges),
+                trace_kind="static_inferred",
+                runtime_verified=False,
+                paths=edges,
             ),
             evidence_table=EvidenceTableArtifact(
                 build_id=build_id,
                 scan_id=scan_id,
                 environment_id=environment_id,
                 generated_from_build_id=build_id,
+                trace_kind="static_inferred",
+                runtime_verified=False,
                 rows=rows,
             ),
             execution_map_mermaid=self._mermaid(

@@ -1,0 +1,470 @@
+# Package capability registry: import module name -> canonical component.
+#
+# This catalog is the PACKAGE IDENTITY layer of the three-tier detection
+# contract:
+#
+#   1. Package identity layer (this file): deterministic vendor/service
+#      detection joined from AST external-import facts
+#      (rule_id ast_external_import). Keys are IMPORT MODULE PATHS as
+#      they appear in code -- a top-level package name
+#      ("qdrant_client", "PyPDF2") or a dotted submodule prefix
+#      ("llama_index.core.memory") -- NOT the PyPI distribution name.
+#      An import matches the LONGEST key that prefixes its dotted
+#      module path on segment boundaries: "qdrant_client.http" matches
+#      the top-level "qdrant_client" entry, and
+#      "llama_index.core.memory.chat_memory_buffer" matches the
+#      "llama_index.core.memory" entry. A framework's bare top-level
+#      name (e.g. "llama_index") stays UNMAPPED unless the table
+#      carries an explicit top-level entry: frameworks are mapped at
+#      the submodule level, because mapping a whole framework to one
+#      capability would fabricate meaning.
+#   2. code_pattern layer (code_pattern_rules.toml): deterministic
+#      DISAMBIGUATION only -- endpoint-based vendor attribution (the
+#      OpenAI base_url ladder), usage-shape capabilities (route
+#      decorators, client-variant typing). New vendor/service coverage
+#      belongs here in the package identity layer, not there.
+#   3. Capabilities with no deterministic signature (chunker,
+#      prompt_builder, session_state and similar plain-code behaviors)
+#      are deliberately NOT rule-detected. They flow through the
+#      mapping_proposal_service LLM-proposal + human-confirmation path,
+#      which never decides profile states or readiness by itself.
+#
+# Documented EXCLUSIONS (division-of-labor contract -- do not add):
+#   - openai: endpoint disambiguation in code_pattern rules owns vendor
+#     attribution; the import alone cannot distinguish a local
+#     OpenAI-compatible runtime (e.g. Ollama behind base_url) from the
+#     external OpenAI service.
+#   - chromadb: the client-variant regexes own the http vs persistent
+#     typing distinction; the bare import cannot pick the variant.
+#   - general-purpose packages (torch, numpy, requests, ...): package
+#     identity does not imply any single capability -- mapping them
+#     would fabricate meaning.
+#   - httpx / aiohttp / requests: plain HTTP clients. Vendor attribution
+#     for raw HTTP integrations belongs to endpoint_capability_rules.toml
+#     (host whitelist), never to the transport package.
+#   - tiktoken: token counting serves BOTH chunk sizing and context
+#     budgeting (private-gpt counts prompt tokens; graphrag sizes
+#     chunks). One import cannot tell which, so mapping it to chunker
+#     would fabricate a component.
+#   - spacy: the same import serves sentence segmentation and NER; only
+#     the pipeline call shape disambiguates, and that is not import
+#     identity.
+#   - networkx: general graph maths with no AI-system meaning on its
+#     own. GraphRAG-style evidence comes from graspologic community
+#     detection below, which has no non-graph use.
+#   - llama_index.core.postprocessor (bare namespace): 16 exports, of
+#     which only 3 are rerankers -- the rest are similarity filters,
+#     recency sorters, PII scrubbers and text optimizers. The specific
+#     reranker symbols are mapped individually below.
+#     Source: https://github.com/run-llama/llama_index/blob/main/llama-index-core/llama_index/core/postprocessor/__init__.py
+#
+# Every entry must map to a template slot of rag-core-v1 (or a slot the
+# detection service can materialize) and a canonical kind present in
+# capability_type_node_map.toml so the component lights its 52-node
+# reference map node automatically.
+
+[[packages]]
+module = "ollama"
+slot = "llm"
+kind = "local_llm_runtime"
+name = "Ollama"
+provider = "ollama"
+
+[[packages]]
+module = "qdrant_client"
+slot = "vector_store"
+kind = "vector_db"
+name = "Qdrant"
+provider = "qdrant"
+
+[[packages]]
+module = "PyPDF2"
+slot = "document_loader"
+kind = "document_loader"
+name = "PyPDF2"
+provider = "pypdf2"
+
+[[packages]]
+module = "pypdf"
+slot = "document_loader"
+kind = "document_loader"
+name = "pypdf"
+provider = "pypdf"
+
+[[packages]]
+module = "bs4"
+slot = "parser"
+kind = "parser"
+name = "BeautifulSoup"
+provider = "beautifulsoup4"
+
+# --- LlamaIndex (run-llama/llama_index) ------------------------------
+#
+# Framework capabilities live in DOTTED SUBMODULE PATHS; bare
+# "llama_index" is deliberately unmapped (see header). Module structure
+# verified against the official repository docs via Context7
+# (/run-llama/llama_index):
+#   - https://github.com/run-llama/llama_index/blob/main/README.md
+#     ("from llama_index.core.xxx import ..." for core submodules,
+#      "from llama_index.xxx.yyy import ..." for vendor integrations)
+#   - https://github.com/run-llama/llama_index/blob/main/docs/examples/cookbooks/toolhouse_llamaindex.ipynb
+#     (llama_index.core.agent, llama_index.core.memory,
+#      llama_index.core.workflow)
+#   - https://github.com/run-llama/llama_index/blob/main/docs/examples/cookbooks/llama3_cookbook.ipynb
+#     (llama_index.core.tools)
+#   - https://github.com/run-llama/llama_index/blob/main/docs/examples/node_postprocessor/PrevNextPostprocessorDemo.ipynb
+#     (llama_index.core.postprocessor, llama_index.core.node_parser)
+#   - https://github.com/run-llama/llama_index/blob/main/docs/examples/vector_stores/QdrantIndexDemo.ipynb
+#     (llama_index.vector_stores.qdrant)
+#   - https://github.com/run-llama/llama_index/blob/main/docs/examples/node_postprocessor/FileNodeProcessors.ipynb
+#     (llama_index.readers.file)
+#   - https://github.com/run-llama/llama_index/blob/main/docs/examples/vector_stores/AstraDBIndexDemo.ipynb
+#     (llama_index.embeddings.openai)
+#   - https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/callbacks/llama-index-callbacks-argilla/README.md
+#     (llama_index.llms.openai)
+#   - https://github.com/run-llama/llama_index/blob/main/docs/examples/cookbooks/airtrain.ipynb
+#     (llama_index.readers.* vendor reader integrations)
+#
+# Vendor-bearing entries exist ONLY where the vendor is in the module
+# path itself (llama_index.vector_stores.qdrant). Generic
+# llama_index.llms / llama_index.embeddings prefixes are NOT mapped:
+# the vendor is unknown at that level and mapping one would fabricate
+# attribution. llama_index.vector_stores.chroma is also NOT mapped:
+# the chromadb exclusion above owns the http-vs-persistent variant
+# distinction, which the wrapper import cannot decide either.
+
+[[packages]]
+module = "llama_index.core.agent"
+slot = "agent_loop"
+kind = "agent_loop"
+name = "LlamaIndex Agent"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.core.workflow"
+slot = "orchestrator"
+kind = "orchestrator"
+name = "LlamaIndex Workflow"
+provider = "llama_index"
+
+# ChatMemoryBuffer and friends are chat-turn working memory, not a
+# long-term memory store: working_memory is the honest node.
+[[packages]]
+module = "llama_index.core.memory"
+slot = "working_memory"
+kind = "working_memory"
+name = "LlamaIndex Chat Memory"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.core.tools"
+slot = "tool"
+kind = "tool"
+name = "LlamaIndex Tools"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.core.chat_engine"
+slot = "context_composer"
+kind = "context_composer"
+name = "LlamaIndex Chat Engine"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.core.node_parser"
+slot = "chunking"
+kind = "chunker"
+name = "LlamaIndex Node Parser"
+provider = "llama_index"
+
+# Rerankers are matched on the SPECIFIC symbol or defining submodule,
+# never on the postprocessor namespace (see EXCLUSIONS above). Both the
+# package-level re-export and the fully-qualified submodule import are
+# in real-world use, so both paths are listed. Verified against the
+# upstream sources:
+#   - llama-index-core/llama_index/core/postprocessor/__init__.py
+#     (SentenceTransformerRerank, LLMRerank, StructuredLLMRerank)
+#   - llama-index-core/llama_index/core/postprocessor/rankGPT_rerank.py
+#     (mixed-case module name; not re-exported from the namespace)
+#   - llama-index-integrations/postprocessor/llama-index-postprocessor-*
+#     (sbert-rerank, flag-embedding-reranker, cohere-rerank,
+#      rankgpt-rerank, colbert-rerank -- namespace llama_index.
+#      postprocessor.*, without ".core.")
+
+[[packages]]
+module = "llama_index.core.postprocessor.SentenceTransformerRerank"
+slot = "reranker"
+kind = "reranker"
+name = "SentenceTransformer Reranker"
+provider = "sentence_transformers"
+
+[[packages]]
+module = "llama_index.core.postprocessor.sbert_rerank"
+slot = "reranker"
+kind = "reranker"
+name = "SentenceTransformer Reranker"
+provider = "sentence_transformers"
+
+[[packages]]
+module = "llama_index.core.postprocessor.LLMRerank"
+slot = "reranker"
+kind = "reranker"
+name = "LLM Reranker"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.core.postprocessor.llm_rerank"
+slot = "reranker"
+kind = "reranker"
+name = "LLM Reranker"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.core.postprocessor.StructuredLLMRerank"
+slot = "reranker"
+kind = "reranker"
+name = "Structured LLM Reranker"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.core.postprocessor.structured_llm_rerank"
+slot = "reranker"
+kind = "reranker"
+name = "Structured LLM Reranker"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.core.postprocessor.rankGPT_rerank"
+slot = "reranker"
+kind = "reranker"
+name = "RankGPT Reranker"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.postprocessor.sbert_rerank"
+slot = "reranker"
+kind = "reranker"
+name = "SentenceTransformer Reranker"
+provider = "sentence_transformers"
+
+[[packages]]
+module = "llama_index.postprocessor.flag_embedding_reranker"
+slot = "reranker"
+kind = "reranker"
+name = "FlagEmbedding Reranker"
+provider = "flag_embedding"
+
+[[packages]]
+module = "llama_index.postprocessor.cohere_rerank"
+slot = "reranker"
+kind = "reranker"
+name = "Cohere Rerank"
+provider = "cohere"
+
+[[packages]]
+module = "llama_index.postprocessor.rankgpt_rerank"
+slot = "reranker"
+kind = "reranker"
+name = "RankGPT Reranker"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.postprocessor.colbert_rerank"
+slot = "reranker"
+kind = "reranker"
+name = "ColBERT Reranker"
+provider = "colbert"
+
+[[packages]]
+module = "llama_index.core.readers"
+slot = "document_loader"
+kind = "document_loader"
+name = "LlamaIndex Readers"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.readers"
+slot = "document_loader"
+kind = "document_loader"
+name = "LlamaIndex Readers"
+provider = "llama_index"
+
+[[packages]]
+module = "llama_index.vector_stores.qdrant"
+slot = "vector_store"
+kind = "vector_db"
+name = "Qdrant"
+provider = "qdrant"
+
+[[packages]]
+module = "llama_index.embeddings.openai"
+slot = "embedding_model"
+kind = "embedding_provider"
+name = "OpenAI Embeddings"
+provider = "openai"
+
+[[packages]]
+module = "llama_index.llms.openai"
+slot = "llm"
+kind = "external_llm_provider"
+name = "OpenAI"
+provider = "openai"
+
+[[packages]]
+module = "llama_index.llms.ollama"
+slot = "llm"
+kind = "local_llm_runtime"
+name = "Ollama"
+provider = "ollama"
+
+[[packages]]
+module = "llama_index.embeddings.ollama"
+slot = "embedding_model"
+kind = "embedding_provider"
+name = "Ollama"
+provider = "ollama"
+
+# --- Vector databases -------------------------------------------------
+#
+# Client SDK identity is unambiguous: importing a vector database client
+# means the system talks to that store. Verified import surfaces:
+#   - weaviate-client v4: https://weaviate.io/developers/weaviate/client-libraries/python
+#     (import weaviate; weaviate.connect_to_local() / connect_to_weaviate_cloud())
+#   - lancedb: https://lancedb.github.io/lancedb/basic/
+#     (import lancedb; lancedb.connect("data/"))
+#   - pymilvus: https://milvus.io/docs/quickstart.md
+#     (from pymilvus import MilvusClient)
+#   - pinecone (distribution renamed pinecone-client -> pinecone):
+#     https://docs.pinecone.io/reference/python-sdk
+#     (from pinecone import Pinecone; from pinecone.grpc import PineconeGRPC)
+
+[[packages]]
+module = "weaviate"
+slot = "vector_store"
+kind = "vector_db"
+name = "Weaviate"
+provider = "weaviate"
+
+[[packages]]
+module = "lancedb"
+slot = "vector_store"
+kind = "vector_db"
+name = "LanceDB"
+provider = "lancedb"
+
+[[packages]]
+module = "pymilvus"
+slot = "vector_store"
+kind = "vector_db"
+name = "Milvus"
+provider = "milvus"
+
+[[packages]]
+module = "pinecone"
+slot = "vector_store"
+kind = "vector_db"
+name = "Pinecone"
+provider = "pinecone"
+
+# --- Multi-provider LLM gateway ---------------------------------------
+#
+# LiteLLM proxies many vendors behind one call shape
+# (litellm.completion(model="provider/model")), so the import proves an
+# LLM answerer exists but NOT which vendor serves it: kind "llm" reaches
+# the llm_answerer node without claiming an external provider.
+# Source: https://docs.litellm.ai/docs/completion
+
+[[packages]]
+module = "litellm"
+slot = "llm"
+kind = "llm"
+name = "LiteLLM"
+provider = "litellm"
+
+# --- Chunking ---------------------------------------------------------
+#
+#   - langchain-text-splitters: https://python.langchain.com/docs/how_to/recursive_text_splitter/
+#     (RecursiveCharacterTextSplitter, TokenTextSplitter,
+#      MarkdownHeaderTextSplitter, HTMLHeaderTextSplitter)
+#   - nltk.tokenize: https://www.nltk.org/api/nltk.tokenize.html
+#     (sent_tokenize / PunktSentenceTokenizer -- the tokenize submodule
+#      is text segmentation; the bare nltk package is a general toolkit
+#      and stays unmapped)
+
+[[packages]]
+module = "langchain_text_splitters"
+slot = "chunking"
+kind = "chunker"
+name = "LangChain Text Splitters"
+provider = "langchain"
+
+[[packages]]
+module = "nltk.tokenize"
+slot = "chunking"
+kind = "chunker"
+name = "NLTK Sentence Tokenizer"
+provider = "nltk"
+
+# --- Document loaders -------------------------------------------------
+#
+#   - markitdown: https://github.com/microsoft/markitdown
+#     (from markitdown import MarkItDown; md.convert(path))
+#   - assemblyai: https://www.assemblyai.com/docs/getting-started/transcribe-an-audio-file/python
+#     (aai.Transcriber().transcribe(url) -- speech-to-text ingestion is
+#      a document loader for audio sources)
+
+[[packages]]
+module = "markitdown"
+slot = "document_loader"
+kind = "document_loader"
+name = "MarkItDown"
+provider = "markitdown"
+
+[[packages]]
+module = "assemblyai"
+slot = "document_loader"
+kind = "document_loader"
+name = "AssemblyAI Transcription"
+provider = "assemblyai"
+
+# --- Local embedding models -------------------------------------------
+#
+# sentence-transformers embeds locally; its CrossEncoder class is a
+# reranker instead, so the specific symbol overrides the package row.
+# Source: https://sbert.net/docs/quickstart.html
+
+[[packages]]
+module = "sentence_transformers"
+slot = "embedding_model"
+kind = "embedding_provider"
+name = "SentenceTransformers"
+provider = "sentence_transformers"
+
+[[packages]]
+module = "sentence_transformers.CrossEncoder"
+slot = "reranker"
+kind = "reranker"
+name = "CrossEncoder Reranker"
+provider = "sentence_transformers"
+
+# --- Graph-based RAG --------------------------------------------------
+#
+# hierarchical_leiden is community detection over an entity graph -- it
+# has no non-graph use, so unlike networkx it is honest evidence of a
+# graph-based RAG subsystem.
+# Sources: https://graspologic-org.github.io/graspologic/latest/reference/partition.html
+#          https://github.com/microsoft/graspologic-native
+
+[[packages]]
+module = "graspologic.partition"
+slot = "graph_index"
+kind = "graph_rag_system"
+name = "Leiden Community Detection"
+provider = "graspologic"
+
+[[packages]]
+module = "graspologic_native"
+slot = "graph_index"
+kind = "graph_rag_system"
+name = "Leiden Community Detection"
+provider = "graspologic"

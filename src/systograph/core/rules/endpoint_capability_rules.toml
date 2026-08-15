@@ -1,0 +1,237 @@
+# Endpoint capability registry: API host -> canonical component.
+#
+# The ENDPOINT IDENTITY layer, a sibling of the package identity layer
+# (package_capability_rules.toml) and strictly separate from it:
+#
+#   - Package identity answers "which SDK is imported".
+#   - This catalog answers "which vendor API does this system call"
+#     when there is NO SDK at all -- the raw-HTTP integration style
+#     (aiohttp/httpx/requests against a literal base URL) that leaves
+#     no importable vendor name behind.
+#
+# Facts from this layer carry the DEDICATED fact kind "endpoint_vendor"
+# and rule ids prefixed "endpoint_vendor_", so they can never collide
+# with the code_pattern or package rule families in the component
+# bridge. Existing rule ids, regexes and bridge rule sets are frozen.
+#
+# MATCHING CONTRACT
+#   - host: an EXACT hostname match (case-insensitive). Never a
+#     substring: "openai" alone would match unrelated hosts and could
+#     not tell a self-hosted OpenAI-compatible runtime from the real
+#     service.
+#   - port: matches ANY host on that port, for local runtimes whose
+#     port is the distinctive signal (Ollama's 11434 stays 11434 whether
+#     it is reached at localhost, 127.0.0.1, host.docker.internal or the
+#     compose service name "ollama").
+#   - path_prefix (optional): when present the URL path must start with
+#     it, and the LONGEST matching path_prefix wins over a bare-host
+#     row. This is how one host splits into several capabilities
+#     (api.openai.com/v1/embeddings is an embedder; everything else on
+#     that host is the answerer).
+#
+# DELIBERATELY NOT LISTED
+#   - Generic local ports (8000, 8080, 1234): vLLM, llama.cpp, LM Studio
+#     and LocalAI default to the most common web-app ports in existence.
+#     A URL on :8080 is far more likely to be the project's own service
+#     than an inference runtime, so claiming one would fabricate a
+#     component. An unknown host produces nothing, by design.
+#   - Self-hosted OpenAI-compatible base URLs: they are not the OpenAI
+#     service and must never be attributed to it.
+schema_version = "endpoint-capability/v1"
+
+# --- OpenAI ---------------------------------------------------------
+# https://platform.openai.com/docs/api-reference/chat
+# https://platform.openai.com/docs/api-reference/embeddings
+
+[[endpoints]]
+rule_id = "endpoint_vendor_openai_embedding"
+host = "api.openai.com"
+path_prefix = "/v1/embeddings"
+slot = "embedding_model"
+kind = "embedding_provider"
+name = "OpenAI Embeddings"
+provider = "openai"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_openai_llm"
+host = "api.openai.com"
+slot = "llm"
+kind = "external_llm_provider"
+name = "OpenAI"
+provider = "openai"
+
+# --- Anthropic ------------------------------------------------------
+# https://docs.anthropic.com/en/api/messages
+
+[[endpoints]]
+rule_id = "endpoint_vendor_anthropic_llm"
+host = "api.anthropic.com"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Anthropic"
+provider = "anthropic"
+
+# --- Cohere ---------------------------------------------------------
+# https://docs.cohere.com/reference/chat
+# https://docs.cohere.com/reference/rerank
+
+[[endpoints]]
+rule_id = "endpoint_vendor_cohere_rerank"
+host = "api.cohere.com"
+path_prefix = "/v2/rerank"
+slot = "reranker"
+kind = "reranker"
+name = "Cohere Rerank"
+provider = "cohere"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_cohere_rerank_v1"
+host = "api.cohere.com"
+path_prefix = "/v1/rerank"
+slot = "reranker"
+kind = "reranker"
+name = "Cohere Rerank"
+provider = "cohere"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_cohere_llm"
+host = "api.cohere.com"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Cohere"
+provider = "cohere"
+
+# --- Voyage AI (embeddings-first vendor) ----------------------------
+# https://docs.voyageai.com/reference/embeddings-api
+# https://docs.voyageai.com/reference/reranker-api
+
+[[endpoints]]
+rule_id = "endpoint_vendor_voyageai_rerank"
+host = "api.voyageai.com"
+path_prefix = "/v1/rerank"
+slot = "reranker"
+kind = "reranker"
+name = "Voyage Rerank"
+provider = "voyageai"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_voyageai_embedding"
+host = "api.voyageai.com"
+slot = "embedding_model"
+kind = "embedding_provider"
+name = "Voyage AI Embeddings"
+provider = "voyageai"
+
+# --- OpenAI-compatible cloud vendors --------------------------------
+# https://console.groq.com/docs/api-reference
+# https://docs.mistral.ai/api/
+# https://novita.ai/docs/guides/llm-api
+# https://console.upstage.ai/docs/capabilities/chat
+# https://docs.together.ai/reference/chat-completions
+# https://openrouter.ai/docs/api-reference/overview
+# https://docs.fireworks.ai/api-reference/post-chatcompletions
+# https://api-docs.deepseek.com/
+# https://docs.x.ai/docs/api-reference
+# https://ai.google.dev/api/generate-content
+
+[[endpoints]]
+rule_id = "endpoint_vendor_groq_llm"
+host = "api.groq.com"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Groq"
+provider = "groq"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_mistral_llm"
+host = "api.mistral.ai"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Mistral"
+provider = "mistral"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_novita_llm"
+host = "api.novita.ai"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Novita AI"
+provider = "novita"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_upstage_llm"
+host = "api.upstage.ai"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Upstage Solar"
+provider = "upstage"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_together_llm"
+host = "api.together.ai"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Together AI"
+provider = "together"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_together_xyz_llm"
+host = "api.together.xyz"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Together AI"
+provider = "together"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_openrouter_llm"
+host = "openrouter.ai"
+slot = "llm"
+kind = "external_llm_provider"
+name = "OpenRouter"
+provider = "openrouter"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_fireworks_llm"
+host = "api.fireworks.ai"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Fireworks AI"
+provider = "fireworks"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_deepseek_llm"
+host = "api.deepseek.com"
+slot = "llm"
+kind = "external_llm_provider"
+name = "DeepSeek"
+provider = "deepseek"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_xai_llm"
+host = "api.x.ai"
+slot = "llm"
+kind = "external_llm_provider"
+name = "xAI Grok"
+provider = "xai"
+
+[[endpoints]]
+rule_id = "endpoint_vendor_google_gemini_llm"
+host = "generativelanguage.googleapis.com"
+slot = "llm"
+kind = "external_llm_provider"
+name = "Google Gemini"
+provider = "google"
+
+# --- Local runtimes (port is the distinctive signal) ----------------
+# https://github.com/ollama/ollama/blob/main/docs/api.md
+# Ollama binds 11434 by default and keeps that port behind every host
+# form: localhost, 127.0.0.1, host.docker.internal, or the compose
+# service name.
+
+[[endpoints]]
+rule_id = "endpoint_vendor_ollama_runtime"
+port = 11434
+slot = "llm"
+kind = "local_llm_runtime"
+name = "Ollama"
+provider = "ollama"

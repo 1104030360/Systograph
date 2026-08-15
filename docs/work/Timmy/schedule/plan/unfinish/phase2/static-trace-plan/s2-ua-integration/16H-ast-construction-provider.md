@@ -1,4 +1,4 @@
-# 16H — AST 建構補充 provider：G1 函式外建構 / G2 工廠推論 / G3 外部 import 邊
+# 16H — AST 建構補充 provider：G1 函式外建構 / G2 工廠推論 / G3 外部 import declaration
 
 > 📖 **第一次看？** 先讀 [`README.md`](./README.md)（閱讀順序 + 名詞對照表）。
 > **白話一句話：** UA 有三個先天看不到的盲點（16E 的 G1/G2/G3），這份是把它們
@@ -6,7 +6,29 @@
 > **Review 重點看 Task 1**——`evidence_kind_hint` 是 G2 推論與 16C L1/L2 分級的
 > 正確性前提，**必須第一個做**，否則後面全錯而且型別系統攔不住。
 
-Status: planned — **不等任何 Gate，可立即動工**（s2 目前唯一 ungated 的工作）
+Status: **completed（2026-08-10）** — Task 1～5 已接入 deterministic scan，typed facts、G1/G2/G3 與 evidence hint 均有契約／回歸測試。
+
+> **AST source-read 平台邊界：** 現行安全實作需要 POSIX `dirfd` / `openat` /
+> `O_NOFOLLOW`。每次 descriptor read 都要匹配 inventory `size_bytes` 與
+> `content_fingerprint`。非 POSIX 或缺少這組 primitive 時會對 Python 檔案產生
+> structured read issue、零 AST fact；不得退回 pathname check。原生 Windows
+> safe-handle 支援是後續 capability，不是本計畫假裝已完成的相容層。
+
+> **2026-08-10 Phase 12 live-code 校正（HEAD `da0d402`）：ready，先修規格再實作。**
+> 現行 component bridge 會把既有 `(rule_id, kind)` fact 直接建成 component，且
+> canonical evidence 只要有 file+line 就會被形狀啟發式升 direct；因此舊 Task 4
+> 會讓未使用 import 產生假 detected。取代規則如下：
+>
+> 1. 新增 frozen、可判別聯集的 `StructuralFact`（call/import/symbol/factory），並在
+>    `ProviderScanResult` / `ProjectScanResult` 加 `structural_facts`；topology facts
+>    不送進 component bridge。
+> 2. G1 的實際 call/constructor 可同時產 component fact（direct）與 call structural
+>    fact；G2 component fact 必帶 `hint=indirect`，factory structural fact 保留
+>    provenance；G3 **只**產 `ExternalImportStructuralFact` + indirect evidence。
+> 3. Task 2 只替語意能精確對應 constructor/call 的規則填 `symbol`；route decorator、
+>    `.as_retriever()`、設定型 regex 不得為湊滿 13 筆硬塞假 constructor symbol。
+> 4. 反向 contract：未使用 external import 不建立 component、不產 observed edge；
+>    只有真正 symbol usage/call 才能升 direct。
 
 > **執行者注意：** 逐 task 實作本計畫。步驟使用 checkbox（`- [ ]`）語法以便追蹤。
 >
@@ -32,14 +54,14 @@ Status: planned — **不等任何 Gate，可立即動工**（s2 目前唯一 un
 > | Gate-1 / Gate-2 / Plan 16 | **不需要**。本檔不消費任何 UA 輸出，只用 stdlib `ast` 掃 repo 內的 `.py`；2026-08-10 Q1 裁定明文「16H 不等 Gate」 |
 > | [`13.7`](../../../../finish/s1-v2-cutover/13.7.md) / [`13.8`](../../../../finish/s1-v2-cutover/13.8.md) | ✅ 已滿足（2026-07-29 done；由回歸測試守護）。本檔沿用既有 `rule_id` / `kind`，字彙對齊工作已完成 |
 > | 本檔 **Task 1**（`evidence_kind_hint`） | **內部硬前置**：Task 5（G2）產出的是**推論型且帶行號**的 fact，若沒有 hint，`canonical_evidence_service.py:26-31` 的形狀啟發式會**自動把它升級成 `direct`** → 節點升成 `detected` → 五態契約破功。**Task 1 契約測試未綠前，不得動 Task 5** |
-> | 本檔 **Task 2**（`symbol` 欄） | **內部硬前置**：Task 3/4/5 都要用「符號 →(rule_id, kind)」的翻譯字典。先落地單一真相源，避免 provider 內部長出臨時私有清單造成字彙漂移（2026-08-10 Q4 裁定） |
+> | 本檔 **Task 2**（typed structural facts + `symbol` 欄） | **內部硬前置**：Task 3/4/5 都要用 typed topology payload；只有能精確表示 constructor/call 的規則才加入「符號 →(rule_id, kind)」翻譯，避免私有清單與假語意 |
 >
-> **本檔是誰的硬前置：** **Task 4（G3 外部 import 邊）為
+> **本檔是誰的硬前置：** **Task 4（G3 外部 import declaration）為
 > [`16`](./16-implement-understand-anything-sidecar-service.md) Task 3
 > （`UaStructuralAdapter`）的硬前置**（2026-08-10 Q6 裁定，三處措辭已統一為
-> 「硬前置」而非「建議／應」）。理由是 **parity 基線一致性**：G3 會把外部依賴的
-> 證據等級從 `indirect` 升成帶行號的 `direct`，若落在 adapter 的 parity 基線
-> **之後**才做，這次升級會混進 parity diff 裡，**真實退化與基線位移分不出來**。
+> 「硬前置」而非「建議／應」）。理由是 **parity 基線一致性**：G3 會新增 typed
+> import-only facts（證據維持 `indirect`）；若落在 adapter 的 parity 基線
+> **之後**才做，這批新增事實會混進 parity diff 裡，**真實退化與基線位移分不出來**。
 > Q1 裁定後本檔立即開工、Plan 16 仍等 Gate-1，此硬前置實務上零成本。
 
 ---
@@ -50,7 +72,7 @@ Status: planned — **不等任何 Gate，可立即動工**（s2 目前唯一 un
 |---|------|--------------------|----------|----------------------|
 | **G1** | 任何 `def` 之外的呼叫看不到（含 class body） | `python-extractor.ts:167` 的 `functionStack.length > 0` 守衛 | Task 3：scope-depth 計數器，depth 0 的 `Call` 即 import-time 建構 | `direct`（目擊，帶行號） |
 | **G2** | 工廠 / 間接建構解不出 | 靜態分析的固有邊界 | Task 5：追進工廠函式，`MAX_FACTORY_HOPS = 3`，分支不塌縮 | `indirect`（**推論，一律標 hint**） |
-| **G3** | 外部 import 邊消失 | UA 兩條輸出路徑各自主動丟棄（`extract-import-map.mjs:1790` 的 `fileSet` 過濾、`extract-structure-result.mjs:106-111` 只輸出數量） | Task 4：G1 綁定表的副產品，過濾掉專案自己的 module root 就是答案 | `direct`（import 陳述那行） |
+| **G3** | 外部 import declaration 消失 | UA 兩條輸出路徑各自主動丟棄（`extract-import-map.mjs:1790` 的 `fileSet` 過濾、`extract-structure-result.mjs:106-111` 只輸出數量） | Task 4：G1 綁定表的副產品，過濾掉專案自己的 module root；只進 structural facts | `indirect`（有行號仍未證明 symbol 被使用） |
 
 **三個缺口裡，零個需要 LLM。** 這是 16E §0 的結論，本檔只是把它變成可執行的步驟。
 
@@ -165,14 +187,14 @@ def matches(self, fact: ScanFact) -> bool:
 
 **Steps**
 
-- [ ] **步驟 ①（必須最先）** 新增 `core/models/evidence_kind.py`，把
+- [x] **步驟 ①（必須最先）** 新增 `core/models/evidence_kind.py`，把
       `AssessmentEvidenceKind = Literal["direct", "indirect", "explicit_negative"]`
       從 `ai_system_map_v2.py:57` 移入；該檔**不得 import 任何其他 systograph
       model**（檔頭比照 `recommended_next_check.py` 寫明此紀律與理由）
-- [ ] **步驟 ②** `ai_system_map_v2.py` 改為 re-export 綁名字；驗證
+- [x] **步驟 ②** `ai_system_map_v2.py` 改為 re-export 綁名字；驗證
       `canonical_evidence_service.py` 與 `system_map_v1_to_v2_adapter.py`
       **一行都不用改**（字彙不變、值域不變）
-- [ ] **步驟 ③** `Evidence` 加**加性**欄位（只加不改，既有 provider 全部不設此欄，行為不變）：
+- [x] **步驟 ③** `Evidence` 加**加性**欄位（只加不改，既有 provider 全部不設此欄，行為不變）：
 
       ```python
       # core/models/system_map.py — Evidence
@@ -182,9 +204,9 @@ def matches(self, fact: ScanFact) -> bool:
       ```
 
       值域沿用既有三值，**不新增字彙**
-- [ ] 迴圈防護測試：斷言 `evidence_kind.py` 的 import 集合為空（或不含任何
+- [x] 迴圈防護測試：斷言 `evidence_kind.py` 的 import 集合為空（或不含任何
       `systograph.core.models.*`），避免日後有人往中立 module 加相依
-- [ ] `canonical_evidence_service` 改為 hint 優先：
+- [x] `canonical_evidence_service` 改為 hint 優先：
 
       ```python
       evidence_kind = (
@@ -194,26 +216,26 @@ def matches(self, fact: ScanFact) -> bool:
       )
       ```
 
-- [ ] 契約測試①（正向）：設 `evidence_kind_hint="indirect"` 且**同時帶
+- [x] 契約測試①（正向）：設 `evidence_kind_hint="indirect"` 且**同時帶
       `file` + `line_start`** 的 Evidence，經 `canonical_evidence_service`
       之後必須是 `indirect`——形狀啟發式不得覆寫 hint
-- [ ] 契約測試②（回歸）：未設 hint 的 Evidence 走原本形狀判定，結果與改動前逐筆相同
-- [ ] **契約測試③（反向斷言）：任何推論型 fact 必須申報
+- [x] 契約測試②（回歸）：未設 hint 的 Evidence 走原本形狀判定，結果與改動前逐筆相同
+- [x] **契約測試③（反向斷言）：任何推論型 fact 必須申報
       `evidence_kind_hint="indirect"`**——以本檔 Task 5 的 provider 輸出為對象，
       斷言「G2 產出的每一筆 evidence 都帶 hint 且值為 `indirect`」，
       漏標即紅（Task 5 落地時一併補上這條的實際資料來源；Task 1 階段先以
       合成 fixture 釘住規則）
-- [ ] **契約測試④（反向斷言）：LLM 產出不得宣告 `direct`**——
+- [x] **契約測試④（反向斷言）：LLM 產出不得宣告 `direct`**——
       任何經 `MappingProposalService` / `llm_proposal_provider` 路徑產生的
       evidence，其 `evidence_kind` 不得為 `direct`
       （對齊 16E §6.4「永遠不得寫入的欄位」清單第 3 條；
       `reference_capability_assessment_service.py:147-151` 的結構性保證再加一層釘子）
-- [ ] `mypy src tests` 全綠——`AssessmentEvidenceKind | None` 的引入不得讓
+- [x] `mypy src tests` 全綠——`AssessmentEvidenceKind | None` 的引入不得讓
       既有 `Evidence` 建構點噴型別錯
 
 ---
 
-### Task 2 — `code_pattern_rules.toml` 加可選 `symbol` 欄
+### Task 2 — typed structural facts + `code_pattern_rules.toml` 可選 `symbol`
 
 > **為什麼併進本 PR（2026-08-10 Q4 裁定）：** 16H 開工即需要「符號 →(rule_id, kind)」
 > 的翻譯字典；若不先落地共用表，provider 內部會長出臨時私有清單，造成
@@ -224,7 +246,11 @@ def matches(self, fact: ScanFact) -> bool:
 
 **Files**
 
-- Modify: `src/systograph/core/rules/code_pattern_rules.toml`（13 列各加可選 `symbol`）
+- Add: `src/systograph/core/models/structural_fact.py`（frozen discriminated union：
+  call/import/symbol/factory inference；每一型別自帶 deterministic identity fields）
+- Modify: `src/systograph/core/models/scan.py`（`ProviderScanResult` / `ProjectScanResult`
+  的 `structural_facts` 加性欄位）
+- Modify: `src/systograph/core/rules/code_pattern_rules.toml`（只對語意精確的列加可選 `symbol`）
 - Modify: `src/systograph/core/services/rule_catalog_loader.py`
   （`CodePatternRule`（`:52-60`）加欄位；`load_code_pattern_rules`（`:164-233`）
   解析可選字串；目前 loader 只有 `_required_string` 系列，需補一個 optional 版）
@@ -232,7 +258,10 @@ def matches(self, fact: ScanFact) -> bool:
 
 **Steps**
 
-- [ ] TOML 每列加**可選** `symbol` 欄，值為完整點分符號路徑，例如：
+- [x] 先定義 typed structural fact union；禁止把 caller/callee/span/provenance 塞進
+      自由格式 `ScanFact.value`。每種 payload 必須可 JSON round-trip 且排序鍵固定。
+- [x] 對可精確表示 constructor/call 的 TOML 列加**可選** `symbol` 欄，值為完整點分
+      符號路徑，例如：
 
       ```toml
       [[patterns]]
@@ -245,15 +274,17 @@ def matches(self, fact: ScanFact) -> bool:
       symbol = "qdrant_client.QdrantClient"
       ```
 
-- [ ] **加性變更：既有 13 列不需修改語意**，只是多一個鍵；未填 `symbol` 的列
+- [x] **加性變更：既有 13 列不需修改語意**，只是多一個鍵；未填 `symbol` 的列
       loader 照常載入（`symbol=None`），AST provider 單純不消費該列
-- [ ] `CodePatternRule` 加 `symbol: str | None`；loader 補 optional-string 解析
-- [ ] 護欄測試①：`symbol` 在整張表內**唯一**（重複即 `RuleCatalogError`，
+- [x] route decorator、`.as_retriever()`、設定型 regex 等非 constructor 語意列維持
+      `symbol=None`；測試明確證明不會為了覆蓋數量把它們錯配成 constructor
+- [x] `CodePatternRule` 加 `symbol: str | None`；loader 補 optional-string 解析
+- [x] 護欄測試①：`symbol` 在整張表內**唯一**（重複即 `RuleCatalogError`，
       比照既有 `duplicate rule_id` / `duplicate pattern` 的處理）
-- [ ] 護欄測試②：`symbol` 若存在必須是非空點分字串（不得是空字串、不得含空白）
-- [ ] 護欄測試③：**缺 `symbol` 不得讓載入失敗**（加性保證），且該列不會被
+- [x] 護欄測試②：`symbol` 若存在必須是非空點分字串（不得是空字串、不得含空白）
+- [x] 護欄測試③：**缺 `symbol` 不得讓載入失敗**（加性保證），且該列不會被
       AST provider 靜默當成「符號未知」而發出錯誤 fact
-- [ ] 護欄測試④：**符號目錄與 regex 目錄同源**——斷言 AST provider 認得的符號集合
+- [x] 護欄測試④：**符號目錄與 regex 目錄同源**——斷言 AST provider 認得的符號集合
       ⊆ TOML 的 `symbol` 集合，provider 內不得有硬編碼清單（防兩表漂移）
 
 ---
@@ -275,56 +306,56 @@ def matches(self, fact: ScanFact) -> bool:
 
 **Steps**
 
-- [ ] 形狀對齊 `code_pattern_provider.py`：`collect(inventory) -> ProviderScanResult`、
+- [x] 形狀對齊 `code_pattern_provider.py`：`collect(inventory) -> ProviderScanResult`、
       只吃 `.py`、`SyntaxError` → `ParseIssue`（**不得讓整次掃描崩掉**）
-- [ ] `ParseIssue` 用 `provider="ast_construction"`（該欄是自由 `str`），
+- [x] `ParseIssue` 用 `provider="ast_construction"`（該欄是自由 `str`），
       **`scan_stage` 沿用既有 `"code_pattern_scan"`**——16E §2.7 既有裁定，
       **不改 `scan.py:107-114` 的封閉 Literal**
       （Literal 的第 7 個值 `"ua_structural_scan"` 屬 Plan 16 Task 1，與本檔無關）
-- [ ] **演算法＝scope-depth 計數器，不要逐一列舉語句型別**：
+- [x] **演算法＝scope-depth 計數器，不要逐一列舉語句型別**：
       只在 `FunctionDef` / `AsyncFunctionDef` / `Lambda` 的 body 遞增 depth；
       **depth 0 的 `Call` 即為 import-time 建構**。這一招統一涵蓋 `Assign`、
       `AnnAssign`、裸 `Expr(Call)`、`With` / `AsyncWith`、list comprehension、walrus
-- [ ] **`ClassDef` 不遞增 depth**——class body 的頂層語句在 import 時就執行一次
+- [x] **`ClassDef` 不遞增 depth**——class body 的頂層語句在 import 時就執行一次
       （`class Settings: CLIENT = QdrantClient()` 是 RAG 專案極常見的設定類別寫法）
-- [ ] 維護 import 綁定表 `(local_name → module, original_name, line)`，
+- [x] 維護 import 綁定表 `(local_name → module, original_name, line)`，
       用 Task 2 的 `symbol` 目錄把解出的完整符號翻回 `(rule_id, kind)`
-- [ ] 沿用既有 `rule_id` / `kind` 發 `ScanFact` ＋帶行號的 `Evidence`
+- [x] 沿用既有 `rule_id` / `kind` 發 `ScanFact` ＋帶行號的 `Evidence`
       （目擊事實，**不設 hint**，走原本的形狀判定即為 `direct`）
-- [ ] 走 `SecretMaskingService`，snippet 比照 `code_pattern_provider` 的上限處理
-- [ ] provider 檔頭補「責任 / 呼叫鏈」結構化註解（同 `core/providers/` 慣例）
+- [x] 走 `SecretMaskingService`，snippet 比照 `code_pattern_provider` 的上限處理
+- [x] provider 檔頭補「責任 / 呼叫鏈」結構化註解（同 `core/providers/` 慣例）
 
 **七個實作雷區——各自一個 Step ＋ 一條測試（16E §2.5，會靜默寫錯的地方）**
 
-- [ ] **雷區 1｜import 別名綁定**：`import a.b.c as m` 綁**完整點分模組**
+- [x] **雷區 1｜import 別名綁定**：`import a.b.c as m` 綁**完整點分模組**
       （`m.Foo` → `a.b.c.Foo`）；`import a.b.c`（無 `as`）**只綁頂層名 `a`**，
       後續 `a.b.c.Foo()` 必須照作者寫的屬性鏈解。
       測試：兩種寫法各一，斷言**不得**產出 `a.b.c.b.c.Foo` 這種重複片段
-- [ ] **雷區 2｜decorator / 基底類別 / `def` 參數預設值在外層作用域求值**：
+- [x] **雷區 2｜decorator / 基底類別 / `def` 參數預設值在外層作用域求值**：
       naive visitor 若先遞增 depth 再 `generic_visit`，會把
       `@app.on_event("startup")` 或 `def f(x=Client())` 誤判成埋在函式內。
       測試：三種寫法各一，斷言都被視為 depth 0
-- [ ] **雷區 3｜`if TYPE_CHECKING:`**：body 要**跳過**（runtime 不執行），
+- [x] **雷區 3｜`if TYPE_CHECKING:`**：body 要**跳過**（runtime 不執行），
       `orelse` 要正常走。測試：TYPE_CHECKING body 內的建構不得產生 fact，
       `else` 分支內的要產生
-- [ ] **雷區 4｜`from X import *`**：無法靜態解析。標記 `is_star`，
+- [x] **雷區 4｜`from X import *`**：無法靜態解析。標記 `is_star`，
       永遠落 `unresolved`，**不猜**。測試：star import 後的呼叫不得產生已解析 fact，
       且該 star import 必須被計數（不得靜默）
-- [ ] **雷區 5｜跨檔案 re-export**：`from .clients import QdrantClient`
+- [x] **雷區 5｜跨檔案 re-export**：`from .clients import QdrantClient`
       （而 `clients.py` 自己 `from qdrant_client import ...`）單檔解析只得到
       `clients.QdrantClient`。保留「**裸末段名 fallback**」並**明確標記**——
       等同今天 regex 的行為，不是新風險。測試：斷言 fallback 有標記、可與
       完整解析區分
-- [ ] **雷區 6｜`try: import X / except ImportError: X = None`**：
+- [x] **雷區 6｜`try: import X / except ImportError: X = None`**：
       兩個分支都在 depth 0，binding **照常記錄**，不需特判。
       測試：斷言 try 分支的 import 正常進綁定表
-- [ ] **雷區 7｜metaclass / `__init_subclass__` 隱式建構**：靜態分析看不到，
+- [x] **雷區 7｜metaclass / `__init_subclass__` 隱式建構**：靜態分析看不到，
       **不發 fact**（符合「缺席 ≠ negative」）。
       測試：metaclass fixture 產出 0 筆相關 fact，且**不得**發任何 `not_detected`
 
 ---
 
-### Task 4 — G3：外部 import 邊（**Plan 16 Task 3 的硬前置**）
+### Task 4 — G3：外部 import declaration（**Plan 16 Task 3 的硬前置**）
 
 > **投報率最高的一項，而且幾乎是 G1 的免費副產品（16E §4.3）：**
 > Task 3 的 binding table 已記錄 `(local_name → module, original_name, line)`，
@@ -333,35 +364,35 @@ def matches(self, fact: ScanFact) -> bool:
 **Files**
 
 - Modify: `src/systograph/core/providers/ast_construction_provider.py`
-  （沿用 Task 3 的 binding table，加外部 import fact 的產出路徑）
+  （沿用 Task 3 的 binding table，加 typed external-import structural fact）
 - Add: `tests/unit/core/test_ast_construction_provider_external_imports.py`
 - Modify: `tests/fixtures/rag_projects/` 既有 fixture（確認外部 import 有被撈到）
 
 **Steps**
 
-- [ ] 從 Task 3 的 binding table 產出外部 import fact，
+- [x] 從 Task 3 的 binding table 產出 `ExternalImportStructuralFact`，
       **證據帶行號＝`import` / `from ... import` 陳述那一行**
-      （目擊事實，不設 hint → `direct`）
-- [ ] `project_module_roots` **由既有 inventory 推導**（`ProjectScanService` 的
+      但明設 `evidence_kind_hint="indirect"`；import declaration 不是 symbol usage
+- [x] `project_module_roots` **由既有 inventory 推導**（`ProjectScanService` 的
       專案佈局理解已足夠），用來過濾內部 / 外部；**不新增掃描能力、不新增設定項**
-- [ ] 內部 import（解得到專案內模組）**不由本檔處理**——那是 Plan 16 adapter 的
+- [x] 內部 import（解得到專案內模組）**不由本檔處理**——那是 Plan 16 adapter 的
       `ua_import_*` 職責，本檔只補 UA 主動丟棄的**外部**那一半，避免兩個生產者打架
-- [ ] 字彙沿用既有目錄，**不自創 `rule_id`**：能經 Task 2 的 `symbol` 目錄或
-      `dependency_manifest_rules.toml` 的既有對照翻出 `(rule_id, kind)` 的才發 fact；
-      **查無對照 → 不發 fact**（§2.4）
-- [ ] 測試：外部 import 產出帶行號的 direct 證據；專案內 import 不產出；
+- [x] structural fact 使用專屬 stable identity（例如 `ua_external_import`），不得鏡射
+      component bridge 的 `(rule_id, kind)`；contract test 斷言 bridge 回 `NO_MATCH`
+- [x] 測試：外部 import 產出帶行號但仍為 indirect 的 evidence；專案內 import 不產出；
       同一個外部套件同時被 `requirements.txt` 與 import 陳述命中時，
-      兩筆證據**並存不互相覆寫**（證據等級升級靠新增，不靠改寫既有 fact）
-- [ ] 測試：`project_module_roots` 推導對 `src/` layout 與扁平 layout 皆正確
+      兩筆證據**並存不互相覆寫**
+- [x] 反向測試：只有未使用 external import 時，component 數與 observed edge 數均不變；
+      增加真正 call 後才可由 G1/UA call fact 產 direct evidence
+- [x] 測試：`project_module_roots` 推導對 `src/` layout 與扁平 layout 皆正確
 
 > **⚠️ 合併順序是硬性的：** 本 Task 必須**先於**
 > [`16`](./16-implement-understand-anything-sidecar-service.md) Task 3 合併。
 > 理由見檔頭硬前置表（parity 基線一致性）。
 >
 > **查核註記（2026-08-10 親驗）：** `component_bridge_rules.py` 裡
-> **零條規則**引用 `dependency_*` 開頭的 rule_id，所以 G3 的價值在
-> **證據等級升級 + parity 基線**，不在「新增元件」；不要在 PR 描述裡宣稱
-> 它會讓卡片翻綠。
+> **零條規則**引用 `dependency_*` 開頭的 rule_id；G3 的價值在 import provenance
+> 與 parity 基線，不在「新增元件」或證據升級。不得宣稱它會讓卡片翻綠。
 
 ---
 
@@ -381,18 +412,18 @@ def matches(self, fact: ScanFact) -> bool:
 
 **Steps**
 
-- [ ] 依 16E §3.1 的**確定性階梯**實作，順序不可顛倒：
+- [x] 依 16E §3.1 的**確定性階梯**實作，順序不可顛倒：
       ① 回傳型別標註（`def get_vector_store(cfg) -> QdrantClient:`，免費）→
       ② **兩跳 in-repo 解析**（工廠在專案內 → 用 Task 3 的 binding table 找到檔案
       與函式區間 → 只 AST 走那一段找 `return`）→
       ③ framework 已知工廠（`.as_retriever()` / `.from_documents()`）
       **已由既有 TOML 規則處理**（`code_pattern_retriever_as_retriever`），不重做
-- [ ] 固定點迭代，**深度上限 `MAX_FACTORY_HOPS = 3`**（模組級常數，不做成設定項），
+- [x] 固定點迭代，**深度上限 `MAX_FACTORY_HOPS = 3`**（模組級常數，不做成設定項），
       另加 visited-set **防環**
-- [ ] 回傳分類三種：`construction`（直接解到匯入符號）、
+- [x] 回傳分類三種：`construction`（直接解到匯入符號）、
       `delegate_call`（轉呼叫另一個專案內函式，計入 hop）、
       其他（**終止，不發 fact**）
-- [ ] **分支不塌縮**：每個 `return` 分支**各發一筆 fact**——
+- [x] **分支不塌縮**：每個 `return` 分支**各發一筆 fact**——
 
       ```python
       if cfg.provider == "qdrant":
@@ -403,12 +434,12 @@ def matches(self, fact: ScanFact) -> bool:
 
       這是**確定性事實**：「此工廠可建構兩種後端，執行期由 config 決定」。
       發兩筆，不挑一個當答案
-- [ ] 同理處理 RAG 膠水碼常見的 **dict registry 模式**
+- [x] 同理處理 RAG 膠水碼常見的 **dict registry 模式**
       （`PROVIDERS = {"qdrant": QdrantClient}; return PROVIDERS[name](...)`），
       同樣以析取（disjunction）處理，每個 registry 值各一筆
-- [ ] **每一筆 G2 fact 的 evidence 都帶 `evidence_kind_hint="indirect"`**
+- [x] **每一筆 G2 fact 的 evidence 都帶 `evidence_kind_hint="indirect"`**
       （Task 1 的欄位），**無例外**——節點因此最多 `partial`
-- [ ] 實作下方**五條邊界，到這裡就停且必須停**（16E §3.4）
+- [x] 實作下方**五條邊界，到這裡就停且必須停**（16E §3.4）
 
 **五條邊界（每條各一個 fixture，全部斷言 0 筆 fact）**
 
@@ -420,13 +451,13 @@ def matches(self, fact: ScanFact) -> bool:
 | 裝飾器替換回傳值 | 自訂 `@registered_provider` | 不發 fact（無法與 `@lru_cache` 這類透明裝飾器區分） |
 | 超過 hop 上限 / 成環 | — | 降級為不發 fact ＋計數，**不得掛起或崩潰** |
 
-- [ ] **防假陽性測試（驗收必備，2026-08-10 裁定明列）**：五條邊界各一個 fixture，
+- [x] **防假陽性測試（驗收必備，2026-08-10 裁定明列）**：五條邊界各一個 fixture，
       斷言**產出 0 筆 fact**；並斷言**不得**因此發出 `not_detected`
       （§2.4：發不出 fact 就什麼都不發）
-- [ ] 測試：分支工廠 → 恰好 N 筆 fact（N = return 分支數），**全部** `hint=indirect`
-- [ ] 測試：hop 上限——第 4 跳的工廠鏈產出 0 筆 fact 並計入 warnings
-- [ ] 測試：成環的工廠鏈不掛起（有時間上界）且產出 0 筆 fact
-- [ ] 邊的處理**不在本 Task**：16C 消費這批 fact 後標
+- [x] 測試：分支工廠 → 恰好 N 筆 fact（N = return 分支數），**全部** `hint=indirect`
+- [x] 測試：hop 上限——第 4 跳的工廠鏈產出 0 筆 fact 並計入 warnings
+- [x] 測試：成環的工廠鏈不掛起（有時間上界）且產出 0 筆 fact
+- [x] 邊的處理**不在本 Task**：16C 消費這批 fact 後標
       `status="undetermined"` ＋專屬 `undetermined_reason="factory_inference"`，
       **不進 profile 接線證據**。本檔只產 facts，
       16C 落地時需在其 Task 4 附近補上這個 reason 值與對應契約測試
@@ -445,12 +476,14 @@ def matches(self, fact: ScanFact) -> bool:
 | 6 | G2 產出的 evidence **100% 帶 `hint="indirect"`** | 契約測試掃該 provider 全部輸出，漏標即紅 |
 | 7 | **確定性** | 同一 fixture 掃 N ≥ 20 次，facts + evidence 逐位元相同（零 LLM 的可驗證後果） |
 | 8 | **bridge 13 條零改動** | `git diff src/systograph/core/services/component_bridge_rules.py` 為空 |
-| 9 | **不改 `ParseIssue.scan_stage` 封閉 Literal** | `git diff` 該 Literal 為空；AST provider 的 ParseIssue 全部是 `"code_pattern_scan"` |
-| 10 | **不改 vendored tree** | `git diff ref-opensource/Understand-Anything/` 為空（16E §4.3、`ref-opensource/CLAUDE.md`） |
-| 11 | read-only 保證 | 掃描過程不寫入被掃專案，連暫存檔都不行（既有 `path_safety_service` 規範） |
-| 12 | 前端未改任何檔 | `git diff frontend/` 為空 |
-| 13 | 全綠且不掉覆蓋率 | `uv run pytest`、`ruff check src tests`、`ruff format --check src tests`、`mypy src tests`；branch coverage ≥ 85% |
-| 14 | **不得為了讓 fixture 過而寫特化 code** | 見下方紅線 |
+| 9 | **G3 不製造 component 假陽性** | internal module 名單只由 approved inventory 的合法 Python 相對路徑推導，不依賴 live pathname existence；未使用 external import 只產 indirect structural fact，bridge `NO_MATCH`，observed edge=0 |
+| 10 | **typed structural facts 可重放** | call/import/symbol/factory union JSON round-trip 與 stable sort/id contract |
+| 11 | **不改 `ParseIssue.scan_stage` 封閉 Literal** | `git diff` 該 Literal 為空；AST provider 的 ParseIssue 全部是 `"code_pattern_scan"` |
+| 12 | **不改 vendored tree** | `git diff ref-opensource/Understand-Anything/` 為空（16E §4.3、`ref-opensource/CLAUDE.md`） |
+| 13 | read-only 與 approved-bytes 保證 | 掃描過程不寫入被掃專案；POSIX source read 由 pinned root dirfd 逐層 no-follow 開啟，descriptor bytes 必須符合 inventory size/fingerprint。缺少安全 primitive 時 structured fail closed，禁止 pathname fallback |
+| 14 | 前端未改任何檔 | `git diff frontend/` 為空 |
+| 15 | 全綠且不掉覆蓋率 | `uv run pytest`、`ruff check src tests`、`ruff format --check src tests`、`mypy src tests`；branch coverage ≥ 85% |
+| 16 | **不得為了讓 fixture 過而寫特化 code** | 見下方紅線 |
 
 > **🚨 紅線——引用根 `CLAUDE.md` 的「Never game a red CI into green」原則：**
 > 當誠實掃描模式暴露出「掃描器對某個檔案／fixture 產不出真實 facts」時，
@@ -498,7 +531,7 @@ def matches(self, fact: ScanFact) -> bool:
 | `../../../refactor/15-complete-legacy-v1-retirement-after-compatibility.md` | Plan 15：版本中立 symbol 拆出 `system_map.py` 的完整清單；本 task 的中立 module 即其落腳處 |
 | `src/systograph/core/models/scan.py` | `ScanFact`（`:92`）／`ParseIssue`（`:103`，`scan_stage` 封閉 Literal 在 `:107-114`） |
 | `src/systograph/core/services/rule_catalog_loader.py` | `CodePatternRule`（`:52-60`）／`load_code_pattern_rules`（`:164-233`）——Task 2 改動點 |
-| `src/systograph/core/rules/code_pattern_rules.toml` | 13 列 regex 目錄；Task 2 在此加 `symbol` 欄 |
+| `src/systograph/core/rules/code_pattern_rules.toml` | 13 列 regex 目錄；Task 2 只在語意可精確對應的列加 `symbol` 欄 |
 | `src/systograph/core/services/component_bridge_models.py` | `matches` 只 key `(rule_id, kind)`（§2.2 出處） |
 | `src/systograph/core/services/component_bridge_rules.py` | 13 條規則；本檔驗收要求 `git diff` 為空 |
 | `src/systograph/core/services/project_scan_service.py` | `:88-92` 預設 provider tuple（Task 3 註冊點）；`:153-163` 把 provider 例外吞成 ParseIssue 的 loop |
