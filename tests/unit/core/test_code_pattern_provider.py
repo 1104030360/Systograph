@@ -154,6 +154,188 @@ def test_collect_emits_chromadb_client_mode_facts(tmp_path: Path) -> None:
     )
 
 
+def test_collect_emits_ollama_native_sdk_call_facts(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "rag.py").write_text(
+        "\n".join(
+            [
+                "import ollama",
+                "",
+                "embedding = ollama.embeddings(",
+                "    model='mxbai-embed-large', prompt=question",
+                ")['embedding']",
+                "vector = ollama.embed(model='mxbai-embed-large', input=q)",
+                "reply = ollama.chat(model='llama3', messages=history)",
+                "draft = ollama.generate(model='llama3', prompt=q)",
+                "client = ollama.Client(host='http://127.0.0.1:11434')",
+                "async_client = ollama.AsyncClient()",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "rag.py")
+
+    result = CodePatternProvider().collect(inventory)
+
+    facts_by_rule: dict[str, list[str]] = {}
+    for fact in result.facts:
+        assert fact.rule_id is not None
+        facts_by_rule.setdefault(fact.rule_id, []).append(fact.value or "")
+    assert facts_by_rule["code_pattern_embedding_ollama"] == [
+        "ollama.embeddings(",
+        "ollama.embed(",
+    ]
+    assert facts_by_rule["code_pattern_llm_chat_ollama"] == [
+        "ollama.chat(",
+        "ollama.generate(",
+    ]
+    assert facts_by_rule["code_pattern_llm_client_ollama"] == [
+        "ollama.Client(",
+        "ollama.AsyncClient(",
+    ]
+    embedding_facts = [
+        fact
+        for fact in result.facts
+        if fact.rule_id == "code_pattern_embedding_ollama"
+    ]
+    assert all(fact.kind == "embedding" for fact in embedding_facts)
+    assert not result.issues
+
+
+def test_collect_does_not_match_prefixed_ollama_module_names(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "wrapper.py").write_text(
+        "embedding = myollama.embeddings(model='m', prompt=q)\n"
+        "reply = notollama.chat(model='m', messages=[])\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "wrapper.py")
+
+    result = CodePatternProvider().collect(inventory)
+
+    assert result.facts == []
+
+
+def test_collect_attributes_multiline_openai_compat_call_to_local_ollama(
+    tmp_path: Path,
+) -> None:
+    # Given: the exact multi-line client shape from easy-local-rag.
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "localrag.py").write_text(
+        "\n".join(
+            [
+                "from openai import OpenAI",
+                "",
+                "client = OpenAI(",
+                "    base_url='http://localhost:11434/v1',",
+                "    api_key='llama3'",
+                ")",
+                "response = client.chat.completions.create(",
+                "    model='llama3', messages=messages",
+                ")",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "localrag.py")
+
+    result = CodePatternProvider().collect(inventory)
+
+    rule_ids = {fact.rule_id for fact in result.facts}
+    assert "code_pattern_llm_openai_compat_local_ollama" in rule_ids
+    assert "code_pattern_llm_chat_openai_sdk" in rule_ids
+    assert "code_pattern_llm_client_openai" not in rule_ids
+    compat_fact = next(
+        fact
+        for fact in result.facts
+        if fact.rule_id == "code_pattern_llm_openai_compat_local_ollama"
+    )
+    assert compat_fact.kind == "llm_call"
+    assert compat_fact.path == "line[3]"
+
+
+def test_collect_emits_plain_openai_client_fact_without_base_url(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "external.py").write_text(
+        "from openai import AsyncOpenAI, OpenAI\n"
+        "client = OpenAI()\n"
+        "async_client = AsyncOpenAI(api_key=os.environ['OPENAI_API_KEY'])\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "external.py")
+
+    result = CodePatternProvider().collect(inventory)
+
+    values_by_rule: dict[str, list[str]] = {}
+    for fact in result.facts:
+        assert fact.rule_id is not None
+        values_by_rule.setdefault(fact.rule_id, []).append(fact.value or "")
+    assert values_by_rule["code_pattern_llm_client_openai"] == [
+        "OpenAI(",
+        "AsyncOpenAI(",
+    ]
+    assert "code_pattern_llm_openai_compat_local_ollama" not in values_by_rule
+
+
+def test_collect_stays_silent_for_dynamic_openai_base_url(
+    tmp_path: Path,
+) -> None:
+    # Given: emailrag2.py wires base_url from config, so neither the
+    # local-Ollama nor the external-OpenAI client rule may claim it.
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "emailrag.py").write_text(
+        "client = OpenAI(\n"
+        '    base_url=config["ollama_api"]["base_url"],\n'
+        '    api_key=config["ollama_api"]["api_key"]\n'
+        ")\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "emailrag.py")
+
+    result = CodePatternProvider().collect(inventory)
+
+    rule_ids = {fact.rule_id for fact in result.facts}
+    assert "code_pattern_llm_openai_compat_local_ollama" not in rule_ids
+    assert "code_pattern_llm_client_openai" not in rule_ids
+
+
+def test_collect_emits_pgvector_distance_query_fact(tmp_path: Path) -> None:
+    # Given
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "retrieval.py").write_text(
+        "rows = conn.execute(\n"
+        '    "select content order by embedding <-> %s limit 3"\n'
+        ").fetchall()\n",
+        encoding="utf-8",
+    )
+    inventory = build_inventory(project_root, "retrieval.py")
+
+    # When
+    result = CodePatternProvider().collect(inventory)
+
+    # Then
+    fact = next(
+        item
+        for item in result.facts
+        if item.rule_id == "code_pattern_vector_store_pgvector_query"
+    )
+    assert fact.kind == "vector_store_client"
+    assert fact.file == "retrieval.py"
+    assert fact.path == "line[1]"
+
+
 def test_collect_emits_javascript_and_typescript_route_facts(
     tmp_path: Path,
 ) -> None:

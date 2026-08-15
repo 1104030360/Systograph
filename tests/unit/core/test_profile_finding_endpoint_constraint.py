@@ -136,3 +136,25 @@ def test_relationship_edge_reaching_required_component_detects() -> None:
 
     # Then: the constraint is direction-agnostic.
     assert finding.status == "detected"
+
+
+def test_import_only_edge_never_counts_as_profile_wiring() -> None:
+    # Given
+    observed_map = _map_with_rerank_edge(
+        source=RETRIEVER_COMPONENT_ID,
+        target=RERANKER_COMPONENT_ID,
+    )
+    import_only_edge = observed_map.edges[0].model_copy(
+        update={
+            "status": "undetermined",
+            "undetermined_reason": "import_only_no_call_site",
+        }
+    )
+    system_map = observed_map.model_copy(update={"edges": [import_only_edge]})
+
+    # When
+    finding = _reranking_finding(system_map)
+
+    # Then
+    assert finding.status == "partial"
+    assert "evidence:retriever" not in finding.evidence_ids

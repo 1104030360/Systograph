@@ -20,6 +20,7 @@ from systograph.core.models.scan_boundary import (
     ScanBoundaryDecisionAction,
     ScanBoundaryDecisionRequest,
 )
+from systograph.core.models.structural_fact import StructuralFact
 from systograph.core.models.system_map import Evidence
 from systograph.core.models.template import RagTemplate
 from systograph.core.providers.local_json_state_provider import (
@@ -115,12 +116,14 @@ class CountingComponentDetector(ComponentDetectionService):
         template: RagTemplate,
         facts: Sequence[ScanFact],
         evidence: Sequence[Evidence],
+        structural_facts: Sequence[StructuralFact] = (),
     ) -> ComponentDetectionResult:
         self.calls += 1
         return super().detect(
             template=template,
             facts=facts,
             evidence=evidence,
+            structural_facts=structural_facts,
         )
 
 

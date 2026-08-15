@@ -348,6 +348,18 @@ def test_parse_issue_creates_config_parse_error_hint() -> None:
             "src/app.py",
             "code_pattern_read_error",
         ),
+        (
+            "code_pattern",
+            "code_pattern_scan",
+            "dist/bundle.js",
+            "code_pattern_file_skipped",
+        ),
+        (
+            "code_pattern",
+            "code_pattern_scan",
+            "src/escape.py",
+            "code_pattern_invalid_inventory_path",
+        ),
     ],
 )
 def test_provider_parse_issue_rule_ids_create_partial_scan_hints(
@@ -419,6 +431,37 @@ def test_missing_required_slot_creates_component_slot_hint() -> None:
     }
     assert "llm" in missing_slots
     assert "vector_store" not in missing_slots
+
+
+def test_unowned_provider_evidence_cannot_steal_missing_slot_context() -> None:
+    # Given: one detected API component plus lexically earlier AST evidence.
+    api_route = fact_with_evidence(
+        kind="route_endpoint",
+        file="src/app.py",
+        path="line[3]",
+        value='@app.get("/health")',
+        rule_id="code_pattern_route_fastapi",
+    )
+    ast_only = fact_with_evidence(
+        kind="external_import",
+        file="src/app.py",
+        path="imports[fastapi]",
+        value="fastapi",
+        rule_id="ast_construction_external_import",
+    )
+    assert ast_only[1].id < api_route[1].id
+
+    # When: missing-slot risks choose a project context evidence record.
+    risks = derive_risks([api_route, ast_only])
+
+    # Then: a component-owned entrypoint remains the stable context anchor.
+    missing_slot_risks = [
+        risk for risk in risks if risk.rule_id == "missing_required_slot"
+    ]
+    assert missing_slot_risks
+    assert {risk.evidence_id for risk in missing_slot_risks} == {
+        api_route[1].id
+    }
 
 
 def test_packaged_risk_copy_never_names_the_legacy_template() -> None:

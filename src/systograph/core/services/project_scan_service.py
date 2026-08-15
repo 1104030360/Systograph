@@ -17,7 +17,11 @@ from systograph.core.models.scan import (
     ScanFact,
     SkippedFileSummary,
 )
+from systograph.core.models.structural_fact import StructuralFact
 from systograph.core.models.system_map import Evidence
+from systograph.core.providers.ast_construction_provider import (
+    AstConstructionProvider,
+)
 from systograph.core.providers.code_pattern_provider import CodePatternProvider
 from systograph.core.providers.config_parse_provider import ConfigParseProvider
 from systograph.core.providers.dependency_manifest_provider import (
@@ -25,6 +29,9 @@ from systograph.core.providers.dependency_manifest_provider import (
 )
 from systograph.core.providers.docker_compose_provider import (
     DockerComposeProvider,
+)
+from systograph.core.providers.endpoint_capability_provider import (
+    EndpointCapabilityProvider,
 )
 from systograph.core.providers.filesystem_provider import FilesystemProvider
 from systograph.core.services.logging_service import safe_log_event
@@ -90,6 +97,8 @@ class ProjectScanService:
                 DockerComposeProvider(),
                 DependencyManifestProvider(),
                 CodePatternProvider(),
+                EndpointCapabilityProvider(),
+                AstConstructionProvider(),
             )
         )
         self._masking_service = masking_service or SecretMaskingService()
@@ -162,14 +171,35 @@ class ProjectScanService:
                 result.warnings.append(f"{provider_name} failed")
                 continue
 
-            result.facts.extend(
-                self._fact_with_provider(fact, provider_name)
-                for fact in provider_result.facts
-            )
-            result.evidence.extend(provider_result.evidence)
-            result.issues.extend(provider_result.issues)
+            self.merge_provider_result(result, provider_result, provider_name)
 
+        return self._normalize_result(result)
+
+    def merge_provider_result(
+        self,
+        result: ProjectScanResult,
+        provider_result: ProviderScanResult,
+        provider_name: str,
+    ) -> ProjectScanResult:
+        """Merge provider output using the canonical project-scan contract."""
+
+        result.facts.extend(
+            self._fact_with_provider(fact, provider_name)
+            for fact in provider_result.facts
+        )
+        result.structural_facts.extend(provider_result.structural_facts)
+        result.evidence.extend(provider_result.evidence)
+        result.issues.extend(provider_result.issues)
+        return self._normalize_result(result)
+
+    def _normalize_result(
+        self,
+        result: ProjectScanResult,
+    ) -> ProjectScanResult:
         result.facts = self._dedupe_facts(result.facts)
+        result.structural_facts = self._dedupe_structural_facts(
+            result.structural_facts
+        )
         result.evidence = self._dedupe_evidence(result.evidence)
         result.issues = sorted(result.issues, key=self._issue_sort_key)
         return result
@@ -243,6 +273,15 @@ class ProjectScanService:
         for item in evidence_items:
             by_id.setdefault(item.id, item)
         return sorted(by_id.values(), key=self._evidence_sort_key)
+
+    def _dedupe_structural_facts(
+        self,
+        facts: Iterable[StructuralFact],
+    ) -> list[StructuralFact]:
+        by_id: dict[str, StructuralFact] = {}
+        for fact in facts:
+            by_id.setdefault(fact.stable_id, fact)
+        return sorted(by_id.values(), key=lambda fact: fact.sort_key)
 
     def _provider_name(self, provider: ScanResultProvider) -> str:
         explicit_name = getattr(provider, "name", None)

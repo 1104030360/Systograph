@@ -47,3 +47,78 @@ match_prefix = false
 package = "@langchain/"
 rule_id = "dependency_rag_framework_langchain"
 match_prefix = true
+
+# Manifest-declared AI ecosystem packages. A declared dependency is a
+# review candidate, never a component: only import or endpoint identity
+# proves the package is actually wired in. Distribution names verified
+# on PyPI / npm.
+
+[[python]]
+package = "weaviate-client"
+rule_id = "dependency_vector_store_client_weaviate"
+match_prefix = false
+
+[[python]]
+package = "lancedb"
+rule_id = "dependency_vector_store_client_lancedb"
+match_prefix = false
+
+[[python]]
+package = "pymilvus"
+rule_id = "dependency_vector_store_client_milvus"
+match_prefix = false
+
+[[python]]
+package = "pinecone"
+rule_id = "dependency_vector_store_client_pinecone"
+match_prefix = true
+
+[[python]]
+package = "litellm"
+rule_id = "dependency_llm_gateway_litellm"
+match_prefix = false
+
+[[python]]
+package = "sentence-transformers"
+rule_id = "dependency_local_embedding_sentence_transformers"
+match_prefix = false
+
+[[python]]
+package = "langchain-text-splitters"
+rule_id = "dependency_chunking_langchain_text_splitters"
+match_prefix = false
+
+[[python]]
+package = "markitdown"
+rule_id = "dependency_document_loader_markitdown"
+match_prefix = true
+
+[[python]]
+package = "assemblyai"
+rule_id = "dependency_document_loader_assemblyai"
+match_prefix = false
+
+[[python]]
+package = "graspologic"
+rule_id = "dependency_graph_community_detection_graspologic"
+match_prefix = true
+
+[[node]]
+package = "weaviate-client"
+rule_id = "dependency_vector_store_client_weaviate"
+match_prefix = false
+
+[[node]]
+package = "@pinecone-database/pinecone"
+rule_id = "dependency_vector_store_client_pinecone"
+match_prefix = false
+
+[[node]]
+package = "chromadb"
+rule_id = "dependency_vector_store_client_chromadb"
+match_prefix = false
+
+[[node]]
+package = "ollama"
+rule_id = "dependency_local_llm_provider_ollama"
+match_prefix = false

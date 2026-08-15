@@ -38,6 +38,24 @@ COMPONENT_BRIDGE_RULES: Final[tuple[ComponentBridgeRule, ...]] = (
         ),
     ),
     ComponentBridgeRule(
+        rule_ids=frozenset({"code_pattern_vector_store_pgvector_query"}),
+        fact_kinds=frozenset({"vector_store_client"}),
+        candidates=(
+            ComponentBridgeCandidateSpec(
+                slot="vector_store",
+                kind="vector_db",
+                name="pgvector",
+                provider="pgvector",
+            ),
+            ComponentBridgeCandidateSpec(
+                slot="retriever",
+                kind="retriever",
+                name="Retriever",
+                provider=None,
+            ),
+        ),
+    ),
+    ComponentBridgeRule(
         rule_ids=frozenset({"docker_chromadb_chroma_image_detected"}),
         fact_kinds=frozenset({"docker_service"}),
         candidates=(
@@ -91,8 +109,15 @@ COMPONENT_BRIDGE_RULES: Final[tuple[ComponentBridgeRule, ...]] = (
         ),
     ),
     ComponentBridgeRule(
-        rule_ids=frozenset({"docker_ollama_image_detected"}),
-        fact_kinds=frozenset({"docker_service"}),
+        rule_ids=frozenset(
+            {
+                "docker_ollama_image_detected",
+                "code_pattern_llm_chat_ollama",
+                "code_pattern_llm_client_ollama",
+                "code_pattern_llm_openai_compat_local_ollama",
+            }
+        ),
+        fact_kinds=frozenset({"docker_service", "llm_call"}),
         candidates=(
             ComponentBridgeCandidateSpec(
                 slot="llm",
@@ -103,7 +128,30 @@ COMPONENT_BRIDGE_RULES: Final[tuple[ComponentBridgeRule, ...]] = (
         ),
     ),
     ComponentBridgeRule(
-        rule_ids=frozenset({"code_pattern_llm_chat_openai"}),
+        rule_ids=frozenset({"code_pattern_embedding_ollama"}),
+        fact_kinds=frozenset({"embedding"}),
+        candidates=(
+            ComponentBridgeCandidateSpec(
+                slot="embedding_model",
+                kind="embedding_provider",
+                name="Ollama",
+                provider="ollama",
+            ),
+            ComponentBridgeCandidateSpec(
+                slot="llm",
+                kind="local_llm_runtime",
+                name="Ollama",
+                provider="ollama",
+            ),
+        ),
+    ),
+    ComponentBridgeRule(
+        rule_ids=frozenset(
+            {
+                "code_pattern_llm_chat_openai",
+                "code_pattern_llm_client_openai",
+            }
+        ),
         fact_kinds=frozenset({"llm_call"}),
         candidates=(
             ComponentBridgeCandidateSpec(

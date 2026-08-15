@@ -39,6 +39,7 @@ from systograph.core.services.scan_boundary_review_service import (
     ScanBoundaryReviewService,
 )
 from systograph.core.services.scan_snapshot_service import ScanSnapshotService
+from systograph.core.services.ua_sidecar_runtime import UaAnalysisError
 from systograph.web.dependencies import (
     build_commit_service,
     inventory_preflight_service,
@@ -251,6 +252,16 @@ def create_scan(
             else 500
         )
         raise HTTPException(status_code=status_code, detail=exc.code) from exc
+    except UaAnalysisError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": exc.code,
+                "message": "UA structural analysis is unavailable.",
+                "retryable": False,
+                "context": None,
+            },
+        ) from exc
     except InventorySelectionError as exc:
         raise HTTPException(
             status_code=exc.http_status,

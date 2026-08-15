@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
+from systograph.core.models.ai_system_map_v2 import EdgeObservationStatus
 from systograph.core.models.artifact_scope import (
     PHASE2_P0_ARTIFACT_SET_VERSION,
     ArtifactSetVersion,
@@ -24,7 +25,15 @@ class ArtifactEdge(ExecutionArtifactModel):
     source: str
     target: str
     relationship: str
+    status: EdgeObservationStatus
+    undetermined_reason: str | None = None
     evidence_ids: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def require_undetermined_reason(self) -> ArtifactEdge:
+        if self.status == "undetermined" and not self.undetermined_reason:
+            raise ValueError("undetermined artifact edge requires reason")
+        return self
 
 
 class ScopedExecutionArtifact(ExecutionArtifactModel):
@@ -33,6 +42,8 @@ class ScopedExecutionArtifact(ExecutionArtifactModel):
     environment_id: str
     artifact_set_version: ArtifactSetVersion = PHASE2_P0_ARTIFACT_SET_VERSION
     generated_from_build_id: str
+    trace_kind: Literal["static_inferred"]
+    runtime_verified: Literal[False]
 
 
 class CallGraphArtifact(ScopedExecutionArtifact):
@@ -47,8 +58,8 @@ class DataflowHintsArtifact(ScopedExecutionArtifact):
 
 
 class ExecutionPathsArtifact(ScopedExecutionArtifact):
-    schema_version: Literal["execution-paths/v1"] = "execution-paths/v1"
-    paths: tuple[tuple[str, ...], ...] = ()
+    schema_version: Literal["execution-paths/v2"] = "execution-paths/v2"
+    paths: tuple[ArtifactEdge, ...] = ()
 
 
 class EvidenceTableRow(ExecutionArtifactModel):

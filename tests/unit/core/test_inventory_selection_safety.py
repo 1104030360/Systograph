@@ -229,6 +229,27 @@ def test_selection_without_optional_decisions_matches_plan19_baseline(
         item.path for item in baseline.files
     ]
     assert [
+        (
+            item.path,
+            item.size_bytes,
+            item.language,
+            item.file_category,
+            item.size_lines,
+            item.content_fingerprint,
+        )
+        for item in selected.inventory.files
+    ] == [
+        (
+            item.path,
+            item.size_bytes,
+            item.language,
+            item.file_category,
+            item.size_lines,
+            item.content_fingerprint,
+        )
+        for item in baseline.files
+    ]
+    assert [
         (item.path, item.reason) for item in selected.inventory.skipped
     ] == [(item.path, item.reason) for item in baseline.skipped]
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -329,6 +330,62 @@ def test_path_normalization_outputs_project_relative_posix_paths(
             project_root=project_root,
         )
         == "src/api.py"
+    )
+
+
+def test_inventory_enriches_eligible_files_for_ua_without_new_enumeration(
+    tmp_path: Path,
+) -> None:
+    # Given: files already inside the Systograph inventory boundary.
+    project_root = tmp_path / "project"
+    (project_root / "src").mkdir(parents=True)
+    (project_root / "docs").mkdir()
+    contents = {
+        "src/app.py": b"from service import serve\n\nserve()\n",
+        "Dockerfile.dev": b"FROM python:3.13\n",
+        "docs/README.md": b"# Demo\n\nText\n",
+    }
+    for relative_path, content in contents.items():
+        (project_root / relative_path).write_bytes(content)
+
+    # When: the existing provider builds its single authoritative inventory.
+    inventory = RecursiveOnlyProvider().build_inventory(project_root)
+    by_path = {record.path: record for record in inventory.files}
+
+    # Then: UA metadata is attached without adding a second file walk.
+    assert set(by_path) == set(contents)
+    assert by_path["src/app.py"].language == "python"
+    assert by_path["src/app.py"].file_category == "code"
+    assert by_path["src/app.py"].size_lines == 3
+    assert by_path["Dockerfile.dev"].language == "dockerfile"
+    assert by_path["Dockerfile.dev"].file_category == "infra"
+    assert by_path["docs/README.md"].language == "markdown"
+    assert by_path["docs/README.md"].file_category == "docs"
+    for relative_path, content in contents.items():
+        assert by_path[relative_path].content_fingerprint == (
+            "sha256:" + hashlib.sha256(content).hexdigest()
+        )
+
+
+def test_inventory_line_count_falls_back_for_non_utf8_text(
+    tmp_path: Path,
+) -> None:
+    # Given: a null-free source file that is text but not valid UTF-8.
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    content = b"label = '\xff'\nnext_value = 1"
+    (project_root / "legacy.py").write_bytes(content)
+
+    # When: the provider enriches the approved file.
+    inventory = RecursiveOnlyProvider().build_inventory(project_root)
+
+    # Then: fallback decoding preserves deterministic line count and digest.
+    assert len(inventory.files) == 1
+    record = inventory.files[0]
+    assert record.path == "legacy.py"
+    assert record.size_lines == 2
+    assert record.content_fingerprint == (
+        "sha256:" + hashlib.sha256(content).hexdigest()
     )
 
 

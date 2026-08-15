@@ -24,10 +24,14 @@ def canonical_evidence_from_scan(
         else None
     )
     evidence_kind: AssessmentEvidenceKind = (
-        "direct"
-        if item.file is not None
-        and (item.line_start is not None or json_pointer is not None)
-        else "indirect"
+        item.evidence_kind_hint
+        if item.evidence_kind_hint is not None
+        else (
+            "direct"
+            if item.file is not None
+            and (item.line_start is not None or json_pointer is not None)
+            else "indirect"
+        )
     )
     return CanonicalEvidence(
         evidence_id=item.id,

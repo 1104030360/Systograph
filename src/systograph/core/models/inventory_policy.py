@@ -18,6 +18,12 @@ class InventoryPolicyModel(BaseModel):
 class InventoryPolicyAction(StrEnum):
     EXCLUDE = "exclude"
     INCLUDE = "include"
+    # BLOCK is EXCLUDE that no runtime decision can reverse. It exists
+    # for directories whose contents are, by definition, not part of the
+    # delivered system: a test suite's fixture config must never be able
+    # to light a capability node as detected, not even when a reviewer
+    # approves everything in the Web flow.
+    BLOCK = "block"
 
 
 class InventoryPolicyRule(InventoryPolicyModel):
@@ -57,7 +63,10 @@ class InventoryPolicyRule(InventoryPolicyModel):
 
     @model_validator(mode="after")
     def validate_exclude_reason(self) -> InventoryPolicyRule:
-        if self.action == InventoryPolicyAction.EXCLUDE:
+        if self.action in {
+            InventoryPolicyAction.EXCLUDE,
+            InventoryPolicyAction.BLOCK,
+        }:
             try:
                 SkipReason(self.reason)
             except ValueError as exc:

@@ -27,6 +27,9 @@ from systograph.core.models.artifact_scope import (
     PHASE2_P0_ARTIFACT_SET_VERSION,
     ArtifactSetVersion,
 )
+from systograph.core.models.evidence_kind import (
+    AssessmentEvidenceKind as AssessmentEvidenceKind,
+)
 from systograph.core.models.recommended_next_check import RecommendedNextCheck
 from systograph.core.models.system_map import Evidence
 
@@ -54,7 +57,6 @@ ActivationState = Literal[
     "conflicted",
     "not_applicable",
 ]
-AssessmentEvidenceKind = Literal["direct", "indirect", "explicit_negative"]
 DetectionStatus = Literal[
     "detected",
     "missing",

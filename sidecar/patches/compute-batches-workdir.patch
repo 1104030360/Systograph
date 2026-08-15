@@ -1,0 +1,63 @@
+diff --git a/understand-anything-plugin/skills/understand/compute-batches.mjs b/understand-anything-plugin/skills/understand/compute-batches.mjs
+index f78d46a..f9c9387 100644
+--- a/understand-anything-plugin/skills/understand/compute-batches.mjs
++++ b/understand-anything-plugin/skills/understand/compute-batches.mjs
+@@ -9 +9,2 @@
+- *   node compute-batches.mjs <project-root> [--changed-files=<path>]
++ *   node compute-batches.mjs <project-root> --input=<path> --output=<path>
++ *     --work-dir=<path> [--changed-files=<path>]
+@@ -11,2 +12,2 @@
+- * Input:  <project-root>/.understand-anything/intermediate/scan-result.json
+- * Output: <project-root>/.understand-anything/intermediate/batches.json
++ * Input:  --input=<work-dir>/scan-result.json
++ * Output: --output=<work-dir>/batches.json
+@@ -17 +18 @@ import { readFile } from 'node:fs/promises';
+-import { dirname, join, resolve } from 'node:path';
++import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+@@ -338 +339,4 @@ async function main() {
+-    process.stderr.write('Usage: node compute-batches.mjs <project-root> [--changed-files=<path>]\n');
++    process.stderr.write(
++      'Usage: node compute-batches.mjs <project-root> --input=<path> ' +
++      '--output=<path> --work-dir=<path> [--changed-files=<path>]\n',
++    );
+@@ -342,0 +347,3 @@ async function main() {
++  let inputPath = null;
++  let outputPath = null;
++  let workDir = null;
+@@ -343,0 +351,6 @@ async function main() {
++    const inputMatch = arg.match(/^--input=(.+)$/);
++    if (inputMatch) inputPath = resolve(inputMatch[1]);
++    const outputMatch = arg.match(/^--output=(.+)$/);
++    if (outputMatch) outputPath = resolve(outputMatch[1]);
++    const workDirMatch = arg.match(/^--work-dir=(.+)$/);
++    if (workDirMatch) workDir = resolve(workDirMatch[1]);
+@@ -364 +377,25 @@ async function main() {
+-  const scanPath = join(projectRoot, '.understand-anything', 'intermediate', 'scan-result.json');
++  if (!inputPath || !outputPath || !workDir) {
++    process.stderr.write(
++      'Error: compute-batches: --input, --output, and --work-dir are required\n',
++    );
++    process.exit(1);
++  }
++  const inputRelative = relative(workDir, inputPath);
++  const outputRelative = relative(workDir, outputPath);
++  if (
++    isAbsolute(inputRelative) ||
++    isAbsolute(outputRelative) ||
++    inputRelative === '..' ||
++    outputRelative === '..' ||
++    inputRelative.startsWith(`..${sep}`) ||
++    outputRelative.startsWith(`..${sep}`) ||
++    resolve(workDir, inputRelative) !== inputPath ||
++    resolve(workDir, outputRelative) !== outputPath
++  ) {
++    process.stderr.write(
++      'Error: compute-batches: input and output must stay inside work-dir\n',
++    );
++    process.exit(1);
++  }
++
++  const scanPath = inputPath;
+@@ -550 +587 @@ async function main() {
+-  const outPath = join(projectRoot, '.understand-anything', 'intermediate', 'batches.json');
++  const outPath = outputPath;

@@ -136,6 +136,28 @@ def test_adapter_preserves_required_compatibility_fact_records() -> None:
     assert {edge.edge_id for edge in adapted.edges} == {
         edge.id for flow in system_map.flows for edge in flow.edges
     }
+    assert {edge.status for edge in adapted.edges} == {"observed"}
+
+    canonical = SystemMapV1ToV2Adapter().to_canonical(adapted)
+    evidence_kind_by_id = {
+        item.evidence_id: item.evidence_kind for item in canonical.evidence
+    }
+    assert {edge.status for edge in canonical.edges} == {
+        "observed",
+        "detected",
+    }
+    assert all(
+        edge.status
+        == (
+            "observed"
+            if all(
+                evidence_kind_by_id[evidence_id] == "direct"
+                for evidence_id in edge.evidence_ids
+            )
+            else "detected"
+        )
+        for edge in canonical.edges
+    )
     assert {endpoint.endpoint_id for endpoint in adapted.endpoints} == {
         endpoint.id for endpoint in system_map.endpoints
     }

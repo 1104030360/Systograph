@@ -92,9 +92,75 @@ def test_qdrant_provider_config_fixture_supports_vector_store_mapping() -> (
     assert config_evidence_ids <= set(qdrant_instances[0].evidence_ids)
 
 
-def test_unsupported_provider_config_fixture_stays_missing() -> None:
+def test_lancedb_local_stack_is_detected_end_to_end() -> None:
     result = detect_fixture("lancedb_or_chroma_local_rag")
 
-    assert result.components_by_slot["vector_store"].status == "missing"
-    assert result.components_by_slot["llm"].status == "missing"
-    assert result.components_by_slot["embedding_model"].status == "missing"
+    # `import lancedb` is unambiguous client identity in the package
+    # layer, so the embedded vector store is real evidence -- as is the
+    # fixture's direct ollama.embeddings(...) call for the embedding
+    # model and the local runtime.
+    vector_store = result.components_by_slot["vector_store"]
+    assert vector_store.status == "detected"
+    assert [instance.provider for instance in vector_store.instances] == [
+        "lancedb"
+    ]
+    assert result.components_by_slot["llm"].status == "detected"
+    assert result.components_by_slot["llm"].instances[0].name == "Ollama"
+    assert result.components_by_slot["embedding_model"].status == "detected"
+    assert (
+        result.components_by_slot["embedding_model"].instances[0].provider
+        == "ollama"
+    )
+
+
+def test_package_import_evidence_merges_into_existing_components() -> None:
+    # basic_qdrant_ollama_rag has `import ollama` and
+    # `from qdrant_client import QdrantClient` on top of docker and
+    # code-pattern evidence. The package identity layer must merge its
+    # import evidence into the SAME components -- never duplicate them.
+    raw_scan = ProjectScanService().scan(
+        rag_project_fixture_path("basic_qdrant_ollama_rag")
+    )
+    template = RagTemplateService.load("rag-core-v1")
+    result = ComponentDetectionService().detect(
+        template=template,
+        facts=raw_scan.facts,
+        evidence=raw_scan.evidence,
+    )
+
+    ollama_instances = [
+        instance
+        for instance in result.components_by_slot["llm"].instances
+        if instance.provider == "ollama"
+    ]
+    qdrant_instances = [
+        instance
+        for instance in result.components_by_slot["vector_store"].instances
+        if instance.provider == "qdrant"
+    ]
+    assert len(ollama_instances) == 1
+    assert len(qdrant_instances) == 1
+
+    import_evidence = {
+        evidence.id: evidence
+        for evidence in raw_scan.evidence
+        if evidence.rule_id == "ast_external_import"
+    }
+    ollama_import_ids = {
+        evidence_id
+        for evidence_id, evidence in import_evidence.items()
+        if (evidence.value or "").split(".", 1)[0] == "ollama"
+    }
+    qdrant_import_ids = {
+        evidence_id
+        for evidence_id, evidence in import_evidence.items()
+        if (evidence.value or "").split(".", 1)[0] == "qdrant_client"
+    }
+    assert ollama_import_ids
+    assert qdrant_import_ids
+    assert ollama_import_ids <= set(ollama_instances[0].evidence_ids)
+    assert qdrant_import_ids <= set(qdrant_instances[0].evidence_ids)
+    # Evidence families stay merged: the components keep non-import
+    # evidence (docker / code pattern) next to the import declarations.
+    assert set(ollama_instances[0].evidence_ids) - ollama_import_ids
+    assert set(qdrant_instances[0].evidence_ids) - qdrant_import_ids

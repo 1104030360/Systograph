@@ -55,12 +55,14 @@ def test_load_default_returns_packaged_catalog_in_source_order() -> None:
     # Then: its typed contract and source order are preserved.
     assert catalog.schema_version == "scan-inventory-policy/v1"
     assert catalog.catalog_digest.startswith("sha256:")
-    assert [rule.inventory_policy_id for rule in catalog.path_rules[:3]] == [
+    assert [rule.inventory_policy_id for rule in catalog.path_rules[:4]] == [
+        "inventory.block.tests_directory",
+        "inventory.block.test_directory",
+        "inventory.block.dunder_tests_directory",
         "inventory.exclude.node_modules",
-        "inventory.exclude.python_virtualenv_hidden",
-        "inventory.exclude.python_virtualenv",
     ]
-    assert catalog.path_rules[0].action == InventoryPolicyAction.EXCLUDE
+    assert catalog.path_rules[0].action == InventoryPolicyAction.BLOCK
+    assert catalog.path_rules[3].action == InventoryPolicyAction.EXCLUDE
 
 
 def test_load_hashes_the_exact_catalog_bytes(tmp_path: Path) -> None:

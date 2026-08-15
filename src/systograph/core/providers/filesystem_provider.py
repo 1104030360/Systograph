@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Final
 
 from pathspec import GitIgnoreSpec
 
 from systograph.core.models.errors import InventoryEnumerationError
 from systograph.core.models.filesystem import (
+    FileCategory,
     FileInventory,
     FileInventorySource,
     FileRecord,
@@ -21,6 +23,7 @@ from systograph.core.models.filesystem import (
 from systograph.core.models.inventory_policy import (
     InventoryPolicyAction,
 )
+from systograph.core.services.file_line_count import count_source_lines
 from systograph.core.services.git_environment import scoped_git_environment
 from systograph.core.services.inventory_policy_matcher import (
     InventoryPolicyMatch,
@@ -39,6 +42,161 @@ from systograph.core.services.scan_inventory_rule_loader import (
 
 DEFAULT_MAX_FILE_SIZE_BYTES: Final = 1_000_000
 BINARY_CHECK_BYTES: Final = 4096
+LANGUAGE_BY_SUFFIX: Final[dict[str, str]] = {
+    suffix: language
+    for language, suffixes in (
+        ("typescript", (".ts", ".tsx")),
+        ("javascript", (".js", ".jsx", ".mjs", ".cjs")),
+        ("python", (".py", ".pyi")),
+        ("go", (".go",)),
+        ("rust", (".rs",)),
+        ("java", (".java",)),
+        ("kotlin", (".kt", ".kts")),
+        ("csharp", (".cs",)),
+        ("swift", (".swift",)),
+        ("lua", (".lua",)),
+        ("ruby", (".rb", ".rake")),
+        ("php", (".php",)),
+        ("c", (".c", ".h")),
+        ("cpp", (".cpp", ".cc", ".cxx", ".hpp", ".hxx")),
+        ("vue", (".vue",)),
+        ("svelte", (".svelte",)),
+        ("shell", (".sh", ".bash", ".zsh")),
+        ("powershell", (".ps1", ".psm1", ".psd1")),
+        ("batch", (".bat", ".cmd")),
+        ("html", (".html", ".htm")),
+        ("css", (".css", ".scss", ".sass", ".less")),
+        ("markdown", (".md", ".mdx", ".rst")),
+        ("yaml", (".yaml", ".yml")),
+        ("json", (".json",)),
+        ("jsonc", (".jsonc",)),
+        ("toml", (".toml",)),
+        ("xml", (".xml", ".xsl", ".xsd", ".plist")),
+        ("config", (".cfg", ".ini", ".env")),
+        ("sql", (".sql",)),
+        ("graphql", (".graphql", ".gql")),
+        ("protobuf", (".proto",)),
+        ("prisma", (".prisma",)),
+        ("csv", (".csv", ".tsv")),
+        ("terraform", (".tf", ".tfvars")),
+        ("gradle", (".gradle",)),
+        ("csproj", (".csproj",)),
+        ("sln", (".sln",)),
+        ("properties", (".properties",)),
+        ("mod", (".mod",)),
+        ("sum", (".sum",)),
+    )
+    for suffix in suffixes
+}
+LANGUAGE_BY_FILENAME: Final[dict[str, str]] = {
+    "Dockerfile": "dockerfile",
+    "Makefile": "makefile",
+    "GNUmakefile": "makefile",
+    "makefile": "makefile",
+    "Jenkinsfile": "jenkinsfile",
+    "Procfile": "procfile",
+    "Vagrantfile": "vagrantfile",
+}
+CATEGORY_BY_SUFFIX: Final[dict[str, FileCategory]] = {
+    suffix: category
+    for category, suffixes in (
+        (FileCategory.DOCS, (".md", ".mdx", ".rst", ".txt", ".text")),
+        (
+            FileCategory.CONFIG,
+            (
+                ".yaml",
+                ".yml",
+                ".json",
+                ".jsonc",
+                ".toml",
+                ".xml",
+                ".xsl",
+                ".xsd",
+                ".plist",
+                ".cfg",
+                ".ini",
+                ".env",
+                ".properties",
+                ".csproj",
+                ".sln",
+                ".mod",
+                ".sum",
+                ".gradle",
+            ),
+        ),
+        (FileCategory.INFRA, (".tf", ".tfvars")),
+        (
+            FileCategory.DATA,
+            (".sql", ".graphql", ".gql", ".proto", ".prisma", ".csv", ".tsv"),
+        ),
+        (
+            FileCategory.SCRIPT,
+            (".sh", ".bash", ".zsh", ".ps1", ".psm1", ".psd1", ".bat", ".cmd"),
+        ),
+        (
+            FileCategory.MARKUP,
+            (".html", ".htm", ".css", ".scss", ".sass", ".less"),
+        ),
+    )
+    for suffix in suffixes
+}
+INFRA_FILENAMES: Final = frozenset(
+    {
+        "Dockerfile",
+        ".dockerignore",
+        "Makefile",
+        "GNUmakefile",
+        "makefile",
+        "Jenkinsfile",
+        "Procfile",
+        "Vagrantfile",
+        ".gitlab-ci.yml",
+    }
+)
+
+
+def detect_language(relative_path: str) -> str:
+    path = PurePosixPath(relative_path.replace("\\", "/"))
+    filename = path.name
+    if filename == "Dockerfile" or filename.startswith("Dockerfile."):
+        return "dockerfile"
+    dotfile_suffix = _dotfile_suffix(filename)
+    if dotfile_suffix in LANGUAGE_BY_SUFFIX:
+        return LANGUAGE_BY_SUFFIX[dotfile_suffix]
+    suffix = path.suffix.lower()
+    if suffix:
+        return LANGUAGE_BY_SUFFIX.get(suffix, suffix.removeprefix("."))
+    return LANGUAGE_BY_FILENAME.get(filename, "unknown")
+
+
+def detect_file_category(relative_path: str) -> FileCategory:
+    path = PurePosixPath(relative_path.replace("\\", "/"))
+    filename = path.name
+    if filename == "LICENSE":
+        return FileCategory.CODE
+    if (
+        filename in INFRA_FILENAMES
+        or filename.startswith("Dockerfile.")
+        or filename.startswith("docker-compose.")
+        or filename in {"compose.yml", "compose.yaml"}
+        or relative_path.startswith((".github/workflows/", ".circleci/"))
+        or any(part in {"k8s", "kubernetes"} for part in path.parts[:-1])
+        or filename.lower().endswith((".k8s.yml", ".k8s.yaml"))
+    ):
+        return FileCategory.INFRA
+    suffix = path.suffix.lower()
+    if suffix in CATEGORY_BY_SUFFIX:
+        return CATEGORY_BY_SUFFIX[suffix]
+    return CATEGORY_BY_SUFFIX.get(
+        _dotfile_suffix(filename),
+        FileCategory.CODE,
+    )
+
+
+def _dotfile_suffix(filename: str) -> str:
+    if not filename.startswith("."):
+        return ""
+    return "." + filename[1:].split(".", maxsplit=1)[0].lower()
 
 
 @dataclass(frozen=True)
@@ -339,8 +497,46 @@ class FilesystemProvider:
                     )
                 )
                 continue
-            files.append(FileRecord(path=relative_path, size_bytes=size_bytes))
+            content = self._read_enrichment_content(path)
+            files.append(
+                FileRecord(
+                    path=relative_path,
+                    size_bytes=size_bytes,
+                    language=self._detect_language(relative_path),
+                    file_category=self._detect_category(relative_path),
+                    size_lines=self._count_lines(content),
+                    content_fingerprint=self._content_fingerprint(content),
+                )
+            )
         return files, skipped
+
+    def _detect_language(self, relative_path: str) -> str:
+        return detect_language(relative_path)
+
+    def _detect_category(self, relative_path: str) -> FileCategory:
+        return detect_file_category(relative_path)
+
+    def _dotfile_suffix(self, filename: str) -> str:
+        if not filename.startswith("."):
+            return ""
+        return "." + filename[1:].split(".", maxsplit=1)[0].lower()
+
+    def _read_enrichment_content(self, path: Path) -> bytes | None:
+        try:
+            with path.open("rb") as file:
+                return file.read()
+        except OSError:
+            return None
+
+    def _count_lines(self, content: bytes | None) -> int:
+        if content is None:
+            return 0
+        return count_source_lines(content)
+
+    def _content_fingerprint(self, content: bytes | None) -> str | None:
+        if content is None:
+            return None
+        return "sha256:" + hashlib.sha256(content).hexdigest()
 
     def _skip_reason(
         self,
@@ -367,7 +563,10 @@ class FilesystemProvider:
         self,
         policy_match: InventoryPolicyMatch,
     ) -> SkipReason | None:
-        if policy_match.effective_action != InventoryPolicyAction.EXCLUDE:
+        if policy_match.effective_action not in {
+            InventoryPolicyAction.EXCLUDE,
+            InventoryPolicyAction.BLOCK,
+        }:
             return None
         if policy_match.effective_reason is None:
             return None

@@ -235,7 +235,10 @@ class InventoryProvenanceService:
         match = matcher.match(path, is_directory=path.endswith("/"))
         if reason == SkipReason.GITIGNORED:
             source = InventoryPolicyAuditSource.PROJECT_IGNORE
-        elif match.effective_action == InventoryPolicyAction.EXCLUDE:
+        elif match.effective_action in {
+            InventoryPolicyAction.EXCLUDE,
+            InventoryPolicyAction.BLOCK,
+        }:
             source = InventoryPolicyAuditSource.SYSTOGRAPH_INVENTORY_CATALOG
         else:
             source = InventoryPolicyAuditSource.FILESYSTEM_SAFETY

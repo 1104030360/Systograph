@@ -258,6 +258,8 @@ class GraphProjectionService:
                     to=node_ids_by_source[edge.target],
                     relationship=edge.relationship,
                     label=_humanize(edge.relationship),
+                    status=edge.status,
+                    undetermined_reason=edge.undetermined_reason,
                     evidence_ids=list(edge.evidence_ids),
                     risk_hint_ids=_risk_ids_for_fact(
                         system_map,

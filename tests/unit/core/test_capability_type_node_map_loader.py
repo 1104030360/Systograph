@@ -39,6 +39,7 @@ EXPECTED_CANONICAL_TYPE_NODES: Final[dict[str, tuple[str, ...]]] = {
     "embedding_provider": ("embedder",),
     "external_llm": ("llm_answerer",),
     "external_llm_provider": ("llm_answerer",),
+    "graph_rag_system": ("graph_rag_system",),
     "graph_retriever": ("graph_retriever",),
     "http_vector_store": ("index_builder",),
     "hybrid_retriever": ("hybrid_retriever",),
@@ -55,8 +56,10 @@ EXPECTED_CANONICAL_TYPE_NODES: Final[dict[str, tuple[str, ...]]] = {
     "query_classifier": ("query_classifier",),
     "rag_anything_system": ("rag_anything_system",),
     "reranker": ("reranker",),
+    "reranker_candidate": ("reranker",),
     "retriever": ("dense_retriever",),
     "router": ("router",),
+    "router_like_evidence": ("router",),
     "sparse_retriever": ("sparse_retriever",),
     "tool": ("tool_using_generator", "tool_network"),
     "vector_db": ("index_builder",),
@@ -65,8 +68,9 @@ EXPECTED_CANONICAL_TYPE_NODES: Final[dict[str, tuple[str, ...]]] = {
     "vector_store": ("index_builder",),
     "worker_queue": ("worker_queue",),
     "workflow_node": ("orchestrator",),
+    "working_memory": ("working_memory",),
 }
-EXPECTED_CANONICAL_TYPE_COUNT = 39
+EXPECTED_CANONICAL_TYPE_COUNT = 43
 
 MINIMAL_MAP = '[canonical_type_nodes]\nretriever = ["dense_retriever"]\n'
 

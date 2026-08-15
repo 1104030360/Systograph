@@ -117,7 +117,21 @@ class RiskHintService:
                     self._secret_like_config_hint(fact, evidence_id),
                 )
 
-        context_evidence_id = evidence_lookup.first_id()
+        component_evidence_ids = sorted(
+            {
+                evidence_id
+                for component in component_lookup.instances
+                for evidence_id in component.evidence_ids
+            }
+        )
+        context_evidence_id = next(
+            (
+                evidence_id
+                for evidence_id in component_evidence_ids
+                if evidence_lookup.by_id(evidence_id) is not None
+            ),
+            evidence_lookup.first_id(),
+        )
         if context_evidence_id is not None:
             for slot in components.components_by_slot.values():
                 if slot.required_for_rag and slot.status == "missing":
@@ -308,8 +322,27 @@ class EvidenceLookup:
     """Find evidence records by id, fact, or parse issue."""
 
     def __init__(self, evidence: Sequence[Evidence]) -> None:
+        # Facts and evidence both reach tens of thousands on real
+        # repositories; per-fact linear scans are quadratic, so every
+        # lookup key is indexed once up front.
         self._evidence = tuple(evidence)
         self._by_id = {item.id: item for item in self._evidence}
+        fact_index: dict[
+            tuple[str | None, str | None, str, str | None], str
+        ] = {}
+        issue_index: dict[tuple[str | None, str | None], Evidence] = {}
+        for item in self._evidence:
+            fact_key = (item.file, item.path, item.kind, item.rule_id)
+            best = fact_index.get(fact_key)
+            if best is None or item.id < best:
+                fact_index[fact_key] = item.id
+            if item.kind == "parse_error":
+                issue_key = (item.file, item.rule_id)
+                current = issue_index.get(issue_key)
+                if current is None or item.id < current.id:
+                    issue_index[issue_key] = item
+        self._id_by_fact_key = fact_index
+        self._parse_evidence_by_issue_key = issue_index
 
     def by_id(self, evidence_id: str) -> Evidence | None:
         return self._by_id.get(evidence_id)
@@ -317,32 +350,17 @@ class EvidenceLookup:
     def first_id(self) -> str | None:
         if not self._evidence:
             return None
-        return sorted(item.id for item in self._evidence)[0]
+        return min(item.id for item in self._evidence)
 
     def id_for_fact(self, fact: ScanFact) -> str | None:
-        matches = [
-            item.id
-            for item in self._evidence
-            if item.file == fact.file
-            and item.path == fact.path
-            and item.kind == fact.kind
-            and item.rule_id == fact.rule_id
-        ]
-        if not matches:
-            return None
-        return sorted(matches)[0]
+        return self._id_by_fact_key.get(
+            (fact.file, fact.path, fact.kind, fact.rule_id)
+        )
 
     def parse_evidence_for_issue(self, issue: ParseIssue) -> Evidence | None:
-        matches = [
-            item
-            for item in self._evidence
-            if item.file == issue.file
-            and item.kind == "parse_error"
-            and item.rule_id == issue.rule_id
-        ]
-        if not matches:
-            return None
-        return sorted(matches, key=lambda item: item.id)[0]
+        return self._parse_evidence_by_issue_key.get(
+            (issue.file, issue.rule_id)
+        )
 
 
 class ComponentLookup:

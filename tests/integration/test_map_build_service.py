@@ -14,6 +14,7 @@ from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
 from systograph.core.models.errors import PreconditionFailureReason
 from systograph.core.models.map_build import MapBuildRequest
 from systograph.core.models.scan import OutputRun, ProjectScanResult, ScanFact
+from systograph.core.models.structural_fact import StructuralFact
 from systograph.core.models.system_map import (
     ComponentInstance,
     ComponentSlot,
@@ -79,7 +80,9 @@ class InjectedVectorStoreDetector(ComponentDetectionService):
         template: RagTemplate,
         facts: Sequence[ScanFact],
         evidence: Sequence[Evidence],
+        structural_facts: Sequence[StructuralFact] = (),
     ) -> ComponentDetectionResult:
+        del structural_facts
         self.called = True
         slots = {
             slot.id: ComponentSlot(
@@ -254,7 +257,11 @@ def test_api_route_left_the_control_lens_with_its_plane(
     # The six backend lenses carry no deployment topology lens, so the
     # only memberships left are driven by the node's own signals.
     assert api_ids <= _lens_members(graph, "lens:evidence")
-    assert api_ids <= _lens_members(graph, "lens:risk")
+    # The missing-required-slot risk hints anchor to the first sorted
+    # component evidence id, which is the ollama embedding call evidence
+    # since code_pattern_embedding_ollama landed -- so risk-lens
+    # membership sits on the embedding/llm nodes, not the api node.
+    assert not (api_ids & _lens_members(graph, "lens:risk"))
 
 
 def test_vector_db_keeps_its_data_lens_membership_across_the_move(

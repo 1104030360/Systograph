@@ -13,7 +13,17 @@ from systograph.core.models.filesystem import (
     SkippedFile,
     SkipReason,
 )
-from systograph.core.models.scan import ProviderScanResult, ScanFact
+from systograph.core.models.scan import (
+    ParseIssue,
+    ProjectScanResult,
+    ProviderScanResult,
+    ScanFact,
+)
+from systograph.core.models.structural_fact import (
+    CallStructuralFact,
+    SourceSpan,
+    StructuralFact,
+)
 from systograph.core.models.system_map import Evidence
 from systograph.core.providers.filesystem_provider import FilesystemProvider
 from systograph.core.services import project_scan_service
@@ -172,8 +182,29 @@ def evidence(
 def provider_result(
     facts: list[ScanFact],
     evidence_items: list[Evidence],
+    *,
+    structural_facts: list[StructuralFact] | None = None,
 ) -> ProviderScanResult:
-    return ProviderScanResult(facts=facts, evidence=evidence_items)
+    return ProviderScanResult(
+        facts=facts,
+        structural_facts=structural_facts or [],
+        evidence=evidence_items,
+    )
+
+
+def structural_call(
+    *,
+    caller: str,
+    callee: str,
+    file: str,
+    line: int,
+) -> CallStructuralFact:
+    return CallStructuralFact(
+        identity_namespace="ast_call",
+        caller=caller,
+        callee=callee,
+        span=SourceSpan(file=file, line_start=line, line_end=line),
+    )
 
 
 def test_scan_builds_inventory_and_aggregates_provider_results(
@@ -364,6 +395,138 @@ def test_scan_merges_duplicate_facts_and_keeps_all_evidence(
         "evidence:first",
         "evidence:second",
     }
+
+
+def test_scan_aggregates_deduplicates_and_orders_structural_facts(
+    tmp_path: Path,
+) -> None:
+    # Given: providers emit overlapping structural facts in reverse order.
+    first = structural_call(
+        caller="app.main",
+        callee="qdrant_client.QdrantClient",
+        file="src/app.py",
+        line=12,
+    )
+    second = structural_call(
+        caller="app.build",
+        callee="chromadb.HttpClient",
+        file="src/factory.py",
+        line=7,
+    )
+    first_provider = FakeProvider(
+        provider_result([], [], structural_facts=[first, second]),
+        name="first",
+    )
+    second_provider = FakeProvider(
+        provider_result([], [], structural_facts=[second]),
+        name="second",
+    )
+
+    # When: the project scan aggregates provider-local output.
+    result = ProjectScanService(
+        filesystem_provider=FakeFilesystemProvider(build_inventory(tmp_path)),
+        providers=[second_provider, first_provider],
+    ).scan(tmp_path)
+
+    # Then: identity-based dedupe and canonical sort make replay deterministic.
+    assert len(result.structural_facts) == 2
+    assert [item.stable_id for item in result.structural_facts] == sorted(
+        {first.stable_id, second.stable_id}
+    )
+
+
+def test_merge_provider_result_applies_canonical_contract() -> None:
+    # Given: existing output overlaps an unordered provider-local result.
+    duplicate_fact = fact("b", "z.py", "line[2]", "z", "rule_b")
+    first_structural = structural_call(
+        caller="app.main",
+        callee="qdrant_client.QdrantClient",
+        file="a.py",
+        line=1,
+    )
+    second_structural = structural_call(
+        caller="app.build",
+        callee="chromadb.HttpClient",
+        file="z.py",
+        line=2,
+    )
+    duplicate_evidence = evidence(
+        "evidence:z",
+        "b",
+        "z.py",
+        "line[2]",
+        "z",
+        "rule_b",
+    )
+    result = ProjectScanResult(
+        facts=[duplicate_fact],
+        structural_facts=[second_structural],
+        evidence=[duplicate_evidence],
+        issues=[
+            ParseIssue(
+                provider="z_provider",
+                scan_stage="ua_structural_scan",
+                file="z.py",
+                message="z issue",
+                rule_id="z_issue",
+            )
+        ],
+    )
+    provider_output = ProviderScanResult(
+        facts=[
+            duplicate_fact,
+            ScanFact(
+                kind="a",
+                file="a.py",
+                path="line[1]",
+                value="a",
+            ),
+        ],
+        structural_facts=[first_structural, second_structural],
+        evidence=[
+            duplicate_evidence,
+            evidence(
+                "evidence:a",
+                "a",
+                "a.py",
+                "line[1]",
+                "a",
+                "rule_a",
+            ),
+        ],
+        issues=[
+            ParseIssue(
+                provider="a_provider",
+                scan_stage="ua_structural_scan",
+                file="a.py",
+                message="a issue",
+                rule_id="a_issue",
+            )
+        ],
+    )
+
+    # When: external output enters through the public merge API.
+    merged = ProjectScanService(providers=[]).merge_provider_result(
+        result,
+        provider_output,
+        "ua_structural",
+    )
+
+    # Then: provider tagging, dedupe, and every canonical order are shared.
+    assert merged is result
+    assert [item.kind for item in merged.facts] == ["a", "b"]
+    assert merged.facts[0].provider == "ua_structural"
+    assert [item.stable_id for item in merged.structural_facts] == sorted(
+        {first_structural.stable_id, second_structural.stable_id}
+    )
+    assert [item.id for item in merged.evidence] == [
+        "evidence:a",
+        "evidence:z",
+    ]
+    assert [item.provider for item in merged.issues] == [
+        "a_provider",
+        "z_provider",
+    ]
 
 
 def test_scan_orders_facts_evidence_issues_and_skipped_files_deterministically(

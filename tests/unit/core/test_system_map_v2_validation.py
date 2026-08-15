@@ -94,6 +94,22 @@ def test_rejects_observed_edge_without_evidence(
         SystemMapV2ValidationService().validate(data)
 
 
+def test_rejects_observed_edge_with_indirect_evidence(
+    minimal_v2: dict[str, Any],
+) -> None:
+    data = copy.deepcopy(minimal_v2)
+    edge_evidence_ids = set(data["edges"][0]["evidence_ids"])
+    for evidence in data["evidence"]:
+        if evidence["evidence_id"] in edge_evidence_ids:
+            evidence["evidence_kind"] = "indirect"
+
+    with pytest.raises(
+        SystemMapV2ValidationError,
+        match="observed edge requires only direct evidence",
+    ):
+        SystemMapV2ValidationService().validate(data)
+
+
 def test_rejects_detected_edge_without_evidence(
     minimal_v2: dict[str, Any],
 ) -> None:
@@ -117,6 +133,26 @@ def test_accepts_undetermined_edge_without_evidence(
     data["edges"][0]["undetermined_reason"] = "edge_endpoint_unresolved"
 
     SystemMapV2ValidationService().validate(data)
+
+
+def test_rejects_undetermined_edge_without_reason_even_with_evidence(
+    minimal_v2: dict[str, Any],
+) -> None:
+    # Given: an indirect edge has evidence but omits its uncertainty source.
+    data = copy.deepcopy(minimal_v2)
+    data["edges"][0]["status"] = "undetermined"
+    data["edges"][0]["undetermined_reason"] = None
+    edge_evidence_ids = set(data["edges"][0]["evidence_ids"])
+    for evidence in data["evidence"]:
+        if evidence["evidence_id"] in edge_evidence_ids:
+            evidence["evidence_kind"] = "indirect"
+
+    # When/Then: validation fails closed instead of publishing ambiguity.
+    with pytest.raises(
+        SystemMapV2ValidationError,
+        match="undetermined edge requires undetermined_reason",
+    ):
+        SystemMapV2ValidationService().validate(data)
 
 
 @pytest.mark.parametrize("missing_field", ["schema_version", "system_type"])

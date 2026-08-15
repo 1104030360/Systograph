@@ -194,6 +194,10 @@ class SystemMapV2ValidationService:
     def _validate_edge_refs(self, system_map: AiSystemMapV2) -> None:
         component_ids = {item.component_id for item in system_map.components}
         evidence_ids = {item.evidence_id for item in system_map.evidence}
+        evidence_kinds = {
+            item.evidence_id: item.evidence_kind
+            for item in system_map.evidence
+        }
         for edge in system_map.edges:
             if edge.source not in component_ids:
                 raise SystemMapV2ValidationError(
@@ -215,13 +219,17 @@ class SystemMapV2ValidationService:
                 raise SystemMapV2ValidationError(
                     f"{edge.status} edge requires evidence: {edge.edge_id}"
                 )
-            if (
-                edge.status == "undetermined"
-                and not edge.evidence_ids
-                and not edge.undetermined_reason
+            if edge.status == "observed" and any(
+                evidence_kinds[evidence_id] != "direct"
+                for evidence_id in edge.evidence_ids
             ):
                 raise SystemMapV2ValidationError(
-                    f"undetermined edge without evidence requires "
+                    "observed edge requires only direct evidence: "
+                    f"{edge.edge_id}"
+                )
+            if edge.status == "undetermined" and not edge.undetermined_reason:
+                raise SystemMapV2ValidationError(
+                    f"undetermined edge requires "
                     f"undetermined_reason: {edge.edge_id}"
                 )
 

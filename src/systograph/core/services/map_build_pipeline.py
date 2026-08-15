@@ -117,7 +117,9 @@ class MapBuildPipeline:
             build_id=build_id,
             lineage=lineage,
             manual_mappings=materialized.manual_mappings,
-            warnings=warnings,
+            warnings=list(
+                dict.fromkeys([*(warnings or ()), *materialized.warnings])
+            ),
         )
 
     # 做什麼：已有 v2 map（例如 detail scan 後）直接走 _complete，不再重掃。

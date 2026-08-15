@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from systograph.core.models.ai_system_map_v2 import AiSystemMapV2
+from systograph.core.models.ai_system_map_v2 import (
+    AiSystemMapV2,
+    CanonicalEdge,
+)
 from systograph.core.models.recommended_next_check import RecommendedNextCheck
 from systograph.core.models.scan import ProjectScanResult
 from systograph.core.models.system_map import ComponentInstance, ComponentSlot
@@ -18,6 +21,7 @@ def _assemble_map(
     *,
     components: ComponentDetectionResult,
     checks: list[RecommendedNextCheck],
+    edges: list[CanonicalEdge] | None = None,
 ) -> AiSystemMapV2:
     return SystemMapV2NormalizeService().assemble(
         project_name="fixture-project",
@@ -26,7 +30,7 @@ def _assemble_map(
         raw_scan=ProjectScanResult(),
         components=components,
         endpoints=[],
-        flows=[],
+        edges=edges or [],
         risk_hints=[],
         recommended_next_checks=checks,
         no_snippets=False,
@@ -176,3 +180,59 @@ def test_component_layer_is_undetermined_for_an_unlisted_type() -> None:
 
     # Then
     assert system_map.components[0].layer == "undetermined"
+
+
+def test_normalize_preserves_template_edge_status_and_reason() -> None:
+    # Given
+    source = ComponentInstance(
+        id="component:retriever:fixture",
+        slot="retriever",
+        kind="retriever",
+        name="Retriever",
+        evidence_ids=["evidence:retriever"],
+    )
+    target = ComponentInstance(
+        id="component:vector_store:fixture",
+        slot="vector_store",
+        kind="vector_db",
+        name="Vector Store",
+        evidence_ids=["evidence:vector"],
+    )
+    components = ComponentDetectionResult(
+        components_by_slot={
+            "retriever": ComponentSlot(
+                slot="retriever",
+                required_for_rag=True,
+                status="detected",
+                instances=[source],
+            ),
+            "vector_store": ComponentSlot(
+                slot="vector_store",
+                required_for_rag=True,
+                status="detected",
+                instances=[target],
+            ),
+        },
+        unmapped_components=[],
+    )
+    template_edge = CanonicalEdge(
+        edge_id="edge:template",
+        source=source.id,
+        target=target.id,
+        relationship="queries_vector_store",
+        status="undetermined",
+        undetermined_reason="template_adjacency_only",
+        evidence_ids=["evidence:retriever", "evidence:vector"],
+    )
+
+    # When
+    system_map = _assemble_map(
+        components=components,
+        checks=[],
+        edges=[template_edge],
+    )
+
+    # Then
+    edge = system_map.edges[0]
+    assert edge.status == "undetermined"
+    assert edge.undetermined_reason == "template_adjacency_only"

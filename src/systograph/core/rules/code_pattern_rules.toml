@@ -1,3 +1,15 @@
+# STANDING POLICY: this catalog is for DISAMBIGUATION-ONLY patterns
+# going forward -- cases where package identity alone cannot decide:
+#   - endpoint-based vendor attribution (the OpenAI base_url ladder:
+#     local OpenAI-compatible runtime vs the external OpenAI service),
+#   - usage-shape capabilities (route decorators, client-variant typing
+#     such as chromadb http vs persistent clients).
+# New vendor/service coverage belongs in the package identity layer
+# (package_capability_rules.toml), keyed on the import module name and
+# joined from AST external-import facts -- not as new regexes here.
+# Existing rules stay: they either disambiguate or still carry
+# call-site evidence the import layer cannot produce.
+
 [[patterns]]
 rule_id = "code_pattern_embedding_openai"
 kind = "embedding"
@@ -15,12 +27,24 @@ regex = "\\b(?:[A-Za-z_][A-Za-z0-9_]*\\.)?embeddings\\.create\\s*\\("
 snippet_group = ""
 
 [[patterns]]
+rule_id = "code_pattern_embedding_ollama"
+kind = "embedding"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bollama\\.(?:embed|embeddings)\\s*\\("
+snippet_group = ""
+symbol = "ollama.embeddings"
+ua_rule_id = "ua_call_hint_embedding_ollama"
+
+[[patterns]]
 rule_id = "code_pattern_vector_store_qdrant"
 kind = "vector_store_client"
 languages = ["python"]
 extensions = [".py"]
 regex = "\\bQdrantClient\\s*\\("
 snippet_group = ""
+symbol = "qdrant_client.QdrantClient"
+ua_rule_id = "ua_call_hint_vector_store_qdrant"
 
 [[patterns]]
 rule_id = "code_pattern_vector_store_chroma"
@@ -37,6 +61,8 @@ languages = ["python"]
 extensions = [".py"]
 regex = "\\bchromadb\\.HttpClient\\s*\\("
 snippet_group = ""
+symbol = "chromadb.HttpClient"
+ua_rule_id = "ua_call_hint_vector_store_chroma_http"
 
 [[patterns]]
 rule_id = "code_pattern_vector_store_chroma_async_http"
@@ -45,6 +71,8 @@ languages = ["python"]
 extensions = [".py"]
 regex = "\\bchromadb\\.AsyncHttpClient\\s*\\("
 snippet_group = ""
+symbol = "chromadb.AsyncHttpClient"
+ua_rule_id = "ua_call_hint_vector_store_chroma_async_http"
 
 [[patterns]]
 rule_id = "code_pattern_vector_store_chroma_persistent"
@@ -52,6 +80,16 @@ kind = "vector_store_client"
 languages = ["python"]
 extensions = [".py"]
 regex = "\\bchromadb\\.PersistentClient\\s*\\("
+snippet_group = ""
+symbol = "chromadb.PersistentClient"
+ua_rule_id = "ua_call_hint_vector_store_chroma_persistent"
+
+[[patterns]]
+rule_id = "code_pattern_vector_store_pgvector_query"
+kind = "vector_store_client"
+languages = ["python", "javascript", "typescript"]
+extensions = [".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]
+regex = "\\b(?:conn|connection|cursor)\\.execute\\s*\\([\\s\\S]{0,400}?\\bembedding\\s*(?:<->|<#>|<=>)"
 snippet_group = ""
 
 [[patterns]]
@@ -76,6 +114,46 @@ kind = "llm_call"
 languages = ["python"]
 extensions = [".py"]
 regex = "\\bChatOpenAI\\b"
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_llm_chat_ollama"
+kind = "llm_call"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bollama\\.(?:chat|generate)\\s*\\("
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_llm_client_ollama"
+kind = "llm_call"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\bollama\\.(?:Client|AsyncClient)\\s*\\("
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_llm_openai_compat_local_ollama"
+kind = "llm_call"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\b(?:Async)?OpenAI\\s*\\([^)]*base_url\\s*=\\s*['\\\"]https?://(?:localhost|127\\.0\\.0\\.1):11434(?:/v1)?['\\\"]"
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_llm_client_openai"
+kind = "llm_call"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\b(?:Async)?OpenAI\\s*\\((?![^)]*base_url)"
+snippet_group = ""
+
+[[patterns]]
+rule_id = "code_pattern_llm_chat_openai_sdk"
+kind = "llm_call"
+languages = ["python"]
+extensions = [".py"]
+regex = "\\.chat\\.completions\\.create\\s*\\("
 snippet_group = ""
 
 [[patterns]]

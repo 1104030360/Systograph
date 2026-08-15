@@ -23,6 +23,16 @@ class FileInventorySource(StrEnum):
     FALLBACK_AFTER_GIT_ERROR = "fallback_after_git_error"
 
 
+class FileCategory(StrEnum):
+    CODE = "code"
+    CONFIG = "config"
+    DOCS = "docs"
+    INFRA = "infra"
+    DATA = "data"
+    SCRIPT = "script"
+    MARKUP = "markup"
+
+
 class SkipReason(StrEnum):
     """Why a project path was excluded from scanner inventory."""
 
@@ -42,6 +52,7 @@ class SkipReason(StrEnum):
     UNREADABLE = "unreadable"
     SKIPPED_BY_POLICY_OVERLAY = "skipped_by_policy_overlay"
     PENDING_BOUNDARY_REVIEW = "pending_boundary_review"
+    TEST_SUITE = "test_suite"
 
 
 class FileRecord(ScanModel):
@@ -49,6 +60,9 @@ class FileRecord(ScanModel):
 
     path: str
     size_bytes: int
+    language: str = "unknown"
+    file_category: FileCategory = FileCategory.CODE
+    size_lines: int = Field(default=0, ge=0)
     metadata_fingerprint: str | None = None
     content_fingerprint: str | None = None
 

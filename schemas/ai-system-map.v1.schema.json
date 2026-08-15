@@ -379,12 +379,34 @@
           "title": "Relationship",
           "type": "string"
         },
+        "status": {
+          "default": "undetermined",
+          "enum": [
+            "observed",
+            "detected",
+            "undetermined"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
         "evidence_ids": {
           "items": {
             "type": "string"
           },
           "title": "Evidence Ids",
           "type": "array"
+        },
+        "undetermined_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "template_adjacency_only",
+          "title": "Undetermined Reason"
         }
       },
       "required": [
@@ -561,6 +583,23 @@
           ],
           "default": null,
           "title": "Snippet"
+        },
+        "evidence_kind_hint": {
+          "anyOf": [
+            {
+              "enum": [
+                "direct",
+                "indirect",
+                "explicit_negative"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Kind Hint"
         }
       },
       "required": [

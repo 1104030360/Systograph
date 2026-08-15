@@ -59,6 +59,18 @@ def test_checked_in_schema_matches_pydantic_generated_schema() -> None:
     assert load_schema() == build_system_map_schema()
 
 
+def test_schema_exposes_optional_evidence_kind_hint() -> None:
+    given_evidence_schema = load_schema()["$defs"]["Evidence"]
+
+    when_hint_schema = given_evidence_schema["properties"][
+        "evidence_kind_hint"
+    ]
+
+    then_hint_values = set(when_hint_schema["anyOf"][0]["enum"])
+    assert then_hint_values == {"direct", "indirect", "explicit_negative"}
+    assert "evidence_kind_hint" not in given_evidence_schema["required"]
+
+
 def test_schema_requires_canonical_top_level_arrays() -> None:
     schema = load_schema()
 

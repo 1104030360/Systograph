@@ -1,0 +1,432 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "UaAnalysisStats": {
+      "additionalProperties": false,
+      "properties": {
+        "filesScanned": {
+          "minimum": 0,
+          "title": "Filesscanned",
+          "type": "integer"
+        },
+        "filesWithImports": {
+          "minimum": 0,
+          "title": "Fileswithimports",
+          "type": "integer"
+        },
+        "totalEdges": {
+          "minimum": 0,
+          "title": "Totaledges",
+          "type": "integer"
+        },
+        "totalBatches": {
+          "minimum": 0,
+          "title": "Totalbatches",
+          "type": "integer"
+        },
+        "algorithm": {
+          "enum": [
+            "louvain",
+            "count-fallback"
+          ],
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "filesAnalyzed": {
+          "minimum": 0,
+          "title": "Filesanalyzed",
+          "type": "integer"
+        },
+        "batchCompletion": {
+          "items": {
+            "$ref": "#/$defs/UaBatchCompletion"
+          },
+          "title": "Batchcompletion",
+          "type": "array"
+        }
+      },
+      "required": [
+        "filesScanned",
+        "filesWithImports",
+        "totalEdges",
+        "totalBatches",
+        "algorithm",
+        "filesAnalyzed",
+        "batchCompletion"
+      ],
+      "title": "UaAnalysisStats",
+      "type": "object"
+    },
+    "UaBatchCompletion": {
+      "additionalProperties": false,
+      "properties": {
+        "batchIndex": {
+          "minimum": 1,
+          "title": "Batchindex",
+          "type": "integer"
+        },
+        "scriptCompleted": {
+          "title": "Scriptcompleted",
+          "type": "boolean"
+        },
+        "outputPresent": {
+          "title": "Outputpresent",
+          "type": "boolean"
+        },
+        "filesAnalyzed": {
+          "minimum": 0,
+          "title": "Filesanalyzed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "batchIndex",
+        "scriptCompleted",
+        "outputPresent",
+        "filesAnalyzed"
+      ],
+      "title": "UaBatchCompletion",
+      "type": "object"
+    },
+    "UaCallRow": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        },
+        "caller": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Caller",
+          "type": "string"
+        },
+        "callee": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Callee",
+          "type": "string"
+        },
+        "line_number": {
+          "minimum": 1,
+          "title": "Line Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "file",
+        "caller",
+        "callee",
+        "line_number"
+      ],
+      "title": "UaCallRow",
+      "type": "object"
+    },
+    "UaEndpointRow": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        },
+        "line_start": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Start"
+        },
+        "line_end": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line End"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "maxLength": 32,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "path": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "path"
+      ],
+      "title": "UaEndpointRow",
+      "type": "object"
+    },
+    "UaImportRow": {
+      "additionalProperties": false,
+      "properties": {
+        "source_file": {
+          "minLength": 1,
+          "title": "Source File",
+          "type": "string"
+        },
+        "target_file": {
+          "minLength": 1,
+          "title": "Target File",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_file",
+        "target_file"
+      ],
+      "title": "UaImportRow",
+      "type": "object"
+    },
+    "UaResourceRow": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        },
+        "line_start": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Start"
+        },
+        "line_end": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line End"
+        },
+        "name": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "name",
+        "kind"
+      ],
+      "title": "UaResourceRow",
+      "type": "object"
+    },
+    "UaStructuralResult": {
+      "additionalProperties": false,
+      "properties": {
+        "imports": {
+          "items": {
+            "$ref": "#/$defs/UaImportRow"
+          },
+          "title": "Imports",
+          "type": "array"
+        },
+        "symbols": {
+          "items": {
+            "$ref": "#/$defs/UaSymbolRow"
+          },
+          "title": "Symbols",
+          "type": "array"
+        },
+        "calls": {
+          "items": {
+            "$ref": "#/$defs/UaCallRow"
+          },
+          "title": "Calls",
+          "type": "array"
+        },
+        "resources": {
+          "items": {
+            "$ref": "#/$defs/UaResourceRow"
+          },
+          "title": "Resources",
+          "type": "array"
+        },
+        "endpoints": {
+          "items": {
+            "$ref": "#/$defs/UaEndpointRow"
+          },
+          "title": "Endpoints",
+          "type": "array"
+        }
+      },
+      "required": [
+        "imports",
+        "symbols",
+        "calls",
+        "resources",
+        "endpoints"
+      ],
+      "title": "UaStructuralResult",
+      "type": "object"
+    },
+    "UaSymbolRow": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        },
+        "line_start": {
+          "minimum": 1,
+          "title": "Line Start",
+          "type": "integer"
+        },
+        "line_end": {
+          "minimum": 1,
+          "title": "Line End",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "function",
+            "class",
+            "export"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "line_start",
+        "line_end",
+        "name",
+        "kind"
+      ],
+      "title": "UaSymbolRow",
+      "type": "object"
+    },
+    "UaWarning": {
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Stage",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "message"
+      ],
+      "title": "UaWarning",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "systograph-ua-result/v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "const": "completed",
+      "title": "Status",
+      "type": "string"
+    },
+    "structural": {
+      "$ref": "#/$defs/UaStructuralResult"
+    },
+    "semantic": {
+      "title": "Semantic",
+      "type": "null"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/UaWarning"
+      },
+      "maxItems": 100,
+      "title": "Warnings",
+      "type": "array"
+    },
+    "stats": {
+      "$ref": "#/$defs/UaAnalysisStats"
+    },
+    "extra": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Extra",
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "status",
+    "structural",
+    "semantic",
+    "warnings",
+    "stats",
+    "extra"
+  ],
+  "title": "UaAnalysisResult",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://systograph.local/schemas/systograph-ua-result.v1.schema.json"
+}
