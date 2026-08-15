@@ -6,6 +6,20 @@
 
 Status: **reference recorded**（2026-07-29）— Plan 16 的技術參考附件，非獨立實作 plan。
 
+> **2026-08-10 Phase 12 live revalidation：** 本輪已初始化 submodule 並逐檔核對 pin
+> `73559a160645359c57be44c174935899dec9f9f2`；本機 Node `v22.22.3`、pnpm
+> `10.22.0`。確認 `scan-project.mjs` 會自行列舉檔案、`extract-import-map.mjs`
+> 只保留 internal `fileSet` 邊、未 patch 的 `compute-batches.mjs` 會寫 target
+> `.understand-anything/intermediate`，以及 Python extractor 只在 `functionStack`
+> 非空時輸出 call。故 authoritative inventory、install-time patch、G1/G3 補充仍是
+> 硬邊界。
+>
+> **結果驗證校正：** `totalEdges == 0` 不是 sidecar 失敗訊號；單檔、空專案或沒有
+> internal dependency 的合法輸入可以誠實得到零邊。fail-closed 應依 process exit、
+> schema/version、batch completion、structured error marker、approved-path invariant 與
+> stderr policy 判定；零邊只記 stats，不單獨拒絕。stdout 只承載 JSON，stderr 必須
+> 限量、遮罩 secret 與本機絕對路徑。
+
 > **對象：** Plan 16 執行者（Task 1/3/4/6 的直接輸入）
 > **性質：** 實測查核紀錄；**不**改產品碼
 > **來源：** 2026-07-29 三路查核 —— (a) vendored submodule 三支 script 原始碼逐行讀

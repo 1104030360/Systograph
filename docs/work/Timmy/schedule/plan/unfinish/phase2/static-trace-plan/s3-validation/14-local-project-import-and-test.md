@@ -446,13 +446,30 @@ Summary:
 [Plan 18](../s3-retirement/18-retire-systograph-scan-toml-providers-after-parity.md) Task 1
 **不重新分類**，只確認本表覆蓋完整後原樣凍結進 retirement report。
 
+Plan 16 Task 7 的 machine-readable 輸入固定為 `systograph-ua-parity/v1`：
+
+- `comparisons[]` 的 raw fact 分類唯四：`equivalent`、`missing`、`extra`、
+  `intentionally_degraded`；每列保留 UA／legacy provider、`rule_id`、project-relative
+  file/path、evidence ids 與 line range provenance。
+- `equivalent`／`missing` 只能由 `code_pattern_rules.toml` 的
+  legacy `rule_id` ↔ `ua_rule_id` mirror 判定；同一 mirror 還必須對到相同 kind、file 與
+  evidence line，不能用模糊字串比對補成等價。
+- `intentionally_degraded` 在 machine report 只表示「catalog 未宣告 UA mirror」，**不等於**
+  Plan 14 已接受退役缺口。本計畫仍須把 raw rows 聚合並人工裁定成下表五種治理分類；例如
+  dependency rules 應落到 `retain_as_mechanism`，不能因 raw classification 名稱而誤標
+  `accepted_gap`。
+- `invocations` 固定輸出 `filesystem_scan`、`ua_sidecar`、`parity_providers` 三個不可變
+  counter；B1 建立 report 後，B2 Apply 只引用同一份 counters，三者皆須維持 `1`。
+- report 固定 `llm_mode=disabled`，不得含 timestamp、UUID、absolute local path 或 raw source，
+  同一 inventory 重跑的 JSON 必須 byte-stable。
+
 ```markdown
 ## UA Parity — per-provider 分類表
 
 | Provider rule (`rule_id`) | Provider | Provenance | UA 等價 `rule_id` | 分類 | 依據 / 備註 |
 |---|---|---|---|---|---|
-| `code_pattern_vector_store_qdrant` | `code_pattern` | ua + legacy | `ua_symbol_...` | `covered_by_ua` | 語料：Tier A `<repo>@<sha>` |
-| `docker_env_file_detected` | `docker_image` | legacy only | — | `accepted_gap` | 書面理由 + Plan 18 Task 2 consumer audit ref |
+| `code_pattern_vector_store_qdrant` | `code_pattern` | ua + legacy | `ua_call_hint_vector_store_qdrant` | `covered_by_ua` | 語料：Tier A `<repo>@<sha>` |
+| `docker_env_file_detected` | `docker_compose` | legacy only | — | `accepted_gap` | 書面理由 + Plan 18 Task 2 consumer audit ref |
 | `dependency_*` | `dependency_manifest` | legacy only | — | `retain_as_mechanism` | 無 UA 等價機制 |
 ```
 

@@ -5,9 +5,19 @@
 > 前端圖）真的**以「看到的呼叫」為主**，模板猜測退為備援。
 > **Cutover = 切換**，指正式把主力從舊做法換成新做法。
 
-Status: planned — **依賴 Plan 16 Gate-2 structural path + [`16C`](./16C-component-attribution-and-edge-derivation.md) L1/L2/L3 邊推導落地之後**
+Status: **completed（2026-08-11）** — Task 1～7 與 live API-mode Viewer smoke
+均完成；pgvector build 顯示 L1 `observed` 與 L3 `undetermined`，Graph/View payload
+可載入且 browser console 無 schema error。
 
-> **2026-08-10 裁定併入：** Q12（合併鍵改 `(from, to)`）／Q14（Plan 14 硬前置、CI fixture
+> **2026-08-10 Phase 12 live-contract 校正：** `CanonicalEdge` 已有 status/reason，
+> 但 backend `GraphEdgeModel`、`GraphProjectionService` 與 static `ArtifactEdge` 目前都
+> 會丟掉它們。本計畫必須加性擴充這三個 backend/static contract、schema 與測試，
+> 才能履行「同一套邊集合且級別可辨識」；frontend production code 維持不動。
+> 另取代舊 Q12：merge key 是 `(from,to,relationship)`，tier 只在同 relationship
+> 內競爭。驗收不再要求「至少一張卡變好」；只要求**若**卡片前進，必須由端點正確的
+> direct observed call evidence 驅動，零改善是可接受且誠實的結果。
+
+> **2026-08-10 裁定併入：** Q14（Plan 14 硬前置、CI fixture
 > 預設 `off`、前端虛線另開）／Q15（開關名凍結），見
 > [`CLARIFICATIONS-2026-08-10.md`](./CLARIFICATIONS-2026-08-10.md)。
 
@@ -140,16 +150,16 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 
 **Steps**
 
-- [ ] 確認 16C 的 `UaEdgeDerivationService`（或等價）在 materialize 路徑被呼叫。
-- [ ] Canonical `edges[]` 合併規則固定為 **L1 > L2 > L3**；同 **`(from, to)`** 只留最高級
-      （2026-08-10 裁定 Q12；`relationship` 取勝出邊的值。16C Task 2 的 TOML 約束保證同一
-      `(from_kind, to_kind)` 只有一個 `relationship`，因此不會與三元組寫法分岔）。
-- [ ] `FlowDerivationService.derive` **不再**是唯一寫入 canonical edges 的來源；它只供應 L3。
-- [ ] 當 L1/L2 為空時，仍可輸出 L3——除非 Task 4 flag 關閉 L3。
+- [x] 確認 16C 的 `UaEdgeDerivationService`（或等價）在 materialize 路徑被呼叫。
+- [x] Canonical `edges[]` 合併規則固定為 **L1 > L2 > L3**；同
+      **`(from, to, relationship)`** 只留最高級。不同 relationship 只有在完整
+      semantic discriminant 不同且各自唯一命中規則時才可並存。
+- [x] `FlowDerivationService.derive` **不再**是唯一寫入 canonical edges 的來源；它只供應 L3。
+- [x] 當 L1/L2 為空時，仍可輸出 L3——除非 Task 4 flag 關閉 L3。
       （**注意**：L3 不是「骨架」來源，52 格底圖由 Step 7 永遠 emit；理由見
       [`16G`](./16G-retire-template-flow-derivation.md) §3②）
-- [ ] 單元測試：只有模板 → 全 `undetermined`；有 call → `observed` 覆蓋同 pair 的模板邊。
-- [ ] 單元測試：L2 與 L3 都是 `undetermined` 時，靠 `undetermined_reason` 可區分，
+- [x] 單元測試：只有模板 → 全 `undetermined`；有 call → `observed` 覆蓋同 pair 的模板邊。
+- [x] 單元測試：L2 與 L3 都是 `undetermined` 時，靠 `undetermined_reason` 可區分，
       且合併規則仍正確保留 L2（`import_only_no_call_site`）而非 L3。
 
 ### Task 2 — 正規化階段（Normalize）：防止「無條件標成 observed」的舊行為復發
@@ -161,25 +171,27 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 
 **Steps**
 
-- [ ] 確認 16C Task 5 的修正仍在；若被 revert 則在本 task 修復。
-- [ ] 新增 regression test：模板-only fixture 不得出現無 direct evidence 的 `observed` 邊。
-- [ ] 更新 `docs/MODEL-CONTRACT.md` 邊 `status` 三態語意（若 16C 未寫完則本 task 補完）。
+- [x] 確認 16C Task 5 的修正仍在；若被 revert 則在本 task 修復。
+- [x] 新增 regression test：模板-only fixture 不得出現無 direct evidence 的 `observed` 邊。
+- [x] 更新 `docs/MODEL-CONTRACT.md` 邊 `status` 三態語意（若 16C 未寫完則本 task 補完）。
 
 ### Task 3 — 靜態執行產出檔（siblings 同層檔案）改吃同一批「呼叫優先」的邊
 
 **Files**
 
 - Modify: static execution 相關 service（Track-C / `StaticExecutionArtifactService`）
+- Modify: `src/systograph/core/models/execution_artifact.py`（`ArtifactEdge` 加性保存
+  `status`／`undetermined_reason`）
 - Test: integration 對 `call_graph.json` / `execution_paths.json` / `execution_map.mmd`
 
 **Steps**
 
-- [ ] 三個 sibling 的邊集合 ⊆ canonical `edges[]`（或可追溯到同一 evidence 集合）；禁止另算一套「假想路徑」。
-- [ ] 路徑優先走 `status=observed`；`undetermined`（L2／L3）可進圖但必須可辨識
+- [x] 三個 sibling 的邊集合 ⊆ canonical `edges[]`（或可追溯到同一 evidence 集合）；禁止另算一套「假想路徑」。
+- [x] 路徑優先走 `status=observed`；`undetermined`（L2／L3）可進圖但必須可辨識
       （靠 `undetermined_reason` 區分 `import_only_no_call_site` 與
       `template_adjacency_only`）。**不再有 `detected` 這一層**（選項 B）。
-- [ ] 全部 artifact 維持 `runtime_verified=false`。
-- [ ] Fixture：`basic_qdrant_ollama_rag`、`pgvector_openai_rag` 各跑一次，記錄 observed 路徑數 vs 基線（16A §2.3）。
+- [x] 全部 artifact 維持 `runtime_verified=false`。
+- [x] Fixture：`basic_qdrant_ollama_rag`、`pgvector_openai_rag` 各跑一次，記錄 observed 路徑數 vs 基線（16A §2.3）。
 
 ### Task 4 — 讓 L3 模板邊可以整個關掉（完整「呼叫優先」開關）
 
@@ -205,14 +217,14 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 
 **Steps**
 
-- [ ] 實作 `SYSTOGRAPH_TEMPLATE_FLOW_EDGES` 開關；產品預設 `on`，CI fixture 設 `off`。
-- [ ] 測試：`off` 時無 `template_adjacency_only` 邊；`on` 時行為同 16C。
-- [ ] CI 切 `off` 的一次性成本＝既有斷言基線調整。**⚠️ 嚴重警告（已寫入根
-      CLAUDE.md Engineering Principles）：`off` 模式暴露缺口時，禁止以「為了讓測試過」
+- [x] 實作 `SYSTOGRAPH_TEMPLATE_FLOW_EDGES` 開關；產品預設 `on`，CI fixture 設 `off`。
+- [x] 測試：`off` 時無 `template_adjacency_only` 邊；`on` 時行為同 16C。
+- [x] CI 切 `off` 的一次性成本＝既有斷言基線調整。**⚠️ 嚴重警告（本計畫的硬規則；
+      ignored 的 root `CLAUDE.md` 不視為 branch source of truth）：`off` 模式暴露缺口時，禁止以「為了讓測試過」
       的 code 應對**——不得寫 fixture 特化 hack、不得捏造 facts/evidence、不得在掃描器
       加只為過測試的路徑；**唯二合法解＝真實能力改進，或明文記錄的基線調整**；
       違者 review P1。誠實的空圖勝過造假的滿圖。
-- [ ] Plan 14 / demo 腳本註明何時建議 `off`（例如 call 覆蓋已足夠的內部 fixture）。
+- [x] Plan 14 / demo 腳本註明何時建議 `off`（例如 call 覆蓋已足夠的內部 fixture）。
 
 ### Task 5 — Profile / G5c（rag-grounding · `context_flow`）收斂
 
@@ -224,18 +236,21 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 
 **Steps**
 
-- [ ] 至少一張依賴 relationship 的卡（優先 `rag-grounding` / `context_flow`）在指定 fixture 上，因 **L1 `observed` 邊** 而從基線狀態前進（`undetermined`→`partial` 或 `partial`→`detected`，以實際證據為準）。
-- [ ] 端點約束生效：亂掛同名 relationship 不得翻綠（13.8 回歸）。
-- [ ] **記錄「因兩級改制而不再前進」的 fixture**（16C §2.2 的已知取捨）：
+- [x] 若指定 fixture 的 relationship 卡前進，逐張證明是因端點正確的
+      **L1 `observed` call evidence**；沒有足夠 call evidence 時，零張前進是合法結果，
+      不得為滿足結果數量捏造 edge。
+- [x] 端點約束生效：亂掛同名 relationship 不得翻綠（13.8 回歸）。
+- [x] **記錄「因兩級改制而不再前進」的 fixture**（16C §2.2 的已知取捨）：
       L2 邊不再算接線證據後，只有 import 沒有呼叫點的 fixture 其卡片會停在
       `undetermined`。逐一列出並註明是否屬 16E 的 G1／G2 缺口，
       **避免後續 review 誤判成回歸**。
-- [ ] 更新 baseline 快照時，commit／PR 說明必須指名哪一條 call-site evidence。
-- [ ] Readiness / profile finding 文案去掉「模板即接線」的誤導語句（若有）。
+- [x] 更新 baseline 快照時，commit／PR 說明必須指名哪一條 call-site evidence。
+- [x] Readiness / profile finding 文案去掉「模板即接線」的誤導語句（若有）。
 
 ### Task 6 — 前端冒煙測試（煙測：只驗基本功能沒壞）與可選的視覺微調
 
-**契約原則：** 不新增 GraphViewModel 欄位也可完成 MVP（沿用 `status`）。
+**契約原則：** frontend shape 不新增欄位；backend `GraphEdgeModel` 必須把既有
+canonical `status`／`undetermined_reason` 加性投影出來。
 
 > **虛線 polish 已移出本計畫（2026-08-10 裁定 Q14③）：** 另開 frontend-only task，
 > 計畫在 `docs/work/Meeting-Sync/meeting_sync_2026_08_10/frontend-edge-status-dashed-rendering.md`
@@ -243,17 +258,19 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 
 **Steps**
 
-- [ ] API mode 載入含 L1/L2/L3 的 build：Flow filter / execution 圖有邊，且無前端 schema 錯誤。
-- [ ] `git diff frontend/` 應為空——虛線／透明度 polish 歸上述 frontend-only task，
+- [x] API mode 載入含 L1/L2/L3 的 build：Flow filter / execution 圖有邊，且無前端 schema 錯誤。
+- [x] backend contract test 斷言 GraphViewModel edge 保留 status/reason；API payload
+      不得把 `undetermined` 偷改成 `observed`。
+- [x] `git diff frontend/` 應為空——虛線／透明度 polish 歸上述 frontend-only task，
       不在本 PR；若真的動到 frontend，限於 render 層，且禁止前端自組 nodes/edges。
 
 ### Task 7 — Apply（重放快照）／Rescan（重新掃描）回歸測試
 
 **Steps**
 
-- [ ] Apply：同 `scan_id` 重放，call-priority edges 與 evidence id **位元級穩定**（16B 規則 C）。
-- [ ] Rescan：新 snapshot 可改變邊集合；不得默默沿用舊 call 邊。
-- [ ] 不重跑 UA 的 Apply path 不得呼叫 sidecar。
+- [x] Apply：同 `scan_id` 重放，call-priority edges 與 evidence id **位元級穩定**（16B 規則 C）。
+- [x] Rescan：新 snapshot 可改變邊集合；不得默默沿用舊 call 邊。
+- [x] 不重跑 UA 的 Apply path 不得呼叫 sidecar。
 
 ---
 
@@ -265,7 +282,7 @@ Gate-2（Plan 16）──► 16C（邊推導）──► 16D（本檔 cutover）
 | 2 | 存在至少一條 `observed` 邊，且其 evidence 含 call-site（file+line） | fixture E2E |
 | 3 | 無 direct evidence 的邊不得為 `observed` | contract test |
 | 4 | Static execution 三 sibling 與 map edges 同源 | artifact diff／測試 |
-| 5 | 至少一張 relationship 卡因 call 邊前進 | profile baseline 有意更新 |
+| 5 | 任一卡片若前進，只能由端點正確的 direct observed call evidence 驅動；零改善可誠實通過 | profile evidence contract + baseline |
 | 6 | Apply 不重跑 UA、邊集合穩定 | integration |
 | 7 | `runtime_verified=false` 全線維持 | artifact 欄位斷言 |
 

@@ -231,6 +231,13 @@ Plan 14 report 必須至少包含：
 | **per-provider 分類表** | **Plan 14 報告含固定第二張表「per-provider parity 分類表」，每個 Systograph provider rule 都有五分類之一（`covered_by_ua`／`accepted_gap`／`needs_ua_adapter_fix`／`retain_as_vocabulary`／`retain_as_mechanism`）與 provenance 欄。未分類或存在 `needs_ua_adapter_fix` 時 gate 不通過**（2026-08-10 裁定 Q17③） |
 | **函式外建構（G1）parity** | **[16H](../s2-ua-integration/16H-ast-construction-provider.md) `ast_construction_provider` 的產出須納入 parity 對比，作為 `code_pattern` provider 退役的前提之一**（16E §2 移交，2026-08-10 經 Q17 裁定）。理由見上方「`code_pattern` —— 全退機制，TOML 升格」節 |
 
+> **Machine diff 與退役裁定是兩層 contract：** Plan 16 Task 7 的
+> `systograph-ua-parity/v1` 先逐 fact 輸出 `equivalent`／`missing`／`extra`／
+> `intentionally_degraded` 與雙邊 provenance；Plan 14 再把這些 raw rows 聚合為本表的五種
+> provider-rule 治理分類。raw `intentionally_degraded` 只代表「catalog 無 UA mirror」，不能
+> 直接當作本計畫已接受的 `accepted_gap`。Plan 18 必須同時保存 machine report 的
+> `inventory_digest`、byte-stable artifact digest，以及 Plan 14 凍結的五分類表。
+
 任何 blocker 未解時，本計畫維持 pending。
 
 ## Task 1：凍結 parity report 與退役清單
@@ -246,7 +253,9 @@ Plan 14 report 必須至少包含：
 > provider rule / provider / provenance / UA 等價 `rule_id` / 分類 / 依據，格式見
 > [Plan 14 Task 7](../s3-validation/14-local-project-import-and-test.md)）。
 > 本計畫的 `ua-parity-retirement-YYYY-MM-DD.md` **不重新分類**，只原樣凍結該表，
-> 再加上本計畫自有的決策紀錄（docker fact 四類裁定、回退方案、owner、fallback status）。
+> 並引用原始 `systograph-ua-parity/v1` artifact path／digest 與 immutable invocation counters
+> （`filesystem_scan=1`、`ua_sidecar=1`、`parity_providers=1`），再加上本計畫自有的決策紀錄
+> （docker fact 四類裁定、回退方案、owner、fallback status）。
 
 **Steps**
 

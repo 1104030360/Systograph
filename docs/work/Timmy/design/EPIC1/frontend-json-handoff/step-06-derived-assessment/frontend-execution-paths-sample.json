@@ -1,17 +1,30 @@
 {
+  "artifact_set_version": "phase2-p0/v1",
   "build_id": "build:sample-b1",
   "environment_id": "environment:default-static",
   "generated_from_build_id": "build:sample-b1",
   "paths": [
-    [
-      "component:agent:loop",
-      "component:tool:search"
-    ],
-    [
-      "component:agent:loop",
-      "component:llm:planner"
-    ]
+    {
+      "edge_id": "edge:agent-loop:tool-search:invokes",
+      "evidence_ids": ["evidence:call:agent-loop:tool-search"],
+      "relationship": "invokes",
+      "source": "component:agent:loop",
+      "status": "observed",
+      "target": "component:tool:search",
+      "undetermined_reason": null
+    },
+    {
+      "edge_id": "edge:agent-loop:llm-planner:context-flow",
+      "evidence_ids": ["evidence:import:agent-loop:llm-planner"],
+      "relationship": "context_flow",
+      "source": "component:agent:loop",
+      "status": "undetermined",
+      "target": "component:llm:planner",
+      "undetermined_reason": "import_only_no_call_site"
+    }
   ],
+  "runtime_verified": false,
   "scan_id": "scan:sample-s1",
-  "schema_version": "execution-paths/v1"
+  "schema_version": "execution-paths/v2",
+  "trace_kind": "static_inferred"
 }

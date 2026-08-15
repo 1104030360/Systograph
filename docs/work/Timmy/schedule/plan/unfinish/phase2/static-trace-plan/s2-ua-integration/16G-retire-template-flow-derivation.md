@@ -5,8 +5,23 @@
 > 不是關掉、不是留著當備援。
 > **Review 重點看 §1（刪什麼／不刪什麼）與 §5（憑什麼說「沒問題」）。**
 
-Status: planned — **blocked until [`16D`](./16D-call-priority-consumer-cutover.md) 完成
-且 §5 全部門檻通過**
+Status: **blocked / NO-GO（2026-08-11 最終驗收）** — `16D` call-priority cutover 已完成，
+但 §5 門檻 1、2 未通過，門檻 6 不得簽署；依 Task 1 fail-closed 規則保留
+`FlowDerivationService`、L3 與 `SYSTOGRAPH_TEMPLATE_FLOW_EDGES`。
+
+> **2026-08-10～11 retirement gate 實測：** 12 個 fixture 的 off 模式總計只有 2 條
+> L1、0 條 L2；13 個 required profile relationships 全部缺 L1。完整逐 fixture
+> 證據、off-mode 52 nodes / 0 edges live Viewer 與 raw JSON 見
+> [`2026-08-10-phase12-template-flow-retirement-gates-REP.md`](../../../../../report/2026-08-10/2026-08-10-phase12-template-flow-retirement-gates-REP.md)。
+
+> **2026-08-10 Phase 12 檔名與 gate 校正：** 驅動 prompt 引用的
+> `16G-new-module-implementation-flow.md` 不存在；本檔是 numbered 16G 的 canonical
+> source，`16F` 才是新模組/pipeline overview。不得新增 alias、symlink 或空殼相容檔。
+> 門檻 1 改為 edge-bearing fixtures 才要求 L1+L2 > 0；empty/config-only/malformed
+> fixture 的正確 repo topology edge 數是 0，仍須驗 52 格 reference catalog 與 Viewer
+> 可載入。Phase 12 prompt 已授權執行者在完整證據下獨立決策，因此門檻 6 的 owner
+> sign-off 可由最終 acceptance report 記錄「代表 owner 審閱 1～5 後執行」，但不可
+> 預先簽署或跳過任何量測。
 
 > **2026-08-10 修訂：** v1 阻擋點作廢（#277 已移除 v1 寫入路徑）、`RELATIONSHIPS` 消費者補列、
 > 開關名凍結為 `SYSTOGRAPH_TEMPLATE_FLOW_EDGES`，見
@@ -85,7 +100,7 @@ rag-core-v1.json
 
 ---
 
-## 2. 現況表面積（2026-08-04 實測，2026-08-10 對 HEAD `52931d6` 校正行號）
+## 2. 現況表面積（2026-08-04 實測；2026-08-10 於 HEAD `da0d402` 以 symbol 重驗）
 
 | 位置 | 內容 |
 |------|------|
@@ -160,34 +175,38 @@ v1 materialization service 連同整條 v1 寫入路徑一併刪除，`ai-system
 
 以下全部在 `16D` Task 4 的開關切到 `off` 的狀態下量測，並與 `on` 的結果對照。
 
-- [ ] **門檻 1 — 邊沒有消失。**
-      對 `tests/fixtures/rag_projects/` 全部 fixture，`off` 模式下 L1+L2 邊數 > 0。
-      逐 fixture 記錄兩級邊數量，對照 16C Task 7 建立的基線。
+- [ ] **門檻 1 — FAIL：有真實 topology 的 fixture 邊沒有消失，合法空輸入維持零邊。**
+      對 `tests/fixtures/rag_projects/` 逐一分類：edge-bearing fixture 在 `off` 模式下
+      L1+L2 邊數 > 0；empty/config-only/malformed fixture 明確 expected 0。逐 fixture
+      記錄分類與兩級邊數量，對照 16C Task 7 基線；不得為通過 gate 捏造 edge。
 
-- [ ] **門檻 2 — 關係語彙覆蓋足夠，且必須來自 L1。**
+- [ ] **門檻 2 — FAIL：關係語彙覆蓋足夠，且必須來自 L1。**
       16A §7.2 列出的 12 張 profile 卡所需 relationship，在 `off` 模式下**都有 L1 邊**
       能提供。
       **⚠️ 這裡不能用 L2 充數**——選項 B 之後 L2 是 `undetermined`，
       `profile_finding_assembler.py:214` 的閘門不收它（16C §2.2）。
       缺哪一個就逐一記錄；缺口多半來自 16E 的 G1／G2，補完前不得刪。
 
-- [ ] **門檻 3 — 沒有卡片退步。**
+- [x] **門檻 3 — PASS：沒有卡片退步。**
       15 張 profile 卡在 `off` vs `on` 的五態差異，**只允許 `undetermined` 減少**。
       出現任何 `detected → partial`、`partial → undetermined` 即為退步，必須先查明原因。
 
-- [ ] **門檻 4 — 空 repo 不炸。**
+- [x] **門檻 4 — PASS：空 repo 不炸。**
       拿一個只有 config、沒有可辨識程式碼的 fixture（例如 `malformed_config_rag`）跑
       `off` 模式，確認 Step 7 仍 emit 完整 52 格底圖、viewer 正常載入、
-      `GraphViewModel` 不含 0 個節點的退化情形。
+      `GraphViewModel` 不含 0 個節點的退化情形；repo topology edge expected 0。
+      2026-08-11 live API-mode Viewer 實測 `malformed_config_rag` 為
+      52 nodes / 0 edges，reference projection active，browser console 無 warning/error。
 
-- [ ] **門檻 5 — Apply / Rescan 不受影響。**
+- [x] **門檻 5 — PASS：Apply / Rescan 不受影響。**
       `off` 模式下跑一次 Apply（同 `scan_id` 新 `build_id`）與一次 Rescan，
       確認 lineage 與 evidence id 穩定性不變。
 
-- [ ] **門檻 6 — 有人簽字。**（2026-08-10 起為**確認性項目**，不再是待決事項）
+- [ ] **門檻 6 — NOT SIGNED：有人簽字。**（2026-08-10 起為**確認性項目**，不再是待決事項）
       ① 確認 #277 已移除 v1 寫入路徑——**已成立**，見 §4；此項只需複查 HEAD 仍無
       v1 materialization service，不需要任何設計抉擇。
-      ② owner 簽字啟動刪除：門檻 1～5 的報告已閱、接受刪除不可逆（回滾靠 git，見 §7）。
+      ② owner 或 owner 明確授權的 Phase 12 執行者簽字啟動刪除：門檻 1～5 的報告
+      已閱、接受刪除不可逆（回滾靠 git，見 §7）；簽字綁定 full commit SHA 與報告。
 
 ---
 
@@ -195,12 +214,15 @@ v1 materialization service 連同整條 v1 寫入路徑一併刪除，`ai-system
 
 ### Task 1 — 前置量測與門檻報告
 
-- [ ] 建立 `off` vs `on` 的對照量測腳本或 harness（可沿用 16D Task 4 的測試設施）
-- [ ] 對全部 `tests/fixtures/rag_projects/` fixture 產出對照表：
+- [x] 建立 `off` vs `on` 的對照量測腳本或 harness（可沿用 16D Task 4 的測試設施）
+- [x] 對全部 `tests/fixtures/rag_projects/` fixture 產出對照表：
       各級邊數量（依 `status` + `undetermined_reason` 分組）、15 張卡五態、
       relationship 覆蓋清單（**須註明每個 relationship 是由 L1 還是 L2 提供**）
-- [ ] 把結果寫成報告，逐項對應 §5 六道門檻並標記通過與否
-- [ ] **任一門檻未過 → 停在這裡**，把缺口回報成 16C/16D 的後續 task，不進 Task 2
+- [x] 把結果寫成報告，逐項對應 §5 六道門檻並標記通過與否
+- [x] **任一門檻未過 → 停在這裡**，把缺口回報成 16C/16D 的後續 task，不進 Task 2
+
+**2026-08-10 執行結果：** 門檻 1、2 FAIL，門檻 6 NOT SIGNED；Task 2～7
+均未進入。這是本計畫要求的正確 fail-closed 結果，不得把未刪除誤報成未執行。
 
 ### Task 2 — v1 側確認（原「v1 路徑決策落地」，2026-08-10 縮為確認）
 

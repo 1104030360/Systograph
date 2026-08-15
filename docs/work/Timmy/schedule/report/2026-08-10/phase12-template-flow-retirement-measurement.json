@@ -1,0 +1,835 @@
+{
+  "fixtures": [
+    {
+      "fixture": "basic_qdrant_ollama_rag",
+      "off": {
+        "edge_count": 1,
+        "graph_edge_count": 1,
+        "graph_node_count": 61,
+        "l1_observed": 1,
+        "l1_relationships": [
+          "queries_vector_store"
+        ],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "partial",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "partial",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 1,
+        "graph_edge_count": 1,
+        "graph_node_count": 61,
+        "l1_observed": 1,
+        "l1_relationships": [
+          "queries_vector_store"
+        ],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "partial",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "partial",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "custom_router_rag",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 67,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 67,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "faiss_sentence_transformers_rag",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 52,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 52,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "graph_rag_extension_rag",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 57,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "partial",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "partial",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 1,
+        "graph_edge_count": 1,
+        "graph_node_count": 57,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [
+          "queries_vector_store"
+        ],
+        "l3_template": 1,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "partial",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "partial",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "healthcare_rag_minimal",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 53,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 53,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "lancedb_or_chroma_local_rag",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 53,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 53,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "malformed_config_rag",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 52,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 52,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "missing_slots_rag",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 53,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 53,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "openai_external_provider_rag",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 59,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 59,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "pgvector_openai_rag",
+      "off": {
+        "edge_count": 1,
+        "graph_edge_count": 1,
+        "graph_node_count": 60,
+        "l1_observed": 1,
+        "l1_relationships": [
+          "queries_vector_store"
+        ],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "partial",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "partial",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 2,
+        "graph_edge_count": 2,
+        "graph_node_count": 60,
+        "l1_observed": 1,
+        "l1_relationships": [
+          "queries_vector_store"
+        ],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [
+          "stores_vectors"
+        ],
+        "l3_template": 1,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "partial",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "partial",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "reranker_extension_rag",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 62,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 62,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    },
+    {
+      "fixture": "secret_masking_regression_rag",
+      "off": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 56,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "on": {
+        "edge_count": 0,
+        "graph_edge_count": 0,
+        "graph_node_count": 56,
+        "l1_observed": 0,
+        "l1_relationships": [],
+        "l2_relationships": [],
+        "l2_undetermined": 0,
+        "l3_relationships": [],
+        "l3_template": 0,
+        "profile_statuses": {
+          "agentic-control": "undetermined",
+          "contextual-retrieval": "undetermined",
+          "corrective-retrieval": "undetermined",
+          "graph-retrieval": "undetermined",
+          "hierarchical-retrieval": "undetermined",
+          "hybrid-retrieval": "undetermined",
+          "memory": "undetermined",
+          "modular-composition": "undetermined",
+          "multi-query-retrieval": "undetermined",
+          "multimodal-grounding": "undetermined",
+          "rag-grounding": "undetermined",
+          "reranking": "undetermined",
+          "self-reflection": "undetermined",
+          "tool-calling": "undetermined",
+          "workflow-orchestration": "undetermined"
+        }
+      },
+      "profile_changes": {},
+      "ua_invocations": {
+        "filesystem_scan": 1,
+        "parity_providers": 1,
+        "ua_sidecar": 1
+      }
+    }
+  ],
+  "head_sha": "da0d402e931a4b286022f6581f41e78342214351",
+  "relationship_coverage": {
+    "l1": [
+      "queries_vector_store"
+    ],
+    "l2": [],
+    "missing_l1": [
+      "component_selection",
+      "context_enrichment",
+      "context_flow",
+      "fallback_route",
+      "graph_retrieval",
+      "hierarchical_flow",
+      "multimodal_retrieval",
+      "query_route",
+      "rerank",
+      "retrieval_fusion",
+      "self_critique",
+      "tool_call",
+      "workflow_transition"
+    ],
+    "required": [
+      "component_selection",
+      "context_enrichment",
+      "context_flow",
+      "fallback_route",
+      "graph_retrieval",
+      "hierarchical_flow",
+      "multimodal_retrieval",
+      "query_route",
+      "rerank",
+      "retrieval_fusion",
+      "self_critique",
+      "tool_call",
+      "workflow_transition"
+    ]
+  },
+  "schema_version": "template-flow-retirement/v1",
+  "worktree_dirty": true
+}

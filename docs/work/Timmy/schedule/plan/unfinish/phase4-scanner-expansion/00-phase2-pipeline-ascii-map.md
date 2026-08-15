@@ -4,7 +4,8 @@ Status: design reference（Phase2 target · 2026-07-07 UA 整合決策已套用 
 
 Audience: backend、scanner expansion、reviewer
 
-Last aligned: 2026-07-16 · `docs/work/Timmy/schedule/plan/unfinish/phase2/`、`ref-opensource/systograph-understand-anything-integration-boundary.md`
+Last aligned: 2026-08-10 · Phase 12 UA active path + call-priority edge cutover；
+16G retirement gate 為 NO-GO，L3 transitional path 仍保留
 
 ## 文件目的
 
@@ -16,7 +17,7 @@ Phase2 static pipeline 的 **簡圖 + 資料邊界**。供 UA sidecar 整合、�
 
 | # | 決策 | 定案 |
 |---|------|------|
-| 1 | Step 3 掃描器 | **UA-primary + parity gate**：Understand-Anything sidecar 為主掃描來源；Systograph scan TOML providers 過渡期並跑對比，Plan 14 通過後退役 |
+| 1 | Step 3 掃描器 | **UA active + parity gate**：Understand-Anything sidecar 與 Python AST provider 已接入；Systograph providers 過渡期仍掃描、參與 parity 並合併，Plan 14/18 通過後才可逐項退役 |
 | 2 | Step 6 評估 | **純 Python**：`ProfileInferenceService` 直接讀系統地圖 + TOML metadata 定五態；不引入 AI candidate（AI 評估路徑 **deferred**） |
 | 3 | Orchestrator | **不建立** `AssessmentOrchestrator`；Step 1～9 全程無 AI orchestration（決策 deferred，重啟時另案評估） |
 | 4 | Apply | 不重跑 UA；只重放 snapshot 的 `scan_result`，重跑 Step 4～7；semantic sidecar slot 保持 nullable 且不消費 |
@@ -79,11 +80,13 @@ Step 2  Boundary        metadata-only candidate enumeration
                         → openat/no-follow + fstat + same-handle content hash
                         → final FileInventory + audit / digests
         ▼
-Step 3  Scan            current Systograph providers → facts / evidence → ProjectScanResult
-                        UA request / sidecar / parity runtime deferred（Plan 16）
+Step 3  Scan            approved inventory → current providers + Python AST
+                        → UA deterministic sidecar + adapter → parity report
+                        → merged facts / evidence → immutable snapshot
         │
         ▼
-Step 4  Materialize     系統地圖 ★                         [橋接 1 · Python]
+Step 4  Materialize     元件／端點／風險 + L1/L2/L3 call-priority edges
+                        → 系統地圖 ★                       [橋接 1 · Python]
 Step 5  Index           記憶體 lookup（不寫檔）
 Step 6  Assessment      ProfileInference 定五態（純 Python）
                         + readiness + 靜態路徑               [橋接 2]
@@ -113,7 +116,7 @@ compatibility path，不作為 Phase2 build history 的正式讀取入口。
 | 標記 / 配色 | class | 意義 |
 |-------------|-------|------|
 | 🔵 **UA structural sidecar**（藍底） | `ua` | Understand-Anything deterministic structural subset（import map、batches、structure）；Step 3 primary 掃描來源 |
-| 📦 **TOML 掃描規則**（黃底） | `toml` | 加 `rule_id` + 匹配條件 → 產掃描事實（**過渡期 parity only**，Plan 14 後退役；Step 2 `scan_inventory_rules.toml` 保留） |
+| 📦 **TOML 掃描規則**（黃底） | `toml` | 加 `rule_id` + 匹配條件 → 產掃描事實（過渡期仍 active + parity；Plan 14/18 通過後才逐項退役；Step 2 `scan_inventory_rules.toml` 保留） |
 | 🏷️ **TOML metadata**（橘底） | `tomlMeta` | 只放 label / 文案 / 座標；**不含** threshold / regex（例如 `risk_hint_rules.toml`、`profile_registry.toml`、`capability_reference_map.toml`） |
 | ⚙️ **TOML runtime config**（靛紫底） | `runtimeConfig` | 控制外部 provider、model、endpoint、timeout、generation 與 prompt template；目前為 `llm_proposal.toml`（Step 9 active-optional assist） |
 | 🐍 **Python**（紫底） | `py` | 橋接 / 五態 / 投影 / proposal heuristics；**不要**把 executable 規則塞進 TOML |
@@ -176,21 +179,23 @@ flowchart TB
     S3ua2["compute-batches.mjs"]:::ua
     S3ua3["extract-structure.mjs（per batch）"]:::ua
     S3ua4["file-analyzer bounded LLM<br/>deferred（不執行）"]:::ai
-    S3ua5["ua-analysis-result.json<br/>nullable deferred sidecar"]:::artifact
+    S3ua5["typed UA structural result<br/>semantic = null"]:::artifact
     S3adapt["3-2 Structural Adapter<br/>→ facts / evidence / issues"]:::py
-    S3parity["3-3 過渡期 parity：Config / Docker /<br/>Dependency / CodePattern TOML providers<br/>（Plan 14 通過後退役）"]:::toml
+    S3ast["3-3 Python AST construction provider<br/>G1/G2/G3 typed facts"]:::py
+    S3parity["3-4 current providers + parity：Config / Docker /<br/>Dependency / CodePattern 等仍 active<br/>（Plan 14/18 通過後才逐項退役）"]:::toml
     S3f["3-4 合併 · 去重 · masking"]
     S3g["3-5 ProjectScanResult / safe re-hash / snapshot<br/>semantic sidecar slot（nullable deferred）"]
     S3note["structural 不寫 plane_id / 底圖格 id<br/>semantic 不進 canonical facts"]:::noToml
     S3ua --> S3ua1 --> S3ua2 --> S3ua3 --> S3ua4 --> S3ua5 --> S3adapt --> S3f
-    S3parity -.-> S3f
+    S3ast --> S3f
+    S3parity --> S3f
     S3f --> S3g
   end
 
   subgraph S4["Step 4 · Materialize · 橋接1 + 少量 TOML 文案"]
     direction TB
     S4a0["4-1 輸入: 每筆掃描事實 + 證據"]
-    S4a_reg["component_bridge_registry.py<br/>❌ 尚未對 plane / 52格"]:::py
+    S4a_reg["component_bridge_registry.py<br/>canonical type → 52格 vocabulary 已對齊"]:::py
     S4a_dec{"4-1 訊號夠明確?"}
     S4a_comp["→ component<br/>寫入系統地圖"]:::py
     S4a_cand["→ 候選能力輸入<br/>Step 6 sidecar 用"]:::py
@@ -198,7 +203,10 @@ flowchart TB
     S4b["4-2 套用人工確認 optional<br/>（Step 9 Apply 後 replay 從此進）"]:::proposal
     S4c["4-3 endpoints"]
     S4d["4-4 risk_hints<br/>risk_hint_rules.toml"]:::tomlMeta
-    S4e["4-5 edges / flows<br/>FlowDerivationService"]:::py
+    S4e1["4-5a typed structural facts<br/>→ ComponentResidenceIndex<br/>→ edge_relationship_rules.toml"]:::py
+    S4e2["4-5b UaEdgeDerivationService<br/>L1 observed direct / L2 undetermined indirect"]:::py
+    S4e3["4-5c transitional L3<br/>FlowDerivationService + feature flag<br/>16G NO-GO：目前保留"]:::py
+    S4e4["4-5d CallPriorityEdgeMerge<br/>L1 > L2 > L3；敗者 evidence 不合併"]:::py
     S4f["4-6 組裝草稿"]
     S4g["4-7 遮路徑 · 去 snippet"]
     S4h["4-8 validate"]
@@ -208,7 +216,8 @@ flowchart TB
     S4a_reg -.-> S4a_dec
     S4a_dec --> S4a_comp & S4a_cand & S4a_unmap
     S4a_comp & S4a_cand & S4a_unmap --> S4b
-    S4b --> S4c --> S4d --> S4e --> S4f --> S4g --> S4h
+    S4b --> S4c --> S4d --> S4e1 --> S4e2 --> S4e4 --> S4f --> S4g --> S4h
+    S4e3 --> S4e4
     S4meta2 -.-> S4d
   end
 
