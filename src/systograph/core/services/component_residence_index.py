@@ -155,7 +155,7 @@ class ComponentResidenceIndex:
             if span[0] == file and span[1] <= line <= span[2]
         ]
         if not containing:
-            return frozenset()
+            return self._file_level_fallback(file)
         smallest_size = min(span[2] - span[1] for span in containing)
         component_ids: set[str] = set()
         for span in containing:
@@ -166,6 +166,50 @@ class ComponentResidenceIndex:
                 component_ids.add(unique)
             component_ids.update(self.ambiguous_spans.get(span, ()))
         return frozenset(component_ids)
+
+    def _file_level_fallback(self, file: str) -> frozenset[str]:
+        """Attribute a line no component-bearing span covers.
+
+        Component evidence often lands where no function or class span
+        can hold it -- an import line, a decorator, a module-level
+        assignment -- which leaves the component with no usable code
+        address and drops every call in the file as an unresolved
+        source. A file that hosts exactly ONE component has no
+        attribution ambiguity to resolve, so its module-level lines
+        belong to that component.
+
+        Two or more components in one file stay unattributed: which of
+        them owns a module-level line is a guess, and the caller
+        reports it through file_level_ambiguous() instead of picking a
+        side. This widens WHERE a component lives, never how a callee
+        name is resolved.
+        """
+        component_ids = self.by_file.get(file, frozenset())
+        return component_ids if len(component_ids) == 1 else frozenset()
+
+    def file_level_ambiguous(self, file: str) -> bool:
+        """Whether the file hosts several components, blocking fallback."""
+
+        return len(self.by_file.get(file, frozenset())) > 1
+
+    def components_without_code_residence(
+        self,
+        code_files: frozenset[str],
+    ) -> tuple[str, ...]:
+        """Components whose evidence never lands in an analysed code file.
+
+        Those components can never be an edge endpoint: a manifest or a
+        compose file carries no call sites. Naming them turns "0 edges"
+        from a black box into an attributable list.
+        """
+
+        return tuple(
+            sorted(
+                component_id
+                for component_id, residences in self.by_component.items()
+                if not any(item.file in code_files for item in residences)
+            )
+        )
 
     def symbol_spans(self, file: str, name: str) -> tuple[SpanKey, ...]:
         return self._symbol_spans_by_file_and_name.get((file, name), ())

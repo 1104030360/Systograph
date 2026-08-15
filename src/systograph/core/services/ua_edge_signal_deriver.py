@@ -159,7 +159,15 @@ class UaEdgeSignalDeriver:
     ) -> None:
         source_ids = self._context.source_component_ids(span)
         if not source_ids:
-            self._counters["dropped_unresolved_source"] += 1
+            # An empty source after the file-level fallback means either
+            # the file hosts no component at all, or it hosts several and
+            # the fallback declined to guess. Those are different
+            # problems: the first is missing coverage, the second is
+            # ambiguity, and only the second is a fail-closed decision.
+            if self._context.residence.file_level_ambiguous(span.file):
+                self._counters[ambiguity_counter] += 1
+            else:
+                self._counters["dropped_unresolved_source"] += 1
             return
         if not evidence:
             self._counters["dropped_missing_evidence"] += 1

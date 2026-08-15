@@ -1543,3 +1543,149 @@ def test_factory_resolution_is_scoped_by_the_factory_definition_file() -> None:
     )
     assert edge.status == "undetermined"
     assert edge.undetermined_reason == "factory_inference"
+
+
+def test_module_level_call_resolves_in_a_single_component_file() -> None:
+    # Given: the component's own evidence sits on an import line that no
+    # function span covers, and the call is module-level too -- the shape
+    # that made unresolved-source the single largest drop bucket on real
+    # repositories.
+    result = derive(
+        (
+            component("component:api", "api_route", "evidence:api"),
+            component(
+                "component:retriever",
+                "retriever",
+                "evidence:retriever",
+            ),
+        ),
+        (
+            evidence(
+                "evidence:api",
+                file="src/app.py",
+                line=1,
+                rule_id="code_pattern_route_fastapi",
+                hint="direct",
+            ),
+            evidence(
+                "evidence:retriever",
+                file="src/retriever.py",
+                line=2,
+                rule_id="code_pattern_retriever_as_retriever",
+                hint="direct",
+            ),
+            evidence(
+                "evidence:call:retrieve",
+                file="src/app.py",
+                line=20,
+                rule_id="ua_call_hint_static",
+                hint="direct",
+            ),
+        ),
+        (
+            symbol("retrieve", "src/retriever.py", 1, 5),
+            call("<module>", "retrieve", "src/app.py", 20),
+            internal_import("src/app.py", "src/retriever.py"),
+        ),
+    )
+
+    # Then: the file hosts exactly one component, so the module-level
+    # call site resolves to it instead of dropping.
+    assert [
+        (edge.source, edge.target, edge.relationship) for edge in result.edges
+    ] == [("component:api", "component:retriever", "context_flow")]
+    assert result.stats.dropped_unresolved_source == 0
+
+
+def test_module_level_call_stays_ambiguous_with_two_components() -> None:
+    # Given: the same shape, except a second component also lives in the
+    # caller file, so which one owns the module-level line is a guess.
+    result = derive(
+        (
+            component("component:api", "api_route", "evidence:api"),
+            component("component:parser", "parser", "evidence:parser"),
+            component(
+                "component:retriever",
+                "retriever",
+                "evidence:retriever",
+            ),
+        ),
+        (
+            evidence(
+                "evidence:api",
+                file="src/app.py",
+                line=1,
+                rule_id="code_pattern_route_fastapi",
+                hint="direct",
+            ),
+            evidence(
+                "evidence:parser",
+                file="src/app.py",
+                line=2,
+                rule_id="code_pattern_route_fastapi",
+                hint="direct",
+            ),
+            evidence(
+                "evidence:retriever",
+                file="src/retriever.py",
+                line=2,
+                rule_id="code_pattern_retriever_as_retriever",
+                hint="direct",
+            ),
+            evidence(
+                "evidence:call:retrieve",
+                file="src/app.py",
+                line=20,
+                rule_id="ua_call_hint_static",
+                hint="direct",
+            ),
+        ),
+        (
+            symbol("retrieve", "src/retriever.py", 1, 5),
+            call("<module>", "retrieve", "src/app.py", 20),
+            internal_import("src/app.py", "src/retriever.py"),
+        ),
+    )
+
+    # Then: no edge, and the drop is reported as ambiguity rather than as
+    # an unresolved source -- the caller file does have components.
+    assert result.edges == ()
+    assert result.stats.ambiguous_calls == 1
+    assert result.stats.dropped_unresolved_source == 0
+
+
+def test_components_without_code_residence_are_counted_and_named() -> None:
+    # Given: a component whose only evidence is a dependency manifest --
+    # it can never be an edge endpoint, and that should be visible.
+    result = derive(
+        (
+            component("component:api", "api_route", "evidence:api"),
+            component("component:vector", "vector_db", "evidence:vector"),
+        ),
+        (
+            evidence(
+                "evidence:api",
+                file="src/app.py",
+                line=1,
+                rule_id="code_pattern_route_fastapi",
+                hint="direct",
+            ),
+            evidence(
+                "evidence:vector",
+                file="requirements.txt",
+                line=4,
+                rule_id="dependency_vector_store_client_qdrant",
+                hint="indirect",
+            ),
+        ),
+        (symbol("serve", "src/app.py", 1, 8),),
+    )
+
+    # Then: the manifest-only component is named, the code-resident one
+    # is not.
+    assert result.stats.components_without_code_residence == 1
+    assert any(
+        "component:vector" in warning and "no code residence" in warning
+        for warning in result.warnings
+    )
+    assert not any("component:api" in warning for warning in result.warnings)

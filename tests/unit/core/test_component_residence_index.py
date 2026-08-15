@@ -140,7 +140,12 @@ def test_components_in_one_file_resolve_by_distinct_function_spans() -> None:
     )
 
 
-def test_file_level_residence_never_resolves_as_a_call_site() -> None:
+def test_single_component_file_resolves_a_line_outside_every_span() -> None:
+    # A file that hosts exactly one component has no attribution
+    # ambiguity, so module-level code in it belongs to that component.
+    # Without this, evidence anchored on an import line or a config file
+    # gives the component no usable code address and every call in the
+    # file drops as an unresolved source.
     when_index = build_index(
         (component("component:vector", "evidence:vector", "vector_db"),),
         (evidence("evidence:vector", "src/store.py", None),),
@@ -150,7 +155,61 @@ def test_file_level_residence_never_resolves_as_a_call_site() -> None:
     assert when_index.by_component["component:vector"] == frozenset(
         {Residence(file="src/store.py", span=None)}
     )
+    assert when_index.component_ids_at("src/store.py", 1) == frozenset(
+        {"component:vector"}
+    )
+    assert when_index.file_level_ambiguous("src/store.py") is False
+
+
+def test_multi_component_file_refuses_the_module_level_fallback() -> None:
+    # Two components in one file: which one owns a module-level line is
+    # a guess, so the fallback yields nothing and reports the ambiguity
+    # instead of picking a side.
+    when_index = build_index(
+        (
+            component("component:api", "evidence:api", "api_route"),
+            component("component:vector", "evidence:vector", "vector_db"),
+        ),
+        (
+            evidence("evidence:api", "src/store.py", None),
+            evidence("evidence:vector", "src/store.py", None),
+        ),
+        (),
+    )
+
     assert when_index.component_ids_at("src/store.py", 1) == frozenset()
+    assert when_index.file_level_ambiguous("src/store.py") is True
+
+
+def test_span_attribution_still_wins_over_the_file_fallback() -> None:
+    # The fallback only covers lines no component-bearing span contains.
+    when_index = build_index(
+        (
+            component("component:api", "evidence:api", "api_route"),
+            component("component:retriever", "evidence:retriever"),
+        ),
+        (
+            evidence("evidence:api", "src/app.py", 5),
+            evidence("evidence:retriever", "src/app.py", 25),
+        ),
+        (
+            function_symbol(
+                "serve",
+                SourceSpan(file="src/app.py", line_start=1, line_end=10),
+            ),
+            function_symbol(
+                "retrieve",
+                SourceSpan(file="src/app.py", line_start=20, line_end=30),
+            ),
+        ),
+    )
+
+    assert when_index.component_ids_at("src/app.py", 6) == frozenset(
+        {"component:api"}
+    )
+    # Line 15 sits between both spans: the file has two components, so
+    # the fallback declines rather than guessing.
+    assert when_index.component_ids_at("src/app.py", 15) == frozenset()
 
 
 def test_nested_function_uses_the_innermost_enclosing_span() -> None:

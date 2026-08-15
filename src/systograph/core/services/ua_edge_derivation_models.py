@@ -45,6 +45,7 @@ class UaEdgeDerivationStats:
     l1_emitted: int = 0
     l2_emitted: int = 0
     missing_component_evidence_ids: int = 0
+    components_without_code_residence: int = 0
     dropped_unresolved_source: int = 0
     dropped_unresolved_target: int = 0
     dropped_missing_evidence: int = 0

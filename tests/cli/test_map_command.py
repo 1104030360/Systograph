@@ -300,3 +300,43 @@ def test_map_help_documents_the_boundary_approval_flag() -> None:
 
     assert result.exit_code == 0
     assert "--approve-boundary-review" in result.stdout
+
+
+def test_map_command_surfaces_scan_warnings(tmp_path: Path) -> None:
+    # Given: a project whose only component is detected from a compose
+    # image, so its residence is a YAML file -- it can never be an edge
+    # endpoint, and an empty graph should say so.
+    project_root = tmp_path / "project"
+    (project_root / "src").mkdir(parents=True)
+    (project_root / "docker-compose.yml").write_text(
+        "services:\n"
+        "  qdrant:\n"
+        "    image: qdrant/qdrant:v1.9.0\n"
+        "    ports:\n"
+        '      - "6333:6333"\n',
+        encoding="utf-8",
+    )
+    (project_root / "src" / "app.py").write_text(
+        "def serve() -> str:\n    return 'ok'\n", encoding="utf-8"
+    )
+
+    # When
+    result = CliRunner().invoke(
+        cli_main.app,
+        [
+            "map",
+            str(project_root),
+            "--output",
+            str(tmp_path / "outputs"),
+            "--state-dir",
+            str(tmp_path / "state"),
+        ],
+    )
+
+    # Then: the operator can attribute an empty graph instead of
+    # guessing why it is empty.
+    assert result.exit_code == 0, result.stdout + result.stderr
+    assert "warning=UA edge derivation components with no code residence" in (
+        result.stdout
+    )
+    assert "component:vector_store:qdrant" in result.stdout

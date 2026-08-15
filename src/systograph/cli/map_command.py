@@ -145,5 +145,10 @@ def map_command(
     typer.echo(f"requested_schema_version={result.requested_schema_version}")
     for warning in result.migration_warnings:
         typer.echo(f"migration_warning={warning}")
+    # Derivation warnings name WHY a graph is thin -- which components
+    # have no code residence, which signals dropped and for what reason.
+    # Keeping them off the CLI made an empty graph unattributable.
+    for warning in result.warnings:
+        typer.echo(f"warning={warning}")
     if workflow_result.snapshot is not None:
         typer.echo(f"scan_id={workflow_result.snapshot.scan_id}")

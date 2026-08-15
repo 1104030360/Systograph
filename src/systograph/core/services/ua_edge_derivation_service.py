@@ -91,6 +91,15 @@ class UaEdgeDerivationService:
         deriver.derive_factories(factories)
         deriver.derive_imports(imports)
         signal = deriver.outcome()
+        # A component whose evidence never lands in an analysed code file
+        # cannot be an edge endpoint at all; naming those makes an empty
+        # graph attributable instead of mysterious.
+        code_files = frozenset(
+            fact.span.file
+            for fact in structural_facts
+            if isinstance(fact, CallStructuralFact | SymbolStructuralFact)
+        )
+        homeless = residence.components_without_code_residence(code_files)
         merged = merge_and_cap_edges(
             signal.candidates,
             max_outgoing_edges=self._max_outgoing_edges,
@@ -106,6 +115,7 @@ class UaEdgeDerivationService:
             l1_emitted=sum(item.tier == "L1" for item in merged.candidates),
             l2_emitted=sum(item.tier == "L2" for item in merged.candidates),
             missing_component_evidence_ids=len(residence.missing_evidence_ids),
+            components_without_code_residence=len(homeless),
             dropped_unresolved_source=signal.counters[
                 "dropped_unresolved_source"
             ],
@@ -130,10 +140,25 @@ class UaEdgeDerivationService:
         )
         return UaEdgeDerivationResult(
             edges=canonical_edges(merged.candidates),
-            warnings=_warnings(stats),
+            warnings=_warnings(stats) + _residence_warnings(homeless),
             recommended_next_checks=signal.checks,
             stats=stats,
         )
+
+
+MAX_NAMED_HOMELESS_COMPONENTS: Final = 20
+
+
+def _residence_warnings(homeless: tuple[str, ...]) -> tuple[str, ...]:
+    if not homeless:
+        return ()
+    named = ", ".join(homeless[:MAX_NAMED_HOMELESS_COMPONENTS])
+    overflow = len(homeless) - MAX_NAMED_HOMELESS_COMPONENTS
+    suffix = f" (+{overflow} more)" if overflow > 0 else ""
+    return (
+        f"UA edge derivation components with no code residence="
+        f"{len(homeless)}: {named}{suffix}",
+    )
 
 
 def _warnings(stats: UaEdgeDerivationStats) -> tuple[str, ...]:
