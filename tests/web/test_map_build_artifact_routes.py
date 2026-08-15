@@ -156,7 +156,7 @@ def test_artifact_route_serves_markdown_inline_without_download_query(
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/markdown; charset=utf-8"
     assert "content-disposition" not in response.headers
-    assert response.text.startswith("# Systograph System Map\n")
+    assert response.text.splitlines()[0] == "# Systograph System Map"
 
 
 def test_artifact_route_serves_file_bytes_without_newline_translation(
@@ -196,7 +196,7 @@ def test_artifact_route_marks_download_query_as_attachment(
     assert response.headers["content-disposition"] == (
         'attachment; filename="ai_system_map.md"'
     )
-    assert response.text.startswith("# Systograph System Map\n")
+    assert response.text.splitlines()[0] == "# Systograph System Map"
 
 
 def test_artifact_route_returns_build_not_found_for_unknown_build(

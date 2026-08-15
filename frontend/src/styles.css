@@ -1327,6 +1327,15 @@ h1, h2, h3 { margin: 0; }
   border: 1px solid color-mix(in srgb, var(--dr-orange) 30%, var(--line));
   border-radius: var(--radius-sm);
 }
+.readiness-download {
+  display: flex; align-items: center; gap: 10px; padding: 10px 18px;
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.readiness-download .btn { flex: none; }
+.readiness-download-note {
+  margin: 0; min-width: 0; color: var(--text-3);
+  font-size: var(--fs-sm); line-height: 1.4;
+}
 .readiness-view-tabs { display: flex; gap: 4px; padding: 8px 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .readiness-view-tabs button {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
@@ -1356,26 +1365,6 @@ h1, h2, h3 { margin: 0; }
   overflow: auto; border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--surface); color: var(--text-2); font-family: var(--mono); font-size: 12px; line-height: 1.65; white-space: pre-wrap;
 }
-.readiness-map-report-view { display: grid; gap: 14px; }
-.readiness-map-report-view .readiness-sample-note {
-  border: 1px solid color-mix(in srgb, var(--dr-orange) 30%, var(--line));
-  border-radius: var(--radius-sm);
-}
-.readiness-map-report-actions { display: flex; justify-content: flex-end; }
-.readiness-map-report-download-error { margin: 0; color: var(--error); font-size: var(--fs-sm); text-align: right; }
-.readiness-map-report-state {
-  min-height: 180px; padding: 28px;
-  display: flex; align-items: flex-start; justify-content: center; gap: 10px;
-  border: 1px solid var(--line); border-radius: var(--radius);
-  background: var(--surface); color: var(--text-3); font-size: var(--fs-sm); line-height: 1.5;
-}
-.readiness-map-report-state svg { flex: none; margin-top: 2px; }
-.readiness-map-report-state div { display: grid; gap: 5px; max-width: 480px; }
-.readiness-map-report-state strong { color: var(--text); }
-.readiness-map-report-state p { margin: 0; }
-.readiness-map-report-state .btn { width: max-content; margin-top: 5px; }
-.readiness-map-report-state.is-warning svg { color: var(--dr-orange); }
-.readiness-map-report-state.is-error svg { color: var(--error); }
 .readiness-summary { display: flex; align-items: center; gap: var(--space-2); }
 .readiness-static-note { font-size: var(--fs-sm); color: var(--text-3); }
 .readiness-empty {

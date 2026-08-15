@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle,
   CircleSlash2,
   ClipboardCheck,
   Download,
@@ -8,7 +7,6 @@ import {
   FileText,
   FlaskConical,
   LoaderCircle,
-  RefreshCw,
   X,
 } from "lucide-react";
 import {
@@ -19,19 +17,19 @@ import {
 import type { GraphViewModel } from "../types";
 import { titleCase } from "../utils/format";
 import {
-  downloadMapReport,
-  loadMapReport,
-  MapReportUnavailableError,
+  downloadMapBuildReport,
+  MapReportError,
+  type MapReportErrorReason,
 } from "../services/mapReportApi";
+import { useViewerStore } from "../store/viewerStore";
 
 type Props = {
   /** Raw backend readiness report; unsupported payloads never become findings. */
   report: Record<string, unknown> | null;
   graph: GraphViewModel;
+  /** Build displayed by the current viewer envelope; null before one exists. */
+  buildId: string | null;
   onClose: () => void;
-  apiBaseUrl?: string;
-  mapReportEnabled?: boolean;
-  isHistoricalBuild?: boolean;
 };
 
 const SAMPLE_READINESS_REPORT: ReadinessReport = {
@@ -186,167 +184,85 @@ function RenderedReport({ report, graph }: { report: ReadinessReport; graph: Gra
   );
 }
 
-type MapReportState =
+type DownloadState =
+  | { status: "idle" }
   | { status: "loading" }
-  | { status: "loaded"; markdown: string }
-  | { status: "missing" }
-  | { status: "error" };
+  | { status: "success" }
+  | { status: "error"; reason: MapReportErrorReason };
 
-function LatestMapReport({
+function downloadNote(state: DownloadState): string {
+  switch (state.status) {
+    case "idle":
+      return "Download the map report published for this build.";
+    case "loading":
+      return "Preparing the build report…";
+    case "success":
+      return "Saved ai_system_map.md.";
+    case "error":
+      switch (state.reason) {
+        case "artifact_not_available":
+          return "This build did not publish a Markdown report.";
+        case "build_not_found":
+          return "This build no longer exists. Choose another build from build history.";
+        case "artifact_not_found":
+          return "The report artifact is not available at the expected path.";
+        case "unknown":
+          return "Could not download the report. Check the local API server and try again.";
+      }
+  }
+}
+
+function BuildReportDownload({
   apiBaseUrl,
-  enabled,
-  isHistoricalBuild,
+  buildId,
 }: {
   apiBaseUrl: string;
-  enabled: boolean;
-  isHistoricalBuild: boolean;
+  buildId: string;
 }) {
-  const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<MapReportState>({ status: "loading" });
-  const [downloadState, setDownloadState] = useState<"idle" | "loading" | "error">("idle");
-  const downloadControllerRef = useRef<AbortController | null>(null);
+  const [state, setState] = useState<DownloadState>({ status: "idle" });
+  const controllerRef = useRef<AbortController | null>(null);
+  const settled = state.status === "error" && state.reason !== "unknown";
 
-  useEffect(() => {
-    if (!enabled || isHistoricalBuild) return;
+  useEffect(() => () => controllerRef.current?.abort(), []);
 
+  async function save() {
     const controller = new AbortController();
+    controllerRef.current?.abort();
+    controllerRef.current = controller;
     setState({ status: "loading" });
-    void loadMapReport(apiBaseUrl, controller.signal)
-      .then((markdown) => {
-        if (!controller.signal.aborted) setState({ status: "loaded", markdown });
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setState(
-          error instanceof MapReportUnavailableError
-            ? { status: "missing" }
-            : { status: "error" },
-        );
-      });
 
-    return () => controller.abort();
-  }, [apiBaseUrl, attempt, enabled, isHistoricalBuild]);
-
-  useEffect(() => () => downloadControllerRef.current?.abort(), []);
-
-  async function handleDownload() {
-    const controller = new AbortController();
-    downloadControllerRef.current?.abort();
-    downloadControllerRef.current = controller;
-    setDownloadState("loading");
     try {
-      const blob = await downloadMapReport(apiBaseUrl, controller.signal);
-      if (controller.signal.aborted) return;
-      const objectUrl = URL.createObjectURL(blob);
-      try {
-        const anchor = document.createElement("a");
-        anchor.href = objectUrl;
-        anchor.download = "ai_system_map.md";
-        anchor.click();
-      } finally {
-        URL.revokeObjectURL(objectUrl);
-      }
-      setDownloadState("idle");
+      await downloadMapBuildReport(apiBaseUrl, buildId, controller.signal);
+      if (!controller.signal.aborted) setState({ status: "success" });
     } catch (error) {
       if (controller.signal.aborted) return;
-      if (error instanceof MapReportUnavailableError) {
-        setState({ status: "missing" });
-      } else {
-        setDownloadState("error");
-      }
+      setState({
+        status: "error",
+        reason: error instanceof MapReportError ? error.reason : "unknown",
+      });
     } finally {
-      if (downloadControllerRef.current === controller) downloadControllerRef.current = null;
+      if (controllerRef.current === controller) controllerRef.current = null;
     }
   }
 
-  if (!enabled) {
-    return (
-      <div className="readiness-empty" role="status">
-        <CircleSlash2 aria-hidden="true" size={16} />
-        <p>The backend-published latest scan report is available only in API mode.</p>
-      </div>
-    );
-  }
-
-  if (isHistoricalBuild) {
-    return (
-      <div className="readiness-map-report-state is-warning" role="alert">
-        <AlertTriangle aria-hidden="true" size={18} />
-        <div>
-          <strong>Latest report is disabled while viewing a historical build.</strong>
-          <p>
-            The current endpoint returns the backend process&apos;s latest scan report, not the build
-            shown here. Return to Latest before previewing or downloading it.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (state.status === "loading") {
-    return (
-      <div className="readiness-map-report-state" role="status" aria-live="polite">
-        <LoaderCircle className="spin" aria-hidden="true" size={18} />
-        <p>Loading the latest scan report…</p>
-      </div>
-    );
-  }
-
-  if (state.status === "missing") {
-    return (
-      <div className="readiness-map-report-state" role="status">
-        <CircleSlash2 aria-hidden="true" size={18} />
-        <div>
-          <strong>No latest scan report is available yet.</strong>
-          <p>Complete a successful scan, then try again.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (state.status === "error") {
-    return (
-      <div className="readiness-map-report-state is-error" role="alert">
-        <AlertTriangle aria-hidden="true" size={18} />
-        <div>
-          <strong>Could not load the latest scan report.</strong>
-          <p>Check that the local API server is running, then retry.</p>
-          <button className="btn" type="button" onClick={() => setAttempt((value) => value + 1)}>
-            <RefreshCw aria-hidden="true" size={14} /> Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="readiness-map-report-view">
-      <div className="readiness-sample-note" role="note">
-        <AlertTriangle aria-hidden="true" size={15} />
-        <span>
-          <strong>Latest scan report.</strong> This backend endpoint is process-wide and is not tied
-          to the project or build shown in the viewer. It may belong to another project.
-        </span>
-      </div>
-      <div className="readiness-map-report-actions">
-        <button
-          className="btn primary"
-          type="button"
-          disabled={downloadState === "loading"}
-          onClick={() => void handleDownload()}
-        >
+    <div className="readiness-download">
+      <button
+        className="btn"
+        type="button"
+        onClick={() => void save()}
+        disabled={state.status === "loading" || settled}
+      >
+        {state.status === "loading" ? (
+          <LoaderCircle className="spin" aria-hidden="true" size={14} />
+        ) : (
           <Download aria-hidden="true" size={14} />
-          {downloadState === "loading" ? "Downloading…" : "Download ai_system_map.md"}
-        </button>
-      </div>
-      {downloadState === "error" ? (
-        <p className="readiness-map-report-download-error" role="alert">
-          Download failed. Check the local API server and try again.
-        </p>
-      ) : null}
-      <pre className="readiness-markdown-source" aria-label="Latest scan report Markdown">
-        {state.markdown}
-      </pre>
+        )}
+        {state.status === "loading" ? "Downloading…" : "Download report (.md)"}
+      </button>
+      <p className="readiness-download-note" role="status" aria-live="polite">
+        {downloadNote(state)}
+      </p>
     </div>
   );
 }
@@ -354,16 +270,18 @@ function LatestMapReport({
 export function ReadinessPanel({
   report,
   graph,
+  buildId,
   onClose,
-  apiBaseUrl = "http://127.0.0.1:8000",
-  mapReportEnabled = false,
-  isHistoricalBuild = false,
 }: Props) {
   const parsed = report == null ? null : readinessReportSchema.safeParse(report);
   const isSample = report == null;
   const displayReport = parsed?.success ? parsed.data : isSample ? SAMPLE_READINESS_REPORT : null;
-  const [mode, setMode] = useState<"preview" | "source" | "map-report">("preview");
+  const [mode, setMode] = useState<"preview" | "source">("preview");
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dataSourceMode = useViewerStore((state) => state.dataSourceMode);
+  const apiBaseUrl = useViewerStore((state) => state.apiBaseUrl);
+  const activeBuildId = useViewerStore((state) => state.activeBuildId);
+  const downloadBuildId = dataSourceMode === "api" ? (activeBuildId ?? buildId) : null;
 
   useEffect(() => {
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -392,6 +310,14 @@ export function ReadinessPanel({
           </button>
         </header>
 
+        {downloadBuildId ? (
+          <BuildReportDownload
+            key={downloadBuildId}
+            apiBaseUrl={apiBaseUrl}
+            buildId={downloadBuildId}
+          />
+        ) : null}
+
         {isSample ? (
           <div className="readiness-sample-note" role="note">
             <FlaskConical aria-hidden="true" size={15} />
@@ -406,18 +332,9 @@ export function ReadinessPanel({
           <button type="button" role="tab" aria-selected={mode === "source"} className={mode === "source" ? "is-active" : ""} disabled={!displayReport} onClick={() => setMode("source")}>
             <FileText aria-hidden="true" size={14} /> Generated Markdown
           </button>
-          <button type="button" role="tab" aria-selected={mode === "map-report"} className={mode === "map-report" ? "is-active" : ""} onClick={() => setMode("map-report")}>
-            <Download aria-hidden="true" size={14} /> Latest map report
-          </button>
         </div>
         <div className="readiness-body">
-          {mode === "map-report" ? (
-            <LatestMapReport
-              apiBaseUrl={apiBaseUrl}
-              enabled={mapReportEnabled}
-              isHistoricalBuild={isHistoricalBuild}
-            />
-          ) : displayReport && mode === "preview" ? (
+          {displayReport && mode === "preview" ? (
             <RenderedReport report={displayReport} graph={graph} />
           ) : displayReport ? (
             <div className="readiness-source-view">
@@ -425,8 +342,8 @@ export function ReadinessPanel({
                 <FileText aria-hidden="true" size={15} />
                 <span>
                   This plain text is generated from the inline <code>readiness-report/v1</code>
-                  payload. The backend-published system map is a separate document under Latest map
-                  report and is not safely build-scoped yet.
+                  payload. The build&apos;s own map artifact, <code>ai_system_map.md</code>, is a
+                  separate document with its own download, not this text.
                 </span>
               </div>
               <pre className="readiness-markdown-source">{buildReadinessMarkdown(displayReport, graph)}</pre>

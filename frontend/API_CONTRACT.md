@@ -149,11 +149,10 @@ build returns *that* build's report; a newer build never wins. The response
 body is the file's bytes, and no response, success or failure, carries a
 server-local path, so there is nothing for the frontend to resolve or join.
 
-One optional query parameter, `download`. Omit it (or send `download=false`) to
-read the report for inline preview. Send `download=true` to get
-`Content-Disposition: attachment; filename="ai_system_map.md"` and let the
-browser save it; that filename comes from the backend whitelist, so the
-frontend must not derive one from user input or send one of its own.
+The backend also supports an optional `download` query parameter for direct API
+callers. `download=true` adds
+`Content-Disposition: attachment; filename="ai_system_map.md"`; the filename
+comes from the backend whitelist and must never be derived from user input.
 
 Apart from the standard `422` that a malformed `download` value draws (FastAPI
 query validation, where `detail` is an array rather than a string), every error
@@ -166,6 +165,22 @@ for different handling:
 | `artifact_not_found` | `file_name` is not on the whitelist | A caller bug. The frontend sends a hardcoded whitelist name, so a shipped flow must never produce this; do not offer a retry. |
 | `build_not_found` | No committed build for that `build_id` | The pinned build is gone or was never committed. Reload the build history / project latest instead of retrying the same id. |
 | `artifact_not_available` | The build exists, but the artifact has no recorded path or its file left the disk | Expected, non-retryable for this build: disable the download affordance and say the report is unavailable. Never fall back to another build's report. |
+
+The viewer reads this endpoint through `services/mapReportApi.ts` and saves the
+bytes itself (`Blob` + object URL + download anchor), so it never sends
+`download=true`: a browser navigation would hand the response to the download
+manager and hide exactly the 404 codes above. `loadMapBuildReport` turns each
+code into a `MapReportError` reason and the UI renders copy per reason, so no
+transport or backend error string reaches the screen. The build id it sends is
+the one on screen — the pinned historical build when there is one, otherwise
+`viewer_load_result.build_id` — and the entry is hidden in Sample mode, which
+has no backend to read from. The saved file keeps the whitelist name
+`ai_system_map.md`.
+
+That artifact is the build's rendered map report. It is a different document
+from the Readiness dialog's "Generated Markdown" tab, which is plain text the
+frontend generates from the inline `readiness-report/v1` payload; neither
+substitutes for the other.
 
 The backend checks in that fixed order (`artifact_not_found` →
 `build_not_found` → `artifact_not_available`), so an unknown file name is
