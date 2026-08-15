@@ -21,8 +21,9 @@ RAG 訊號清楚
 可轉寫成本專案 tests/fixtures/rag_projects/ 的最小 fixture
 ```
 
-資料查詢時間：2026-05-31  
-主要資料來源：GitHub repository metadata、GitHub 搜尋結果、repo 官方連結。
+資料查詢時間：2026-05-31；**private-gpt 同型補充**：2026-08-15  
+主要資料來源：GitHub repository metadata、GitHub 搜尋結果、repo 官方連結。  
+2026-08-15 補充重點：多找「經典文件 Q&A 應用」（loader → chunk → embed → vector store → retriever → LLM + SDK），對齊 Systograph 掃描甜蜜點（private-gpt 類），並在 §9 依掃描器能力分類。
 
 ---
 
@@ -70,6 +71,7 @@ RAG 訊號清楚
 - `medical retrieval augmented generation language:Python`
 - `production ready RAG template`
 - `multimodal RAG framework`
+- 2026-08-15 補充：`localGPT`、`kotaemon`、`Langchain-Chatchat`、`khoj RAG`、`docker genai-stack`、`azure-search-openai-demo`（經典文件 Q&A / SDK 應用，排除框架本體與 GraphRAG）
 
 ### 3.2 判斷標準
 
@@ -99,9 +101,15 @@ RAG 訊號清楚
 | Graph RAG / 知識圖譜 RAG | neo4j/neo4j-graphrag-python | https://github.com/neo4j/neo4j-graphrag-python | Neo4j GraphRAG Python library | 中 | 適合 graph DB integration fixture |
 | Multimodal RAG / 多模態 RAG | HKUDS/RAG-Anything | https://github.com/HKUDS/RAG-Anything | all-in-one multimodal RAG | 中 | 多模態代表性強，但 fixture 需簡化 |
 | Multimodal / Production GraphRAG | apecloud/ApeRAG | https://github.com/apecloud/ApeRAG | production GraphRAG + multimodal indexing | 中 | 架構完整但偏大型 |
-| Local RAG / 本地端 RAG | zylon-ai/private-gpt | https://github.com/zylon-ai/private-gpt | private local document Q&A | 高 | 本地 / 隱私 RAG 代表性強 |
+| Local RAG / 本地端 RAG | zylon-ai/private-gpt | https://github.com/zylon-ai/private-gpt | private local document Q&A | 高 | 本地 / 隱私 RAG 代表性強；掃描甜蜜點基準 |
 | Local RAG / 本地端 RAG | AllAboutAI-YT/easy-local-rag | https://github.com/AllAboutAI-YT/easy-local-rag | simple local RAG with Ollama | 高 | 很適合抽成小型 fixture |
+| Local RAG / 本地端 RAG | PromtEngineer/localGPT | https://github.com/PromtEngineer/localGPT | local document Q&A，資料不離機 | 高 | private-gpt 最接近的雙胞胎；Ollama / HF embedding |
+| Local RAG / 本地端 RAG | Cinnamon/kotaemon | https://github.com/Cinnamon/kotaemon | RAG document chat UI | 高 | 經典文件問答 app；LlamaIndex 生態 |
+| Local RAG / 本地端 RAG | chatchat-space/Langchain-Chatchat | https://github.com/chatchat-space/Langchain-Chatchat | 本地知識庫 RAG + Agent | 高 | LangChain + FAISS/Milvus + Ollama |
+| Local RAG / 本地端 RAG | khoj-ai/khoj | https://github.com/khoj-ai/khoj | self-host 第二大腦 / 文件 RAG | 中 | 形狀像；AGPL-3.0；產品偏大 |
+| Local RAG / 本地端 RAG | docker/genai-stack | https://github.com/docker/genai-stack | LangChain + Ollama + Neo4j 範例棧 | 高 | 小型可掃；Ollama 在規則內，Neo4j 可能規則缺口 |
 | Local RAG / 本地端 RAG | Mintplex-Labs/anything-llm | https://github.com/Mintplex-Labs/anything-llm | local / self-hosted AI productivity and RAG app | 高 | 完整 local/private RAG app，適合參考 app 邊界 |
+| Cloud classic RAG | Azure-Samples/azure-search-openai-demo | https://github.com/Azure-Samples/azure-search-openai-demo | Azure AI Search + Azure OpenAI RAG | 中 | 管線經典；Azure SDK 多半不在現有規則 |
 | Medical / Healthcare RAG | dmis-lab/RAG2 | https://github.com/dmis-lab/RAG2 | medical QA RAG research | 中 | 醫療 RAG 研究代表，license 未確認 |
 | Medical / Healthcare RAG | souvikmajumder26/Multi-Agent-Medical-Assistant | https://github.com/souvikmajumder26/Multi-Agent-Medical-Assistant | medical multi-agent assistant with RAG | 中 | 醫療 + agentic + RAG，適合延伸參考 |
 | Vector Database RAG Examples | qdrant/examples | https://github.com/qdrant/examples | Qdrant examples and tutorials | 高 | 適合參考 vector DB signal |
@@ -1232,6 +1240,355 @@ Ragas 不是 RAG app，而是 RAG / LLM app 評測工具。它適合後續設計
 | 文件足夠理解架構 | 部分符合 | blueprint 概念清楚，細節需看 docs |
 | 適合本專案參考 | 是 | 適合 production-ready reference |
 
+### 5.10 Classic document Q&A（private-gpt 同型補充，2026-08-15）
+
+本節只收 **應用**，不收框架本體。判斷「同型」：文件問答、經典向量 RAG 站、以 SDK/套件名接模型或向量庫（不是 Graph 管線、不是評估套件）。
+
+Stars / license / language 取自 2026-08-15 GitHub API。
+
+#### 5.10.1 PromtEngineer/localGPT
+
+**基本資訊**
+
+| 項目 | 內容 |
+|---|---|
+| Repo | `PromtEngineer/localGPT` |
+| GitHub | https://github.com/PromtEngineer/localGPT |
+| 主要用途 | 本機文件問答，資料不離機 |
+| 主要語言 | Python |
+| 技術或框架 | Ollama、HuggingFace embeddings、local RAG、API |
+| 與 RAG 直接相關 | 是 |
+| 更新時間 | 2026-07-18 |
+| Stars | 22,208 |
+| License | MIT |
+
+**簡短說明**
+
+localGPT 與 private-gpt 幾乎同一產品形狀：本機文件 → 索引 → 檢索 → 本機 LLM。現況支援 Ollama 推論與 HF embedding/rerank，並有 API。是補充清單裡最接近的「第二個 private-gpt」。
+
+**架構可視化**
+
+```text
+┌──────────────┐
+│ Local Docs   │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│ Chunk/Embed  │
+│ (HF / local) │
+└──────┬───────┘
+       ↓
+┌──────────────┐     ┌──────────────┐
+│ Local Index  │ ──→ │ Ollama LLM   │
+└──────┬───────┘     └──────┬───────┘
+       ↓                    ↓
+┌──────────────┐     ┌──────────────┐
+│ Retriever    │ ──→ │ Cited Answer │
+└──────────────┘     └──────────────┘
+```
+
+**選入原因**
+
+- 與 private-gpt 同為 local/private document Q&A。
+- MIT、Python、Ollama 訊號在現有規則涵蓋內。
+- 適合當第二個甜蜜點掃描對照，或抽小型 fixture。
+
+**符合條件檢查表**
+
+| 檢查項目 | 是否符合 | 證據或理由 |
+|---|---:|---|
+| 符合主要規則 | 是 | local RAG、授權清楚、可抽 signal |
+| 與 RAG 直接相關 | 是 | description 直接說 chat with documents |
+| GitHub repo 可存取 | 是 | 官方 repo |
+| 文件足夠理解架構 | 是 | README 寫明 Ollama / embedding / API |
+| 適合本專案參考 | 是 | 高度適合甜蜜點對照 |
+
+#### 5.10.2 Cinnamon/kotaemon
+
+**基本資訊**
+
+| 項目 | 內容 |
+|---|---|
+| Repo | `Cinnamon/kotaemon` |
+| GitHub | https://github.com/Cinnamon/kotaemon |
+| 主要用途 | 開源 RAG 文件聊天工具 |
+| 主要語言 | Python |
+| 技術或框架 | RAG chatbot、LLMs、LlamaIndex 生態 |
+| 與 RAG 直接相關 | 是（topics 含 `rag`） |
+| 更新時間 | 2026-07-14 |
+| Stars | 25,700 |
+| License | Apache-2.0 |
+
+**簡短說明**
+
+kotaemon 是「跟文件聊天」的完整 app，不是框架。管線仍是 ingestion / index / retrieve / generate，和 private-gpt、ragapp 同一家族。UI 較完整，整包偏大，應抽 LlamaIndex loader/index/query 訊號，不要整倉當 fixture。
+
+**架構可視化**
+
+```text
+┌──────────────┐
+│ Documents    │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│ Ingest/Index │
+└──────┬───────┘
+       ↓
+┌──────────────┐     ┌──────────────┐
+│ Retriever    │ ──→ │ Chat UI      │
+└──────┬───────┘     └──────┬───────┘
+       ↓                    ↓
+┌──────────────┐     ┌──────────────┐
+│ Vector Index │     │ LLM Answer   │
+└──────────────┘     └──────────────┘
+```
+
+**選入原因**
+
+- 經典文件 RAG app，Apache-2.0。
+- 與 private-gpt / ragapp 同型，可驗證 LlamaIndex 規則是否只對 private-gpt 有效。
+- 不適合整包 fixture。
+
+**符合條件檢查表**
+
+| 檢查項目 | 是否符合 | 證據或理由 |
+|---|---:|---|
+| 符合主要規則 | 部分符合 | RAG 清楚但產品偏大 |
+| 與 RAG 直接相關 | 是 | topics 含 `rag` |
+| GitHub repo 可存取 | 是 | 官方 repo |
+| 文件足夠理解架構 | 是 | README 定位明確 |
+| 適合本專案參考 | 是 | 適合同型掃描，不適合整包複製 |
+
+#### 5.10.3 chatchat-space/Langchain-Chatchat
+
+**基本資訊**
+
+| 項目 | 內容 |
+|---|---|
+| Repo | `chatchat-space/Langchain-Chatchat` |
+| GitHub | https://github.com/chatchat-space/Langchain-Chatchat |
+| 主要用途 | 本地知識庫 RAG + Agent（ChatGLM / Qwen / Llama） |
+| 主要語言 | Python |
+| 技術或框架 | LangChain、FAISS、Milvus、Ollama、FastChat、Xinference |
+| 與 RAG 直接相關 | 是（topics 含 `rag`、`langchain`、`ollama`、`faiss`、`milvus`） |
+| 更新時間 | 2025-11-10 |
+| Stars | 38,546 |
+| License | Apache-2.0 |
+
+**簡短說明**
+
+原 Langchain-ChatGLM，是中文社群最常見的「本地知識庫問答」應用。形狀與 private-gpt 相同，框架換成 LangChain。Ollama / LangChain 在規則內；Milvus 屬 P1 規則廣度缺口（格子是 `index_builder`，規則可能沒有）。
+
+**架構可視化**
+
+```text
+┌──────────────┐
+│ Knowledge    │
+│ Files        │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│ LangChain    │
+│ Load/Split   │
+└──────┬───────┘
+       ↓
+┌──────────────┐     ┌──────────────┐
+│ FAISS/Milvus │ ──→ │ Local LLM    │
+└──────┬───────┘     │ Ollama/Qwen  │
+       ↓             └──────┬───────┘
+┌──────────────┐            ↓
+│ Retriever    │ ─────────→ │ Answer │
+└──────────────┘            └────────┘
+```
+
+**選入原因**
+
+- 本地知識庫 RAG app，不是框架本體。
+- LangChain + Ollama 可對現有規則；Milvus 可當「同型但規則不夠」對照。
+- Apache-2.0。更新較慢（2025-11），仍具代表性。
+
+**符合條件檢查表**
+
+| 檢查項目 | 是否符合 | 證據或理由 |
+|---|---:|---|
+| 符合主要規則 | 是 | 本地 RAG、dependency topics 清楚 |
+| 與 RAG 直接相關 | 是 | topics 含 rag / langchain / ollama |
+| GitHub repo 可存取 | 是 | 官方 repo |
+| 文件足夠理解架構 | 是 | README 與 topics 足夠 |
+| 適合本專案參考 | 是 | 同型掃描；Milvus 當規則缺口樣本 |
+
+#### 5.10.4 khoj-ai/khoj
+
+**基本資訊**
+
+| 項目 | 內容 |
+|---|---|
+| Repo | `khoj-ai/khoj` |
+| GitHub | https://github.com/khoj-ai/khoj |
+| 主要用途 | self-host 第二大腦：文件 / 筆記 RAG + agent |
+| 主要語言 | Python |
+| 技術或框架 | RAG、semantic search、local/offline LLM、agents |
+| 與 RAG 直接相關 | 是（topics 含 `rag`、`self-hosted`、`semantic-search`） |
+| 更新時間 | 2026-08-02 |
+| Stars | 36,499 |
+| License | **AGPL-3.0**（可讀、不適合複製進本 repo fixture） |
+
+**簡短說明**
+
+Khoj 是完整 self-host 產品：索引本機文件與筆記，再用線上或離線 LLM 問答。管線仍是經典 RAG，但產品面比 private-gpt 寬（agent、排程、多前端）。授權是 AGPL，只可掃描參考，不可整段搬進 Systograph fixture。
+
+**架構可視化**
+
+```text
+┌──────────────┐
+│ Notes/Docs   │
+│ (md/pdf/org) │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│ Index /      │
+│ Semantic     │
+└──────┬───────┘
+       ↓
+┌──────────────┐     ┌──────────────┐
+│ Retriever    │ ──→ │ Local/Cloud  │
+└──────┬───────┘     │ LLM          │
+       ↓             └──────┬───────┘
+┌──────────────┐            ↓
+│ Chat/Agent   │ ─────────→ │ Answer │
+└──────────────┘            └────────┘
+```
+
+**選入原因**
+
+- 與 private-gpt 同為 self-host 文件 RAG。
+- 活躍、RAG topics 清楚。
+- AGPL 限制複製；掃描對照可以，fixture 轉寫需自己重寫。
+
+**符合條件檢查表**
+
+| 檢查項目 | 是否符合 | 證據或理由 |
+|---|---:|---|
+| 符合主要規則 | 部分符合 | RAG 清楚，但 AGPL + 產品大 |
+| 與 RAG 直接相關 | 是 | topics 含 `rag` |
+| GitHub repo 可存取 | 是 | 官方 repo |
+| 文件足夠理解架構 | 是 | README 足夠 |
+| 適合本專案參考 | 部分符合 | 可掃；不要複製原始碼 |
+
+#### 5.10.5 docker/genai-stack
+
+**基本資訊**
+
+| 項目 | 內容 |
+|---|---|
+| Repo | `docker/genai-stack` |
+| GitHub | https://github.com/docker/genai-stack |
+| 主要用途 | LangChain + Docker + Neo4j + Ollama 範例棧 |
+| 主要語言 | Python |
+| 技術或框架 | LangChain、Ollama、Neo4j、Docker Compose |
+| 與 RAG 直接相關 | 是（官方描述即此組合） |
+| 更新時間 | 2026-08-10 |
+| Stars | 5,386 |
+| License | CC0-1.0 |
+
+**簡短說明**
+
+官方 Docker 教學棧，體積小、compose 清楚，適合當「可掃的小型經典 RAG」。Ollama / LangChain 應能亮；Neo4j 若當向量或圖庫，現有規則可能對不到（規則缺口，不是目錄缺口）。
+
+**架構可視化**
+
+```text
+┌──────────────┐
+│ Documents    │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│ LangChain    │
+│ Ingest       │
+└──────┬───────┘
+       ↓
+┌──────────────┐     ┌──────────────┐
+│ Neo4j        │ ──→ │ Ollama       │
+└──────┬───────┘     └──────┬───────┘
+       ↓                    ↓
+┌──────────────┐     ┌──────────────┐
+│ Retriever    │ ──→ │ Answer       │
+└──────────────┘     └──────────────┘
+```
+
+**選入原因**
+
+- 小、Docker/Ollama 訊號明確，接近 Task 4 fixture 需求。
+- CC0，轉寫無授權負擔。
+- 可同時測「Ollama 甜蜜點」與「Neo4j 規則缺口」。
+
+**符合條件檢查表**
+
+| 檢查項目 | 是否符合 | 證據或理由 |
+|---|---:|---|
+| 符合主要規則 | 是 | 小型、dependency/docker 清楚 |
+| 與 RAG 直接相關 | 是 | LangChain + Ollama 問答棧 |
+| GitHub repo 可存取 | 是 | Docker 官方 repo |
+| 文件足夠理解架構 | 是 | compose / README 清楚 |
+| 適合本專案參考 | 是 | 高度適合掃描與 fixture |
+
+#### 5.10.6 Azure-Samples/azure-search-openai-demo
+
+**基本資訊**
+
+| 項目 | 內容 |
+|---|---|
+| Repo | `Azure-Samples/azure-search-openai-demo` |
+| GitHub | https://github.com/Azure-Samples/azure-search-openai-demo |
+| 主要用途 | Azure AI Search + Azure OpenAI 的經典 RAG 範例 |
+| 主要語言 | Python |
+| 技術或框架 | Azure OpenAI、Azure AI Search、ChatGPT-style Q&A |
+| 與 RAG 直接相關 | 是（topics 含 `openai`、`azurecognitivesearch`） |
+| 更新時間 | 2026-08-13 |
+| Stars | 7,731 |
+| License | MIT |
+
+**簡短說明**
+
+微軟官方經典 RAG 參考實作：ingest → Azure Search → Azure OpenAI → 引用式回答。**管線與 private-gpt 同型**，但供應商是 Azure SDK。現有規則認 `openai` / Qdrant / Ollama，多半認不到 Azure Search → 預期像 Verba：形狀對、規則不夠。
+
+**架構可視化**
+
+```text
+┌──────────────┐
+│ Documents    │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│ Ingest /     │
+│ Embed        │
+└──────┬───────┘
+       ↓
+┌──────────────┐     ┌──────────────┐
+│ Azure AI     │ ──→ │ Azure OpenAI │
+│ Search       │     └──────┬───────┘
+       ↓                    ↓
+┌──────────────┐     ┌──────────────┐
+│ Retriever    │ ──→ │ Cited Answer │
+└──────────────┘     └──────────────┘
+```
+
+**選入原因**
+
+- 業界最常見的雲端經典 RAG 樣本，MIT。
+- 用來對照「同型但規則不夠」，不要期待掃得像 private-gpt。
+- 不要把 Azure 金鑰或真實 endpoint 寫進 fixture。
+
+**符合條件檢查表**
+
+| 檢查項目 | 是否符合 | 證據或理由 |
+|---|---:|---|
+| 符合主要規則 | 部分符合 | RAG 清楚；雲端 SDK 非現有規則甜蜜點 |
+| 與 RAG 直接相關 | 是 | description 直接說 RAG pattern |
+| GitHub repo 可存取 | 是 | Azure Samples |
+| 文件足夠理解架構 | 是 | 官方 demo 文件完整 |
+| 適合本專案參考 | 部分符合 | 適合規則缺口對照，不適合當甜蜜點證明 |
+
 ---
 
 ## 6. 最終複查
@@ -1257,6 +1614,12 @@ Ragas 不是 RAG app，而是 RAG / LLM app 評測工具。它適合後續設計
 | weaviate/Verba | 是 | 是 | 是 | 是 | 是 |
 | vibrantlabsai/ragas | 部分符合 | 是 | 是 | 是 | 是 |
 | NVIDIA-AI-Blueprints/rag | 是 | 是 | 是 | 是 | 是 |
+| PromtEngineer/localGPT | 是 | 是 | 是 | 是 | 是 |
+| Cinnamon/kotaemon | 部分符合 | 是 | 是 | 是 | 是 |
+| chatchat-space/Langchain-Chatchat | 是 | 是 | 是 | 是 | 是 |
+| khoj-ai/khoj | 部分符合 | 是 | 是 | 是 | 是 |
+| docker/genai-stack | 是 | 是 | 是 | 是 | 是 |
+| Azure-Samples/azure-search-openai-demo | 部分符合 | 是 | 是 | 是 | 是 |
 
 ---
 
@@ -1273,6 +1636,8 @@ Ragas 不是 RAG app，而是 RAG / LLM app 評測工具。它適合後續設計
 | [NVIDIA-AI-Blueprints/rag](https://github.com/NVIDIA-AI-Blueprints/rag) | production RAG reference pipeline，適合 map build / artifact 邊界 |
 | [microsoft/graphrag](https://github.com/microsoft/graphrag) | GraphRAG 代表性高，可作 graph extension fixture 參考 |
 | [zylon-ai/private-gpt](https://github.com/zylon-ai/private-gpt) | local/private RAG 代表性強，貼近本專案 local scanner 定位 |
+| [PromtEngineer/localGPT](https://github.com/PromtEngineer/localGPT) | private-gpt 同型雙胞胎；MIT、Ollama，適合第二個甜蜜點掃描 |
+| [docker/genai-stack](https://github.com/docker/genai-stack) | 小型 LangChain+Ollama+compose，接近 fixture 體積 |
 
 ### 7.2 中優先參考
 
@@ -1280,6 +1645,8 @@ Ragas 不是 RAG app，而是 RAG / LLM app 評測工具。它適合後續設計
 |---|---|
 | [run-llama/llama_index](https://github.com/run-llama/llama_index) | ingestion / index / retriever pattern 清楚 |
 | [ragapp/ragapp](https://github.com/ragapp/ragapp) | Agentic RAG + app integration 值得參考 |
+| [Cinnamon/kotaemon](https://github.com/Cinnamon/kotaemon) | 經典文件 RAG app（LlamaIndex），可驗證規則是否只對 private-gpt 有效 |
+| [chatchat-space/Langchain-Chatchat](https://github.com/chatchat-space/Langchain-Chatchat) | LangChain 本地知識庫；Ollama 甜蜜點 + Milvus 規則缺口 |
 | [HKUDS/LightRAG](https://github.com/HKUDS/LightRAG) | graph/vector hybrid RAG 值得參考 |
 | [deepset-ai/haystack](https://github.com/deepset-ai/haystack) | pipeline abstraction 值得參考 |
 | [neo4j/neo4j-graphrag-python](https://github.com/neo4j/neo4j-graphrag-python) | graph DB integration 值得參考，但 license 需確認 |
@@ -1294,6 +1661,8 @@ Ragas 不是 RAG app，而是 RAG / LLM app 評測工具。它適合後續設計
 | [HKUDS/RAG-Anything](https://github.com/HKUDS/RAG-Anything) | 多模態重要，但 Task 4 初版可先不做 |
 | [apecloud/ApeRAG](https://github.com/apecloud/ApeRAG) | production GraphRAG 訊號多，但系統複雜 |
 | [dmis-lab/RAG2](https://github.com/dmis-lab/RAG2) | medical RAG 有價值，但 license 未確認、偏研究 |
+| [khoj-ai/khoj](https://github.com/khoj-ai/khoj) | self-host 文件 RAG，但 AGPL、產品大，只掃不複製 |
+| [Azure-Samples/azure-search-openai-demo](https://github.com/Azure-Samples/azure-search-openai-demo) | 經典雲端 RAG；Azure SDK 多半掃不亮，當規則缺口樣本 |
 
 ### 7.4 僅作延伸閱讀
 
@@ -1335,4 +1704,76 @@ openai_external_provider_rag
 graph_rag_extension_rag
 ├── 參考 microsoft/graphrag / LightRAG
 └── 用最小 graph retriever signal 測 extension/unmapped behavior
+
+localgpt_ollama_rag（可選第二個甜蜜點 fixture）
+├── 參考 PromtEngineer/localGPT
+├── 參考 docker/genai-stack 的 compose / Ollama
+└── 只保留 ingest / embed / retrieve / ollama，不要複製 AGPL 或 Azure 金鑰
+```
+
+---
+
+## 9. Systograph 掃描器分類（2026-08-15）
+
+「像 private-gpt」= **經典向量 RAG 應用** + **SDK/套件名**（llama_index / langchain / qdrant / chroma / openai / ollama）。  
+不是報告裡的「適合度高」（那是適不適合抽 fixture）。
+
+### 9.1 甜蜜點（同型，現有規則較可能掃得動）
+
+| Repo | 依據 |
+|---|---|
+| zylon-ai/private-gpt | 已實測：14 元件 / 15 格 |
+| PromtEngineer/localGPT | 本機文件 Q&A + Ollama；private-gpt 雙胞胎 |
+| AllAboutAI-YT/easy-local-rag | 小型 local RAG + Ollama |
+| ragapp/ragapp | LlamaIndex RAG app（後端同家族；主語言 TS） |
+| Cinnamon/kotaemon | 文件聊天 app，LlamaIndex 生態 |
+| chatchat-space/Langchain-Chatchat | LangChain + Ollama；FAISS 可能亮、Milvus 可能不亮 |
+| docker/genai-stack | 小棧；Ollama/LangChain 應亮 |
+| souvikmajumder26/Multi-Agent-Medical-Assistant | LangChain + vector DB + RAG（醫療內容勿當 demo 資料） |
+| qdrant/examples | 不是完整 app，但 `qdrant-client` 與 private-gpt 同層 |
+| NVIDIA-AI-Blueprints/rag | 管線經典；若走 NIM SDK 會亮，若多半 URL 則掉到 9.2 |
+
+**面試再掃一個的首選：** `PromtEngineer/localGPT` 或 `docker/genai-stack`。
+
+### 9.2 同型但規則不夠（格子在，廠商/接法不在規則裡）
+
+| Repo | 預期缺口 |
+|---|---|
+| weaviate/Verba | 已實測：Weaviate + 裸 HTTP |
+| Mintplex-Labs/anything-llm | JS、多供應商、設定/HTTP 為主 |
+| Azure-Samples/azure-search-openai-demo | Azure Search / Azure OpenAI SDK |
+| docker/genai-stack 的 Neo4j 部分 | Ollama 可能亮，Neo4j 可能不亮 |
+| Langchain-Chatchat 的 Milvus 路徑 | 與 P1 向量庫廣度同一題 |
+
+### 9.3 不同型（不要當第二個 private-gpt）
+
+| 類型 | Repo |
+|---|---|
+| Graph / 圖譜管線（目錄缺口） | microsoft/graphrag、HKUDS/LightRAG、neo4j/neo4j-graphrag-python、apecloud/ApeRAG |
+| 多模態管線（目錄粗） | HKUDS/RAG-Anything |
+| 框架本體，不是 app | langchain-ai/langchain、run-llama/llama_index、deepset-ai/haystack |
+| 完整自研引擎 / 太大 | infiniflow/ragflow |
+| 評估，不是 ingestion 管線 | vibrantlabsai/ragas |
+| 研究向 / license 不清 | dmis-lab/RAG2 |
+| 形狀像但 AGPL、只掃不複製 | khoj-ai/khoj |
+
+### 9.4 本次沒收入的候選（查過、刻意不寫進 §5）
+
+| Repo | 原因 |
+|---|---|
+| QuivrHQ/quivr | GitHub license = Other / NOASSERTION |
+| embedchain/embedchain | 已轉成 mem0ai/mem0（記憶層，不是文件 Q&A app） |
+| langchain-ai/chat-langchain | 現況主語言 TypeScript，較不像 private-gpt 掃描路徑 |
+| llmware-ai/llmware | 偏框架，不是單一 RAG app |
+| intel/fastRAG | 2026-08-15 GitHub API 404 |
+
+```text
+ 報告全部 repo
+    │
+    ├─ 9.1 甜蜜點     private-gpt、localGPT、easy-local-rag、
+    │                 kotaemon、Langchain-Chatchat、ragapp、
+    │                 genai-stack、medical multi-agent、
+    │                 qdrant/examples、NVIDIA blueprint（視 SDK）
+    ├─ 9.2 規則缺口   Verba、anything-llm、Azure demo、Milvus/Neo4j
+    └─ 9.3 不同型     Graph*、多模態、框架本體、ragas、ragflow
 ```
