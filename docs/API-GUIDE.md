@@ -957,7 +957,6 @@ POST /api/mapping-proposals/{proposal_id}/decision
 - `accept`：需 `candidate_id`，不可帶 `edited_mapping`
 - `edit`：需 `edited_mapping`（`ManualMappingCreate` 形狀），不可帶 `candidate_id`
 - `reject` / `skip_for_now`：兩者皆不帶 candidate payload；後端仍建立 durable audit mapping
-  （**現況缺陷**：當 proposal 的 candidates 解析為 non-baseline capability 型別時，這兩個 decision 目前回 `422`，修復追蹤見 #278）
 
 Response `200`：
 

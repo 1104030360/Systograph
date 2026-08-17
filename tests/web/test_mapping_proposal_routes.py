@@ -5,7 +5,10 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from tests.helpers.web_flows import scan_project
 
-from systograph.core.models.mapping import MappingEvidencePacket
+from systograph.core.models.mapping import (
+    MappingEvidencePacket,
+    MappingProposal,
+)
 from systograph.core.services.manual_mapping_service import (
     ManualMappingService,
 )
@@ -73,6 +76,39 @@ def create_deterministic_test_app() -> TestClient:
             mapping_proposal_service=proposal_service,
         )
     )
+
+
+def create_nonbaseline_decision_test_app() -> tuple[
+    TestClient,
+    MappingProposal,
+]:
+    manual_mapping_service = ManualMappingService()
+    proposal_service = MappingProposalService(
+        repository=InMemoryMappingProposalRepository(),
+        manual_mapping_service=manual_mapping_service,
+    )
+    proposal = proposal_service.create_proposal(
+        MappingEvidencePacket(
+            project_id="project:demo",
+            source_unmapped_id="unmapped:src_router_py:route",
+            source_file="src/router.py",
+            observed_kind="code_pattern",
+            reason="Router-like code needs confirmation.",
+            evidence_ids=["evidence:router"],
+            rule_ids=["code_pattern_custom_router"],
+            masked_evidence_values=["route_query"],
+            call_like_signals=["QueryRouter.route"],
+            available_slots=["app_api_or_orchestrator", "retriever"],
+            confirmed_component_ids=["component:retriever:retriever"],
+        )
+    )
+    client = TestClient(
+        create_app(
+            manual_mapping_service=manual_mapping_service,
+            mapping_proposal_service=proposal_service,
+        )
+    )
+    return client, proposal
 
 
 def test_proposal_routes_create_and_list_pending_proposal(
@@ -245,6 +281,82 @@ def test_proposal_decision_skip_for_now_returns_durable_mapping(
     assert payload["manual_mapping"]["decision"] == "skip_for_now"
     assert payload["manual_mapping"]["audit_metadata"]["actor_surface"] == (
         "mapping_proposal"
+    )
+
+
+def test_nonbaseline_proposal_skip_for_now_persists_audit_shape() -> None:
+    client, proposal = create_nonbaseline_decision_test_app()
+
+    response = client.post(
+        f"/api/mapping-proposals/{proposal.proposal_id}/decision",
+        json={"decision": "skip_for_now", "reason": "Decide later."},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    audit = payload["manual_mapping"]
+    assert payload["proposal"]["status"] == "skipped"
+    assert audit["decision"] == "skip_for_now"
+    assert audit["proposal_id"] == proposal.proposal_id
+    assert audit["source_unmapped_id"] == "unmapped:src_router_py:route"
+    assert audit["observed_kind"] == "code_pattern"
+    assert audit["capability_candidate_id"] == (
+        "capability-candidate:query_router"
+    )
+    assert audit["capability_candidate_name"] == "Query Router"
+    assert audit["capability_candidate_kind"] == "routing_orchestration"
+    assert audit["decision_source"] == "proposal_skip_for_now"
+    assert audit["audit_metadata"]["actor_surface"] == "mapping_proposal"
+
+    mappings_response = client.get("/api/mappings?project_id=project:demo")
+    assert mappings_response.status_code == 200
+    persisted = mappings_response.json()["mappings"]
+    assert len(persisted) == 1
+    assert persisted[0]["mapping_id"] == audit["mapping_id"]
+    assert persisted[0]["capability_candidate_id"] == (
+        "capability-candidate:query_router"
+    )
+    assert persisted[0]["capability_candidate_name"] == "Query Router"
+    assert persisted[0]["capability_candidate_kind"] == (
+        "routing_orchestration"
+    )
+
+
+def test_nonbaseline_proposal_reject_persists_audit_shape() -> None:
+    client, proposal = create_nonbaseline_decision_test_app()
+
+    response = client.post(
+        f"/api/mapping-proposals/{proposal.proposal_id}/decision",
+        json={"decision": "reject", "reason": "Not part of the RAG path."},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    audit = payload["manual_mapping"]
+    assert payload["proposal"]["status"] == "rejected"
+    assert audit["decision"] == "rejected"
+    assert audit["proposal_id"] == proposal.proposal_id
+    assert audit["source_unmapped_id"] == "unmapped:src_router_py:route"
+    assert audit["observed_kind"] == "code_pattern"
+    assert audit["capability_candidate_id"] == (
+        "capability-candidate:query_router"
+    )
+    assert audit["capability_candidate_name"] == "Query Router"
+    assert audit["capability_candidate_kind"] == "routing_orchestration"
+    assert audit["decision_source"] == "proposal_reject"
+    assert audit["audit_metadata"]["actor_surface"] == "mapping_proposal"
+
+    mappings_response = client.get("/api/mappings?project_id=project:demo")
+    assert mappings_response.status_code == 200
+    persisted = mappings_response.json()["mappings"]
+    assert len(persisted) == 1
+    assert persisted[0]["mapping_id"] == audit["mapping_id"]
+    assert persisted[0]["capability_candidate_id"] == (
+        "capability-candidate:query_router"
+    )
+    assert persisted[0]["capability_candidate_name"] == "Query Router"
+    assert persisted[0]["capability_candidate_kind"] == (
+        "routing_orchestration"
     )
 
 

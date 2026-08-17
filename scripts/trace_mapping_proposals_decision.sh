@@ -11,15 +11,6 @@
 #
 # A pending proposal must exist first, so this script imports + scans + creates
 # one proposal, then applies a decision (default: accept).
-#
-# Coverage caveat: `accept` is the default because `skip_for_now` and `reject`
-# currently fail with HTTP 422 on any proposal whose candidates resolve to a
-# non-baseline capability type. ProposalManualMappingFactory.create_audit()
-# builds a NON_BASELINE_CAPABILITY_CANDIDATE mapping without the candidate
-# fields that ManualMappingCreate.validate_shape() requires. That is a backend
-# defect tracked as issue #278, not a problem with this script, so those two
-# decision paths stay undemonstrated here until #278 lands. They remain
-# selectable via --decision for anyone reproducing the defect.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -43,7 +34,6 @@ Usage:
 Options:
   --proposal-id ID        Existing pending proposal id. If omitted, one is created.
   --decision DECISION     accept | reject | skip_for_now. Default: accept
-                          (reject / skip_for_now currently 422 — see issue #278)
   --candidate-id ID       Candidate to accept. Auto-selected for accept if omitted.
   --reason TEXT           Optional reason attached to the decision.
   --start-server          Start a local FastAPI server for this run, stop on exit.
@@ -128,4 +118,4 @@ echo "$LAST_BODY" | jq '{
   manual_mapping_id: (.manual_mapping.mapping_id // null),
   manual_mapping_decision: (.manual_mapping.decision // null)
 }'
-systograph_progress "覆蓋範圍說明：本腳本只演示 decision=${DECISION}；skip_for_now / reject 目前因既存後端缺陷回 422（issue #278），修好前不納入此 trace。"
+systograph_progress "已完成 decision=${DECISION} trace；manual mapping / audit 結果如上。"
