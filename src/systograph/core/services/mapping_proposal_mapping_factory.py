@@ -64,15 +64,44 @@ class ProposalManualMappingFactory:
         *,
         decision: ManualMappingDecision,
     ) -> ManualMapping:
+        audit_candidate = self._audit_candidate(proposal)
+        capability_candidate = (
+            audit_candidate
+            if audit_candidate is not None
+            and audit_candidate.candidate_type
+            == MappingCandidateType.NON_BASELINE_CAPABILITY_CANDIDATE
+            else None
+        )
         draft = ManualMappingCreate(
             project_id=proposal.project_id,
-            mapping_type=self._audit_mapping_type(proposal),
+            mapping_type=(
+                ManualMappingType.EXISTING_SLOT
+                if audit_candidate is not None
+                and audit_candidate.candidate_type
+                == MappingCandidateType.EXISTING_SLOT
+                else ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE
+            ),
             decision=decision,
             source_unmapped_id=proposal.source_unmapped_id,
             source_file=proposal.evidence_packet.source_file,
             observed_kind=proposal.evidence_packet.observed_kind,
             evidence_ids=list(proposal.evidence_packet.evidence_ids),
             reason=request.reason,
+            capability_candidate_id=(
+                capability_candidate.proposed_capability_candidate_id
+                if capability_candidate is not None
+                else None
+            ),
+            capability_candidate_name=(
+                capability_candidate.proposed_capability_candidate_name
+                if capability_candidate is not None
+                else None
+            ),
+            capability_candidate_kind=(
+                capability_candidate.proposed_capability_candidate_kind
+                if capability_candidate is not None
+                else None
+            ),
             proposal_id=proposal.proposal_id,
             decision_source=f"proposal_{request.decision.value}",
             audit_metadata={
@@ -82,16 +111,17 @@ class ProposalManualMappingFactory:
         )
         return self._manual_mapping_service_or_raise().create_mapping(draft)
 
-    def _audit_mapping_type(
+    def _audit_candidate(
         self,
         proposal: MappingProposal,
-    ) -> ManualMappingType:
+    ) -> MappingCandidate | None:
         for candidate in proposal.candidates:
             match candidate.candidate_type:
-                case MappingCandidateType.EXISTING_SLOT:
-                    return ManualMappingType.EXISTING_SLOT
-                case MappingCandidateType.NON_BASELINE_CAPABILITY_CANDIDATE:
-                    return ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE
+                case (
+                    MappingCandidateType.EXISTING_SLOT
+                    | MappingCandidateType.NON_BASELINE_CAPABILITY_CANDIDATE
+                ):
+                    return candidate
                 case (
                     MappingCandidateType.NEEDS_MORE_INFORMATION
                     | MappingCandidateType.SKIP_FOR_NOW
@@ -99,7 +129,7 @@ class ProposalManualMappingFactory:
                     continue
                 case unreachable:
                     assert_never(unreachable)
-        return ManualMappingType.NON_BASELINE_CAPABILITY_CANDIDATE
+        return None
 
     def _candidate_to_manual_mapping(
         self,
