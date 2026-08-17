@@ -1,6 +1,6 @@
 import { Info, RefreshCw, WifiOff } from "lucide-react";
 
-export type ViewerState = "loaded" | "loading" | "error" | "pending";
+export type ViewerState = "loaded" | "loading" | "error" | "empty" | "pending";
 
 type Props = {
   kind: ViewerState;
@@ -17,6 +17,25 @@ type Props = {
 export function StateOverlay({ kind, apiBaseUrl, message, onRetry, onUseSample }: Props) {
   if (kind === "loaded") return null;
 
+  if (kind === "empty") {
+    return (
+      <div className="state-overlay">
+        <div className="state-card">
+          <div className="state-ico">
+            <Info size={20} />
+          </div>
+          <h3>No project selected</h3>
+          <p>Import a project to load a map. No API request is sent until a project is selected.</p>
+          <div className="state-actions">
+            <button className="btn" type="button" onClick={onUseSample}>
+              Inspect legacy sample
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (kind === "loading") {
     return (
       <div className="state-overlay">
@@ -25,8 +44,8 @@ export function StateOverlay({ kind, apiBaseUrl, message, onRetry, onUseSample }
             <div className="spinner" />
           </div>
           <h3>Loading from API</h3>
-          <p>Waiting for the local Python API to respond.</p>
-          <div className="mono">GET {apiBaseUrl}/api/map</div>
+          <p>Loading the selected project or build from the local Python API.</p>
+          <div className="mono">API {apiBaseUrl}</div>
         </div>
       </div>
     );
@@ -41,7 +60,7 @@ export function StateOverlay({ kind, apiBaseUrl, message, onRetry, onUseSample }
           </div>
           <h3>API unavailable</h3>
           <p>Could not load the backend projection. The legacy sample is never substituted silently.</p>
-          <div className="mono">{message ?? `GET ${apiBaseUrl}/api/map failed`}</div>
+          <div className="mono">{message ?? `Request to ${apiBaseUrl} failed`}</div>
           <div className="state-actions">
             <button className="btn primary" type="button" onClick={onRetry}>
               <RefreshCw size={14} />

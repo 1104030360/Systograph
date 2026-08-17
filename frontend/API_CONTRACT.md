@@ -36,8 +36,8 @@ GET /map
 latest viewer payload, carrying no `project_id`. Both were removed on
 2026-08-07, together with the demo writer `POST /api/map/build` that fed them
 and the arbitrary-path loader `POST /api/viewer/load`; the backend answers 404
-on all four. Loading a map is now always build-scoped and always requires a
-`project_id`.
+on all four. Loading a map is now always build-scoped: latest-project reads
+require a `project_id`, while pinned historical reads require a `build_id`.
 
 Removing `POST /api/viewer/load` **is** the fix for the #140 path oracle. The
 endpoint took a client-supplied `map_json_path` and read that file off the
@@ -48,9 +48,10 @@ an existing `ai_system_map.json` now lives only in the CLI command
 `systograph validate-map`, where an operator names a local file and no remote
 caller can reach it.
 
-The frontend still contains the fallback branch that tries these two paths
-after the build-scoped request fails. It is dead code — every attempt hits a
-404 — and its removal belongs to the FE-2 work package. Do not build on it.
+The frontend never calls these retired endpoints. API mode remains idle until
+a project or immutable build is selected, then calls exactly one of the two
+build-scoped endpoints above. A failed build-scoped request is surfaced to the
+user and is never replaced by process-wide or sample data.
 
 Both build-scoped endpoints above (`map-builds/latest` and
 `map-builds/{build_id}`) answer with the same envelope,
@@ -148,11 +149,10 @@ build returns *that* build's report; a newer build never wins. The response
 body is the file's bytes, and no response, success or failure, carries a
 server-local path, so there is nothing for the frontend to resolve or join.
 
-One optional query parameter, `download`. Omit it (or send `download=false`) to
-read the report for inline preview. Send `download=true` to get
-`Content-Disposition: attachment; filename="ai_system_map.md"` and let the
-browser save it; that filename comes from the backend whitelist, so the
-frontend must not derive one from user input or send one of its own.
+The backend also supports an optional `download` query parameter for direct API
+callers. `download=true` adds
+`Content-Disposition: attachment; filename="ai_system_map.md"`; the filename
+comes from the backend whitelist and must never be derived from user input.
 
 Apart from the standard `422` that a malformed `download` value draws (FastAPI
 query validation, where `detail` is an array rather than a string), every error
@@ -166,6 +166,22 @@ for different handling:
 | `build_not_found` | No committed build for that `build_id` | The pinned build is gone or was never committed. Reload the build history / project latest instead of retrying the same id. |
 | `artifact_not_available` | The build exists, but the artifact has no recorded path or its file left the disk | Expected, non-retryable for this build: disable the download affordance and say the report is unavailable. Never fall back to another build's report. |
 
+The viewer reads this endpoint through `services/mapReportApi.ts` and saves the
+bytes itself (`Blob` + object URL + download anchor), so it never sends
+`download=true`: a browser navigation would hand the response to the download
+manager and hide exactly the 404 codes above. `loadMapBuildReport` turns each
+code into a `MapReportError` reason and the UI renders copy per reason, so no
+transport or backend error string reaches the screen. The build id it sends is
+the one on screen — the pinned historical build when there is one, otherwise
+`viewer_load_result.build_id` — and the entry is hidden in Sample mode, which
+has no backend to read from. The saved file keeps the whitelist name
+`ai_system_map.md`.
+
+That artifact is the build's rendered map report. It is a different document
+from the Readiness dialog's "Generated Markdown" tab, which is plain text the
+frontend generates from the inline `readiness-report/v1` payload; neither
+substitutes for the other.
+
 The backend checks in that fixed order (`artifact_not_found` →
 `build_not_found` → `artifact_not_available`), so an unknown file name is
 reported before the build id is ever looked up. A 404 whose `detail` is none of
@@ -177,7 +193,6 @@ This endpoint closes only part of issue #219. The `.mmd` renders
 build-scoped envelope (#219 is what makes the response carry refs; their shape
 is defined by Plan 06), and the in-app artifact preview UI are still OPEN: the
 whitelist has one row, so there is no build-scoped way to fetch a `.mmd` yet.
-
 ## Project-Scoped Scan Flow
 
 The API mode can start a scan from a local project path. The frontend first imports the project path, then starts a scan with the returned project id. This is the only HTTP path that scans a project from scratch. `POST /api/detail-scans` and `POST /api/map-builds/{base_build_id}/apply` also mint new build ids, but both work inside an existing `scan_id` rather than starting a new scan.

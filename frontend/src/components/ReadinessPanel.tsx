@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleSlash2, ClipboardCheck, Eye, FileText, FlaskConical, X } from "lucide-react";
+import {
+  CircleSlash2,
+  ClipboardCheck,
+  Download,
+  Eye,
+  FileText,
+  FlaskConical,
+  LoaderCircle,
+  X,
+} from "lucide-react";
 import {
   readinessReportSchema,
   type ReadinessFinding,
@@ -7,11 +16,19 @@ import {
 } from "../contracts/viewer";
 import type { GraphViewModel } from "../types";
 import { titleCase } from "../utils/format";
+import {
+  downloadMapBuildReport,
+  MapReportError,
+  type MapReportErrorReason,
+} from "../services/mapReportApi";
+import { useViewerStore } from "../store/viewerStore";
 
 type Props = {
   /** Raw backend readiness report; unsupported payloads never become findings. */
   report: Record<string, unknown> | null;
   graph: GraphViewModel;
+  /** Build displayed by the current viewer envelope; null before one exists. */
+  buildId: string | null;
   onClose: () => void;
 };
 
@@ -167,12 +184,104 @@ function RenderedReport({ report, graph }: { report: ReadinessReport; graph: Gra
   );
 }
 
-export function ReadinessPanel({ report, graph, onClose }: Props) {
+type DownloadState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success" }
+  | { status: "error"; reason: MapReportErrorReason };
+
+function downloadNote(state: DownloadState): string {
+  switch (state.status) {
+    case "idle":
+      return "Download the map report published for this build.";
+    case "loading":
+      return "Preparing the build report…";
+    case "success":
+      return "Saved ai_system_map.md.";
+    case "error":
+      switch (state.reason) {
+        case "artifact_not_available":
+          return "This build did not publish a Markdown report.";
+        case "build_not_found":
+          return "This build no longer exists. Choose another build from build history.";
+        case "artifact_not_found":
+          return "The report artifact is not available at the expected path.";
+        case "unknown":
+          return "Could not download the report. Check the local API server and try again.";
+      }
+  }
+}
+
+function BuildReportDownload({
+  apiBaseUrl,
+  buildId,
+}: {
+  apiBaseUrl: string;
+  buildId: string;
+}) {
+  const [state, setState] = useState<DownloadState>({ status: "idle" });
+  const controllerRef = useRef<AbortController | null>(null);
+  const settled = state.status === "error" && state.reason !== "unknown";
+
+  useEffect(() => () => controllerRef.current?.abort(), []);
+
+  async function save() {
+    const controller = new AbortController();
+    controllerRef.current?.abort();
+    controllerRef.current = controller;
+    setState({ status: "loading" });
+
+    try {
+      await downloadMapBuildReport(apiBaseUrl, buildId, controller.signal);
+      if (!controller.signal.aborted) setState({ status: "success" });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setState({
+        status: "error",
+        reason: error instanceof MapReportError ? error.reason : "unknown",
+      });
+    } finally {
+      if (controllerRef.current === controller) controllerRef.current = null;
+    }
+  }
+
+  return (
+    <div className="readiness-download">
+      <button
+        className="btn"
+        type="button"
+        onClick={() => void save()}
+        disabled={state.status === "loading" || settled}
+      >
+        {state.status === "loading" ? (
+          <LoaderCircle className="spin" aria-hidden="true" size={14} />
+        ) : (
+          <Download aria-hidden="true" size={14} />
+        )}
+        {state.status === "loading" ? "Downloading…" : "Download report (.md)"}
+      </button>
+      <p className="readiness-download-note" role="status" aria-live="polite">
+        {downloadNote(state)}
+      </p>
+    </div>
+  );
+}
+
+export function ReadinessPanel({
+  report,
+  graph,
+  buildId,
+  onClose,
+}: Props) {
   const parsed = report == null ? null : readinessReportSchema.safeParse(report);
   const isSample = report == null;
   const displayReport = parsed?.success ? parsed.data : isSample ? SAMPLE_READINESS_REPORT : null;
   const [mode, setMode] = useState<"preview" | "source">("preview");
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dataSourceMode = useViewerStore((state) => state.dataSourceMode);
+  const apiBaseUrl = useViewerStore((state) => state.apiBaseUrl);
+  const activeBuildId = useViewerStore((state) => state.activeBuildId);
+  const downloadBuildId = dataSourceMode === "api" ? (activeBuildId ?? buildId) : null;
 
   useEffect(() => {
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -201,6 +310,14 @@ export function ReadinessPanel({ report, graph, onClose }: Props) {
           </button>
         </header>
 
+        {downloadBuildId ? (
+          <BuildReportDownload
+            key={downloadBuildId}
+            apiBaseUrl={apiBaseUrl}
+            buildId={downloadBuildId}
+          />
+        ) : null}
+
         {isSample ? (
           <div className="readiness-sample-note" role="note">
             <FlaskConical aria-hidden="true" size={15} />
@@ -208,36 +325,36 @@ export function ReadinessPanel({ report, graph, onClose }: Props) {
           </div>
         ) : null}
 
-        {displayReport ? (
-          <>
-            <div className="readiness-view-tabs" role="tablist" aria-label="Readiness document view">
-              <button type="button" role="tab" aria-selected={mode === "preview"} className={mode === "preview" ? "is-active" : ""} onClick={() => setMode("preview")}>
-                <Eye aria-hidden="true" size={14} /> Preview
-              </button>
-              <button type="button" role="tab" aria-selected={mode === "source"} className={mode === "source" ? "is-active" : ""} onClick={() => setMode("source")}>
-                <FileText aria-hidden="true" size={14} /> Generated Markdown
-              </button>
+        <div className="readiness-view-tabs" role="tablist" aria-label="Readiness document view">
+          <button type="button" role="tab" aria-selected={mode === "preview"} className={mode === "preview" ? "is-active" : ""} onClick={() => setMode("preview")}>
+            <Eye aria-hidden="true" size={14} /> Preview
+          </button>
+          <button type="button" role="tab" aria-selected={mode === "source"} className={mode === "source" ? "is-active" : ""} disabled={!displayReport} onClick={() => setMode("source")}>
+            <FileText aria-hidden="true" size={14} /> Generated Markdown
+          </button>
+        </div>
+        <div className="readiness-body">
+          {displayReport && mode === "preview" ? (
+            <RenderedReport report={displayReport} graph={graph} />
+          ) : displayReport ? (
+            <div className="readiness-source-view">
+              <div className="readiness-sample-note" role="note">
+                <FileText aria-hidden="true" size={15} />
+                <span>
+                  This plain text is generated from the inline <code>readiness-report/v1</code>
+                  payload. The build&apos;s own map artifact, <code>ai_system_map.md</code>, is a
+                  separate document with its own download, not this text.
+                </span>
+              </div>
+              <pre className="readiness-markdown-source">{buildReadinessMarkdown(displayReport, graph)}</pre>
             </div>
-            <div className="readiness-body">
-              {mode === "preview" ? (
-                <RenderedReport report={displayReport} graph={graph} />
-              ) : (
-                <div className="readiness-source-view">
-                  <div className="readiness-sample-note" role="note">
-                    <FileText aria-hidden="true" size={15} />
-                    <span>This plain text is generated from the inline <code>readiness-report/v1</code> payload. No standalone Markdown artifact preview or download is available without a safe build-scoped artifact endpoint.</span>
-                  </div>
-                  <pre className="readiness-markdown-source">{buildReadinessMarkdown(displayReport, graph)}</pre>
-                </div>
-              )}
+          ) : (
+            <div className="readiness-empty">
+              <CircleSlash2 aria-hidden="true" size={16} />
+              <p>The readiness report uses a contract this viewer version does not support, so findings are not shown.</p>
             </div>
-          </>
-        ) : (
-          <div className="readiness-empty">
-            <CircleSlash2 aria-hidden="true" size={16} />
-            <p>The readiness report uses a contract this viewer version does not support, so findings are not shown.</p>
-          </div>
-        )}
+          )}
+        </div>
       </section>
     </div>
   );
